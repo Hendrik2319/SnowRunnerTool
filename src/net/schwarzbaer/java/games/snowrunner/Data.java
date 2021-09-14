@@ -14,15 +14,16 @@ import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-public class Data {
-	
-	public static Data readInitialPAK(String path) {
-		return readInitialPAK(new File(path));
-	}
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
 
-	public static Data readInitialPAK(File file) {
+public class Data {
+
+	public static Data readInitialPAK(File steamLibraryFolder) {
+		File file = new File(steamLibraryFolder,"steamapps/common/SnowRunner/preload/paks/client/initial.pak");
 		
 		try (ZipFile zipFile = new ZipFile(file, ZipFile.OPEN_READ); ) {
+			System.out.printf("Read \"initial.pak\" ...%n");
 			ZipEntryTreeNode zipRoot = new ZipEntryTreeNode();
 			
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
@@ -30,10 +31,13 @@ public class Data {
 				ZipEntry entry = entries.nextElement();
 				zipRoot.addChild(entry);
 				String entryName = entry.getName();
-				System.out.printf("\"%s\"%n", entryName);
+				System.out.printf("   \"%s\"%n", entryName);
 			}
 			
-			return new Data(zipFile, zipRoot);
+			Data data = new Data(zipFile, zipRoot);
+			System.out.printf("... done%n");
+			return data;
+			
 		} catch (IOException e) { e.printStackTrace(); }
 		
 		return null;
@@ -54,15 +58,15 @@ public class Data {
 		readEntries(zipFile, languageNodes, languages, (name,input)->Language.readFrom(name, input));
 		
 		ZipEntryTreeNode trucksTemplateNode = zipRoot.getSubFile ("[media]\\_templates\\", "trucks.xml");
-		trucksTemplate = TrucksTemplate.readFrom(zipFile.getInputStream(trucksTemplateNode.entry));
+		trucksTemplate = TrucksTemplate.readFromXML(zipFile.getInputStream(trucksTemplateNode.entry));
 		
 		defaultWheels = new HashMap<>();
 		ZipEntryTreeNode[] defaultWheelNodes = zipRoot.getSubFiles("[media]\\classes\\wheels\\", isXML);
-		readEntries(zipFile, defaultWheelNodes, defaultWheels, (name,input)->Wheel.readFrom(name, input, trucksTemplate));
+		readXMLEntries(zipFile, defaultWheelNodes, defaultWheels, (name,doc)->Wheel.readFromXML(name, doc, trucksTemplate));
 		
 		defaultTrucks = new HashMap<>();
 		ZipEntryTreeNode[] defaultTruckNodes = zipRoot.getSubFiles("[media]\\classes\\trucks\\", isXML);
-		readEntries(zipFile, defaultTruckNodes, defaultTrucks, (name,input)->Truck.readFrom(name, input, trucksTemplate, defaultWheels));
+		readXMLEntries(zipFile, defaultTruckNodes, defaultTrucks, (name,doc)->Truck.readFromXML(name, doc, trucksTemplate, defaultWheels));
 		
 		dlcList = new Vector<>();
 		ZipEntryTreeNode[] dlcNodes = zipRoot.getSubFolders("[media]\\_dlc");
@@ -72,11 +76,11 @@ public class Data {
 			
 			ZipEntryTreeNode[] wheelNodes = dlcNode.getSubFiles("classes\\wheels\\", isXML);
 			if (wheelNodes!=null)
-				readEntries(zipFile, wheelNodes, dlc.wheels, (name,input)->Wheel.readFrom(name, input, trucksTemplate));
+				readXMLEntries(zipFile, wheelNodes, dlc.wheels, (name,doc)->Wheel.readFromXML(name, doc, trucksTemplate));
 			
 			ZipEntryTreeNode[] truckNodes = dlcNode.getSubFiles("classes\\trucks\\", isXML);
 			if (truckNodes!=null)
-				readEntries(zipFile, truckNodes, dlc.trucks, (name,input)->Truck.readFrom(name, input, trucksTemplate, defaultWheels, dlc.wheels));
+				readXMLEntries(zipFile, truckNodes, dlc.trucks, (name,doc)->Truck.readFromXML(name, doc, trucksTemplate, defaultWheels, dlc.wheels));
 		}
 		
 	}
@@ -94,10 +98,28 @@ public class Data {
 		
 	}
 	
-	private <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, BiFunction<String,InputStream,ValueType> readXML) throws IOException {
+	interface ParseXMLFunction<ValueType> {
+		ValueType parse(String name, Document doc) throws ParseException;
+	}
+	
+	private <ValueType> void readXMLEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, ParseXMLFunction<ValueType> readXML) throws IOException {
+		readEntries(zipFile, nodes, targetMap, (name,input)->{
+			try {
+				return readXML.parse(name, XML.parseUTF8(input,content->"<root>"+content+"</root>"));
+			} catch (ParseException ex) {
+				System.err.printf("[%s] ParseException: %s%n", name, ex.getMessage());
+				//ex.printStackTrace();
+				return null;
+			}
+		});
+	}
+	
+	private <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
 		for (ZipEntryTreeNode node:nodes) {
 			InputStream input = zipFile.getInputStream(node.entry);
-			targetMap.put(node.name, readXML.apply(node.name, input));
+			ValueType value = readInput.apply(node.name, input);
+			if (value!=null)
+				targetMap.put(node.name, value);
 		}
 	}
 	
@@ -224,7 +246,7 @@ public class Data {
 	
 	static class TrucksTemplate {
 
-		static TrucksTemplate readFrom(InputStream input) {
+		static TrucksTemplate readFromXML(InputStream input) {
 			// TODO Auto-generated method stub
 			return null;
 		}
@@ -233,7 +255,7 @@ public class Data {
 
 	static class Wheel {
 
-		static Wheel readFrom(String name, InputStream input, TrucksTemplate trucksTemplate) {
+		static Wheel readFromXML(String name, Document doc, TrucksTemplate trucksTemplate) {
 			// TODO Auto-generated method stub
 			return null;
 		}
@@ -241,16 +263,102 @@ public class Data {
 	}
 
 	static class Truck {
+		
+		final String xmlName;
+		final String type;
+		final Vector<CompatibleWheel> compatibleWheels;
+		final String country;
+		final Integer price;
+		final Boolean unlockByExploration;
+		final Integer unlockByRank;
+		final String description_StringID;
+		final String name_StringID;
 
-		static Truck readFrom(String name, InputStream input, TrucksTemplate trucksTemplate, HashMap<String, Wheel> defaultWheels) {
-			// TODO Auto-generated method stub
-			return null;
-		}
-
-		static Truck readFrom(String name, InputStream input, TrucksTemplate trucksTemplate, HashMap<String, Wheel> defaultWheels, HashMap<String, Wheel> dlcWheels) {
-			// TODO Auto-generated method stub
-			return null;
+		Truck(String xmlName, Document doc) throws ParseException {
+			this.xmlName = xmlName;
+			
+			Node rootNode = XML.getChild(doc,"root");
+			if (rootNode==null)
+				throw new ParseException("Can't find <root> node.");
+			
+			Node truckNode = XML.getChild(rootNode,"Truck");
+			if (truckNode==null)
+				throw new ParseException("Can't find <Truck> node.");
+			
+			Node truckDataNode = XML.getChild(truckNode,"TruckData");
+			if (truckDataNode==null)
+				throw new ParseException("Can't find <TruckData> node.");
+			
+			type = XML.getAttribute(truckDataNode,"TruckType");
+			
+			compatibleWheels = new Vector<CompatibleWheel>();
+			Node[] compatibleWheelNodes = XML.getChildren(truckNode,"CompatibleWheels");
+			for (Node node:compatibleWheelNodes) {
+				compatibleWheels.add(new CompatibleWheel(node));
+			}
+			
+			Node gameDataNode = XML.getChild(truckNode,"GameData");
+			if (gameDataNode==null)
+				throw new ParseException("Can't find <GameData> node.");
+			
+			country = XML.getAttribute(gameDataNode,"Country");
+			price   = parseInt(XML.getAttribute(gameDataNode,"Price"));
+			unlockByExploration = parseBool(XML.getAttribute(gameDataNode,"UnlockByExploration"));
+			unlockByRank        = parseInt (XML.getAttribute(gameDataNode,"UnlockByRank"));
+			
+			Node uiDescNode = XML.getChild(gameDataNode,"UiDesc");
+			if (uiDescNode==null)
+				throw new ParseException("Can't find <UiDesc> node.");
+			
+			description_StringID = XML.getAttribute(uiDescNode,"UiDesc");
+			name_StringID = XML.getAttribute(uiDescNode,"UiName");
 		}
 		
+		private Integer parseInt(String str) {
+			if (str==null) return null;
+			try {
+				return Integer.parseInt(str);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		}
+
+		private Boolean parseBool(String str) {
+			if (str==null) return null;
+			if ("true" .equalsIgnoreCase(str)) return true;
+			if ("false".equalsIgnoreCase(str)) return false;
+			return null;
+		}
+
+		static Truck readFromXML(String name, Document doc, TrucksTemplate trucksTemplate, HashMap<String, Wheel> defaultWheels) throws ParseException {
+			return new Truck(name, doc);
+		}
+
+		static Truck readFromXML(String name, Document doc, TrucksTemplate trucksTemplate, HashMap<String, Wheel> defaultWheels, HashMap<String, Wheel> dlcWheels) throws ParseException {
+			return new Truck(name, doc);
+		}
+		
+		static class CompatibleWheel {
+			
+			final String scale;
+			final String type;
+			
+			public CompatibleWheel(Node node) {
+				scale = XML.getAttribute(node, "Scale");
+				type  = XML.getAttribute(node, "Type");
+			}
+		}
+	}
+	
+	private static class ParseException extends Exception {
+		private static final long serialVersionUID = -5149129627690101282L;
+		
+		ParseException(String msg) {
+			super(msg);
+		}
+		@SuppressWarnings("unused")
+		ParseException(String format, Object... objects) {
+			super(String.format(format, objects));
+		}
 	}
 }
