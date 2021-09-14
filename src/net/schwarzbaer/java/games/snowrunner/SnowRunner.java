@@ -257,6 +257,14 @@ public class SnowRunner {
 			if (description != null)
 				out.add(0, null, "\"%s\"", description);
 			
+			if (!truck.compatibleWheels.isEmpty()) {
+				out.add(0, "Compatible Wheels", truck.compatibleWheels.size());
+				for (int i=0; i<truck.compatibleWheels.size(); i++) {
+					Data.Truck.CompatibleWheel cw = truck.compatibleWheels.get(i);
+					out.add(1, String.format("[%d]", i+1), "(%s) %s", cw.scale, cw.type);
+				}
+			}
+			
 			outTextArea.setText(out.generateOutput());
 		}
 	}

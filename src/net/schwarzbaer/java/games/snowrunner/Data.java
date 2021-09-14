@@ -292,10 +292,9 @@ public class Data {
 			type = XML.getAttribute(truckDataNode,"TruckType");
 			
 			compatibleWheels = new Vector<CompatibleWheel>();
-			Node[] compatibleWheelNodes = XML.getChildren(truckNode,"CompatibleWheels");
-			for (Node node:compatibleWheelNodes) {
+			Node[] compatibleWheelNodes = XML.getChildren(truckDataNode,"CompatibleWheels");
+			for (Node node:compatibleWheelNodes)
 				compatibleWheels.add(new CompatibleWheel(node));
-			}
 			
 			Node gameDataNode = XML.getChild(truckNode,"GameData");
 			if (gameDataNode==null)
