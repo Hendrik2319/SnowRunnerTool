@@ -117,6 +117,7 @@ public class SnowRunner {
 				settings.remove(key);
 		}));
 		
+		mainWindow.setIconImagesFromResource("/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
 		
 		if (settings.isSet(AppSettings.ValueGroup.WindowPos )) mainWindow.setLocation(settings.getWindowPos ());

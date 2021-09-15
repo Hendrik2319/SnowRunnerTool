@@ -54,7 +54,7 @@ public class Data {
 		
 		languages = new HashMap<>();
 		ZipEntryTreeNode[] languageNodes = zipRoot.getSubFiles("[strings]", isSTR);
-		readEntries(zipFile, languageNodes, languages, (name,input)->Language.readFrom(name, input));
+		readEntries(zipFile, languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
 		
 		ZipEntryTreeNode trucksTemplateNode = zipRoot.getSubFile ("[media]\\_templates\\", "trucks.xml");
 		trucksTemplate = readXMLEntry(zipFile, trucksTemplateNode, (name,doc)->TrucksTemplates.readFromXML(name, doc));
@@ -67,23 +67,23 @@ public class Data {
 		
 		wheels = new HashMap<>();
 		ZipEntryTreeNode[] defaultWheelNodes = zipRoot.getSubFiles("[media]\\classes\\wheels\\", isXML);
-		readXMLEntries(zipFile, defaultWheelNodes, wheels, (name,doc)->WheelsDef.readFromXML(name, null, doc, trucksTemplate));
+		readXMLEntries(zipFile, defaultWheelNodes, wheels, "wheels", (name,doc)->WheelsDef.readFromXML(name, null, doc, trucksTemplate));
 		
 		ZipEntryTreeNode[] dlcNodes = zipRoot.getSubFolders("[media]\\_dlc");
 		for (ZipEntryTreeNode dlcNode:dlcNodes) {
 			ZipEntryTreeNode[] wheelNodes = dlcNode.getSubFiles("classes\\wheels\\", isXML);
 			if (wheelNodes!=null)
-				readXMLEntries(zipFile, wheelNodes, wheels, (name,doc)->WheelsDef.readFromXML(name, dlcNode.name, doc, trucksTemplate));
+				readXMLEntries(zipFile, wheelNodes, wheels, "wheels", (name,doc)->WheelsDef.readFromXML(name, dlcNode.name, doc, trucksTemplate));
 		}
 		
 		trucks = new HashMap<>();
 		ZipEntryTreeNode[] defaultTruckNodes = zipRoot.getSubFiles("[media]\\classes\\trucks\\", isXML);
-		readXMLEntries(zipFile, defaultTruckNodes, trucks, (name,doc)->Truck.readFromXML(name, null, doc, trucksTemplate, wheels));
+		readXMLEntries(zipFile, defaultTruckNodes, trucks, "trucks", (name,doc)->Truck.readFromXML(name, null, doc, trucksTemplate, wheels));
 		
 		for (ZipEntryTreeNode dlcNode:dlcNodes) {
 			ZipEntryTreeNode[] truckNodes = dlcNode.getSubFiles("classes\\trucks\\", isXML);
 			if (truckNodes!=null)
-				readXMLEntries(zipFile, truckNodes, trucks, (name,doc)->Truck.readFromXML(name, dlcNode.name, doc, trucksTemplate, wheels));
+				readXMLEntries(zipFile, truckNodes, trucks, "trucks", (name,doc)->Truck.readFromXML(name, dlcNode.name, doc, trucksTemplate, wheels));
 		}
 		
 	}
@@ -117,8 +117,8 @@ public class Data {
 		});
 	}
 	
-	private <ValueType> void readXMLEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, ParseXMLFunction<ValueType> readXML) throws IOException {
-		readEntries(zipFile, nodes, targetMap, (name,input)->{
+	private <ValueType> void readXMLEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, ParseXMLFunction<ValueType> readXML) throws IOException {
+		readEntries(zipFile, nodes, targetMap, targetMapLabel, (name,input)->{
 			try {
 				return readXML.parse(name, XML.parseUTF8(input,content->"<root>"+content+"</root>"));
 			} catch (ParseException ex) {
@@ -129,11 +129,14 @@ public class Data {
 		});
 	}
 	
-	private <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
+	private <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
 		for (ZipEntryTreeNode node:nodes) {
 			ValueType value = readEntry(zipFile, node, readInput);
-			if (value!=null)
+			if (value!=null) {
+				if (targetMap.containsKey(node.name))
+					System.err.printf("[%s] Found redundant key in HashMap: %s%n", targetMapLabel, node.name);
 				targetMap.put(node.name, value);
+			}
 		}
 	}
 
