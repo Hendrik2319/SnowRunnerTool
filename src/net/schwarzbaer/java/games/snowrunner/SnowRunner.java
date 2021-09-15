@@ -1,9 +1,11 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Point;
+import java.awt.Window;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -13,14 +15,20 @@ import java.util.HashMap;
 import java.util.Vector;
 
 import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JFileChooser;
+import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.ListModel;
@@ -28,7 +36,9 @@ import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.ListDataListener;
+import javax.swing.filechooser.FileFilter;
 
+import net.schwarzbaer.gui.Disabler;
 import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
@@ -72,7 +82,7 @@ public class SnowRunner {
 		truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		truckList.addListSelectionListener(e->{
 			TruckListModel.Item item = truckList.getSelectedValue();
-			truckPanel.setTruck(item.truck);
+			truckPanel.setTruck(item==null ? null : item.truck);
 		});
 		
 		langCmbBx = new JComboBox<>();
@@ -127,6 +137,10 @@ public class SnowRunner {
 			boolean changed = reloadInitialPAK();
 			if (changed) updateAfterDataChange();
 		}));
+		fileMenu.add(createMenuItem("Reset application settings", true, e->{
+			for (AppSettings.ValueKey key:AppSettings.ValueKey.values())
+				settings.remove(key);
+		}));
 		
 		mainWindow.startGUI(contentPane, menuBar);
 		
@@ -147,9 +161,9 @@ public class SnowRunner {
 	}
 
 	private boolean reloadInitialPAK() {
-		File folder = getSteamLibraryFolder();
-		if (folder!=null) {
-			Data newData = Data.readInitialPAK(folder);
+		File initialPAK = getInitialPAK();
+		if (initialPAK!=null) {
+			Data newData = Data.readInitialPAK(initialPAK);
 			if (newData!=null) {
 				data = newData;
 				return true;
@@ -159,18 +173,16 @@ public class SnowRunner {
 	}
 
 
-	private File getSteamLibraryFolder() {
-		File folder = settings.getFile(AppSettings.ValueKey.SteamLibraryFolder, null);
-		if (folder==null) {
-			folderChooser.setDialogTitle("Select SteamLibrary Folder");
-			if (folderChooser.showOpenDialog(mainWindow)!=JFileChooser.APPROVE_OPTION)
+	private File getInitialPAK() {
+		File initialPAK = settings.getFile(AppSettings.ValueKey.InitialPAK, null);
+		if (initialPAK==null || !initialPAK.isFile()) {
+			DataSelectDialog dlg = new DataSelectDialog(mainWindow);
+			initialPAK = dlg.showDialog();
+			if (initialPAK == null || !initialPAK.isFile())
 				return null;
-			folder = folderChooser.getSelectedFile();
-			if (!folder.isDirectory())
-				return null;
-			settings.putFile(AppSettings.ValueKey.SteamLibraryFolder, folder);
+			settings.putFile(AppSettings.ValueKey.InitialPAK, initialPAK);
 		}
-		return folder;
+		return initialPAK;
 	}
 
 	private void updateAfterDataChange() {
@@ -193,11 +205,231 @@ public class SnowRunner {
 		truckPanel.setLanguage(language);
 	}
 
-	private JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
+	private static JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
 		JMenuItem comp = new JMenuItem(title);
-		if (al!=null) comp.addActionListener(al);
 		comp.setEnabled(isEnabled);
+		if (al!=null) comp.addActionListener(al);
 		return comp;
+	}
+	
+	private static JButton createButton(String title, boolean isEnabled, ActionListener al) {
+		JButton comp = new JButton(title);
+		comp.setEnabled(isEnabled);
+		if (al!=null) comp.addActionListener(al);
+		return comp;
+	}
+	private static <AC> JButton createButton(String title, boolean isEnabled, Disabler<AC> disabler, AC ac, ActionListener al) {
+		JButton comp = createButton(title, isEnabled, al);
+		if (disabler!=null) disabler.add(ac, comp);
+		return comp;
+	}
+
+	private static JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, ActionListener al) {
+		JRadioButton comp = new JRadioButton(title);
+		if (bg!=null) bg.add(comp);
+		comp.setEnabled(isEnabled);
+		comp.setSelected(isSelected);
+		if (al!=null) comp.addActionListener(al);
+		return comp;
+	}
+	private static <AC> JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, Disabler<AC> disabler, AC ac, ActionListener al) {
+		JRadioButton comp = createRadioButton(title, bg, isEnabled, isSelected, al);
+		if (disabler!=null) disabler.add(ac, comp);
+		return comp;
+	}
+	
+	private static <AC> JLabel createLabel(String text, Disabler<AC> disabler, AC ac) {
+		JLabel comp = new JLabel(text);
+		if (disabler!=null) disabler.add(ac, comp);
+		return comp;
+	}
+
+	private static class DataSelectDialog extends JDialog {
+		private static final long serialVersionUID = 5535879419617093256L;
+		
+		private final Disabler<ActionCommands> disabler;
+
+		private Boolean defineFullPath;
+		private Boolean selectSteamLibrary;
+		private File result;
+
+		private final JFileChooser fileChooser;
+
+
+		private enum ActionCommands { GameFolderLabel, GameFolderRB, OkBtn }
+		
+		DataSelectDialog(Window owner) {
+			super(owner, "", ModalityType.APPLICATION_MODAL);
+			defineFullPath = null;
+			selectSteamLibrary = null;
+			result = null;
+			
+			fileChooser = new JFileChooser("./");
+			fileChooser.setMultiSelectionEnabled(false);
+			
+			disabler = new Disabler<>();
+			disabler.setCareFor(ActionCommands.values());
+			
+			JPanel centerPanel = new JPanel(new GridBagLayout());
+			GridBagConstraints c = new GridBagConstraints();
+			c.fill = GridBagConstraints.BOTH;
+			
+			c.gridwidth = GridBagConstraints.REMAINDER;
+			centerPanel.add(new JLabel("How do you want to define location of \"initial.pak\"?"),c);
+			
+			ButtonGroup bg0 = new ButtonGroup();
+			centerPanel.add(createRadioButton("full path to \"initial.pak\"",bg0,true,false,e->{ defineFullPath = true ; updateGuiAccess(); }),c);
+			centerPanel.add(createRadioButton("via game installation folder",bg0,true,false,e->{ defineFullPath = false; updateGuiAccess(); }),c);
+
+			c.gridwidth = 1;
+			String spacer = "          ";
+			centerPanel.add(new JLabel(spacer),c);
+			c.gridwidth = GridBagConstraints.REMAINDER;
+			centerPanel.add(createLabel("How is your game installed?", disabler, ActionCommands.GameFolderLabel),c);
+
+			ButtonGroup bg1 = new ButtonGroup();
+			c.gridwidth = 1;
+			centerPanel.add(new JLabel(spacer),c);
+			c.gridwidth = GridBagConstraints.REMAINDER;
+			centerPanel.add(createRadioButton("direct installation (e.g. in \"Program Files\") --> select installation folder",bg1,true,false,
+					disabler, ActionCommands.GameFolderRB,
+					e->{ selectSteamLibrary = false; updateGuiAccess(); }),c);
+			
+			c.gridwidth = 1;
+			centerPanel.add(new JLabel(spacer),c);
+			c.gridwidth = GridBagConstraints.REMAINDER;
+			centerPanel.add(createRadioButton("via Steam platform --> select Steam library where game is installed into",bg1,true,false,
+					disabler, ActionCommands.GameFolderRB,
+					e->{ selectSteamLibrary = true; updateGuiAccess(); }),c);
+			
+			c.gridwidth = 1;
+			centerPanel.add(new JLabel(spacer),c);
+			c.gridwidth = GridBagConstraints.REMAINDER;
+			centerPanel.add(createRadioButton("via another gaming platform --> select installation folder",bg1,true,false,
+					disabler, ActionCommands.GameFolderRB,
+					e->{ selectSteamLibrary = false; updateGuiAccess(); }),c);
+			
+			JPanel buttonPanel = new JPanel(new GridBagLayout());
+			c = new GridBagConstraints();
+			c.fill = GridBagConstraints.BOTH;
+			
+			c.weightx = 1;
+			buttonPanel.add(new JLabel(),c);
+			c.weightx = 0;
+			buttonPanel.add(createButton("Ok", false, disabler, ActionCommands.OkBtn, e->{
+				fileChooser.resetChoosableFileFilters();
+				
+				if (defineFullPath) {
+					fileChooser.setDialogTitle("Select initial.pak");
+					fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+					fileChooser.addChoosableFileFilter(new FileFilter() {
+						@Override public String getDescription() { return "initial.pak only"; }
+						@Override public boolean accept(File file) { return !file.isFile() || file.getName().equalsIgnoreCase("initial.pak"); }
+					});
+					
+					if (fileChooser.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION)
+						return;
+					
+					File file = fileChooser.getSelectedFile();
+					if (!file.isFile()) {
+						String msg = "Selected file isn't a file or doesn't exist.";
+						JOptionPane.showMessageDialog(this, msg, "Wrong file", JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+					
+					result = file;
+					
+				} else if (selectSteamLibrary) {
+					fileChooser.setDialogTitle("Select Steam Library");
+					fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+					
+					if (fileChooser.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION)
+						return;
+					
+					File folder = fileChooser.getSelectedFile();
+					if (!folder.isDirectory()) {
+						String msg = "Selected folder isn't a folder or doesn't exist.";
+						JOptionPane.showMessageDialog(this, msg, "Wrong folder", JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+					
+					File file = new File(folder,"steamapps/common/SnowRunner/preload/paks/client/initial.pak");
+					if (!file.isFile()) {
+						String msg = String.format("Can't find \"initial.pak\" at expected location:%n\"%s\"", file.getAbsolutePath());
+						JOptionPane.showMessageDialog(this, msg, "Can't find file", JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+					
+					result = file;
+					
+				} else {
+					fileChooser.setDialogTitle("Select game folder");
+					fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+					
+					if (fileChooser.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION)
+						return;
+					
+					File folder = fileChooser.getSelectedFile();
+					if (!folder.isDirectory()) {
+						String msg = "Selected folder isn't a folder or doesn't exist.";
+						JOptionPane.showMessageDialog(this, msg, "Wrong folder", JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+					
+					File file = new File(folder,"preload/paks/client/initial.pak");
+					if (!file.isFile()) {
+						String msg = String.format("Can't find \"initial.pak\" at expected location:%n\"%s\"", file.getAbsolutePath());
+						JOptionPane.showMessageDialog(this, msg, "Can't find file", JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+					
+					result = file;
+				}
+				
+				setVisible(false);
+			}),c);
+			buttonPanel.add(createButton("Cancel", true, e->setVisible(false)),c);
+			
+			JPanel contentPane = new JPanel(new BorderLayout());
+			contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+			contentPane.add(centerPanel,BorderLayout.CENTER);
+			contentPane.add(buttonPanel,BorderLayout.SOUTH);
+			
+			setContentPane(contentPane);
+			pack();
+			
+			Point oLoc = owner.getLocation();
+			Dimension oSize = owner.getSize();
+			Dimension mySize = getSize();
+			setLocation(
+					oLoc.x + (oSize.width -mySize.width )/2,
+					oLoc.y + (oSize.height-mySize.height)/2
+			);
+			
+			updateGuiAccess();
+		}
+
+		private void updateGuiAccess() {
+			disabler.setEnable(ac->{
+				switch (ac) {
+				case GameFolderLabel:
+				case GameFolderRB:
+					return defineFullPath!=null && !defineFullPath; 
+					
+				case OkBtn:
+					return defineFullPath!=null && (defineFullPath || selectSteamLibrary!=null); 
+				}
+				return null;
+			});
+		}
+
+		public File showDialog() {
+			setVisible(true);
+			return result;
+		}
+		
+		
+		
 	}
 	
 	private class TruckPanel extends JScrollPane {
@@ -331,7 +563,7 @@ public class SnowRunner {
 	
 	private static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		enum ValueKey {
-			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language,
+			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

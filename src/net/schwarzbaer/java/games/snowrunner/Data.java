@@ -19,10 +19,8 @@ import org.w3c.dom.Node;
 
 public class Data {
 
-	public static Data readInitialPAK(File steamLibraryFolder) {
-		File file = new File(steamLibraryFolder,"steamapps/common/SnowRunner/preload/paks/client/initial.pak");
-		
-		try (ZipFile zipFile = new ZipFile(file, ZipFile.OPEN_READ); ) {
+	public static Data readInitialPAK(File initialPAK) {
+		try (ZipFile zipFile = new ZipFile(initialPAK, ZipFile.OPEN_READ); ) {
 			System.out.printf("Read \"initial.pak\" ...%n");
 			ZipEntryTreeNode zipRoot = new ZipEntryTreeNode();
 			
