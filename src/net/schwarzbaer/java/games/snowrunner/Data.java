@@ -632,8 +632,14 @@ public class Data {
 			
 			compatibleWheels = new Vector<CompatibleWheel>();
 			Node[] compatibleWheelNodes = XML.getChildren(truckDataNode,"CompatibleWheels");
-			for (Node node:compatibleWheelNodes) {
-				compatibleWheels.add(new CompatibleWheel(node, getTruckTires));
+			for (int i=0; i<compatibleWheelNodes.length; i++) {
+				Node node = compatibleWheelNodes[i];
+				CompatibleWheel cw = new CompatibleWheel(node, getTruckTires);
+				compatibleWheels.add(cw);
+				if (cw.truckTires==null)
+					System.out.printf("[%s] CompatibleWheels[%d]<%s> -> <null> tire list%n", this.xmlName, i, cw.type);
+				else if (cw.truckTires.isEmpty())
+					System.out.printf("[%s] CompatibleWheels[%d]<%s> -> empty tire list%n", this.xmlName, i, cw.type);
 			}
 			
 			Node gameDataNode = XML.getChild(truckNode,"GameData");
