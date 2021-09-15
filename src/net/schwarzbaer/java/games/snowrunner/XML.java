@@ -10,6 +10,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Vector;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -95,9 +96,26 @@ class XML {
 
 	static String getAttribute(Node node, String name) {
 		NamedNodeMap attributes = node.getAttributes();
+		if (attributes==null) return null;
 		Node namedItem = attributes.getNamedItem(name);
 		if (namedItem==null) return null;
 		return namedItem.getNodeValue();
+	}
+
+	public static boolean hasAttribute(Node node, String name) {
+		NamedNodeMap attributes = node.getAttributes();
+		if (attributes==null) return false;
+		Node namedItem = attributes.getNamedItem(name);
+		return namedItem!=null;
+	}
+
+	static void forEachChild(Node node, Consumer<Node> action) {
+		NodeList childNodes = node.getChildNodes();
+		for (int i=0; i<childNodes.getLength(); i++) {
+			Node childNode = childNodes.item(i);
+			if (childNode.getNodeType()==Node.ELEMENT_NODE)
+			action.accept(childNode);
+		}
 	}
 
 }

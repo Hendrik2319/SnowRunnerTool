@@ -480,12 +480,12 @@ public class SnowRunner {
 				description = language.dictionary.get(truck.description_StringID);
 			}
 			if (name==null)
-				out.add(0, "name", "<%s>", truck.name_StringID);
+				out.add(0, "Name", "<%s>", truck.name_StringID);
 			else {
-				out.add(0, "name", "%s"  , name);
+				out.add(0, "Name", "%s"  , name);
 				out.add(0, null  , "<%s>", truck.name_StringID);
 			}
-			out.add(0, "description", "<%s>", truck.description_StringID);
+			out.add(0, "Description", "<%s>", truck.description_StringID);
 			if (description != null)
 				out.add(0, null, "\"%s\"", description);
 			
@@ -494,6 +494,7 @@ public class SnowRunner {
 				for (int i=0; i<truck.compatibleWheels.size(); i++) {
 					Data.Truck.CompatibleWheel cw = truck.compatibleWheels.get(i);
 					out.add(1, String.format("[%d]", i+1), "(%s) %s", cw.scale, cw.type);
+					cw.printTireList(out,2);
 				}
 			}
 			
