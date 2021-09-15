@@ -230,14 +230,8 @@ public class SnowRunner {
 			items = new Vector<>();
 			language = null;
 			
-			data.defaultTrucks.forEach((name,truck)->{
-				items.add(new Item(null, name,truck));
-			});
-			
-			data.dlcList.forEach(dlc->{
-				dlc.trucks.forEach((name,truck)->{
-					items.add(new Item(dlc.name, name,truck));
-				});
+			data.trucks.forEach((name,truck)->{
+				items.add(new Item(name, truck));
 			});
 			
 			items.sort(Comparator.<Item,String>comparing(item->item.name));
@@ -255,12 +249,10 @@ public class SnowRunner {
 
 		private class Item {
 
-			private final String dlcName;
 			private final String name;
 			private final Truck truck;
 
-			public Item(String dlcName, String name, Truck truck) {
-				this.dlcName = dlcName;
+			public Item(String name, Truck truck) {
 				this.name = name;
 				this.truck = truck;
 			}
@@ -272,8 +264,9 @@ public class SnowRunner {
 					if (truckName==null)
 						truckName = name;
 				}
-				if (dlcName==null) return truckName;
-				return String.format("[%s] %s", dlcName, truckName);
+				if (truck!=null && truck.dlcName!=null)
+					return String.format("[%s] %s", truck.dlcName, truckName);
+				return truckName;
 			}
 		}
 		

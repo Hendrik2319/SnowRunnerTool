@@ -45,9 +45,8 @@ public class Data {
 
 	final HashMap<String,Language> languages;
 	final TrucksTemplates trucksTemplate;
-	final HashMap<String,WheelsDef> defaultWheels;
-	final HashMap<String,Truck> defaultTrucks;
-	final Vector<DLC> dlcList;
+	final HashMap<String,WheelsDef> wheels;
+	final HashMap<String,Truck> trucks;
 
 	Data(ZipFile zipFile, ZipEntryTreeNode zipRoot) throws IOException {
 		Predicate<String> isXML = fileName->fileName.endsWith(".xml");
@@ -66,27 +65,25 @@ public class Data {
 		//	System.out.println(trucksTemplate.toString());
 		//}
 		
-		defaultWheels = new HashMap<>();
+		wheels = new HashMap<>();
 		ZipEntryTreeNode[] defaultWheelNodes = zipRoot.getSubFiles("[media]\\classes\\wheels\\", isXML);
-		readXMLEntries(zipFile, defaultWheelNodes, defaultWheels, (name,doc)->WheelsDef.readFromXML(name, doc, trucksTemplate));
+		readXMLEntries(zipFile, defaultWheelNodes, wheels, (name,doc)->WheelsDef.readFromXML(name, null, doc, trucksTemplate));
 		
-		defaultTrucks = new HashMap<>();
-		ZipEntryTreeNode[] defaultTruckNodes = zipRoot.getSubFiles("[media]\\classes\\trucks\\", isXML);
-		readXMLEntries(zipFile, defaultTruckNodes, defaultTrucks, (name,doc)->Truck.readFromXML(name, doc, trucksTemplate, defaultWheels));
-		
-		dlcList = new Vector<>();
 		ZipEntryTreeNode[] dlcNodes = zipRoot.getSubFolders("[media]\\_dlc");
 		for (ZipEntryTreeNode dlcNode:dlcNodes) {
-			DLC dlc = new DLC(dlcNode.name);
-			dlcList.add(dlc);
-			
 			ZipEntryTreeNode[] wheelNodes = dlcNode.getSubFiles("classes\\wheels\\", isXML);
 			if (wheelNodes!=null)
-				readXMLEntries(zipFile, wheelNodes, dlc.wheels, (name,doc)->WheelsDef.readFromXML(name, doc, trucksTemplate));
-			
+				readXMLEntries(zipFile, wheelNodes, wheels, (name,doc)->WheelsDef.readFromXML(name, dlcNode.name, doc, trucksTemplate));
+		}
+		
+		trucks = new HashMap<>();
+		ZipEntryTreeNode[] defaultTruckNodes = zipRoot.getSubFiles("[media]\\classes\\trucks\\", isXML);
+		readXMLEntries(zipFile, defaultTruckNodes, trucks, (name,doc)->Truck.readFromXML(name, null, doc, trucksTemplate, wheels));
+		
+		for (ZipEntryTreeNode dlcNode:dlcNodes) {
 			ZipEntryTreeNode[] truckNodes = dlcNode.getSubFiles("classes\\trucks\\", isXML);
 			if (truckNodes!=null)
-				readXMLEntries(zipFile, truckNodes, dlc.trucks, (name,doc)->Truck.readFromXML(name, doc, trucksTemplate, defaultWheels, dlc.wheels));
+				readXMLEntries(zipFile, truckNodes, trucks, (name,doc)->Truck.readFromXML(name, dlcNode.name, doc, trucksTemplate, wheels));
 		}
 		
 	}
@@ -436,10 +433,12 @@ public class Data {
 
 		final ParentFile parent;
 		final String xmlName;
+		final String dlcName;
 		final Vector<TruckTire> truckTires;
 
-		WheelsDef(String xmlName, Document doc, TrucksTemplates trucksTemplates) throws ParseException {
+		WheelsDef(String xmlName, String dlcName, Document doc, TrucksTemplates trucksTemplates) throws ParseException {
 			this.xmlName = xmlName;
+			this.dlcName = dlcName;
 			
 			Node rootNode = XML.getChild(doc,"root");
 			if (rootNode==null)
@@ -477,19 +476,19 @@ public class Data {
 				if (truckTiresNode!=null) {
 					Node[] truckTireNodes = XML.getChildren(truckTiresNode, "TruckTire");
 					for (Node node:truckTireNodes)
-						truckTires.add(new TruckTire(node,trucksTemplates,localTruckTireTemplates));
+						truckTires.add(new TruckTire(node,this.dlcName,trucksTemplates,localTruckTireTemplates));
 				}
 				
 			} else {
 				Node truckWheelNode = XML.getChild(rootNode,"TruckWheel"); // for trailers
 				if (truckWheelNode!=null)
-					truckTires.add(new TruckTire(truckWheelNode,trucksTemplates));
+					truckTires.add(new TruckTire(truckWheelNode,this.dlcName,trucksTemplates));
 			}
 			
 		}
 		
-		static WheelsDef readFromXML(String name, Document doc, TrucksTemplates trucksTemplates) throws ParseException {
-			return new WheelsDef(name, doc, trucksTemplates);
+		static WheelsDef readFromXML(String name, String dlcName, Document doc, TrucksTemplates trucksTemplates) throws ParseException {
+			return new WheelsDef(name, dlcName, doc, trucksTemplates);
 		}
 	
 	}
@@ -498,12 +497,14 @@ public class Data {
 	
 		final String id;
 		final TruckTire template;
+		final String dlc;
 		final WheelFriction wheelFriction;
 		final GameData gameData;
 	
-		private TruckTire(String id, TruckTire template, Node node, TrucksTemplates trucksTemplates) throws ParseException { // base constructor
+		private TruckTire(String id, TruckTire template, Node node, String dlc, TrucksTemplates trucksTemplates) throws ParseException { // base constructor
 			this.id = id;
 			this.template = template;
+			this.dlc = dlc;
 			
 			Node wheelFrictionNode = XML.getChild(node,"WheelFriction");
 			if (wheelFrictionNode!=null)
@@ -527,16 +528,16 @@ public class Data {
 		}
 		
 		TruckTire(String id, Node node, TrucksTemplates trucksTemplates) throws ParseException { // as template
-			this(id, null, node, trucksTemplates);
+			this(id, null, node, null, trucksTemplates);
 		}
 	
-		TruckTire(Node node, TrucksTemplates trucksTemplates, HashMap<String, TruckTire> localTruckTireTemplates) throws ParseException { // as truck tire
+		TruckTire(Node node, String dlc, TrucksTemplates trucksTemplates, HashMap<String, TruckTire> localTruckTireTemplates) throws ParseException { // as truck tire
 			// <TruckTire _template="Highway" Mesh="wheels/tire_medium_highway_double_1" Name="highway_1">
-			this(null, getTemplate(node, localTruckTireTemplates, trucksTemplates.truckTireTemplates), node, trucksTemplates);
+			this(null, getTemplate(node, localTruckTireTemplates, trucksTemplates.truckTireTemplates), node, dlc, trucksTemplates);
 		}
 	
-		TruckTire(Node node, TrucksTemplates trucksTemplates) throws ParseException { // as trailer tire
-			this(null, null, node, trucksTemplates);
+		TruckTire(Node node, String dlc, TrucksTemplates trucksTemplates) throws ParseException { // as trailer tire
+			this(null, null, node, dlc, trucksTemplates);
 		}
 	
 		private static TruckTire getTemplate(Node node, HashMap<String, TruckTire> map1, HashMap<String, TruckTire> map2) throws ParseException {
@@ -599,6 +600,7 @@ public class Data {
 	static class Truck {
 		
 		final String xmlName;
+		final String dlcName;
 		final String type;
 		final String country;
 		final Integer price;
@@ -613,8 +615,9 @@ public class Data {
 			Vector<TruckTire> get(String id) throws ParseException;
 		}
 		
-		Truck(String xmlName, Document doc, GetTruckTires getTruckTires) throws ParseException {
+		Truck(String xmlName, String dlcName, Document doc, GetTruckTires getTruckTires) throws ParseException {
 			this.xmlName = xmlName;
+			this.dlcName = dlcName;
 			
 			Node rootNode = XML.getChild(doc,"root");
 			if (rootNode==null)
@@ -661,30 +664,16 @@ public class Data {
 			expandedCompatibleWheels = ExpandedCompatibleWheel.expand(compatibleWheels);
 		}
 
-		static Truck readFromXML(String name, Document doc, TrucksTemplates trucksTemplate, HashMap<String, WheelsDef> defaultWheels) throws ParseException {
-			return new Truck(name, doc, type->{
-				WheelsDef wheelsDef = getWheelsDef(type, defaultWheels, null);
-				return getTruckTires(wheelsDef, defaultWheels, null);
+		static Truck readFromXML(String name, String dlcName, Document doc, TrucksTemplates trucksTemplate, HashMap<String, WheelsDef> wheels) throws ParseException {
+			return new Truck(name, dlcName, doc, type->{
+				WheelsDef wheelsDef = wheels.get(type+".xml");
+				return getTruckTires(wheelsDef, wheels);
 			});
 		}
 
-		static Truck readFromXML(String name, Document doc, TrucksTemplates trucksTemplate, HashMap<String, WheelsDef> defaultWheels, HashMap<String, WheelsDef> dlcWheels) throws ParseException {
-			return new Truck(name, doc, type->{
-				WheelsDef wheelsDef = getWheelsDef(type, dlcWheels, defaultWheels);
-				return getTruckTires(wheelsDef, dlcWheels, defaultWheels);
-			});
-		}
-		
-		private static WheelsDef getWheelsDef(String type, HashMap<String, WheelsDef> map1, HashMap<String, WheelsDef> map2) {
-			WheelsDef wheelsDef = null;
-			if (wheelsDef==null && map1!=null) wheelsDef = map1.get(type+".xml");
-			if (wheelsDef==null && map2!=null) wheelsDef = map2.get(type+".xml");
-			return wheelsDef;
-		}
-
-		private static Vector<TruckTire> getTruckTires(WheelsDef wheelsDef, HashMap<String, WheelsDef> map1, HashMap<String, WheelsDef> map2) throws ParseException {
+		private static Vector<TruckTire> getTruckTires(WheelsDef wheelsDef, HashMap<String, WheelsDef> wheels) throws ParseException {
 			if (wheelsDef!=null && wheelsDef.parent!=null) {
-				WheelsDef parentWheelsDef = getWheelsDef(wheelsDef.parent.file, map1, map2);
+				WheelsDef parentWheelsDef = wheels.get(wheelsDef.parent.file+".xml");
 				if (parentWheelsDef==null)
 					throw new ParseException("Can't find parent file \"%s.xml\" to WheelsDef \"%s\"node.", wheelsDef.parent.file, wheelsDef.xmlName);
 				
@@ -700,6 +689,9 @@ public class Data {
 		static class ExpandedCompatibleWheel {
 
 			final Float scale;
+			final String dlc;
+			final String name_StringID;
+			final String description_StringID;
 			final String type_StringID;
 			final Float friction_highway;
 			final Float friction_offroad;
@@ -708,11 +700,11 @@ public class Data {
 			final Integer price;
 			final Boolean unlockByExploration;
 			final Integer unlockByRank;
-			final String description_StringID;
-			final String name_StringID;
 
 			public ExpandedCompatibleWheel(Float scale, TruckTire tire) {
 				this.scale = scale;
+				this.dlc = tire!=null ? tire.dlc : null;
+				
 				if (tire!=null && tire.gameData!=null) {
 					price                = tire.gameData.price;
 					unlockByExploration  = tire.gameData.unlockByExploration;
@@ -726,6 +718,7 @@ public class Data {
 					description_StringID = null;
 					name_StringID        = null;
 				}
+				
 				if (tire!=null && tire.wheelFriction!=null) {
 					type_StringID    = tire.wheelFriction.name_StringID;
 					friction_highway = tire.wheelFriction.friction_highway;

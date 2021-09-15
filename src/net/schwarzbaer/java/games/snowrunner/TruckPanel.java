@@ -126,6 +126,8 @@ class TruckPanel extends JSplitPane {
 		}
 		
 		ValueListOutput outTop = new ValueListOutput();
+		if (truck.dlcName!=null)
+			outTop.add(0, "DLC", truck.dlcName);
 		outTop.add(0, "Country", truck.country);
 		outTop.add(0, "Price"  , truck.price);
 		outTop.add(0, "Type"   , truck.type);
@@ -184,6 +186,7 @@ class TruckPanel extends JSplitPane {
 		enum ColumnID implements SimplifiedColumnIDInterface {
 			Type                ("Type"                 , String .class,  80), 
 			Name                ("Name"                 , String .class, 130), 
+			DLC                 ("DLC"                  , String .class,  80), 
 			Scale               ("Scale"                , Float  .class,  50), 
 			Friction_highway    ("Highway"              , Float  .class,  55), 
 			Friction_offroad    ("Offroad"              , Float  .class,  50), 
@@ -254,6 +257,7 @@ class TruckPanel extends JSplitPane {
 				case Type       : return getLangString( row.type_StringID );
 				case Name       : return getLangString( row.name_StringID );
 				case Description: return reducedString( getLangString( row.description_StringID ), 40 );
+				case DLC        : return row.dlc;
 				case Friction_highway: return row.friction_highway;
 				case Friction_offroad: return row.friction_offroad;
 				case Friction_mud    : return row.friction_mud;
