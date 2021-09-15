@@ -30,8 +30,8 @@ public class Data {
 			while (entries.hasMoreElements()) {
 				ZipEntry entry = entries.nextElement();
 				zipRoot.addChild(entry);
-				String entryName = entry.getName();
-				System.out.printf("   \"%s\"%n", entryName);
+				//String entryName = entry.getName();
+				//System.out.printf("   \"%s\"%n", entryName);
 			}
 			
 			Data data = new Data(zipFile, zipRoot);
@@ -59,12 +59,12 @@ public class Data {
 		
 		ZipEntryTreeNode trucksTemplateNode = zipRoot.getSubFile ("[media]\\_templates\\", "trucks.xml");
 		trucksTemplate = readXMLEntry(zipFile, trucksTemplateNode, (name,doc)->TrucksTemplates.readFromXML(name, doc));
-		if (trucksTemplate==null)
-			System.out.printf("TrucksTemplate: <null>%n");
-		else {
-			System.out.printf("TrucksTemplate:%n");
-			System.out.println(trucksTemplate.toString());
-		}
+		//if (trucksTemplate==null)
+		//	System.out.printf("TrucksTemplate: <null>%n");
+		//else {
+		//	System.out.printf("TrucksTemplate:%n");
+		//	System.out.println(trucksTemplate.toString());
+		//}
 		
 		defaultWheels = new HashMap<>();
 		ZipEntryTreeNode[] defaultWheelNodes = zipRoot.getSubFiles("[media]\\classes\\wheels\\", isXML);
@@ -600,13 +600,14 @@ public class Data {
 		
 		final String xmlName;
 		final String type;
-		final Vector<CompatibleWheel> compatibleWheels;
 		final String country;
 		final Integer price;
 		final Boolean unlockByExploration;
 		final Integer unlockByRank;
 		final String description_StringID;
 		final String name_StringID;
+		final Vector<CompatibleWheel> compatibleWheels;
+		final Vector<ExpandedCompatibleWheel> expandedCompatibleWheels;
 		
 		interface GetTruckTires {
 			Vector<TruckTire> get(String id) throws ParseException;
@@ -650,6 +651,8 @@ public class Data {
 			
 			description_StringID = XML.getAttribute(uiDescNode,"UiDesc");
 			name_StringID = XML.getAttribute(uiDescNode,"UiName");
+			
+			expandedCompatibleWheels = ExpandedCompatibleWheel.expand(compatibleWheels);
 		}
 
 		static Truck readFromXML(String name, Document doc, TrucksTemplates trucksTemplate, HashMap<String, WheelsDef> defaultWheels) throws ParseException {
@@ -686,6 +689,62 @@ public class Data {
 				
 			} else
 				return wheelsDef!=null ? wheelsDef.truckTires : null;
+		}
+
+		static class ExpandedCompatibleWheel {
+
+			final Float scale;
+			final String type_StringID;
+			final Float friction_highway;
+			final Float friction_offroad;
+			final Float friction_mud;
+			final Boolean onIce;
+			final Integer price;
+			final Boolean unlockByExploration;
+			final Integer unlockByRank;
+			final String description_StringID;
+			final String name_StringID;
+
+			public ExpandedCompatibleWheel(Float scale, TruckTire tire) {
+				this.scale = scale;
+				if (tire!=null && tire.gameData!=null) {
+					price                = tire.gameData.price;
+					unlockByExploration  = tire.gameData.unlockByExploration;
+					unlockByRank         = tire.gameData.unlockByRank;
+					description_StringID = tire.gameData.description_StringID;
+					name_StringID        = tire.gameData.name_StringID;
+				} else {
+					price                = null;
+					unlockByExploration  = null;
+					unlockByRank         = null;
+					description_StringID = null;
+					name_StringID        = null;
+				}
+				if (tire!=null && tire.wheelFriction!=null) {
+					type_StringID    = tire.wheelFriction.name_StringID;
+					friction_highway = tire.wheelFriction.friction_highway;
+					friction_offroad = tire.wheelFriction.friction_offroad;
+					friction_mud     = tire.wheelFriction.friction_mud;
+					onIce            = tire.wheelFriction.onIce;
+				} else {
+					type_StringID    = null;
+					friction_highway = null;
+					friction_offroad = null;
+					friction_mud     = null;
+					onIce            = null;
+				}
+			}
+
+			static Vector<ExpandedCompatibleWheel> expand(Vector<CompatibleWheel> compatibleWheels) {
+				Vector<ExpandedCompatibleWheel> expanded = new Vector<>();
+				
+				for (CompatibleWheel cw:compatibleWheels)
+					if (cw.truckTires!=null)
+						for (TruckTire tire:cw.truckTires)
+							expanded.add( new ExpandedCompatibleWheel(cw.scale,tire) );
+				
+				return expanded;
+			}
 		}
 
 		static class CompatibleWheel {
