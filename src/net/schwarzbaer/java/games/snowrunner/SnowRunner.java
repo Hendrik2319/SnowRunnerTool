@@ -154,29 +154,24 @@ public class SnowRunner {
 		
 		Vector<String> langs = new Vector<>(data.languages.keySet());
 		langs.sort(null);
-		String langID = settings.getString(AppSettings.ValueKey.Language, null);
+		String currentLangID = settings.getString(AppSettings.ValueKey.Language, null);
 		
 		ButtonGroup bg = new ButtonGroup();
 		languageMenu.removeAll();
-		for (String langID_:langs)
-			languageMenu.add(createCheckBoxMenuItem(langID_, langID_.equals(langID), bg, true, e->selectLanguage(langID_)));
+		for (String langID:langs)
+			languageMenu.add(createCheckBoxMenuItem(langID, langID.equals(currentLangID), bg, true, e->setLanguage(langID)));
 		
-		if (langID!=null)
-			selectLanguage(langID);
+		setLanguage(currentLangID);
 	}
 
-	private void selectLanguage(String langID_) {
-		Language language = data.languages.get(langID_);
-		if (language!=null) {
-			settings.putString(AppSettings.ValueKey.Language, langID_);
-			setLanguage(language);
-		} else {
+	private void setLanguage(String langID) {
+		Language language = langID==null ? null : data.languages.get(langID);
+		
+		if (language!=null)
+			settings.putString(AppSettings.ValueKey.Language, langID);
+		else
 			settings.remove(AppSettings.ValueKey.Language);
-			setLanguage(null);
-		}
-	}
-
-	private void setLanguage(Language language) {
+		
 		truckPanel.setLanguage(language);
 		truckListCellRenderer.setLanguage(language);
 		truckList.repaint();
