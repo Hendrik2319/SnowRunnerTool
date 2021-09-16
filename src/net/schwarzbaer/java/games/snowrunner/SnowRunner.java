@@ -1,6 +1,8 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.event.ActionListener;
@@ -26,6 +28,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.ListCellRenderer;
 import javax.swing.ListModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
@@ -34,6 +37,7 @@ import javax.swing.event.ListDataListener;
 
 import net.schwarzbaer.gui.Disabler;
 import net.schwarzbaer.gui.StandardMainWindow;
+import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.system.Settings;
@@ -53,14 +57,13 @@ public class SnowRunner {
 	private final StandardMainWindow mainWindow;
 	private final JFileChooser folderChooser;
 	private Data data;
-	private final JList<TruckListModel.Item> truckList;
+	private final JList<Truck> truckList;
+	private final TruckListCellRenderer truckListCellRenderer;
 	private final JComboBox<String> langCmbBx;
 	private final TruckPanel truckPanel;
-	private TruckListModel truckListModel;
 
 	SnowRunner() {
 		data = null;
-		truckListModel = null;
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		
@@ -70,13 +73,10 @@ public class SnowRunner {
 		
 		truckPanel = new TruckPanel();
 		
-		truckList = new JList<>();
-		JScrollPane truckListScrollPane = new JScrollPane(truckList);
+		JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
 		truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		truckList.addListSelectionListener(e->{
-			TruckListModel.Item item = truckList.getSelectedValue();
-			truckPanel.setTruck(item==null ? null : item.truck);
-		});
+		truckList.setCellRenderer(truckListCellRenderer = new TruckListCellRenderer());
+		truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
 		
 		langCmbBx = new JComboBox<>();
 		langCmbBx.addActionListener(e->{
@@ -162,8 +162,7 @@ public class SnowRunner {
 	}
 
 	private void updateAfterDataChange() {
-		truckListModel = new TruckListModel(data);
-		truckList.setModel(truckListModel);
+		truckList.setModel(new TruckListModel(data));
 		HashMap<String, Language> languages = data.languages;
 		Vector<String> langs = new Vector<>(languages.keySet());
 		langs.sort(null);
@@ -174,11 +173,9 @@ public class SnowRunner {
 	}
 
 	private void setLanguage(Language language) {
-		if (truckListModel!=null) {
-			truckListModel.setLanguage(language);
-			truckList.repaint();
-		}
 		truckPanel.setLanguage(language);
+		truckListCellRenderer.setLanguage(language);
+		truckList.repaint();
 	}
 
 	static JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
@@ -220,57 +217,69 @@ public class SnowRunner {
 		return comp;
 	}
 
-	private static class TruckListModel implements ListModel<TruckListModel.Item> {
+	private static class TruckListCellRenderer implements ListCellRenderer<Truck> {
+		
+		private static final Color COLOR_FG_DLCTRUCK = new Color(0x0070FF);
+		private final Tables.LabelRendererComponent rendererComp;
+		private Language language;
+
+		TruckListCellRenderer() {
+			rendererComp = new Tables.LabelRendererComponent();
+			language = null;
+		}
+		
+		void setLanguage(Language language) {
+			this.language = language;
+		}
+
+		@Override
+		public Component getListCellRendererComponent( JList<? extends Truck> list, Truck value, int index, boolean isSelected, boolean cellHasFocus) {
+			rendererComp.configureAsListCellRendererComponent(list, null, getLabel(value), index, isSelected, cellHasFocus, null, ()->getForeground(value));
+			return rendererComp;
+		}
+
+		private Color getForeground(Truck truck) {
+			if (truck!=null && truck.dlcName!=null)
+				return COLOR_FG_DLCTRUCK;
+			return null;
+		}
+
+		private String getLabel(Truck truck) {
+			if (truck==null)
+				return "<null>";
+			
+			String truckName = truck.xmlName;
+			
+			if (language!=null && truck.name_StringID!=null) {
+				truckName = language.dictionary.get(truck.name_StringID);
+				if (truckName==null)
+					truckName = truck.xmlName;
+			}
+			
+			if (truck.dlcName!=null)
+				truckName = String.format("%s [%s]", truckName, truck.dlcName);
+			
+			return truckName;
+		}
+	
+	}
+
+	static class TruckListModel implements ListModel<Truck> {
 		
 		private final Vector<ListDataListener> listDataListeners;
-		private final Vector<Item> items;
-		private Language language;
+		private final Vector<Truck> items;
 		
 		public TruckListModel(Data data) {
 			listDataListeners = new Vector<>();
-			items = new Vector<>();
-			language = null;
-			
-			data.trucks.forEach((name,truck)->{
-				items.add(new Item(name, truck));
-			});
-			
-			items.sort(Comparator.<Item,String>comparing(item->item.name));
-		}
-
-		public void setLanguage(Language language) {
-			this.language = language;
+			items = new Vector<>(data.trucks.values());
+			items.sort(Comparator.<Truck,String>comparing(Truck->Truck.xmlName));
 		}
 
 		@Override public void    addListDataListener(ListDataListener l) { listDataListeners.   add(l); }
 		@Override public void removeListDataListener(ListDataListener l) { listDataListeners.remove(l); }
 
 		@Override public int getSize() { return items.size(); }
-		@Override public Item getElementAt(int index) { return items.elementAt(index); }
-
-		private class Item {
-
-			private final String name;
-			private final Truck truck;
-
-			public Item(String name, Truck truck) {
-				this.name = name;
-				this.truck = truck;
-			}
-
-			@Override public String toString() {
-				String truckName = name;
-				if (language!=null && truck!=null && truck.name_StringID!=null) {
-					truckName = language.dictionary.get(truck.name_StringID);
-					if (truckName==null)
-						truckName = name;
-				}
-				if (truck!=null && truck.dlcName!=null)
-					return String.format("[%s] %s", truck.dlcName, truckName);
-				return truckName;
-			}
-		}
-		
+		@Override public Truck getElementAt(int index) { return items.elementAt(index); }
 	}
 	
 	private static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
