@@ -1,6 +1,5 @@
 package net.schwarzbaer.java.games.snowrunner;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -10,14 +9,12 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.io.File;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Vector;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
-import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -28,12 +25,11 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.ListCellRenderer;
-import javax.swing.ListModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.event.ListDataListener;
 
 import net.schwarzbaer.gui.Disabler;
 import net.schwarzbaer.gui.StandardMainWindow;
@@ -59,8 +55,8 @@ public class SnowRunner {
 	private Data data;
 	private final JList<Truck> truckList;
 	private final TruckListCellRenderer truckListCellRenderer;
-	private final JComboBox<String> langCmbBx;
 	private final TruckPanel truckPanel;
+	private JMenu languageMenu;
 
 	SnowRunner() {
 		data = null;
@@ -72,41 +68,28 @@ public class SnowRunner {
 		folderChooser.setMultiSelectionEnabled(false);
 		
 		truckPanel = new TruckPanel();
+		truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 		
 		JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
+		truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
 		truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		truckList.setCellRenderer(truckListCellRenderer = new TruckListCellRenderer());
 		truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
 		
-		langCmbBx = new JComboBox<>();
-		langCmbBx.addActionListener(e->{
-			if (data==null) return;
-			Object obj = langCmbBx.getSelectedItem();
-			if (obj!=null) {
-				String langID = obj.toString();
-				Language language = data.languages.get(langID);
-				if (language!=null) {
-					settings.putString(AppSettings.ValueKey.Language, langID);
-					setLanguage(language);
-					return;
-				}
-			}
-			settings.remove(AppSettings.ValueKey.Language);
-			setLanguage(null);
-		});
+		JSplitPane trucksPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+		trucksPanel.setResizeWeight(0);
+		trucksPanel.setLeftComponent(truckListScrollPane);
+		trucksPanel.setRightComponent(truckPanel);
 		
-		JPanel leftPanel = new JPanel(new BorderLayout());
-		leftPanel.add(langCmbBx,BorderLayout.NORTH);
-		leftPanel.add(truckListScrollPane,BorderLayout.CENTER);
+		JPanel wheelsPanel = new JPanel();
 		
-		
-		JSplitPane contentPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.setResizeWeight(0);
-		contentPane.setLeftComponent(leftPanel);
-		contentPane.setRightComponent(truckPanel);
+		contentPane.addTab("Trucks", trucksPanel);
+		contentPane.addTab("Wheels", wheelsPanel);
 		
 		JMenuBar menuBar = new JMenuBar();
+		
 		JMenu fileMenu = menuBar.add(new JMenu("File"));
 		fileMenu.add(createMenuItem("Reload \"initial.pak\"", true, e->{
 			boolean changed = reloadInitialPAK();
@@ -116,6 +99,8 @@ public class SnowRunner {
 			for (AppSettings.ValueKey key:AppSettings.ValueKey.values())
 				settings.remove(key);
 		}));
+		
+		languageMenu = menuBar.add(new JMenu("Language"));
 		
 		mainWindow.setIconImagesFromResource("/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
@@ -162,20 +147,47 @@ public class SnowRunner {
 	}
 
 	private void updateAfterDataChange() {
-		truckList.setModel(new TruckListModel(data));
-		HashMap<String, Language> languages = data.languages;
-		Vector<String> langs = new Vector<>(languages.keySet());
+		
+		Vector<Truck> items = new Vector<>(data.trucks.values());
+		items.sort(Comparator.<Truck,String>comparing(Truck->Truck.xmlName));
+		truckList.setListData(items);
+		
+		Vector<String> langs = new Vector<>(data.languages.keySet());
 		langs.sort(null);
-		langCmbBx.setModel(new DefaultComboBoxModel<String>(langs));
 		String langID = settings.getString(AppSettings.ValueKey.Language, null);
+		
+		ButtonGroup bg = new ButtonGroup();
+		languageMenu.removeAll();
+		for (String langID_:langs)
+			languageMenu.add(createCheckBoxMenuItem(langID_, langID_.equals(langID), bg, true, e->selectLanguage(langID_)));
+		
 		if (langID!=null)
-			langCmbBx.setSelectedItem(langID);
+			selectLanguage(langID);
+	}
+
+	private void selectLanguage(String langID_) {
+		Language language = data.languages.get(langID_);
+		if (language!=null) {
+			settings.putString(AppSettings.ValueKey.Language, langID_);
+			setLanguage(language);
+		} else {
+			settings.remove(AppSettings.ValueKey.Language);
+			setLanguage(null);
+		}
 	}
 
 	private void setLanguage(Language language) {
 		truckPanel.setLanguage(language);
 		truckListCellRenderer.setLanguage(language);
 		truckList.repaint();
+	}
+
+	static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, ActionListener al) {
+		JCheckBoxMenuItem comp = new JCheckBoxMenuItem(title,isSelected);
+		comp.setEnabled(isEnabled);
+		if (al!=null) comp.addActionListener(al);
+		if (bg!=null) bg.add(comp);
+		return comp;
 	}
 
 	static JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
@@ -262,24 +274,6 @@ public class SnowRunner {
 			return truckName;
 		}
 	
-	}
-
-	static class TruckListModel implements ListModel<Truck> {
-		
-		private final Vector<ListDataListener> listDataListeners;
-		private final Vector<Truck> items;
-		
-		public TruckListModel(Data data) {
-			listDataListeners = new Vector<>();
-			items = new Vector<>(data.trucks.values());
-			items.sort(Comparator.<Truck,String>comparing(Truck->Truck.xmlName));
-		}
-
-		@Override public void    addListDataListener(ListDataListener l) { listDataListeners.   add(l); }
-		@Override public void removeListDataListener(ListDataListener l) { listDataListeners.remove(l); }
-
-		@Override public int getSize() { return items.size(); }
-		@Override public Truck getElementAt(int index) { return items.elementAt(index); }
 	}
 	
 	private static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {

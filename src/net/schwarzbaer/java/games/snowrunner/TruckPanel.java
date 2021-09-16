@@ -144,6 +144,8 @@ class TruckPanel extends JSplitPane {
 		outTop.add(0, "Unlock By Rank"       , truck.unlockByRank);
 		outTop.add(0, "XML file"             , truck.xmlName);
 		
+		outTop.add(0, "");
+		
 		String name = null;
 		String description = null;
 		if (language!=null) {
@@ -153,6 +155,8 @@ class TruckPanel extends JSplitPane {
 		outTop.add(0, "Name", "<%s>", truck.name_StringID);
 		if (name!=null)
 			outTop.add(0, null, name);
+		
+		outTop.add(0, "");
 		
 		outTop.add(0, "Description", "<%s>", truck.description_StringID);
 		if (description != null)
