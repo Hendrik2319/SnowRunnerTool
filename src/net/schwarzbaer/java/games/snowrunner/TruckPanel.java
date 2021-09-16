@@ -57,7 +57,9 @@ class TruckPanel extends JSplitPane {
 		
 		compatibleWheelsTableModel = new CompatibleWheelsTableModel();
 		compatibleWheelsTable = new JTable(compatibleWheelsTableModel);
-		compatibleWheelsTable.setRowSorter(new SimplifiedRowSorter(compatibleWheelsTableModel));
+		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(compatibleWheelsTableModel);
+		compatibleWheelsTable.setRowSorter(rowSorter);
+		compatibleWheelsTable.setUpdateSelectionOnSort(false);
 		compatibleWheelsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 //		compatibleWheelsTable.setRowSelectionAllowed(true);
 //		compatibleWheelsTable.setColumnSelectionAllowed(false);
@@ -75,6 +77,11 @@ class TruckPanel extends JSplitPane {
 		
 		ContextMenu compatibleWheelsTableContextMenu = new ContextMenu();
 		compatibleWheelsTableContextMenu.addTo(compatibleWheelsTable);
+		
+		compatibleWheelsTableContextMenu.add(SnowRunner.createMenuItem("Reset Row Order",true,e->{
+			rowSorter.resetSortOrder();
+			compatibleWheelsTable.repaint();
+		}));
 		compatibleWheelsTableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
 			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(compatibleWheelsTable));
 		}));
@@ -141,15 +148,13 @@ class TruckPanel extends JSplitPane {
 			name        = language.dictionary.get(truck.name_StringID);
 			description = language.dictionary.get(truck.description_StringID);
 		}
-		if (name==null)
-			outTop.add(0, "Name", "<%s>", truck.name_StringID);
-		else {
-			outTop.add(0, "Name", "%s"  , name);
-			outTop.add(0, null  , "<%s>", truck.name_StringID);
-		}
+		outTop.add(0, "Name", "<%s>", truck.name_StringID);
+		if (name!=null)
+			outTop.add(0, null, name);
+		
 		outTop.add(0, "Description", "<%s>", truck.description_StringID);
 		if (description != null)
-			outTop.add(0, null, "\"%s\"", description);
+			outTop.add(0, null, description);
 		
 		topTextArea.setText(outTop.generateOutput());
 		
@@ -187,7 +192,7 @@ class TruckPanel extends JSplitPane {
 			Type                ("Type"                 , String .class,  80), 
 			Name                ("Name"                 , String .class, 130), 
 			DLC                 ("DLC"                  , String .class,  80), 
-			Scale               ("Scale"                , Float  .class,  50), 
+			Size                ("Size"                 , String .class,  50), 
 			Friction_highway    ("Highway"              , Float  .class,  55), 
 			Friction_offroad    ("Offroad"              , Float  .class,  50), 
 			Friction_mud        ("Mud"                  , Float  .class,  50), 
@@ -263,7 +268,7 @@ class TruckPanel extends JSplitPane {
 				case Friction_mud    : return row.friction_mud;
 				case OnIce: return row.onIce;
 				case Price: return row.price;
-				case Scale: return row.scale;
+				case Size : return row.scale==null ? "<???>" : String.format("%d\"", Math.round(row.scale.floatValue()*78.5f));
 				case UnlockByExploration: return row.unlockByExploration;
 				case UnlockByRank: return row.unlockByRank;
 				}
