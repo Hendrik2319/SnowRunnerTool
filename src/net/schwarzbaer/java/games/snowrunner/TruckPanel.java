@@ -1,7 +1,9 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.awt.Component;
 import java.awt.Dimension;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.Vector;
 
 import javax.swing.JScrollPane;
@@ -10,8 +12,11 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
+import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
+import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnIDInterface;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
@@ -57,13 +62,11 @@ class TruckPanel extends JSplitPane {
 		
 		compatibleWheelsTableModel = new CompatibleWheelsTableModel();
 		compatibleWheelsTable = new JTable(compatibleWheelsTableModel);
+		compatibleWheelsTableModel.setTable(compatibleWheelsTable);
 		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(compatibleWheelsTableModel);
 		compatibleWheelsTable.setRowSorter(rowSorter);
-		compatibleWheelsTable.setUpdateSelectionOnSort(false);
+		compatibleWheelsTableModel.setRenderers();
 		compatibleWheelsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-//		compatibleWheelsTable.setRowSelectionAllowed(true);
-//		compatibleWheelsTable.setColumnSelectionAllowed(false);
-//		compatibleWheelsTable.setCellSelectionEnabled(false);
 		compatibleWheelsTable.getSelectionModel().addListSelectionListener(e->{
 			int rowV = compatibleWheelsTable.getSelectedRow();
 			int rowM = compatibleWheelsTable.convertRowIndexToModel(rowV);
@@ -73,7 +76,6 @@ class TruckPanel extends JSplitPane {
 		compatibleWheelsTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 		compatibleWheelsTableModel.setColumnWidths(compatibleWheelsTable);
 		JScrollPane compatibleWheelsTableScrollPane = new JScrollPane(compatibleWheelsTable);
-		compatibleWheelsTableModel.setTable(compatibleWheelsTable);
 		
 		ContextMenu compatibleWheelsTableContextMenu = new ContextMenu();
 		compatibleWheelsTableContextMenu.addTo(compatibleWheelsTable);
@@ -183,6 +185,55 @@ class TruckPanel extends JSplitPane {
 		}
 	}
 
+	private static class CompatibleWheelsTableCellRenderer implements TableCellRenderer {
+	
+		private final CompatibleWheelsTableModel tableModel;
+		private final Tables.LabelRendererComponent rendererComp;
+
+		public CompatibleWheelsTableCellRenderer(CompatibleWheelsTableModel tableModel) {
+			this.tableModel = tableModel;
+			rendererComp = new Tables.LabelRendererComponent();
+		}
+
+		@Override
+		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
+			String valueStr = value==null ? null : value.toString();
+			
+			int columnM = table.convertColumnIndexToModel(columnV);
+			CompatibleWheelsTableModel.ColumnID columnID = tableModel.getColumnID(columnM);
+			
+			if (columnID!=null) {
+				if (columnID.config.columnClass==Float.class) {
+					valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
+					rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+				}
+				if (columnID.config.columnClass==Integer.class) {
+					switch (columnID) {
+					case Size:
+						valueStr = value==null ? "<???>" : String.format("%d\"", value);
+						rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+						break;
+					case Price:
+						valueStr = value==null ? "<???>" : String.format("%d Cr", value);
+						rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+						break;
+					case UnlockByRank:
+						valueStr = value==null ? "<???>" : value.toString();
+						rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+						break;
+					default:
+						rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+						break;
+					}
+				}
+			}
+			
+			rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
+			return rendererComp;
+		}
+	
+	}
+
 	private static class CompatibleWheelsTableModel extends SimplifiedTableModel<CompatibleWheelsTableModel.ColumnID>{
 	
 		private Vector<ExpandedCompatibleWheel> data;
@@ -192,7 +243,7 @@ class TruckPanel extends JSplitPane {
 			Type                ("Type"                 , String .class,  80), 
 			Name                ("Name"                 , String .class, 130), 
 			DLC                 ("DLC"                  , String .class,  80), 
-			Size                ("Size"                 , String .class,  50), 
+			Size                ("Size"                 , Integer.class,  50), 
 			Friction_highway    ("Highway"              , Float  .class,  55), 
 			Friction_offroad    ("Offroad"              , Float  .class,  50), 
 			Friction_mud        ("Mud"                  , Float  .class,  50), 
@@ -214,6 +265,14 @@ class TruckPanel extends JSplitPane {
 			super(ColumnID.values());
 		}
 	
+		public void setRenderers() {
+			CompatibleWheelsTableCellRenderer renderer = new CompatibleWheelsTableCellRenderer(this);
+			//table.setDefaultRenderer(String .class, renderer);
+			table.setDefaultRenderer(Integer.class, renderer);
+			table.setDefaultRenderer(Float  .class, renderer);
+			//table.setDefaultRenderer(Boolean.class, null);
+		}
+
 		public void setLanguage(Language language) {
 			this.language = language;
 			fireTableUpdate();
@@ -268,7 +327,7 @@ class TruckPanel extends JSplitPane {
 				case Friction_mud    : return row.friction_mud;
 				case OnIce: return row.onIce;
 				case Price: return row.price;
-				case Size : return row.scale==null ? "<???>" : String.format("%d\"", Math.round(row.scale.floatValue()*78.5f));
+				case Size : return row.scale==null ? null : Math.round(row.scale.floatValue()*78.5f);
 				case UnlockByExploration: return row.unlockByExploration;
 				case UnlockByRank: return row.unlockByRank;
 				}
