@@ -331,7 +331,7 @@ class TruckPanel extends JSplitPane {
 				case Friction_mud    : return row.friction_mud;
 				case OnIce: return row.onIce;
 				case Price: return row.price;
-				case Size : return row.scale==null ? null : Math.round(row.scale.floatValue()*78.5f);
+				case Size : return row.getSize();
 				case UnlockByExploration: return row.unlockByExploration;
 				case UnlockByRank: return row.unlockByRank;
 				}

@@ -478,14 +478,16 @@ public class Data {
 				Node truckTiresNode = XML.getChild(truckWheelsNode,"TruckTires");
 				if (truckTiresNode!=null) {
 					Node[] truckTireNodes = XML.getChildren(truckTiresNode, "TruckTire");
-					for (Node node:truckTireNodes)
-						truckTires.add(new TruckTire(node,this.dlcName,trucksTemplates,localTruckTireTemplates));
+					for (int i=0; i<truckTireNodes.length; i++) {
+						Node node = truckTireNodes[i];
+						truckTires.add(new TruckTire(node,this.xmlName,i,this.dlcName,trucksTemplates,localTruckTireTemplates));
+					}
 				}
 				
 			} else {
 				Node truckWheelNode = XML.getChild(rootNode,"TruckWheel"); // for trailers
 				if (truckWheelNode!=null)
-					truckTires.add(new TruckTire(truckWheelNode,this.dlcName,trucksTemplates));
+					truckTires.add(new TruckTire(truckWheelNode,this.xmlName,0,this.dlcName,trucksTemplates));
 			}
 			
 		}
@@ -500,13 +502,17 @@ public class Data {
 	
 		final String id;
 		final TruckTire template;
+		final String definingXML;
+		final int indexInDef;
 		final String dlc;
 		final WheelFriction wheelFriction;
 		final GameData gameData;
 	
-		private TruckTire(String id, TruckTire template, Node node, String dlc, TrucksTemplates trucksTemplates) throws ParseException { // base constructor
+		private TruckTire(String id, TruckTire template, Node node, String definingXML, int indexInDef, String dlc, TrucksTemplates trucksTemplates) throws ParseException { // base constructor
 			this.id = id;
 			this.template = template;
+			this.definingXML = definingXML;
+			this.indexInDef = indexInDef;
 			this.dlc = dlc;
 			
 			Node wheelFrictionNode = XML.getChild(node,"WheelFriction");
@@ -531,16 +537,16 @@ public class Data {
 		}
 		
 		TruckTire(String id, Node node, TrucksTemplates trucksTemplates) throws ParseException { // as template
-			this(id, null, node, null, trucksTemplates);
+			this(id, null, node, null, 0, null, trucksTemplates);
 		}
 	
-		TruckTire(Node node, String dlc, TrucksTemplates trucksTemplates, HashMap<String, TruckTire> localTruckTireTemplates) throws ParseException { // as truck tire
+		TruckTire(Node node, String definingXML, int indexInDef, String dlc, TrucksTemplates trucksTemplates, HashMap<String, TruckTire> localTruckTireTemplates) throws ParseException { // as truck tire
 			// <TruckTire _template="Highway" Mesh="wheels/tire_medium_highway_double_1" Name="highway_1">
-			this(null, getTemplate(node, localTruckTireTemplates, trucksTemplates.truckTireTemplates), node, dlc, trucksTemplates);
+			this(null, getTemplate(node, localTruckTireTemplates, trucksTemplates.truckTireTemplates), node, definingXML, indexInDef, dlc, trucksTemplates);
 		}
 	
-		TruckTire(Node node, String dlc, TrucksTemplates trucksTemplates) throws ParseException { // as trailer tire
-			this(null, null, node, dlc, trucksTemplates);
+		TruckTire(Node node, String definingXML, int indexInDef, String dlc, TrucksTemplates trucksTemplates) throws ParseException { // as trailer tire
+			this(null, null, node, definingXML, indexInDef, dlc, trucksTemplates);
 		}
 	
 		private static TruckTire getTemplate(Node node, HashMap<String, TruckTire> map1, HashMap<String, TruckTire> map2) throws ParseException {
@@ -692,6 +698,8 @@ public class Data {
 		static class ExpandedCompatibleWheel {
 
 			final Float scale;
+			final String definingXML;
+			final int indexInDef;
 			final String dlc;
 			final String name_StringID;
 			final String description_StringID;
@@ -706,7 +714,16 @@ public class Data {
 
 			public ExpandedCompatibleWheel(Float scale, TruckTire tire) {
 				this.scale = scale;
-				this.dlc = tire!=null ? tire.dlc : null;
+				
+				if (tire!=null) {
+					this.definingXML  = tire.definingXML;
+					this.indexInDef = tire.indexInDef;
+					this.dlc = tire.dlc;
+				} else {
+					this.definingXML  = null;
+					this.indexInDef = 0;
+					this.dlc = null;
+				}
 				
 				if (tire!=null && tire.gameData!=null) {
 					price                = tire.gameData.price;
@@ -742,10 +759,14 @@ public class Data {
 				
 				for (CompatibleWheel cw:compatibleWheels)
 					if (cw.truckTires!=null)
-						for (TruckTire tire:cw.truckTires)
+						for (TruckTire tire : cw.truckTires)
 							expanded.add( new ExpandedCompatibleWheel(cw.scale,tire) );
 				
 				return expanded;
+			}
+
+			Integer getSize() {
+				return CompatibleWheel.computeSize_inch(scale);
 			}
 		}
 
@@ -759,6 +780,14 @@ public class Data {
 				scale = parseFloat( XML.getAttribute(node, "Scale") );
 				type  = XML.getAttribute(node, "Type");
 				truckTires = type==null ? null : getTruckTires.get(type);
+			}
+
+			Integer getSize() {
+				return computeSize_inch(scale);
+			}
+
+			public static Integer computeSize_inch(Float scale) {
+				return scale==null ? null : Math.round(scale.floatValue()*78.5f);
 			}
 
 			void printTireList(ValueListOutput out, int indentLevel) {
