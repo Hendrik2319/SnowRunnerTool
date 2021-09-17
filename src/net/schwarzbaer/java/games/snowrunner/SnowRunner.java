@@ -69,6 +69,7 @@ public class SnowRunner {
 	private final JMenu languageMenu;
 	private final WheelsTableModel wheelsTableModel;
 	private final TruckListContextMenu truckListContextMenu;
+	private DLCTableModel dlcsTableModel;
 	
 	SnowRunner() {
 		data = null;
@@ -96,6 +97,7 @@ public class SnowRunner {
 		trucksPanel.setLeftComponent(truckListScrollPane);
 		trucksPanel.setRightComponent(truckPanel);
 		
+		
 		JTable wheelsTable = new JTable(wheelsTableModel = new WheelsTableModel());
 		SimplifiedRowSorter wheelsTableRowSorter = new SimplifiedRowSorter(wheelsTableModel);
 		wheelsTable.setRowSorter(wheelsTableRowSorter);
@@ -116,10 +118,33 @@ public class SnowRunner {
 		JPanel wheelsPanel = new JPanel(new BorderLayout());
 		wheelsPanel.add(wheelsTableScrollPane);
 		
+		
+		JTable dlcsTable = new JTable(dlcsTableModel = new DLCTableModel());
+		SimplifiedRowSorter dlcsTableRowSorter = new SimplifiedRowSorter(dlcsTableModel);
+		dlcsTable.setRowSorter(dlcsTableRowSorter);
+		dlcsTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+		dlcsTableModel.setColumnWidths(dlcsTable);
+		JScrollPane dlcsTableScrollPane = new JScrollPane(dlcsTable);
+		
+		ContextMenu dlcsTableContextMenu = new ContextMenu();
+		dlcsTableContextMenu.addTo(dlcsTable);
+		dlcsTableContextMenu.add(createMenuItem("Reset Row Order",true,e->{
+			dlcsTableRowSorter.resetSortOrder();
+			dlcsTable.repaint();
+		}));
+		dlcsTableContextMenu.add(createMenuItem("Show Column Widths", true, e->{
+			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(dlcsTable));
+		}));
+		
+		JPanel dlcsPanel = new JPanel(new BorderLayout());
+		dlcsPanel.add(dlcsTableScrollPane);
+		
+		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 		contentPane.addTab("Trucks", trucksPanel);
 		contentPane.addTab("Wheels", wheelsPanel);
+		contentPane.addTab("DLCs", dlcsPanel);
 		
 		JMenuBar menuBar = new JMenuBar();
 		
@@ -152,6 +177,8 @@ public class SnowRunner {
 	private void initialize() {
 		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
 		truckPanel.setTruckToDLCAssignments(truckToDLCAssignments);
+		dlcsTableModel.setTruckToDLCAssignments(truckToDLCAssignments);
+		
 		boolean changed = reloadInitialPAK();
 		if (changed) updateAfterDataChange();
 	}
@@ -188,6 +215,7 @@ public class SnowRunner {
 		truckList.setListData(items);
 		
 		wheelsTableModel.setData(data);
+		dlcsTableModel.setData(data);
 		
 		Vector<String> langs = new Vector<>(data.languages.keySet());
 		langs.sort(null);
@@ -210,6 +238,7 @@ public class SnowRunner {
 			settings.remove(AppSettings.ValueKey.Language);
 		
 		wheelsTableModel.setLanguage(language);
+		dlcsTableModel.setLanguage(language);
 		truckPanel.setLanguage(language);
 		truckListContextMenu.setLanguage(language);
 		truckListCellRenderer.setLanguage(language);
@@ -271,6 +300,9 @@ public class SnowRunner {
 	}
 
 	static String getTruckLabel(Truck truck, Language language) {
+		return getTruckLabel(truck, language, true);
+	}
+	static String getTruckLabel(Truck truck, Language language, boolean addInternalDLC ) {
 		if (truck==null)
 			return "<null>";
 		
@@ -282,10 +314,109 @@ public class SnowRunner {
 				truckName = "<"+truck.xmlName+">";
 		}
 		
-		if (truck.dlcName!=null)
+		if (addInternalDLC && truck.dlcName!=null)
 			truckName = String.format("%s [%s]", truckName, truck.dlcName);
 		
 		return truckName;
+	}
+
+	private static class DLCTableModel extends Tables.SimplifiedTableModel<DLCTableModel.ColumnID>{
+
+		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
+			Internal ("Internal Label", String .class, 200),
+			Official ("Official DLC"  , String .class, 200),
+			Truck    ("Truck"         , String .class, 300),
+			;
+
+			private final SimplifiedColumnConfig config;
+			ColumnID(String name, Class<?> columnClass, int prefWidth) {
+				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
+			}
+			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
+		}
+		
+		private Language language;
+		private final Vector<RowItem> rows;
+		private HashMap<String, String> truckToDLCAssignments;
+		private Data data;
+
+		DLCTableModel() {
+			super(ColumnID.values());
+			language = null;
+			truckToDLCAssignments = null;
+			data = null;
+			rows = new Vector<>();
+		}
+
+		void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+			this.truckToDLCAssignments = truckToDLCAssignments;
+			rebuildRows();
+		}
+
+		void updateAfterAssignmentsChange() {
+			rebuildRows();
+		}
+
+		void setLanguage(Language language) {
+			this.language = language;
+			fireTableUpdate();
+		}
+		
+		void setData(Data data) {
+			this.data = data;
+			rebuildRows();
+		}
+		
+		private void rebuildRows() {
+			rows.clear();
+			if (truckToDLCAssignments!=null && data!=null) {
+				truckToDLCAssignments.forEach((truckID,dlc)->{
+					Truck truck = data.trucks.get(truckID);
+					String internalDLC = truck==null ? null : truck.dlcName==null ? "<LaunchDLC>" : truck.dlcName;
+					rows.add(new RowItem(internalDLC, dlc, truckID));
+				});
+			} else if (truckToDLCAssignments!=null) {
+				truckToDLCAssignments.forEach((truckID,dlc)->{
+					rows.add(new RowItem(null, dlc, truckID));
+				});
+			} else if (data!=null) {
+				data.trucks.forEach((truckID,truck)->{
+					String internalDLC = truck==null ? null : truck.dlcName;
+					rows.add(new RowItem(internalDLC, null, truckID));
+				});
+			}
+			fireTableUpdate();
+		}
+
+		private static class RowItem {
+			final String internalDLC;
+			final String officialDLC;
+			final String truckID;
+			private RowItem(String internalDLC, String officialDLC, String truckID) {
+				this.internalDLC = internalDLC;
+				this.officialDLC = officialDLC;
+				this.truckID = truckID;
+			}
+		}
+
+
+		@Override public int getRowCount() {
+			return rows.size();
+		}
+
+		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
+			if (rowIndex<0 || rowIndex>=rows.size()) return null;
+			RowItem row = rows.get(rowIndex);
+			switch (columnID) {
+			case Internal: return row.internalDLC;
+			case Official: return row.officialDLC;
+			case Truck:
+				Truck truck = data==null || row.truckID==null ? null : data.trucks.get(row.truckID);
+				if (truck == null) return String.format("<%s>", row.truckID);
+				return SnowRunner.getTruckLabel(truck, language, false);
+			}
+			return null;
+		}
 	}
 
 	private static class WheelsTableModel extends Tables.SimplifiedTableModel<WheelsTableModel.ColumnID>{
@@ -309,7 +440,7 @@ public class SnowRunner {
 		}
 		
 		private Language language;
-		private Vector<RowItem> rows;
+		private final Vector<RowItem> rows;
 
 		WheelsTableModel() {
 			super(ColumnID.values());
@@ -494,13 +625,14 @@ public class SnowRunner {
 				if (clickedItem==null) return;
 				TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
 				dlg.showDialog();
+				dlcsTableModel.updateAfterAssignmentsChange();
 			}));
 			
 			addContextMenuInvokeListener((comp, x, y) -> {
 				clickedIndex = truckList.locationToIndex(new Point(x,y));
 				clickedItem = clickedIndex<0 ? null : truckList.getModel().getElementAt(clickedIndex);
 				
-				miAssignToDLC.setEnabled(clickedItem!=null && clickedItem.dlcName!=null);
+				miAssignToDLC.setEnabled(clickedItem!=null);
 				
 				miAssignToDLC.setText(
 					clickedItem==null

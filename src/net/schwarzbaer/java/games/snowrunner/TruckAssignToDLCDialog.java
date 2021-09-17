@@ -29,6 +29,7 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
@@ -57,12 +58,15 @@ class TruckAssignToDLCDialog extends JDialog {
 		}
 		
 		
+		// determine known DLCs
 		HashSet<String> knownDLCSet = new HashSet<>();
 		truckToDLCAssignments.forEach((t,dlc)->knownDLCSet.add(dlc));
 		
 		Vector<String> knownDLCs = new Vector<>(knownDLCSet);
 		knownDLCs.sort(null);
 		
+		
+		// create GUI elements
 		JComboBox<String> cmbbxKnownDLCs = new JComboBox<String>(knownDLCs);
 		if (selectedKnownDLC!=null) {
 			cmbbxKnownDLCs.setSelectedIndex(knownDLCs.indexOf(selectedKnownDLC));
@@ -70,19 +74,30 @@ class TruckAssignToDLCDialog extends JDialog {
 		} else
 			cmbbxKnownDLCs.setSelectedIndex(-1);
 		
+		
+		JTextField txtfldNewDLC = new JTextField(20);
+		
+		
+		ButtonGroup bg = new ButtonGroup();
+		JRadioButton rdbtnUseKnownDLC  = SnowRunner.createRadioButton("Use Known DLC"   , bg, !knownDLCs.isEmpty(), useKnownDLC!=null &&  useKnownDLC, e->{ useKnownDLC = true ; updateOkBtn(); });
+		JRadioButton rdbtnDefineNewDLC = SnowRunner.createRadioButton("Define a new DLC", bg, true                , useKnownDLC!=null && !useKnownDLC, e->{ useKnownDLC = false; updateOkBtn(); });
+		
+		
+		// set GUI actions
 		cmbbxKnownDLCs.addActionListener(e->{
 			int i = cmbbxKnownDLCs.getSelectedIndex();
 			selectedKnownDLC = i<0 ? null : knownDLCs.get(i);
-			updateGuiAccess();
+			useKnownDLC = true;
+			rdbtnUseKnownDLC.setSelected(true);
+			updateOkBtn();
 		});
-		
-		
-		JTextField txtfldNewDLC = new JTextField(20);
 		
 		Runnable txtfldNewDLCAction = ()->{
 			String newDLC = txtfldNewDLC.getText();
 			selectedNewDLC = newDLC.isEmpty() ? null : newDLC;
-			updateGuiAccess();
+			useKnownDLC = false;
+			rdbtnDefineNewDLC.setSelected(true);
+			updateOkBtn();
 		};
 		
 		txtfldNewDLC.addActionListener(e->txtfldNewDLCAction.run());
@@ -92,25 +107,23 @@ class TruckAssignToDLCDialog extends JDialog {
 		});
 		
 		
+		// define panels
+		
 		JPanel centerPanel = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0;
 		
-		ButtonGroup bg = new ButtonGroup();
 		c.weightx = 0;
 		c.gridx = 0;
-		c.gridy = 0;
-		centerPanel.add(SnowRunner.createRadioButton("Known DLC"       , bg, !knownDLCs.isEmpty(), useKnownDLC!=null &&  useKnownDLC, e->{ useKnownDLC = true ; updateGuiAccess(); }),c);
-		c.gridy = 1;
-		centerPanel.add(SnowRunner.createRadioButton("Define a new DLC", bg, true                , useKnownDLC!=null && !useKnownDLC, e->{ useKnownDLC = false; updateGuiAccess(); }),c);
+		c.gridy = 0; centerPanel.add(rdbtnUseKnownDLC,c);
+		c.gridy = 1; centerPanel.add(rdbtnDefineNewDLC,c);
 		
 		c.weightx = 1;
 		c.gridx = 1;
-		c.gridy = 0;
-		centerPanel.add(cmbbxKnownDLCs,c);
-		c.gridy = 1;
-		centerPanel.add(txtfldNewDLC,c);
+		c.gridy = 0; centerPanel.add(cmbbxKnownDLCs,c);
+		c.gridy = 1; centerPanel.add(txtfldNewDLC,c);
+		
 		
 		JPanel buttonPanel = new JPanel(new GridBagLayout());
 		c = new GridBagConstraints();
@@ -147,10 +160,10 @@ class TruckAssignToDLCDialog extends JDialog {
 				oLoc.y + (oSize.height-mySize.height)/2
 		);
 		
-		updateGuiAccess();
+		updateOkBtn();
 	}
 
-	private void updateGuiAccess() {
+	private void updateOkBtn() {
 		btnOk.setEnabled( useKnownDLC!=null && ( (useKnownDLC && selectedKnownDLC!=null) || (!useKnownDLC && selectedNewDLC!=null) ) );
 	}
 
