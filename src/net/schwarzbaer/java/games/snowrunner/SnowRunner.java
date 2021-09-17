@@ -368,22 +368,17 @@ public class SnowRunner {
 		}
 		
 		private void rebuildRows() {
+			HashSet<String> truckIDs = new HashSet<>();
+			if (truckToDLCAssignments!=null) truckIDs.addAll(truckToDLCAssignments.keySet());
+			if (data                 !=null) truckIDs.addAll(data.trucks          .keySet());
+			
 			rows.clear();
-			if (truckToDLCAssignments!=null && data!=null) {
-				truckToDLCAssignments.forEach((truckID,dlc)->{
-					Truck truck = data.trucks.get(truckID);
-					String internalDLC = truck==null ? null : truck.dlcName==null ? "<LaunchDLC>" : truck.dlcName;
-					rows.add(new RowItem(internalDLC, dlc, truckID));
-				});
-			} else if (truckToDLCAssignments!=null) {
-				truckToDLCAssignments.forEach((truckID,dlc)->{
-					rows.add(new RowItem(null, dlc, truckID));
-				});
-			} else if (data!=null) {
-				data.trucks.forEach((truckID,truck)->{
-					String internalDLC = truck==null ? null : truck.dlcName;
-					rows.add(new RowItem(internalDLC, null, truckID));
-				});
+			for (String truckID:truckIDs) {
+				Truck truck = data==null ? null : data.trucks.get(truckID);
+				String internalDLC = truck==null ? null : truck.dlcName==null ? "<LaunchDLC>" : truck.dlcName;
+				String officialDLC = truckToDLCAssignments==null ? null : truckToDLCAssignments.get(truckID);
+				if ((internalDLC!=null && !internalDLC.equals("<LaunchDLC>")) || officialDLC!=null)
+					rows.add(new RowItem(internalDLC, officialDLC, truckID));
 			}
 			fireTableUpdate();
 		}
