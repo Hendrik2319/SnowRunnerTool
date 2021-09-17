@@ -43,11 +43,13 @@ class TruckAssignToDLCDialog extends JDialog {
 	private String selectedKnownDLC;
 	private String selectedNewDLC;
 	private final JButton btnOk;
+	private boolean assignmentsChanged;
 	
 	TruckAssignToDLCDialog(Window owner, Truck truck, Language language, HashMap<String, String> truckToDLCAssignments) {
 		super(owner,ModalityType.APPLICATION_MODAL);
 		useKnownDLC = null;
 		selectedNewDLC = null;
+		assignmentsChanged = false;
 		String key = truck.xmlName;
 
 		if (key==null) {
@@ -114,13 +116,11 @@ class TruckAssignToDLCDialog extends JDialog {
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0;
 		
-		c.weightx = 0;
-		c.gridx = 0;
+		c.weightx = 0; c.gridx = 0;
 		c.gridy = 0; centerPanel.add(rdbtnUseKnownDLC,c);
 		c.gridy = 1; centerPanel.add(rdbtnDefineNewDLC,c);
 		
-		c.weightx = 1;
-		c.gridx = 1;
+		c.weightx = 1; c.gridx = 1;
 		c.gridy = 0; centerPanel.add(cmbbxKnownDLCs,c);
 		c.gridy = 1; centerPanel.add(txtfldNewDLC,c);
 		
@@ -137,6 +137,7 @@ class TruckAssignToDLCDialog extends JDialog {
 			if (dlc!=null && key!=null) {
 				truckToDLCAssignments.put(key, dlc);
 				saveData(truckToDLCAssignments);
+				assignmentsChanged = true;
 			}
 			setVisible(false);
 		}),c);
@@ -167,8 +168,9 @@ class TruckAssignToDLCDialog extends JDialog {
 		btnOk.setEnabled( useKnownDLC!=null && ( (useKnownDLC && selectedKnownDLC!=null) || (!useKnownDLC && selectedNewDLC!=null) ) );
 	}
 
-	void showDialog() {
+	boolean showDialog() {
 		setVisible(true);
+		return assignmentsChanged;
 	}
 
 	static void saveData(HashMap<String, String> assignments) {

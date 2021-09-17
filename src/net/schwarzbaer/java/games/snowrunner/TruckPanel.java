@@ -26,8 +26,10 @@ import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.ExpandedCompatibleWheel;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
-class TruckPanel extends JSplitPane {
+class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssignmentListener {
 	private static final long serialVersionUID = -5138746858742450458L;
 	
 	private final JTextArea topTextArea;
@@ -114,7 +116,7 @@ class TruckPanel extends JSplitPane {
 		updateOutput();
 	}
 	
-	void setLanguage(Language language) {
+	@Override public void setLanguage(Language language) {
 		this.language = language;
 		compatibleWheelsTableModel.setLanguage(language);
 		updateWheelInfo();
@@ -123,7 +125,7 @@ class TruckPanel extends JSplitPane {
 
 	void setTruck(Truck truck) {
 		this.truck = truck;
-		if (!this.truck.expandedCompatibleWheels.isEmpty()) {
+		if (this.truck!=null && !this.truck.expandedCompatibleWheels.isEmpty()) {
 			compatibleWheelsTableModel.setData(this.truck.expandedCompatibleWheels);
 		} else
 			compatibleWheelsTableModel.setData(null);
@@ -131,7 +133,12 @@ class TruckPanel extends JSplitPane {
 		updateOutput();
 	}
 
-	void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+	@Override public void updateAfterAssignmentsChange() {
+		updateWheelInfo();
+		updateOutput();
+	}
+
+	@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
 		this.truckToDLCAssignments = truckToDLCAssignments;
 		updateWheelInfo();
 		updateOutput();
@@ -300,15 +307,20 @@ class TruckPanel extends JSplitPane {
 		}
 
 		void setData(Vector<ExpandedCompatibleWheel> data) {
-			this.data = new Vector<>(data);
-			Comparator<Float >  floatNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
-			Comparator<String> stringNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
-			Comparator<String> typeComparator = Comparator.nullsLast(Comparator.<String,Integer>comparing(this::getTypeOrder).thenComparing(Comparator.naturalOrder()));
-			Comparator<ExpandedCompatibleWheel> comparator = Comparator
-					.<ExpandedCompatibleWheel,String>comparing(cw->cw.type_StringID,typeComparator)
-					.thenComparing(cw->cw.scale,floatNullsLast)
-					.thenComparing(cw->cw.name_StringID,stringNullsLast);
-			this.data.sort(comparator);
+			this.data = new Vector<>();
+			
+			if (data!=null) {
+				this.data.addAll(data);
+				Comparator<Float >  floatNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
+				Comparator<String> stringNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
+				Comparator<String> typeComparator = Comparator.nullsLast(Comparator.<String,Integer>comparing(this::getTypeOrder).thenComparing(Comparator.naturalOrder()));
+				Comparator<ExpandedCompatibleWheel> comparator = Comparator
+						.<ExpandedCompatibleWheel,String>comparing(cw->cw.type_StringID,typeComparator)
+						.thenComparing(cw->cw.scale,floatNullsLast)
+						.thenComparing(cw->cw.name_StringID,stringNullsLast);
+				this.data.sort(comparator);
+			}
+			
 			fireTableUpdate();
 		}
 		
