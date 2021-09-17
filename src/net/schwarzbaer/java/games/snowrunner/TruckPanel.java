@@ -3,6 +3,7 @@ package net.schwarzbaer.java.games.snowrunner;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Vector;
 
@@ -37,6 +38,7 @@ class TruckPanel extends JSplitPane {
 	private Language language;
 	private Truck truck;
 	private ExpandedCompatibleWheel selectedWheel;
+	private HashMap<String, String> truckToDLCAssignments;
 
 	TruckPanel() {
 		super(JSplitPane.VERTICAL_SPLIT);
@@ -45,6 +47,7 @@ class TruckPanel extends JSplitPane {
 		language = null;
 		truck = null;
 		selectedWheel = null;
+		truckToDLCAssignments = null;
 		
 		topTextArea = new JTextArea();
 		topTextArea.setEditable(false);
@@ -128,6 +131,12 @@ class TruckPanel extends JSplitPane {
 		updateOutput();
 	}
 
+	void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+		this.truckToDLCAssignments = truckToDLCAssignments;
+		updateWheelInfo();
+		updateOutput();
+	}
+
 	private void updateOutput() {
 		if (truck==null) {
 			topTextArea.setText("<NULL>");
@@ -135,8 +144,16 @@ class TruckPanel extends JSplitPane {
 		}
 		
 		ValueListOutput outTop = new ValueListOutput();
+		
 		if (truck.dlcName!=null)
-			outTop.add(0, "DLC", truck.dlcName);
+			outTop.add(0, "Internal DLC", truck.dlcName);
+		
+		if (truckToDLCAssignments!=null && truck.xmlName!=null) {
+			String dlc = truckToDLCAssignments.get(truck.xmlName);
+			if (dlc!=null)
+				outTop.add(0, "Official DLC", dlc);
+		}
+		
 		outTop.add(0, "Country", truck.country);
 		outTop.add(0, "Price"  , truck.price);
 		outTop.add(0, "Type"   , truck.type);

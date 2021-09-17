@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
-import java.awt.Window;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -61,6 +60,7 @@ public class SnowRunner {
 
 
 	private Data data;
+	private HashMap<String,String> truckToDLCAssignments;
 	private final StandardMainWindow mainWindow;
 	private final JFileChooser folderChooser;
 	private final JList<Truck> truckList;
@@ -72,6 +72,7 @@ public class SnowRunner {
 	
 	SnowRunner() {
 		data = null;
+		truckToDLCAssignments = null;
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		
@@ -87,7 +88,7 @@ public class SnowRunner {
 		truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		truckList.setCellRenderer(truckListCellRenderer = new TruckListCellRenderer());
 		truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
-		truckListContextMenu = new TruckListContextMenu(truckList,mainWindow);
+		truckListContextMenu = new TruckListContextMenu();
 		
 		
 		JSplitPane trucksPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
@@ -149,6 +150,8 @@ public class SnowRunner {
 	}
 	
 	private void initialize() {
+		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
+		truckPanel.setTruckToDLCAssignments(truckToDLCAssignments);
 		boolean changed = reloadInitialPAK();
 		if (changed) updateAfterDataChange();
 	}
@@ -473,14 +476,14 @@ public class SnowRunner {
 
 	}
 
-	private static class TruckListContextMenu extends ContextMenu {
+	private class TruckListContextMenu extends ContextMenu {
 		private static final long serialVersionUID = 2917583352980234668L;
 		
 		private int clickedIndex;
 		private Truck clickedItem;
 		private Language language;
 	
-		TruckListContextMenu(JList<Truck> truckList, Window mainWindow) {
+		TruckListContextMenu() {
 			clickedIndex = -1;
 			clickedItem = null;
 			language = null;
@@ -489,7 +492,7 @@ public class SnowRunner {
 			
 			JMenuItem miAssignToDLC = add(createMenuItem("Assign truck to an official DLC", true, e->{
 				if (clickedItem==null) return;
-				TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language);
+				TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
 				dlg.showDialog();
 			}));
 			
