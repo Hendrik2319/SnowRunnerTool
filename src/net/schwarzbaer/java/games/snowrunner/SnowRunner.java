@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
+import java.awt.Window;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -67,7 +68,8 @@ public class SnowRunner {
 	private final TruckPanel truckPanel;
 	private final JMenu languageMenu;
 	private final WheelsTableModel wheelsTableModel;
-
+	private final TruckListContextMenu truckListContextMenu;
+	
 	SnowRunner() {
 		data = null;
 		
@@ -85,6 +87,8 @@ public class SnowRunner {
 		truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		truckList.setCellRenderer(truckListCellRenderer = new TruckListCellRenderer());
 		truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
+		truckListContextMenu = new TruckListContextMenu(truckList,mainWindow);
+		
 		
 		JSplitPane trucksPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 		trucksPanel.setResizeWeight(0);
@@ -100,11 +104,11 @@ public class SnowRunner {
 		
 		ContextMenu wheelsTableContextMenu = new ContextMenu();
 		wheelsTableContextMenu.addTo(wheelsTable);
-		wheelsTableContextMenu.add(SnowRunner.createMenuItem("Reset Row Order",true,e->{
+		wheelsTableContextMenu.add(createMenuItem("Reset Row Order",true,e->{
 			wheelsTableRowSorter.resetSortOrder();
 			wheelsTable.repaint();
 		}));
-		wheelsTableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
+		wheelsTableContextMenu.add(createMenuItem("Show Column Widths", true, e->{
 			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(wheelsTable));
 		}));
 		
@@ -204,6 +208,7 @@ public class SnowRunner {
 		
 		wheelsTableModel.setLanguage(language);
 		truckPanel.setLanguage(language);
+		truckListContextMenu.setLanguage(language);
 		truckListCellRenderer.setLanguage(language);
 		truckList.repaint();
 	}
@@ -260,6 +265,24 @@ public class SnowRunner {
 		JLabel comp = new JLabel(text);
 		if (disabler!=null) disabler.add(ac, comp);
 		return comp;
+	}
+
+	static String getTruckLabel(Truck truck, Language language) {
+		if (truck==null)
+			return "<null>";
+		
+		String truckName = truck.xmlName;
+		
+		if (language!=null && truck.name_StringID!=null) {
+			truckName = language.dictionary.get(truck.name_StringID);
+			if (truckName==null)
+				truckName = "<"+truck.xmlName+">";
+		}
+		
+		if (truck.dlcName!=null)
+			truckName = String.format("%s [%s]", truckName, truck.dlcName);
+		
+		return truckName;
 	}
 
 	private static class WheelsTableModel extends Tables.SimplifiedTableModel<WheelsTableModel.ColumnID>{
@@ -424,7 +447,7 @@ public class SnowRunner {
 		private String getTruckList(HashSet<Truck> trucks) {
 			Iterable<String> it = ()->trucks
 					.stream()
-					.map(t->TruckListCellRenderer.getTruckLabel(t,language))
+					.map(t->getTruckLabel(t,language))
 					.sorted()
 					.iterator();
 			return trucks.isEmpty() ? "" :  String.join(", ", it);
@@ -448,6 +471,46 @@ public class SnowRunner {
 			return names_StringID.isEmpty() ? "" :  String.join(", ", it);
 		}
 
+	}
+
+	private static class TruckListContextMenu extends ContextMenu {
+		private static final long serialVersionUID = 2917583352980234668L;
+		
+		private int clickedIndex;
+		private Truck clickedItem;
+		private Language language;
+	
+		TruckListContextMenu(JList<Truck> truckList, Window mainWindow) {
+			clickedIndex = -1;
+			clickedItem = null;
+			language = null;
+			
+			addTo(truckList);
+			
+			JMenuItem miAssignToDLC = add(createMenuItem("Assign truck to an official DLC", true, e->{
+				if (clickedItem==null) return;
+				TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language);
+				dlg.showDialog();
+			}));
+			
+			addContextMenuInvokeListener((comp, x, y) -> {
+				clickedIndex = truckList.locationToIndex(new Point(x,y));
+				clickedItem = clickedIndex<0 ? null : truckList.getModel().getElementAt(clickedIndex);
+				
+				miAssignToDLC.setEnabled(clickedItem!=null && clickedItem.dlcName!=null);
+				
+				miAssignToDLC.setText(
+					clickedItem==null
+					? "Assign truck to an official DLC"
+					: String.format("Assign \"%s\" to an official DLC", getTruckLabel(clickedItem,language))
+				);
+			});
+			
+		}
+		
+		void setLanguage(Language language) {
+			this.language = language;
+		}
 	}
 
 	private static class TruckListCellRenderer implements ListCellRenderer<Truck> {
@@ -475,24 +538,6 @@ public class SnowRunner {
 			if (truck!=null && truck.dlcName!=null)
 				return COLOR_FG_DLCTRUCK;
 			return null;
-		}
-
-		static String getTruckLabel(Truck truck, Language language) {
-			if (truck==null)
-				return "<null>";
-			
-			String truckName = truck.xmlName;
-			
-			if (language!=null && truck.name_StringID!=null) {
-				truckName = language.dictionary.get(truck.name_StringID);
-				if (truckName==null)
-					truckName = "<"+truck.xmlName+">";
-			}
-			
-			if (truck.dlcName!=null)
-				truckName = String.format("%s [%s]", truckName, truck.dlcName);
-			
-			return truckName;
 		}
 	
 	}
