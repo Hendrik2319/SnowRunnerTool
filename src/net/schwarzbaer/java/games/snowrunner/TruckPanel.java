@@ -1,12 +1,33 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.Stroke;
+import java.awt.Window;
+import java.awt.event.MouseEvent;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Vector;
+import java.util.function.Function;
 
+import javax.swing.ButtonGroup;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
@@ -17,12 +38,15 @@ import javax.swing.SwingConstants;
 import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
+import net.schwarzbaer.gui.Disabler;
+import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnIDInterface;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.gui.ValueListOutput;
+import net.schwarzbaer.gui.ZoomableCanvas;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.ExpandedCompatibleWheel;
@@ -32,6 +56,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentList
 class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssignmentListener {
 	private static final long serialVersionUID = -5138746858742450458L;
 	
+	private final StandardMainWindow mainWindow;
 	private final JTextArea topTextArea;
 	private final JTextArea allWheelsInfoTextArea;
 	private final JTextArea singleWheelInfoTextArea;
@@ -42,8 +67,9 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 	private ExpandedCompatibleWheel selectedWheel;
 	private HashMap<String, String> truckToDLCAssignments;
 
-	TruckPanel() {
+	TruckPanel(StandardMainWindow mainWindow) {
 		super(JSplitPane.VERTICAL_SPLIT);
+		this.mainWindow = mainWindow;
 		setResizeWeight(0);
 
 		language = null;
@@ -62,7 +88,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		allWheelsInfoTextArea.setEditable(false);
 		allWheelsInfoTextArea.setWrapStyleWord(true);
 		allWheelsInfoTextArea.setLineWrap(true);
-		JScrollPane wheelsInfoTextAreaScrollPane = new JScrollPane(allWheelsInfoTextArea);
+		JScrollPane allWheelsInfoTextAreaScrollPane = new JScrollPane(allWheelsInfoTextArea);
 		
 		
 		compatibleWheelsTableModel = new CompatibleWheelsTableModel();
@@ -97,15 +123,28 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		singleWheelInfoTextArea.setEditable(false);
 		singleWheelInfoTextArea.setWrapStyleWord(true);
 		singleWheelInfoTextArea.setLineWrap(true);
-		JScrollPane wheelsInfo2TextAreaScrollPane = new JScrollPane(singleWheelInfoTextArea);
+		JScrollPane singleWheelInfoTextAreaScrollPane = new JScrollPane(singleWheelInfoTextArea);
+		
+		JPanel tableButtonsPanel = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.fill = GridBagConstraints.BOTH;
+		c.weightx = 0; tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data in Diagram", true, e->{
+			if (compatibleWheelsTableModel.data!=null)
+				new WheelsDiagramDialog(this.mainWindow, compatibleWheelsTableModel.data, language).showDialog();
+		}),c);
+		c.weightx = 1; tableButtonsPanel.add(new JLabel(),c);
+		
+		JPanel compatibleWheelsPanel = new JPanel(new BorderLayout());
+		compatibleWheelsPanel.add(compatibleWheelsTableScrollPane, BorderLayout.CENTER);
+		compatibleWheelsPanel.add(tableButtonsPanel, BorderLayout.SOUTH);
 		
 		JSplitPane condensedCompatibleWheelsInfoPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 		condensedCompatibleWheelsInfoPanel.setResizeWeight(0.5);
-		condensedCompatibleWheelsInfoPanel.setLeftComponent(compatibleWheelsTableScrollPane);
-		condensedCompatibleWheelsInfoPanel.setRightComponent(wheelsInfo2TextAreaScrollPane);
+		condensedCompatibleWheelsInfoPanel.setLeftComponent(compatibleWheelsPanel);
+		condensedCompatibleWheelsInfoPanel.setRightComponent(singleWheelInfoTextAreaScrollPane);
 		
 		JTabbedPane bottomPanel = new JTabbedPane();
-		bottomPanel.addTab("Compatible Wheels (Full Info)", wheelsInfoTextAreaScrollPane);
+		bottomPanel.addTab("Compatible Wheels (Full Info)", allWheelsInfoTextAreaScrollPane);
 		bottomPanel.addTab("Compatible Wheels (Condensed Info)", condensedCompatibleWheelsInfoPanel);
 		bottomPanel.setSelectedIndex(1);
 		
@@ -206,9 +245,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		if (selectedWheel != null) {
 			singleWheelInfoTextArea.append(selectedWheel.type_StringID+"\r\n");
 			singleWheelInfoTextArea.append("Description:\r\n");
-			String description = null;
-			if (language!=null) description = language.dictionary.get(selectedWheel.description_StringID);
-			if (description == null) description = String.format("<%s>", selectedWheel.description_StringID);
+			String description = SnowRunner.solveStringID(selectedWheel.description_StringID, language);
 			singleWheelInfoTextArea.append(description+"\r\n");
 		}
 	}
@@ -355,9 +392,9 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				case Name       : return getLangString( row.name_StringID );
 				case Description: return reducedString( getLangString( row.description_StringID ), 40 );
 				case DLC        : return row.dlc;
-				case Friction_highway: return row.friction_highway;
-				case Friction_offroad: return row.friction_offroad;
-				case Friction_mud    : return row.friction_mud;
+				case Friction_highway: return row.frictionHighway;
+				case Friction_offroad: return row.frictionOffroad;
+				case Friction_mud    : return row.frictionMud;
 				case OnIce: return row.onIce;
 				case Price: return row.price;
 				case Size : return row.getSize();
@@ -374,10 +411,460 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		}
 
 		private String getLangString(String stringID) {
-			String str = null;
-			if (language!=null) str = language.dictionary.get(stringID);
-			return str==null ? String.format("<%s>", stringID) : str;
+			return SnowRunner.solveStringID(stringID, language);
 		}
 		
+	}
+
+	private static class WheelsDiagram extends ZoomableCanvas<WheelsDiagram.ViewState> {
+	
+		private static final long serialVersionUID = 4384634067065873277L;
+		private static final Color COLOR_AXIS = new Color(0x70000000,true);
+		private static final Color COLOR_CONTOUR = Color.BLACK;
+		private static final Color COLOR_FILL = Color.YELLOW;
+		private static final Color COLOR_FILL_PARETO = new Color(0x00C6FF);
+		private static final Color COLOR_FILL_HOVERED = Color.GREEN;
+		private static final Color COLOR_DIAGRAM_BACKGROUND = Color.WHITE;
+		private static final Color COLOR_TEXTBOX_BACKGROUND = new Color(0xFFFFDD);
+		private static final Color COLOR_TEXT = Color.BLACK;
+		private static final Color COLOR_TEXT_NOTPARETO = new Color(0x7F7F7F);
+		
+		private Vector<DataPoint> dataPoints;
+		private Float minX;
+		private Float maxX;
+		private Float minY;
+		private Float maxY;
+		private final HashMap<DataPoint, TextBox> textBoxes;
+		private final HashMap<DataPoint, Point> posMarkers;
+		private final HashSet<DataPoint> paretoSet;
+		private DataPoint hoveredDataPoint;
+		
+		WheelsDiagram() {
+			textBoxes = new HashMap<>();
+			posMarkers = new HashMap<>();
+			paretoSet = new HashSet<>();
+			setData(null,true,true);
+			activateMapScale(COLOR_AXIS, "units", false);
+			activateAxes(COLOR_AXIS, true,true,true,true);
+		}
+	
+		void setData(Vector<DataPoint> dataPoints, boolean isXPositiveBetter, boolean isYPositiveBetter) {
+			textBoxes.clear();
+			posMarkers.clear();
+			paretoSet.clear();
+			hoveredDataPoint = null;
+			
+			this.dataPoints = dataPoints;
+			
+			minX = null;
+			maxX = null;
+			minY = null;
+			maxY = null;
+			if (dataPoints!=null) {
+				paretoSet.addAll(dataPoints);
+				for (DataPoint dataPoint:dataPoints) {
+					minX = minX==null ? dataPoint.x : Math.min(minX, dataPoint.x); 
+					minY = minY==null ? dataPoint.y : Math.min(minY, dataPoint.y); 
+					maxX = maxX==null ? dataPoint.x : Math.max(maxX, dataPoint.x); 
+					maxY = maxY==null ? dataPoint.y : Math.max(maxY, dataPoint.y);
+					
+					for (DataPoint paretoDataPoint:paretoSet)
+						if (isBelow(dataPoint, paretoDataPoint, isXPositiveBetter, isYPositiveBetter)) {
+							paretoSet.remove(dataPoint);
+							break;
+						}
+				}
+			}
+			reset();
+		}
+
+		private boolean isBelow(DataPoint dataPoint, DataPoint paretoDataPoint, boolean isXPositiveBetter, boolean isYPositiveBetter) {
+			float x1 = dataPoint.x;
+			float y1 = dataPoint.y;
+			float x2 = paretoDataPoint.x;
+			float y2 = paretoDataPoint.y;
+			
+			if (x1==x2 && y1==y2) return false;
+			if ((isXPositiveBetter && x1>x2) || (!isXPositiveBetter && x1<x2)) return false;
+			if ((isYPositiveBetter && y1>y2) || (!isYPositiveBetter && y1<y2)) return false;
+			return true;
+		}
+
+		private boolean isOver(int x, int y, DataPoint dataPoint) {
+			if (dataPoint==null) return false;
+			
+			Point p = posMarkers.get(dataPoint);
+			int dist_squared = (x-p.x)*(x-p.x) + (y-p.y)*(y-p.y);
+			if (dist_squared < 10*10) return true;
+			
+			TextBox textBox = textBoxes.get(dataPoint);
+			return textBox.boxRect.contains( x-textBox.textBoxBaseX_px, y-textBox.textBoxBaseY_px );
+		}
+
+		private DataPoint findNextDataPoint(int x, int y) {
+			for (DataPoint dataPoint: dataPoints)
+				if (isOver(x, y, dataPoint))
+					return dataPoint;
+			return null;
+		}
+
+		@Override public void mouseMoved(MouseEvent e) {
+			if (!isOver(e.getX(),e.getY(),hoveredDataPoint)) {
+				hoveredDataPoint = findNextDataPoint(e.getX(),e.getY());
+				repaint();
+			}
+		}
+
+		@Override public void mouseEntered(MouseEvent e) {
+			hoveredDataPoint = findNextDataPoint(e.getX(),e.getY());
+			repaint();
+		}
+
+		@Override public void mouseExited(MouseEvent e) {
+			hoveredDataPoint = null;
+			repaint();
+		}
+
+		@Override
+		protected void paintCanvas(Graphics g, int x, int y, int width, int height) {
+			if (!(g instanceof Graphics2D || !viewState.isOk()))
+				return;
+			
+			Graphics2D g2 = (Graphics2D) g;
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+			
+			Shape origClip = g2.getClip();
+			g2.setClip(x, y, width, height);
+			
+			if (dataPoints!=null && minX!=null && maxX!=null && minY!=null && maxY!=null) {
+				drawDiagram(g2, x, y);
+				
+				for (DataPoint dataPoint:dataPoints)
+					if (dataPoint!=hoveredDataPoint)
+						drawDataPointTextBox(g2,x,y,dataPoint);
+				
+				for (DataPoint dataPoint:dataPoints)
+					if (dataPoint!=hoveredDataPoint)
+						drawDataPointPosMarker(g2,x,y,dataPoint);
+				
+				if (hoveredDataPoint!=null) {
+					drawDataPointTextBox(g2,x,y,hoveredDataPoint);
+					drawDataPointPosMarker(g2,x,y,hoveredDataPoint);
+				}
+			}
+			
+			drawMapDecoration(g2, x, y, width, height);
+			
+			g2.setClip(origClip);
+		}
+
+		private void drawDiagram(Graphics2D g2, int x, int y) {
+			float diagramMinX_u = Math.min(minX, 0);
+			float diagramMinY_u = Math.min(minY, 0);
+			float diagramMaxX_u = Math.max(maxX, 0);
+			float diagramMaxY_u = Math.max(maxY, 0);
+			
+			int zeroX_px = x+viewState.convertPos_AngleToScreen_LongX(0);
+			int zeroY_px = y+viewState.convertPos_AngleToScreen_LatY (0);
+			int diagramMinX_px = x+viewState.convertPos_AngleToScreen_LongX(diagramMinX_u);
+			int diagramMinY_px = y+viewState.convertPos_AngleToScreen_LatY (diagramMinY_u);
+			int diagramMaxX_px = x+viewState.convertPos_AngleToScreen_LongX(diagramMaxX_u);
+			int diagramMaxY_px = y+viewState.convertPos_AngleToScreen_LatY (diagramMaxY_u);
+			int diagramWidth_px  = diagramMaxX_px-diagramMinX_px;
+			int diagramHeight_px = diagramMinY_px-diagramMaxY_px; // pos. Y upwards
+			
+			g2.setColor(COLOR_DIAGRAM_BACKGROUND);
+			g2.fillRect(diagramMinX_px-25, diagramMaxY_px-25, diagramWidth_px+50, diagramHeight_px+50);
+			
+			Stroke origStroke = g2.getStroke();
+			g2.setStroke(new BasicStroke(2f));
+			g2.setColor(COLOR_AXIS);
+			g2.drawLine(diagramMinX_px-20, zeroY_px  , diagramMaxX_px+20, zeroY_px);
+			g2.drawLine(diagramMaxX_px+5 , zeroY_px+5, diagramMaxX_px+20, zeroY_px);
+			g2.drawLine(diagramMaxX_px+5 , zeroY_px-5, diagramMaxX_px+20, zeroY_px);
+			g2.drawLine(zeroX_px  , diagramMinY_px+20, zeroX_px, diagramMaxY_px-20);
+			g2.drawLine(zeroX_px+5, diagramMaxY_px-5 , zeroX_px, diagramMaxY_px-20);
+			g2.drawLine(zeroX_px-5, diagramMaxY_px-5 , zeroX_px, diagramMaxY_px-20);
+			g2.setStroke(origStroke);
+		}
+		
+		private void drawDataPointTextBox(Graphics2D g2, int x, int y, DataPoint dataPoint) {
+			int dataPointX_px = x+viewState.convertPos_AngleToScreen_LongX(dataPoint.x);
+			int dataPointY_px = y+viewState.convertPos_AngleToScreen_LatY (dataPoint.y);
+			TextBox textBox = textBoxes.get(dataPoint);
+			if (textBox==null) {
+				textBox = new TextBox(str->getStringBounds(g2, str), dataPoint.getTextBox());
+				textBoxes.put(dataPoint, textBox);
+			}
+			textBox.draw(g2, x, y, dataPointX_px, dataPointY_px, dataPoint==hoveredDataPoint, paretoSet.contains(dataPoint));
+		}
+
+		private Rectangle getStringBounds(Graphics2D g2, String str) {
+			return g2.getFontMetrics().getStringBounds(str, g2).getBounds();
+		}
+		
+		private void drawDataPointPosMarker(Graphics2D g2, int x, int y, DataPoint dataPoint) {
+			Point p = posMarkers.get(dataPoint);
+			if (p == null)
+				posMarkers.put(dataPoint, p = new Point());
+			p.x = x+viewState.convertPos_AngleToScreen_LongX(dataPoint.x);
+			p.y = y+viewState.convertPos_AngleToScreen_LatY (dataPoint.y);
+			Color fillColor = dataPoint==hoveredDataPoint ? COLOR_FILL_HOVERED : paretoSet.contains(dataPoint) ? COLOR_FILL_PARETO : COLOR_FILL;
+			drawFilledCircle(g2, p.x, p.y, 3, fillColor, COLOR_CONTOUR);
+		}
+
+		private void drawFilledCircle(Graphics2D g2, int x, int y, int radius, Color fillColor, Color contourColor) {
+			g2.setColor(fillColor);
+			g2.fillOval(x-radius, y-radius, radius*2+1, radius*2+1);
+			g2.setColor(contourColor);
+			g2.drawOval(x-radius, y-radius, radius*2, radius*2);
+		}
+
+		@Override
+		protected ViewState createViewState() {
+			return new ViewState();
+		}
+		
+		class ViewState extends ZoomableCanvas.ViewState {
+		
+			private ViewState() {
+				super(WheelsDiagram.this, 0.1f);
+				setPlainMapSurface();
+				//setVertAxisDownPositive(true);
+				//debug_showChanges_scalePixelPerLength = true;
+			}
+			
+			@Override
+			protected void determineMinMax(MapLatLong min, MapLatLong max) {
+				min.longitude_x = minX==null ? 0   : Math.min(minX, 0);
+				min.latitude_y  = minY==null ? 0   : Math.min(minY, 0);
+				max.longitude_x = maxX==null ? 100 : Math.max(maxX, 0);
+				max.latitude_y  = maxY==null ? 100 : Math.max(maxY, 0);
+				float overSize = Math.max(max.longitude_x-min.longitude_x, max.latitude_y-min.latitude_y)*0.1f;
+				min.longitude_x -= overSize;
+				min.latitude_y  -= overSize;
+				max.longitude_x += overSize;
+				max.latitude_y  += overSize;
+			}
+		
+		}
+		
+		private static class TextBox {
+			
+			private final static int BorderX = 3;
+			private final static int BorderY = 1;
+			
+			private final String[] text;
+			private final int[] xOffsets;
+			private final int[] yOffsets;
+			private final Rectangle boxRect;
+			private int textBoxBaseX_px;
+			private int textBoxBaseY_px;
+		
+			TextBox(Function<String,Rectangle> getStringBounds, String[] text) {
+				this.text = text;
+				Rectangle[] stringBounds = new Rectangle[text.length];
+				yOffsets = new int[text.length];
+				xOffsets = new int[text.length];
+				int rowOffset = 0;
+				Rectangle stringBoundsTotal = null; 
+				
+				for (int i=text.length-1; i>=0; i--) {
+					stringBounds[i] = getStringBounds.apply(text[i]);
+					//stringBounds[i] = g2.getFontMetrics().getStringBounds(textBox[i], g2).getBounds();
+					rowOffset -= stringBounds[i].height;
+					xOffsets[i] = -stringBounds[i].x;
+					yOffsets[i] = -stringBounds[i].y+rowOffset;
+					stringBounds[i].x = 0;
+					stringBounds[i].y = rowOffset;
+					if (i==text.length-1) stringBoundsTotal = new Rectangle(stringBounds[i]);
+					else                     stringBoundsTotal.add(stringBounds[i]);
+				}
+				
+				boxRect = new Rectangle( stringBoundsTotal );
+				boxRect.y      -= 2*BorderY;
+				boxRect.width  += 2*BorderX;
+				boxRect.height += 2*BorderY;
+				
+				textBoxBaseX_px = 0;
+				textBoxBaseY_px = 0;
+			}
+			
+			void draw(Graphics2D g2, int x, int y, int dataPointX_px, int dataPointY_px, boolean isHovered, boolean isInParetoSet) {
+				textBoxBaseX_px = dataPointX_px+20;
+				textBoxBaseY_px = dataPointY_px-10;
+				
+				if (isHovered) {
+					g2.setColor(COLOR_TEXTBOX_BACKGROUND);
+					g2.fillRect(textBoxBaseX_px+boxRect.x, textBoxBaseY_px+boxRect.y, boxRect.width, boxRect.height);
+				}
+				g2.setColor(isHovered || isInParetoSet ? COLOR_CONTOUR : COLOR_TEXT_NOTPARETO);
+				g2.drawLine(dataPointX_px, dataPointY_px, textBoxBaseX_px, textBoxBaseY_px);
+				g2.drawRect(textBoxBaseX_px+boxRect.x, textBoxBaseY_px+boxRect.y, boxRect.width-1, boxRect.height-1);
+				
+				for (int i=0; i<text.length; i++) {
+					g2.setColor(isHovered || isInParetoSet ? COLOR_TEXT : COLOR_TEXT_NOTPARETO);
+					g2.drawString(text[i], textBoxBaseX_px+xOffsets[i]+BorderX, textBoxBaseY_px+yOffsets[i]-BorderY);
+				}
+			}
+			
+		}
+
+		private static class DataPoint {
+			
+			final float x,y;
+			final HashMap<String,HashSet<Integer>> wheels;
+			
+			DataPoint(float x, float y) {
+				this.x = x;
+				this.y = y;
+				wheels = new HashMap<>();
+			}
+			
+			void add(ExpandedCompatibleWheel wheel, Language language) {
+				String name = SnowRunner.solveStringID(wheel.name_StringID, language);
+				Integer size = wheel.getSize();
+				
+				HashSet<Integer> sizes = wheels.get(name);
+				if (sizes==null) wheels.put(name, sizes = new HashSet<>());
+				if (size!=null) sizes.add(size);
+			}
+
+			String[] getTextBox() {
+				Vector<String> names = new Vector<>(wheels.keySet());
+				names.sort(null);
+				String[] texts = new String[names.size()];
+				
+				for (int i=0; i<names.size(); i++) {
+					String name = names.get(i);
+					texts[i] = name;
+					
+					HashSet<Integer> sizes = wheels.get(name);
+					if (!sizes.isEmpty()) {
+						Vector<Integer> sizesVec = new Vector<>(sizes);
+						sizesVec.sort(null);
+						Iterable<String> it = ()->sizesVec.stream().map(size->size+"\"").iterator();
+						texts[i] += String.format(" (%s)", String.join(", ", it));
+					}
+				}
+				return texts;
+			}
+		}
+	}
+	
+	private static class WheelsDiagramDialog extends JDialog {
+		private static final long serialVersionUID = 1414536465711827973L;
+
+		private enum AxisValue { Highway, Offroad, Mud }
+		private enum GuiObjs { HorizAxesHighway, HorizAxesOffroad, HorizAxesMud, VertAxesHighway, VertAxesOffroad, VertAxesMud }
+
+		private AxisValue horizAxis;
+		private AxisValue vertAxis;
+		private final Disabler<GuiObjs> disabler;
+		private final Vector<ExpandedCompatibleWheel> data;
+		private final WheelsDiagram diagramView;
+		private final Language language;
+		
+		WheelsDiagramDialog(Window owner, Vector<ExpandedCompatibleWheel> data, Language language) {
+			super(owner, ModalityType.APPLICATION_MODAL);
+			this.data = data;
+			this.language = language;
+			
+			horizAxis = AxisValue.Offroad;
+			vertAxis  = AxisValue.Mud;
+			diagramView = new WheelsDiagram();
+			diagramView.setPreferredSize(700, 600);
+			
+			disabler = new Disabler<GuiObjs>();
+			disabler.setCareFor(GuiObjs.values());
+			
+			JPanel optionsPanel = new JPanel(new GridBagLayout());
+			GridBagConstraints c = new GridBagConstraints();
+			c.fill = GridBagConstraints.BOTH;
+			c.weightx = 0; c.gridwidth = 1;
+			ButtonGroup bgh = new ButtonGroup();
+			optionsPanel.add(new JLabel("Horizontal Axis: "), c);
+			optionsPanel.add(createRadioH(GuiObjs.HorizAxesHighway, "Highway", bgh, AxisValue.Highway), c);
+			optionsPanel.add(createRadioH(GuiObjs.HorizAxesOffroad, "Offroad", bgh, AxisValue.Offroad), c);
+			optionsPanel.add(createRadioH(GuiObjs.HorizAxesMud    , "Mud"    , bgh, AxisValue.Mud    ), c);
+			c.weightx = 1; c.gridwidth = GridBagConstraints.REMAINDER;
+			optionsPanel.add(new JLabel(), c);
+			
+			c.weightx = 0; c.gridwidth = 1;
+			ButtonGroup bgv = new ButtonGroup();
+			optionsPanel.add(new JLabel("Vertical Axis: "), c);
+			optionsPanel.add(createRadioV(GuiObjs.VertAxesHighway, "Highway", bgv, AxisValue.Highway), c);
+			optionsPanel.add(createRadioV(GuiObjs.VertAxesOffroad, "Offroad", bgv, AxisValue.Offroad), c);
+			optionsPanel.add(createRadioV(GuiObjs.VertAxesMud    , "Mud"    , bgv, AxisValue.Mud    ), c);
+			c.weightx = 1; c.gridwidth = GridBagConstraints.REMAINDER;
+			optionsPanel.add(new JLabel(), c);
+			
+			JPanel contentPane = new JPanel(new BorderLayout());
+			contentPane.add(optionsPanel,BorderLayout.NORTH);
+			contentPane.add(diagramView,BorderLayout.CENTER);
+			
+			setContentPane(contentPane);
+			pack();
+			setLocationRelativeTo(owner);
+			
+			updateGuiAccess();
+			updateDiagram();
+		}
+
+		private JRadioButton createRadioV( GuiObjs go, String title, ButtonGroup bg, AxisValue axisValue) {
+			return SnowRunner.createRadioButton(title, bg, true, vertAxis == axisValue, disabler, go, e->{ vertAxis = axisValue; updateGuiAccess(); updateDiagram(); });
+		}
+
+		private JRadioButton createRadioH(GuiObjs go, String title, ButtonGroup bg, AxisValue axisValue) {
+			return SnowRunner.createRadioButton(title, bg, true, horizAxis == axisValue, disabler, go, e->{ horizAxis = axisValue; updateGuiAccess(); updateDiagram(); });
+		}
+		
+		void showDialog() {
+			setVisible(true);
+		}
+
+		private void updateGuiAccess() {
+			disabler.setEnable(go->{
+				switch (go) {
+				case HorizAxesHighway: return vertAxis !=AxisValue.Highway;
+				case HorizAxesOffroad: return vertAxis !=AxisValue.Offroad;
+				case HorizAxesMud    : return vertAxis !=AxisValue.Mud    ;
+				case VertAxesHighway : return horizAxis!=AxisValue.Highway;
+				case VertAxesOffroad : return horizAxis!=AxisValue.Offroad;
+				case VertAxesMud     : return horizAxis!=AxisValue.Mud    ;
+				}
+				return null;
+			});
+		}
+
+		private void updateDiagram() {
+			HashMap<Float,HashMap<Float,WheelsDiagram.DataPoint>> dataPointsMap = new HashMap<>();
+			for (ExpandedCompatibleWheel wheel:data) {
+				Float x = getValue(wheel,horizAxis);
+				Float y = getValue(wheel,vertAxis);
+				if (x!=null && y!=null) {
+					HashMap<Float, WheelsDiagram.DataPoint> yMap = dataPointsMap.get(x);
+					if (yMap==null) dataPointsMap.put(x, yMap = new HashMap<>());
+					WheelsDiagram.DataPoint dataPoint = yMap.get(y);
+					if (dataPoint==null) yMap.put(y, dataPoint = new WheelsDiagram.DataPoint(x, y));
+					dataPoint.add(wheel, language);
+				}
+			}
+			
+			Vector<WheelsDiagram.DataPoint> dataPointsVec = new Vector<>();
+			dataPointsMap.forEach((x,yMap)->dataPointsVec.addAll(yMap.values()));
+			
+			diagramView.setData(dataPointsVec,true,true);
+		}
+
+		private Float getValue(ExpandedCompatibleWheel wheel, AxisValue value) {
+			switch (value) {
+			case Highway: return wheel.frictionHighway;
+			case Offroad: return wheel.frictionOffroad;
+			case Mud    : return wheel.frictionMud;
+			}
+			return null;
+		}
 	}
 }

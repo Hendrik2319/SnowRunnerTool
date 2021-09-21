@@ -364,9 +364,9 @@ public class Data {
 	
 		final String id;
 		final String name_StringID;
-		final Float friction_highway;
-		final Float friction_offroad;
-		final Float friction_mud;
+		final Float frictionHighway;
+		final Float frictionOffroad;
+		final Float frictionMud;
 		final boolean onIce;
 		final WheelFriction template;
 
@@ -380,11 +380,11 @@ public class Data {
 //			SubstanceFriction="1.1"
 //			UiName="UI_TIRE_TYPE_CHAINS_NAME"
 			
-			name_StringID    = XML.getAttribute(node,"UiName");
-			friction_highway = parseFloat( XML.getAttribute(node,"BodyFrictionAsphalt") );
-			friction_offroad = parseFloat( XML.getAttribute(node,"BodyFriction"       ) );
-			friction_mud     = parseFloat( XML.getAttribute(node,"SubstanceFriction"  ) );
-			onIce            = parseBool ( XML.getAttribute(node,"IsIgnoreIce"), false );
+			name_StringID   = XML.getAttribute(node,"UiName");
+			frictionHighway = parseFloat( XML.getAttribute(node,"BodyFrictionAsphalt") );
+			frictionOffroad = parseFloat( XML.getAttribute(node,"BodyFriction"       ) );
+			frictionMud     = parseFloat( XML.getAttribute(node,"SubstanceFriction"  ) );
+			onIce           = parseBool ( XML.getAttribute(node,"IsIgnoreIce"), false );
 		}
 		
 		WheelFriction(Node node, HashMap<String,WheelFriction> templates) throws ParseException { // based on template
@@ -401,19 +401,19 @@ public class Data {
 					throw new ParseException("Can't find template \"%s\" for current <WheelFriction> node.", templateID);
 			}
 			
-			name_StringID    = XML.hasAttribute(node,"UiName"             ) ? XML.getAttribute(node,"UiName")                            : template==null ? null  : template.name_StringID;
-			friction_highway = XML.hasAttribute(node,"BodyFrictionAsphalt") ? parseFloat( XML.getAttribute(node,"BodyFrictionAsphalt") ) : template==null ? null  : template.friction_highway;
-			friction_offroad = XML.hasAttribute(node,"BodyFriction"       ) ? parseFloat( XML.getAttribute(node,"BodyFriction"       ) ) : template==null ? null  : template.friction_offroad;
-			friction_mud     = XML.hasAttribute(node,"SubstanceFriction"  ) ? parseFloat( XML.getAttribute(node,"SubstanceFriction"  ) ) : template==null ? null  : template.friction_mud    ;
-			onIce            = XML.hasAttribute(node,"IsIgnoreIce"        ) ? parseBool ( XML.getAttribute(node,"IsIgnoreIce"), false  ) : template==null ? false : template.onIce;
+			name_StringID   = XML.hasAttribute(node,"UiName"             ) ? XML.getAttribute(node,"UiName")                            : template==null ? null  : template.name_StringID;
+			frictionHighway = XML.hasAttribute(node,"BodyFrictionAsphalt") ? parseFloat( XML.getAttribute(node,"BodyFrictionAsphalt") ) : template==null ? null  : template.frictionHighway;
+			frictionOffroad = XML.hasAttribute(node,"BodyFriction"       ) ? parseFloat( XML.getAttribute(node,"BodyFriction"       ) ) : template==null ? null  : template.frictionOffroad;
+			frictionMud     = XML.hasAttribute(node,"SubstanceFriction"  ) ? parseFloat( XML.getAttribute(node,"SubstanceFriction"  ) ) : template==null ? null  : template.frictionMud    ;
+			onIce           = XML.hasAttribute(node,"IsIgnoreIce"        ) ? parseBool ( XML.getAttribute(node,"IsIgnoreIce"), false  ) : template==null ? false : template.onIce;
 		}
 
 		void printValues(ValueListOutput out, int indentLevel) {
 			out.add(indentLevel, "ID", id);
 			out.add(indentLevel, "name [StringID]", name_StringID);
-			out.add(indentLevel, "friction (highway)", friction_highway);
-			out.add(indentLevel, "friction (offroad)", friction_offroad);
-			out.add(indentLevel, "friction (mud)"    , friction_mud);
+			out.add(indentLevel, "friction (highway)", frictionHighway);
+			out.add(indentLevel, "friction (offroad)", frictionOffroad);
+			out.add(indentLevel, "friction (mud)"    , frictionMud);
 			out.add(indentLevel, "onIce", onIce);
 			if (template!=null) {
 				out.add(indentLevel, "template");
@@ -704,9 +704,9 @@ public class Data {
 			final String name_StringID;
 			final String description_StringID;
 			final String type_StringID;
-			final Float friction_highway;
-			final Float friction_offroad;
-			final Float friction_mud;
+			final Float frictionHighway;
+			final Float frictionOffroad;
+			final Float frictionMud;
 			final Boolean onIce;
 			final Integer price;
 			final Boolean unlockByExploration;
@@ -740,17 +740,17 @@ public class Data {
 				}
 				
 				if (tire!=null && tire.wheelFriction!=null) {
-					type_StringID    = tire.wheelFriction.name_StringID;
-					friction_highway = tire.wheelFriction.friction_highway;
-					friction_offroad = tire.wheelFriction.friction_offroad;
-					friction_mud     = tire.wheelFriction.friction_mud;
-					onIce            = tire.wheelFriction.onIce;
+					type_StringID   = tire.wheelFriction.name_StringID;
+					frictionHighway = tire.wheelFriction.frictionHighway;
+					frictionOffroad = tire.wheelFriction.frictionOffroad;
+					frictionMud     = tire.wheelFriction.frictionMud;
+					onIce           = tire.wheelFriction.onIce;
 				} else {
-					type_StringID    = null;
-					friction_highway = null;
-					friction_offroad = null;
-					friction_mud     = null;
-					onIce            = null;
+					type_StringID   = null;
+					frictionHighway = null;
+					frictionOffroad = null;
+					frictionMud     = null;
+					onIce           = null;
 				}
 			}
 

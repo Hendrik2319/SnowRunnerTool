@@ -77,7 +77,7 @@ public class SnowRunner {
 		truckToDLCAssignmentListenerController = new TruckToDLCAssignmentListenerController();
 		dataReceiverController = new DataReceiverController();
 		
-		TruckPanel truckPanel = new TruckPanel();
+		TruckPanel truckPanel = new TruckPanel(mainWindow);
 		truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 		languageListenerController.add(truckPanel);
 		truckToDLCAssignmentListenerController.add(truckPanel);
@@ -311,10 +311,13 @@ public class SnowRunner {
 		languageListenerController.setLanguage(language);
 	}
 
-	public static String solveStringID(String strID, Language language) {
+	static String solveStringID(String strID, Language language) {
+		return solveStringID(strID, language, "<"+strID+">");
+	}
+	static String solveStringID(String strID, Language language, String defaultStr) {
 		String str = null;
 		if (language!=null) str = language.dictionary.get(strID);
-		if (str==null) str = strID;
+		if (str==null) str = defaultStr;
 		return str;
 	}
 
@@ -372,13 +375,7 @@ public class SnowRunner {
 		if (truck==null)
 			return "<null>";
 		
-		String truckName = truck.xmlName;
-		
-		if (language!=null && truck.name_StringID!=null) {
-			truckName = language.dictionary.get(truck.name_StringID);
-			if (truckName==null)
-				truckName = "<"+truck.xmlName+">";
-		}
+		String truckName = SnowRunner.solveStringID(truck.name_StringID, language, "<"+truck.xmlName+">");
 		
 		if (addInternalDLC && truck.dlcName!=null)
 			truckName = String.format("%s [%s]", truckName, truck.dlcName);
@@ -544,25 +541,25 @@ public class SnowRunner {
 			
 			private static class TireValues {
 
-				final Float friction_highway;
-				final Float friction_offroad;
-				final Float friction_mud;
+				final Float frictionHighway;
+				final Float frictionOffroad;
+				final Float frictionMud;
 				final Boolean onIce;
 
 				public TireValues(ExpandedCompatibleWheel wheel) {
-					friction_highway = wheel.friction_highway;
-					friction_offroad = wheel.friction_offroad;
-					friction_mud     = wheel.friction_mud;
-					onIce            = wheel.onIce;
+					frictionHighway = wheel.frictionHighway;
+					frictionOffroad = wheel.frictionOffroad;
+					frictionMud     = wheel.frictionMud;
+					onIce           = wheel.onIce;
 				}
 
 				@Override
 				public int hashCode() {
 					int hashCode = 0;
-					if (friction_highway!=null) hashCode ^= friction_highway.hashCode();
-					if (friction_offroad!=null) hashCode ^= friction_offroad.hashCode();
-					if (friction_mud    !=null) hashCode ^= friction_mud    .hashCode();
-					if (onIce           !=null) hashCode ^= onIce           .hashCode();
+					if (frictionHighway!=null) hashCode ^= frictionHighway.hashCode();
+					if (frictionOffroad!=null) hashCode ^= frictionOffroad.hashCode();
+					if (frictionMud    !=null) hashCode ^= frictionMud    .hashCode();
+					if (onIce          !=null) hashCode ^= onIce          .hashCode();
 					return hashCode;
 				}
 
@@ -572,10 +569,10 @@ public class SnowRunner {
 						return false;
 					
 					TireValues other = (TireValues) obj;
-					if (!equals( this.friction_highway, other.friction_highway )) return false;
-					if (!equals( this.friction_offroad, other.friction_offroad )) return false;
-					if (!equals( this.friction_mud    , other.friction_mud     )) return false;
-					if (!equals( this.onIce           , other.onIce            )) return false;
+					if (!equals( this.frictionHighway, other.frictionHighway )) return false;
+					if (!equals( this.frictionOffroad, other.frictionOffroad )) return false;
+					if (!equals( this.frictionMud    , other.frictionMud     )) return false;
+					if (!equals( this.onIce          , other.onIce           )) return false;
 					
 					return true;
 				}
@@ -593,7 +590,7 @@ public class SnowRunner {
 				}
 
 				@Override public String toString() {
-					return String.format("(H:%1.2f,O:%1.2f,M:%1.2f%s)\"", friction_highway, friction_offroad, friction_mud, onIce!=null && onIce ? ",Ice" : "");
+					return String.format("(H:%1.2f,O:%1.2f,M:%1.2f%s)\"", frictionHighway, frictionOffroad, frictionMud, onIce!=null && onIce ? ",Ice" : "");
 				}
 				
 			}
@@ -631,9 +628,9 @@ public class SnowRunner {
 			case Sizes : return getSizeList ( row.sizes );
 			case Trucks: return getTruckList( row.trucks );
 			case Names : return getNameList ( row.names_StringID );
-			case Friction_highway: return row.tireValues.friction_highway;
-			case Friction_offroad: return row.tireValues.friction_offroad;
-			case Friction_mud    : return row.tireValues.friction_mud;
+			case Friction_highway: return row.tireValues.frictionHighway;
+			case Friction_offroad: return row.tireValues.frictionOffroad;
+			case Friction_mud    : return row.tireValues.frictionMud;
 			case OnIce           : return row.tireValues.onIce;
 			}
 			return null;
