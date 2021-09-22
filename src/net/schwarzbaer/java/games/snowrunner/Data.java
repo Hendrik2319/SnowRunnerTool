@@ -6,41 +6,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
 import net.schwarzbaer.gui.ValueListOutput;
+import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 
 public class Data {
 
 	public static Data readInitialPAK(File initialPAK) {
-		try (ZipFile zipFile = new ZipFile(initialPAK, ZipFile.OPEN_READ); ) {
-			System.out.printf("Read \"initial.pak\" ...%n");
-			ZipEntryTreeNode zipRoot = new ZipEntryTreeNode();
-			
-			Enumeration<? extends ZipEntry> entries = zipFile.entries();
-			while (entries.hasMoreElements()) {
-				ZipEntry entry = entries.nextElement();
-				zipRoot.addChild(entry);
-				//String entryName = entry.getName();
-				//System.out.printf("   \"%s\"%n", entryName);
-			}
-			
-			Data data = new Data(zipFile, zipRoot);
-			System.out.printf("... done%n");
-			return data;
-			
-		} catch (IOException e) { e.printStackTrace(); }
-		
-		return null;
+		return PAKReader.readPAK(initialPAK, Data::new);
 	}
 
 	final HashMap<String,Language> languages;
@@ -143,85 +124,6 @@ public class Data {
 	private <ValueType> ValueType readEntry(ZipFile zipFile, ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) throws IOException {
 		InputStream input = zipFile.getInputStream(node.entry);
 		return readInput.apply(node.name, input);
-	}
-	
-	private static class ZipEntryTreeNode {
-		@SuppressWarnings("unused")
-		final ZipEntryTreeNode parent;
-		final String name;
-		final ZipEntry entry;
-		final HashMap<String, ZipEntryTreeNode> folders;
-		final HashMap<String, ZipEntryTreeNode> files;
-
-		ZipEntryTreeNode() { // root
-			this(null,"root",null);
-		}
-		
-		ZipEntryTreeNode(ZipEntryTreeNode parent, String name, ZipEntry entry) {
-			this.parent = parent;
-			this.name = name;
-			this.entry = entry;
-			this.folders = new HashMap<>();
-			this.files   = new HashMap<>();
-		}
-
-		void addChild(ZipEntry entry) {
-			String entryName = entry.getName();
-			String[] names = entryName.split("\\\\");
-			addChild(names,0,entry);
-		}
-
-		private void addChild(String[] names, int index, ZipEntry entry) {
-			String name = names[index];
-			if (index==names.length-1) {
-				files.put(name, new ZipEntryTreeNode(this, name, entry));
-				return;
-			} else {
-				ZipEntryTreeNode folderNode = folders.get(name);
-				if (folderNode==null)
-					folders.put(name, folderNode = new ZipEntryTreeNode(this, name, null));
-				folderNode.addChild(names, index+1, entry);
-			}
-		}
-
-		ZipEntryTreeNode getSubFile(String folderPath, String fileName) {
-			ZipEntryTreeNode folderNode = getSubFolder(folderPath);
-			if (folderNode==null) return null;
-			return folderNode.files.get(fileName);
-		}
-
-		@SuppressWarnings("unused")
-		ZipEntryTreeNode[] getSubFiles(String folderPath) {
-			return getSubFiles(folderPath, str->true);
-		}
-		
-		ZipEntryTreeNode[] getSubFiles(String folderPath, Predicate<String> checkFileName) {
-			ZipEntryTreeNode folderNode = getSubFolder(folderPath);
-			if (folderNode==null) return null;
-			return folderNode.files
-					.values()
-					.stream()
-					.filter(fileNode->checkFileName.test(fileNode.name))
-					.toArray(ZipEntryTreeNode[]::new);
-		}
-
-		ZipEntryTreeNode getSubFolder(String folderPath) {
-			while (folderPath.endsWith("\\"))
-				folderPath = folderPath.substring(0, folderPath.length()-1);
-			String[] pathStrs = folderPath.split("\\\\");
-			ZipEntryTreeNode folderNode = this;
-			for (String str:pathStrs) {
-				if (folderNode==null) break;
-				folderNode = folderNode.folders.get(str);
-			}
-			return folderNode;
-		}
-
-		ZipEntryTreeNode[] getSubFolders(String folderPath) {
-			ZipEntryTreeNode folderNode = getSubFolder(folderPath);
-			if (folderNode==null) return null;
-			return folderNode.folders.values().stream().toArray(ZipEntryTreeNode[]::new);
-		}
 	}
 	
 	static class Language {
