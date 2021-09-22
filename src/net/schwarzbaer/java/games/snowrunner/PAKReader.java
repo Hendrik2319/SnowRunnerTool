@@ -4,15 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 class PAKReader {
 
-	static <ValueType> ValueType readPAK(File initialPAK, NextParsingStage<ValueType> nextParsingStage) {
-		try (ZipFile zipFile = new ZipFile(initialPAK, ZipFile.OPEN_READ); ) {
-			System.out.printf("Read \"%s\" ...%n", initialPAK.getName());
+	static <ValueType> ValueType readPAK(File pakFile, NextParsingStage<ValueType> nextParsingStage) {
+		try (ZipFile zipFile = new ZipFile(pakFile, ZipFile.OPEN_READ); ) {
+			System.out.printf("Read \"%s\" ...%n", pakFile.getName());
 			ZipEntryTreeNode zipRoot = new ZipEntryTreeNode();
 			
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
@@ -24,7 +25,7 @@ class PAKReader {
 			}
 			
 			ValueType data = nextParsingStage.parse(zipFile, zipRoot);
-			System.out.printf("... done%n");
+			System.out.printf("... done [readPAK()]%n");
 			return data;
 			
 		} catch (IOException e) { e.printStackTrace(); }
@@ -44,15 +45,34 @@ class PAKReader {
 		final HashMap<String, ZipEntryTreeNode> files;
 
 		private ZipEntryTreeNode() { // root
-			this(null,"root",null);
+			this(null,"",null);
 		}
 		
 		private ZipEntryTreeNode(ZipEntryTreeNode parent, String name, ZipEntry entry) {
 			this.parent = parent;
 			this.name = name;
 			this.entry = entry;
-			this.folders = new HashMap<>();
-			this.files   = new HashMap<>();
+			this.folders = this.entry!=null ? null : new HashMap<>();
+			this.files   = this.entry!=null ? null : new HashMap<>();
+		}
+		
+		boolean isfile() {
+			return entry!=null;
+		}
+
+		String getPath() {
+			if (parent==null) return name;
+			return parent.getPath()+"\\"+name;
+		}
+
+		void forEachChild(Consumer<ZipEntryTreeNode> action) {
+			files.values().forEach(action);
+			folders.values().forEach(action);
+		}
+
+		void traverseFiles(Consumer<ZipEntryTreeNode> action) {
+			files.values().forEach(action);
+			folders.values().forEach(node->node.traverseFiles(action));
 		}
 
 		private void addChild(ZipEntry entry) {

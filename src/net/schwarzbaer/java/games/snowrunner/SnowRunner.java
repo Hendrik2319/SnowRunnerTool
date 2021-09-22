@@ -222,10 +222,11 @@ public class SnowRunner {
 	private boolean reloadInitialPAK() {
 		File initialPAK = getInitialPAK();
 		if (initialPAK!=null) {
-			// ######### TEST
-			@SuppressWarnings("unused")
-			XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK);
-			// ######### TEST
+			//// ######### TEST
+			//System.out.printf("XMLTemplateStructure.readPAK(\"%s\") --> ", initialPAK.getAbsolutePath());
+			//@SuppressWarnings("unused")
+			//XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK);
+			//// ######### TEST
 			Data newData = Data.readInitialPAK(initialPAK);
 			if (newData!=null) {
 				data = newData;
