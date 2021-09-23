@@ -6,9 +6,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Vector;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.zip.ZipFile;
 
@@ -128,7 +131,7 @@ class XMLTemplateStructure {
 			if (templatesNode==null)
 				throw new ParseException("Found no <_templates> node in template file \"%s\"", fileNode.getPath());
 			
-			globalTemplates.put(templateName, new Templates(templatesNode, null, fileNode));
+			globalTemplates.put(templateName, new Templates(templatesNode, null, fileNode, null));
 			//System.out.printf("... done [read template]%n");
 		}
 		
@@ -242,12 +245,12 @@ class XMLTemplateStructure {
 			if (!fileNode.name.endsWith(".xml"))
 				System.err.printf("Found a Non XML File: %s%n", fileNode.getPath());
 			
-			//// dublicate filenames
-			//ZipEntryTreeNode existingNode = fileNames.get(fileNode.name);
-			//if (existingNode!=null)
-			//	System.err.printf("Found dublicate filenames:%n   \"%s\"%n   \"%s\"%n", existingNode.getPath(), fileNode.getPath());
-			//else
-			//	fileNames.put(fileNode.name,fileNode);
+			// dublicate filenames
+			ZipEntryTreeNode existingNode = fileNames.get(fileNode.name);
+			if (existingNode!=null)
+				System.err.printf("Found dublicate filenames:%n   \"%s\"%n   \"%s\"%n", existingNode.getPath(), fileNode.getPath());
+			else
+				fileNames.put(fileNode.name,fileNode);
 		});
 		
 		contentRootFolder.forEachChild(node->{
@@ -301,35 +304,98 @@ class XMLTemplateStructure {
 			//}
 			
 			subItems = new HashMap<>();
-			for (ZipEntryTreeNode subItemFolder : classFolder.folders.values()) {
-				if (!subItemFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in sub item folder \"%s\"", subItemFolder.getPath());
-				if ( subItemFolder.files  .isEmpty()) throw new EntryStructureException("Found no item files in sub item folder \"%s\"", subItemFolder.getPath());
+			for (ZipEntryTreeNode subItemGroupFolder : classFolder.folders.values()) {
+				if (!subItemGroupFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in sub item folder \"%s\"", subItemGroupFolder.getPath());
+				if ( subItemGroupFolder.files  .isEmpty()) throw new EntryStructureException("Found no item files in sub item folder \"%s\"", subItemGroupFolder.getPath());
 				
-				HashMap<String, Item> subItems1 = new HashMap<>();
-				subItems.put(subItemFolder.name, subItems1);
-				for (ZipEntryTreeNode itemFile : subItemFolder.files.values())
-					readItem(zipFile, itemFile, globalTemplates, subItems1, ignoredFiles);
+				HashMap<String, Item> subItemGroup = new HashMap<>();
+				subItems.put(subItemGroupFolder.name, subItemGroup);
+				
+				new ItemLoader(zipFile, subItemGroupFolder, globalTemplates, subItemGroup, ignoredFiles).run();
 			}
 			
 			mainItems = new HashMap<>();
-			for (ZipEntryTreeNode itemFile : classFolder.files.values())
-				readItem(zipFile, itemFile, globalTemplates, mainItems, ignoredFiles);
+			
+			new ItemLoader(zipFile, classFolder, globalTemplates, mainItems, ignoredFiles).run();
 		}
+		
+		private interface LoadMethod {
+			Item readItem(ZipEntryTreeNode itemFile) throws IOException, EntryStructureException, ParseException;
+		}
+		
+		private static class ItemLoader implements Item.ParentFinder {
+			
+			private final ZipFile zipFile;
+			private final ZipEntryTreeNode itemFolder;
+			private final HashMap<String, Templates> globalTemplates;
+			private final HashMap<String, Item> loadedItems;
+			private final HashSet<String> blockedItems;
+			private final Vector<String> ignoredFiles;
 
-		private void readItem(ZipFile zipFile, ZipEntryTreeNode itemFile, HashMap<String, Templates> globalTemplates, HashMap<String, Item> items, Vector<String> ignoredFiles)
-				throws IOException, EntryStructureException, ParseException {
-			Item item = Item.read(zipFile, itemFile, globalTemplates);
-			String itemName = itemFile.name.substring(0, itemFile.name.length()-".xml".length());
-			if (item == null) ignoredFiles.add(itemFile.getPath());
-			else items.put(itemName, item);
+			ItemLoader(ZipFile zipFile, ZipEntryTreeNode itemFolder, HashMap<String, Templates> globalTemplates, HashMap<String, Item> loadedItems, Vector<String> ignoredFiles) {
+				this.zipFile = zipFile;
+				this.itemFolder = itemFolder;
+				this.globalTemplates = globalTemplates;
+				this.loadedItems = loadedItems;
+				this.ignoredFiles = ignoredFiles;
+				blockedItems = new HashSet<>();
+			}
+			
+			void run() throws IOException, EntryStructureException, ParseException {
+				for (ZipEntryTreeNode itemFile : itemFolder.files.values()) {
+					String itemName = itemFile.name.substring(0, Math.max(0, itemFile.name.length()-".xml".length()));
+					if (!loadedItems.containsKey(itemName))
+						readItem(itemName,itemFile);
+				}
+			}
+
+			private Item readItem(String itemName, ZipEntryTreeNode itemFile) throws IOException, EntryStructureException, ParseException {
+				
+				String itemPath = itemFile.getPath();
+				
+				blockedItems.add(itemPath);
+				
+				Item item = Item.read(zipFile, itemFile, itemName, globalTemplates, this);
+				if (item == null) ignoredFiles.add(itemPath);
+				else loadedItems.put(itemName, item);
+				
+				blockedItems.remove(itemPath);
+				
+				return item;
+			}
+
+			@Override
+			public Item getParent(String parentFile) throws IOException, EntryStructureException, ParseException {
+				Item parentItem = loadedItems.get(parentFile);
+				if (parentItem!=null) return parentItem;
+				
+				ZipEntryTreeNode parentItemEntry = null;
+				for (ZipEntryTreeNode entry : itemFolder.files.values()) {
+					String entryName = entry.name.substring(0, Math.max(0,entry.name.length()-".xml".length()));
+					if (entryName.equals(parentFile)) {
+						if (blockedItems.contains(entry.getPath()))
+							throw new EntryStructureException("Found \"parent loop\" for parent item \"%s\" in folder \"%s\"", parentFile, itemFolder.getPath());
+						parentItemEntry = entry;
+						break;
+					}
+				}
+				if (parentItemEntry == null)
+					throw new EntryStructureException("Can't find parent item \"%s\" in folder \"%s\"", parentFile, itemFolder.getPath());
+				
+				parentItem = readItem(parentFile,parentItemEntry);
+				if (parentItem==null)
+					throw new EntryStructureException("Can't read parent item \"%s\" in folder \"%s\"", parentFile, itemFolder.getPath());
+				
+				return parentItem;
+			}
 		}
 		
 		static class Item {
 	
 			final String name;
-			private GenericXmlNode content;
+			final GenericXmlNode content;
 
-			static Item read(ZipFile zipFile, ZipEntryTreeNode itemFile, HashMap<String,Templates> globalTemplates) throws IOException, EntryStructureException, ParseException {
+			static Item read(ZipFile zipFile, ZipEntryTreeNode itemFile, String itemName, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws IOException, EntryStructureException, ParseException {
 				if (globalTemplates==null) throw new IllegalArgumentException();
 				if (itemFile==null) throw new IllegalArgumentException();
 				if (!itemFile.isfile()) throw new IllegalStateException();
@@ -342,16 +408,22 @@ class XMLTemplateStructure {
 					return null;
 				}
 				
-				Item item = new Item(nodes, itemFile, globalTemplates);
+				Item item = new Item(nodes, itemFile, itemName, globalTemplates, parentFinder);
 				
 				//System.out.printf("... done [read item]%n");
 				return item;
 			}
 			
-			Item(NodeList nodes, ZipEntryTreeNode itemFile, HashMap<String,Templates> globalTemplates) throws IOException, EntryStructureException, ParseException {
+			interface ParentFinder {
+				Item getParent(String parentFile) throws IOException, EntryStructureException, ParseException;
+			}
+			
+			Item(NodeList nodes, ZipEntryTreeNode itemFile, String itemName, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws IOException, EntryStructureException, ParseException {
+				this.name = itemName;
 				if (globalTemplates==null) throw new IllegalArgumentException();
 				if (itemFile==null) throw new IllegalArgumentException();
 				if (nodes==null) throw new IllegalArgumentException();
+				if (parentFinder==null) throw new IllegalArgumentException();
 				
 				Node templatesNode = null;
 				Node parentNode = null;
@@ -393,11 +465,18 @@ class XMLTemplateStructure {
 				if (contentNode==null)
 					throw new ParseException("Found no content node in item file \"%s\"", itemFile.getPath());
 				
-				Templates localTemplates = templatesNode==null ? null : new Templates(templatesNode, globalTemplates, itemFile);
+				Templates.OdditiesHandler templatesOdditiesHandler = new Templates.OdditiesHandler();
+				Templates localTemplates = templatesNode==null ? null : new Templates(templatesNode, globalTemplates, itemFile, templatesOdditiesHandler);
+				if (templatesOdditiesHandler.parentNode!=null) {
+					if (parentNode!=null)
+						throw new ParseException("Found an oddity (<_parent> node in <_templates> node) in file \"%s\" but also a <_parent> node outside of <_templates> node%n", itemFile.getPath());
+					parentNode = templatesOdditiesHandler.parentNode;
+				}
 				
-				this.name = itemFile.name;
 				String parentFile = getParentFile(parentNode, itemFile);
-				content = new GenericXmlNode(contentNode.getNodeName(), contentNode, parentFile, localTemplates);
+				Item parentItem = parentFile==null ? null : parentFinder.getParent(parentFile);
+				
+				content = new GenericXmlNode(contentNode.getNodeName(), contentNode, localTemplates, parentItem==null ? null : parentItem.content);
 			}
 			
 			private String getParentFile(Node node, ZipEntryTreeNode itemFile) throws ParseException {
@@ -426,7 +505,7 @@ class XMLTemplateStructure {
 	
 	static class GenericXmlNode {
 
-		public GenericXmlNode(String nodeName, Node node, String parentFile, Templates templates) {
+		public GenericXmlNode(String nodeName, Node node, Templates templates, GenericXmlNode parentTemplate) {
 			// TODO Auto-generated constructor stub
 		}
 	}
@@ -436,12 +515,10 @@ class XMLTemplateStructure {
 		final HashMap<String, HashMap<String, GenericXmlNode>> templates;
 		final Templates includedTemplates;
 
-		Templates(Node templatesNode, HashMap<String,Templates> globalTemplates, ZipEntryTreeNode sourceFile) throws ParseException, EntryStructureException {
+		Templates(Node templatesNode, HashMap<String,Templates> globalTemplates, ZipEntryTreeNode sourceFile, OdditiesHandler odditiesHandler) throws ParseException, EntryStructureException {
 			if (templatesNode==null) throw new IllegalArgumentException();
 			if (!templatesNode.getNodeName().equals("_templates")) throw new IllegalStateException();
 			if (templatesNode.getNodeType()!=Node.ELEMENT_NODE) throw new IllegalStateException();
-			
-			String sourceFilePath = sourceFile.getPath();
 			
 			String includeFile = getIncludeFile(templatesNode, sourceFile);
 			if (includeFile==null)
@@ -449,11 +526,11 @@ class XMLTemplateStructure {
 			
 			else {
 				if (globalTemplates==null)
-					throw new ParseException("Found \"Include\" attribute (\"%s\") in <_templates> node in file \"%s\" but no globalTemplates are defined", includeFile, sourceFilePath);
+					throw new ParseException("Found \"Include\" attribute (\"%s\") in <_templates> node in file \"%s\" but no globalTemplates are defined", includeFile, sourceFile.getPath());
 				
 				includedTemplates = globalTemplates.get(includeFile);
 				if (includedTemplates==null)
-					throw new EntryStructureException("Can't find templates to include (\"%s\") in <_templates> node in file \"%s\"", includeFile, sourceFilePath);
+					throw new EntryStructureException("Can't find templates to include (\"%s\") in <_templates> node in file \"%s\"", includeFile, sourceFile.getPath());
 			}
 			
 			templates = new HashMap<>();
@@ -462,36 +539,49 @@ class XMLTemplateStructure {
 				if (node.getNodeType()==Node.COMMENT_NODE) {
 					// is Ok, do nothing
 						
-				} else if (isEmptyTextNode(node, ()->String.format("<_templates> node in file \"%s\"", sourceFilePath))) {
+				} else if (isEmptyTextNode(node, ()->String.format("<_templates> node in file \"%s\"", sourceFile.getPath()))) {
 					// is Ok, do nothing
 					
 				} else if (node.getNodeType()==Node.ELEMENT_NODE) {
 					
 					String originalNodeName = node.getNodeName();
 					if (originalNodeName.equals("_parent")) {
-						System.err.printf("Found an expected oddity (<_parent> node) in <_templates> node in file \"%s\" --> ignored%n", sourceFilePath);
+						if (odditiesHandler == null)
+							throw new ParseException("Found an oddity (<_parent> node in <_templates> node) in file \"%s\" but no OdditiesHandler to handle it%n", sourceFile.getPath());
+						odditiesHandler.parentNode = node;
 						continue;
 					}
-					if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\classes\\trucks\\trailers\\semitrailer_gooseneck_4.xml")) {
-						System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
+					if (originalNodeName.equals("Mudguard")) {
+						// my guess: <Mudguard> should be a template in template list <Body>
+						HashMap<String, GenericXmlNode> templateList = createNewTemplateList("Body", sourceFile.getPath());
+						addNewTemplate_unchecked(node, "Body", templateList, sourceFile);
 						continue;
 					}
-					if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\_dlc\\dlc_2_1\\classes\\trucks\\trailers\\semitrailer_special_w_cat_770.xml")) {
-						System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
-						continue;
-					}
+					//if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\classes\\trucks\\trailers\\semitrailer_gooseneck_4.xml")) {
+					//	System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
+					//	continue;
+					//}
+					//if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\_dlc\\dlc_2_1\\classes\\trucks\\trailers\\semitrailer_special_w_cat_770.xml")) {
+					//	System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
+					//	continue;
+					//}
 					
-					HashMap<String, GenericXmlNode> templatesList = templates.get(originalNodeName);
-					if (templatesList!=null)
-						throw new ParseException("Found more than one template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFilePath);
-					
-					templates.put(originalNodeName, templatesList = new HashMap<>());
-					parseTemplates(node, templatesList, originalNodeName, sourceFile);
+					HashMap<String, GenericXmlNode> templateList = createNewTemplateList(originalNodeName, sourceFile.getPath());
+					parseTemplates(node, templateList, originalNodeName, sourceFile);
 					
 					
 				} else
-					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFilePath, XML.toDebugString(node));
+					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFile.getPath(), XML.toDebugString(node));
 			}
+		}
+
+		private HashMap<String, GenericXmlNode> createNewTemplateList(String originalNodeName, String sourceFilePath) throws ParseException {
+			HashMap<String, GenericXmlNode> templateList = templates.get(originalNodeName);
+			if (templateList!=null)
+				throw new ParseException("Found more than one template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFilePath);
+			
+			templates.put(originalNodeName, templateList = new HashMap<>());
+			return templateList;
 		}
 		
 		private void parseTemplates(Node listNode, HashMap<String, GenericXmlNode> templatesList, String originalNodeName, ZipEntryTreeNode sourceFile) throws ParseException {
@@ -510,17 +600,20 @@ class XMLTemplateStructure {
 					// is Ok, do nothing
 					
 				} else if (node.getNodeType()==Node.ELEMENT_NODE) {
-					
-					String templateName = node.getNodeName();
-					GenericXmlNode template = templatesList.get(templateName);
-					if (template!=null)
-						throwParseException(false,"Found more than one template with name \"%s\" for node name \"%s\" in <_templates> node in file \"%s\" --> new template ignored", templateName, originalNodeName, sourceFile.getPath());
-					else
-						templatesList.put(templateName, new GenericXmlNode(originalNodeName, node, null, this));
+					addNewTemplate_unchecked(node, originalNodeName, templatesList, sourceFile);
 					
 				} else
 					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFile.getPath(), XML.toDebugString(node));
 			}
+		}
+
+		private void addNewTemplate_unchecked(Node node, String originalNodeName, HashMap<String, GenericXmlNode> templatesList, ZipEntryTreeNode sourceFile) throws ParseException {
+			String templateName = node.getNodeName();
+			GenericXmlNode template = templatesList.get(templateName);
+			if (template!=null)
+				throwParseException(false,"Found more than one template with name \"%s\" for node name \"%s\" in <_templates> node in file \"%s\" --> new template ignored", templateName, originalNodeName, sourceFile.getPath());
+			else
+				templatesList.put(templateName, new GenericXmlNode(originalNodeName, node, this, null));
 		}
 
 		private String getIncludeFile(Node node, ZipEntryTreeNode file) throws ParseException {
@@ -541,6 +634,10 @@ class XMLTemplateStructure {
 			//	throw new ParseException("Can't find \"Include\" attribute in <_templates> node in item file \"%s\"", file.getPath());
 			
 			return includeFile;
+		}
+		
+		private static class OdditiesHandler {
+			Node parentNode = null;
 		}
 	}
 
