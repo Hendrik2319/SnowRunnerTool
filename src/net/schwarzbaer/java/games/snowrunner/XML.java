@@ -127,6 +127,19 @@ class XML {
 		}
 	}
 	
+	static Iterable<Node> makeIterable(NamedNodeMap nodes) {
+		return ()->new Iterator<Node>() {
+			private int nextIndex = 0;
+			
+			@Override public boolean hasNext() {
+				return nodes!=null && nextIndex<nodes.getLength();
+			}
+			@Override public Node next() {
+				return nodes.item(nextIndex++);
+			}
+		};
+	}
+
 	static Iterable<Node> makeIterable(NodeList nodes) {
 		return ()->new Iterator<Node>() {
 			private int nextIndex = 0;
