@@ -3,8 +3,13 @@ package net.schwarzbaer.java.games.snowrunner;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,6 +31,8 @@ import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 @SuppressWarnings("unused")
 class XMLTemplateStructure {
 
+	private static TestingGround testingGround;
+	
 	final HashMap<String, Templates> globalTemplates;
 	final HashMap<String, Class_> classes;
 	final HashMap<String, HashMap<String, Class_>> dlcs;
@@ -50,7 +57,8 @@ class XMLTemplateStructure {
 		if (contentRootFolder==null)
 			throw new EntryStructureException("Found no content root folder \"[media]\" in \"%s\"", zipFile.getName());
 		
-		testContentRootFolder(zipFile, contentRootFolder);
+		testingGround = new TestingGround(zipFile, contentRootFolder);
+		testingGround.testContentRootFolder();
 		
 		ignoredFiles = new Vector<>();
 		globalTemplates = readGlobalTemplates(zipFile,       contentRootFolder.getSubFolder("_templates"));
@@ -61,6 +69,8 @@ class XMLTemplateStructure {
 			for (int i=0; i<ignoredFiles.size(); i++)
 				System.err.printf("   [%d] %s%n", i+1, ignoredFiles.get(i));
 		}
+		
+		testingGround.writeToFile("TestingGround.results.txt");
 	}
 	
 	private HashMap<String, HashMap<String, Class_>> readDLCs(ZipFile zipFile, ZipEntryTreeNode dlcsFolder) throws IOException, EntryStructureException, ParseException {
@@ -233,34 +243,126 @@ class XMLTemplateStructure {
 			throw new ParseException("Found no <BracketNode> in read XML document");
 		return bracketNode.getChildNodes();
 	}
+	
+	private static class TestingGround {
+		
+		private final ZipFile zipFile;
+		private final ZipEntryTreeNode contentRootFolder;
+		private HashMap<String,Vector<String>> parentRelations;
 
-	private static void testContentRootFolder(ZipFile zipFile, ZipEntryTreeNode contentRootFolder) {
-		HashMap<String,ZipEntryTreeNode> fileNames = new HashMap<>();
-		contentRootFolder.traverseFiles(fileNode->{
+		TestingGround(ZipFile zipFile, ZipEntryTreeNode contentRootFolder) {
+			this.zipFile = zipFile;
+			this.contentRootFolder = contentRootFolder;
+			parentRelations = new HashMap<>();
+		}
+
+		void writeToFile(String filename) {
 			
-			//if (fileNode.getPath().equals("\\[media]\\classes\\trucks\\step_310e.xml"))
-			//	showBytes(zipFile, fileNode, 30);
-		
-			// all files are XML
-			if (!fileNode.name.endsWith(".xml"))
-				System.err.printf("Found a Non XML File: %s%n", fileNode.getPath());
-			
-			// dublicate filenames
-			ZipEntryTreeNode existingNode = fileNames.get(fileNode.name);
-			if (existingNode!=null)
-				System.err.printf("Found dublicate filenames:%n   \"%s\"%n   \"%s\"%n", existingNode.getPath(), fileNode.getPath());
-			else
-				fileNames.put(fileNode.name,fileNode);
-		});
-		
-		contentRootFolder.forEachChild(node->{
-			if (node.isfile())
-				System.err.printf("Found a File in conten root folder: %s%n", node.getPath());
-			else {
-				if (!node.name.equals("_dlc") && !node.name.equals("_templates") && !node.name.equals("classes"))
-					System.err.printf("Found a unexpected subfolder in content root folder: %s%n", node.getPath());
+			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+				
+				out.printf("[ZipFile]%n%s%n", zipFile.getName());
+				
+				out.printf("[ParentRelations]%n");
+				Vector<String> parents = new Vector<>(parentRelations.keySet());
+				parents.sort(null);
+				for (String p:parents) {
+					out.printf("     Parent:   \"%s\"%n", p);
+					String parentFolder = getFolderPath(p);
+					String parentClass = getClass(p);
+					Vector<String> children = parentRelations.get(p);
+					children.sort(null);
+					for (String c:children) {
+						String childFolder = getFolderPath(c);
+						String childClass = getClass(c);
+						String marker1 = " ";
+						if (!parentFolder.equals(childFolder)) marker1 = "#";
+						String marker2 = " ";
+						if (!parentClass.equals(childClass)) marker2 = "C";
+						out.printf("%s %s     Child: \"%s\"%n", marker1, marker2, c);
+					}
+				}
+					
 			}
-		});
+			catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+			
+		}
+
+		private String getClass(String path) {
+			String str = "\\classes\\";
+			
+			int start = path.indexOf(str);
+			if (start<0) return "";
+			start += str.length();
+			
+			int end = path.indexOf("\\", start);
+			if (end<0) end = path.length();
+			
+			return path.substring(start, end);
+		}
+
+		private String getFolderPath(String path) {
+			int pos = path.lastIndexOf('\\');
+			if (pos<0) return "";
+			return path.substring(0, pos);
+		}
+
+		void addParentFileInfo(ZipEntryTreeNode itemFile, String parentFile) {
+			if (itemFile==null) throw new IllegalArgumentException();
+			if (parentFile==null) return;
+			
+			String filename = parentFile+".xml";
+			String itemPath = itemFile.getPath();
+			
+			Vector<String> possibleParents = new Vector<>();
+			contentRootFolder.traverseFiles(node->{
+				if (node.name.equalsIgnoreCase(filename))
+					possibleParents.add(node.getPath());
+			});
+			if (possibleParents.isEmpty())
+				System.err.printf("Can't find parent \"%s\" for itme \"%s\"%n", parentFile, itemPath);
+			else if (possibleParents.size()>1) {
+				System.err.printf("Found more thasn one parent \"%s\" for itme \"%s\":%n", parentFile, itemPath);
+				for (String p:possibleParents)
+					System.err.printf("    \"%s\"%n", p);
+			} else {
+				String parent = possibleParents.get(0);
+				Vector<String> children = parentRelations.get(parent);
+				if (children==null) parentRelations.put(parent, children = new Vector<>());
+				children.add(itemPath);
+			}
+		}
+
+		void testContentRootFolder() {
+			HashMap<String,ZipEntryTreeNode> fileNames = new HashMap<>();
+			contentRootFolder.traverseFiles(fileNode->{
+				
+				//if (fileNode.getPath().equals("\\[media]\\classes\\trucks\\step_310e.xml"))
+				//	showBytes(zipFile, fileNode, 30);
+			
+				// all files are XML
+				if (!fileNode.name.endsWith(".xml"))
+					System.err.printf("Found a Non XML File: %s%n", fileNode.getPath());
+				
+				// dublicate filenames
+				ZipEntryTreeNode existingNode = fileNames.get(fileNode.name);
+				if (existingNode!=null)
+					System.err.printf("Found dublicate filenames:%n   \"%s\"%n   \"%s\"%n", existingNode.getPath(), fileNode.getPath());
+				else
+					fileNames.put(fileNode.name,fileNode);
+			});
+			
+			contentRootFolder.forEachChild(node->{
+				if (node.isfile())
+					System.err.printf("Found a File in conten root folder: %s%n", node.getPath());
+				else {
+					if (!node.name.equals("_dlc") && !node.name.equals("_templates") && !node.name.equals("classes"))
+						System.err.printf("Found a unexpected subfolder in content root folder: %s%n", node.getPath());
+				}
+			});
+		}
+		
 	}
 
 	private static class EntryStructureException extends Exception {
@@ -474,7 +576,10 @@ class XMLTemplateStructure {
 				}
 				
 				String parentFile = getParentFile(parentNode, itemFile);
-				Item parentItem = parentFile==null ? null : parentFinder.getParent(parentFile);
+				
+				// TODO: parentFinder
+				testingGround.addParentFileInfo(itemFile,parentFile);
+				Item parentItem = null; // parentFile==null ? null : parentFinder.getParent(parentFile);
 				
 				content = new GenericXmlNode(contentNode.getNodeName(), contentNode, localTemplates, parentItem==null ? null : parentItem.content);
 			}
