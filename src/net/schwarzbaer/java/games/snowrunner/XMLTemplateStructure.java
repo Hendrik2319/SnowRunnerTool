@@ -52,6 +52,130 @@ class XMLTemplateStructure {
 		});
 	}
 	
+	private static class ClassStructur {
+
+		final HashMap<String, ZipEntryTreeNode> templates;
+		final HashMap<String, Class_> classes;
+
+		ClassStructur(ZipEntryTreeNode contentRootFolder) throws EntryStructureException {
+			templates = scanTemplates(contentRootFolder.getSubFolder("_templates"));
+			classes = new HashMap<>();
+			scanClasses(classes,null,contentRootFolder.getSubFolder("classes"   ));
+			scanDLCs   (classes,     contentRootFolder.getSubFolder("_dlc"      ));
+		}
+		
+		private static void scanDLCs(HashMap<String, Class_> classes, ZipEntryTreeNode dlcsFolder) throws EntryStructureException {
+			if ( dlcsFolder==null) throw new EntryStructureException("No DLCs folder");
+			if (!dlcsFolder.files  .isEmpty()) throw new EntryStructureException("Found unexpected files in DLCs folder \"%s\"", dlcsFolder.getPath());
+			if ( dlcsFolder.folders.isEmpty()) throw new EntryStructureException("Found no DLC folders in DLCs folder \"%s\"", dlcsFolder.getPath());
+			
+			for (ZipEntryTreeNode dlcNode:dlcsFolder.folders.values()) {
+				String dlcName = dlcNode.name;
+				if (!dlcNode.files.isEmpty()) throw new EntryStructureException("Found unexpected files in DLC folder \"%s\"", dlcNode.getPath());
+				
+				ZipEntryTreeNode classesFolder = null;
+				for (ZipEntryTreeNode subFolder:dlcNode.folders.values()) {
+					if (!subFolder.name.equals("classes"))
+						throw new EntryStructureException("Found unexpected folder (\"%s\") in DLC folder \"%s\"", subFolder.name, dlcNode.getPath());
+					if (classesFolder != null)
+						throw new EntryStructureException("Found dublicate \"classes\" folder in DLC folder \"%s\"", dlcNode.getPath());
+					classesFolder = subFolder;
+				}
+				if (classesFolder == null)
+					throw new EntryStructureException("Found no \"classes\" folder in DLC folder \"%s\"", dlcNode.getPath());
+				
+				scanClasses(classes,dlcName, classesFolder);
+			}
+		}
+
+		private static void scanClasses(HashMap<String, Class_> classes, String dlc, ZipEntryTreeNode classesFolder) throws EntryStructureException {
+			if ( classesFolder==null) throw new EntryStructureException("No classes folder");
+			if (!classesFolder.files  .isEmpty()) throw new EntryStructureException("Found unexpected files in classes folder \"%s\"", classesFolder.getPath());
+			if ( classesFolder.folders.isEmpty()) throw new EntryStructureException("Found no sub folders in classes folder \"%s\"", classesFolder.getPath());
+			
+			for (ZipEntryTreeNode classFolder : classesFolder.folders.values()) {
+				String className = classFolder.name;
+				Class_ class_ = classes.get(className);
+				if (class_==null) classes.put(className, class_ = new Class_(className,dlc));
+				class_.scan(classFolder);
+			}
+		}
+
+		private static HashMap<String,ZipEntryTreeNode> scanTemplates(ZipEntryTreeNode templatesFolder) throws EntryStructureException {
+			if ( templatesFolder==null) throw new EntryStructureException("No templates folder");
+			if (!templatesFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in templates folder \"%s\"", templatesFolder.getPath());
+			if ( templatesFolder.files  .isEmpty()) throw new EntryStructureException("Found no files in templates folder \"%s\"", templatesFolder.getPath());
+			
+			HashMap<String,ZipEntryTreeNode> templates = new HashMap<>();
+			for (ZipEntryTreeNode templatesNode:templatesFolder.files.values()) {
+				String itemName = getXmlItemName(templatesNode);
+				if (templates.containsKey(itemName))
+					throw new EntryStructureException("Found more than one templates file with name \"%s\" in templates folder \"%s\"", itemName, templatesFolder.getPath());
+				templates.put(itemName, templatesNode);
+			}
+			return templates;
+		}
+
+		private static String getXmlItemName(ZipEntryTreeNode node) throws EntryStructureException {
+			if (!node.name.endsWith(".xml"))
+				throw new EntryStructureException("Found a Non XML File: %s", node.getPath());
+			return node.name.substring(0, Math.max(0, node.name.length()-".xml".length()));
+		}
+
+		static class Class_ {
+
+			final String className;
+			final String dlcName;
+			final HashMap<String, Item> items;
+
+			public Class_(String className, String dlc) {
+				this.className = className;
+				this.dlcName = dlc;
+				items = new HashMap<>();
+			}
+			
+			void scan(ZipEntryTreeNode classFolder) throws EntryStructureException {
+				for (ZipEntryTreeNode subItemGroupFolder : classFolder.folders.values()) {
+					if (!subItemGroupFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in sub item folder \"%s\"", subItemGroupFolder.getPath());
+					if ( subItemGroupFolder.files  .isEmpty()) throw new EntryStructureException("Found no item files in sub item folder \"%s\"", subItemGroupFolder.getPath());
+					
+					scanItems(subItemGroupFolder.name,subItemGroupFolder);
+				}
+				
+				scanItems(null,classFolder);
+			}
+
+			private void scanItems(String subItemGroupName, ZipEntryTreeNode itemFolder) throws EntryStructureException {
+				for (ZipEntryTreeNode itemFile : itemFolder.files.values()) {
+					String itemName = getXmlItemName(itemFile);
+					Item otherItem = items.get(itemName);
+					if (otherItem!=null)
+						throw new EntryStructureException("Found more than one item file with name \"%s\" in class folder \"%s\"", itemName, itemFolder.getPath());
+					items.put(itemName, new Item(dlcName,className,subItemGroupName,itemName,itemFile));
+				}
+			}
+		}
+		
+		static class Item {
+
+			private String dlcName;
+			private String className;
+			private String subItemGroupName;
+			private String itemName;
+			private ZipEntryTreeNode itemFile;
+
+			Item(String dlcName, String className, String subItemGroupName, String itemName, ZipEntryTreeNode itemFile) {
+				this.dlcName = dlcName;
+				this.className = className;
+				this.subItemGroupName = subItemGroupName;
+				this.itemName = itemName;
+				this.itemFile = itemFile;
+			}
+			
+		}
+		
+	}
+	
 	XMLTemplateStructure(ZipFile zipFile, ZipEntryTreeNode zipRoot) throws IOException, EntryStructureException, ParseException {
 		ZipEntryTreeNode contentRootFolder = zipRoot.getSubFolder("[media]");
 		if (contentRootFolder==null)
@@ -59,6 +183,8 @@ class XMLTemplateStructure {
 		
 		testingGround = new TestingGround(zipFile, contentRootFolder);
 		testingGround.testContentRootFolder();
+		
+		new ClassStructur(contentRootFolder);
 		
 		ignoredFiles = new Vector<>();
 		globalTemplates = readGlobalTemplates(zipFile,       contentRootFolder.getSubFolder("_templates"));
