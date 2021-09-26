@@ -1,6 +1,7 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -9,11 +10,13 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Vector;
 
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.JTree;
 import javax.swing.tree.TreeNode;
 
@@ -21,6 +24,7 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.XML.NodeType;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.Source;
@@ -28,6 +32,7 @@ import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Templates;
 
 class GenericXmlNodeParsingStateDialog extends JDialog {
 	private static final long serialVersionUID = -1629073120482820570L;
+	private boolean toBreakPoint;
 
 	GenericXmlNodeParsingStateDialog(
 			Window owner,
@@ -35,9 +40,9 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 			GenericXmlNode template,
 			Node xmlNode,
 			GenericXmlNode currentState,
-			Templates templates, Source source) {
+			Templates templates, Source source, String reason, AbstractButton... extraButtons) {
 		super(owner, source.getFilePath(), ModalityType.APPLICATION_MODAL);
-		
+		toBreakPoint = false;
 		
 		JPanel centerPanel = new JPanel(new GridLayout(1,0));
 		if (parentTemplate!=null) {
@@ -61,6 +66,17 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 			centerPanel.add(createTreePanel(root, "Templates"));
 		}
 		
+		JScrollPane reasonPanel = null;
+		if (reason!=null && !reason.isEmpty()) {
+			JTextArea textArea = new JTextArea(reason);
+			textArea.setEditable(false);
+			textArea.setLineWrap(true);
+			textArea.setWrapStyleWord(true);
+			reasonPanel = new JScrollPane(textArea);
+			reasonPanel.setBorder(BorderFactory.createTitledBorder("Reason"));
+			reasonPanel.setPreferredSize(new Dimension(100,100));
+		}
+		
 		JPanel buttonPanel = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
 		c.fill = GridBagConstraints.BOTH;
@@ -68,11 +84,17 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 		c.weightx = 1;
 		buttonPanel.add(new JLabel(),c);
 		c.weightx = 0;
+		if (extraButtons!=null && extraButtons.length>0) {
+			for (AbstractButton btn : extraButtons) buttonPanel.add(btn,c);
+			buttonPanel.add(new JLabel("   "),c);
+		}
 		buttonPanel.add(SnowRunner.createButton("Exit Application", true, e->{ System.exit(0); }),c);
+		buttonPanel.add(SnowRunner.createButton("To BreakPoint", true, e->{ toBreakPoint = true; setVisible(false); }),c);
 		buttonPanel.add(SnowRunner.createButton("Close", true, e->{ setVisible(false); }),c);
 		
 		JPanel contentPane = new JPanel(new BorderLayout());
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+		if (reasonPanel!=null) contentPane.add(reasonPanel,BorderLayout.NORTH);
 		contentPane.add(centerPanel,BorderLayout.CENTER);
 		contentPane.add(buttonPanel,BorderLayout.SOUTH);
 		
@@ -83,37 +105,83 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 
 	private JScrollPane createTreePanel(TreeNode root, String title2) {
 		JTree tree = new JTree(root);
+		ContextMenu treeContextMenu = new ContextMenu();
+		treeContextMenu.addTo(tree);
+		treeContextMenu.add(SnowRunner.createMenuItem("Show Full Tree", true, e->{
+			for (int i=0; i<tree.getRowCount(); i++)
+				tree.expandRow(i);
+		}));
+		
 		JScrollPane scrollPane = new JScrollPane(tree);
 		scrollPane.setBorder(BorderFactory.createTitledBorder(title2));
 		return scrollPane;
 	}
 
-	void showDialog() {
+	boolean showDialog() {
 		setVisible(true);
+		return toBreakPoint;
 	}
 	
 	private static class Templates_TreeNode extends AbstractTreeNode {
 		
-		@SuppressWarnings("unused")
 		final Templates templates;
+		final String label;
 
-		Templates_TreeNode(Templates templates) {
-			super(null, true, false);
+		private Templates_TreeNode(Templates_TreeNode parent, String label, Templates templates) {
+			super(parent, true, false);
+			this.label = label;
 			this.templates = templates;
+		}
+		Templates_TreeNode(Templates templates) {
+			this(null,"Templates",templates);
 		}
 
 		@Override
 		protected Vector<TreeNode> createChildren() {
-			// TODO Auto-generated method stub
-			return new Vector<>();
+			Vector<TreeNode> children = new Vector<>();
+			
+			if (templates.includedTemplates!=null)
+				children.add(new Templates_TreeNode(this, "included:", templates.includedTemplates));
+			
+			Vector<String> nodeNames = new Vector<>(templates.templates.keySet());
+			nodeNames.sort(null);
+			for (String nodeName:nodeNames)
+				children.add(new TemplatesForNode_TreeNode(this, nodeName, templates.templates.get(nodeName)));
+			
+			return children;
 		}
 
-		@Override
-		public String toString() {
-			// TODO Auto-generated method stub
-			return "Templates";
+		@Override public String toString() {
+			return label;
 		}
 		
+		private static class TemplatesForNode_TreeNode extends AbstractTreeNode {
+
+			final String nodeName;
+			final HashMap<String, GenericXmlNode> templates;
+
+			TemplatesForNode_TreeNode(Templates_TreeNode parent, String nodeName, HashMap<String, GenericXmlNode> templates) {
+				super(parent, true, templates.isEmpty());
+				this.nodeName = nodeName;
+				this.templates = templates;
+			}
+
+			@Override
+			protected Vector<TreeNode> createChildren() {
+				Vector<TreeNode> children = new Vector<>();
+				
+				Vector<String> templateNames = new Vector<>(templates.keySet());
+				templateNames.sort(null);
+				for (String templateName : templateNames)
+					children.add(new GenericXmlNode_TreeNode(this, "\""+templateName+"\"", templates.get(templateName)));
+				
+				return children;
+			}
+
+			@Override public String toString() {
+				return "<"+nodeName+">";
+			}
+		}
 	}
 	
 	private static class XmlNode_TreeNode extends AbstractTreeNode {
@@ -130,8 +198,9 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 			Vector<TreeNode> children = new Vector<>();
 			
 			NamedNodeMap attributes = node.getAttributes();
-			if (attributes!=null)
-				children.add(new AttributesTreeNode(this,attributes));
+			if (attributes!=null && attributes.getLength()>0)
+				//children.add(new AttributesTreeNode(this,attributes));
+				AttributesTreeNode.addAttributesTo(this, attributes, children);
 			
 			NodeList childNodes = node.getChildNodes();
 			for (Node childNode : XML.makeIterable(childNodes)) {
@@ -182,9 +251,14 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 	private static class GenericXmlNode_TreeNode extends AbstractTreeNode {
 		
 		final GenericXmlNode node;
+		final String label;
 
-		GenericXmlNode_TreeNode(GenericXmlNode_TreeNode parent, GenericXmlNode node) {
+		GenericXmlNode_TreeNode(TreeNode parent, GenericXmlNode node) {
+			this(parent, null, node);
+		}
+		GenericXmlNode_TreeNode(TreeNode parent, String label, GenericXmlNode node) {
 			super(parent, true, false);
+			this.label = label;
 			this.node = node;
 		}
 
@@ -192,7 +266,8 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 			Vector<TreeNode> children = new Vector<>();
 			
 			if (!node.attributes.isEmpty())
-				children.add(new AttributesTreeNode(this,node.attributes));
+				//children.add(new AttributesTreeNode(this,node.attributes));
+				AttributesTreeNode.addAttributesTo(this, node.attributes, children);
 			
 			Vector<String> keys = new Vector<>( node.nodes.getKeys() );
 			keys.sort(null);
@@ -204,12 +279,13 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 		}
 		
 		@Override public String toString() {
-			return node.nodeName;
+			return label!=null ? label : "<"+node.nodeName+">";
 		}
 	}
 	
 	
 	
+	@SuppressWarnings("unused")
 	private static class AttributesTreeNode extends AbstractTreeNode {
 	
 		final Vector<TreeNode> children;
@@ -221,18 +297,28 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 		
 		AttributesTreeNode(TreeNode parent, HashMap<String, String> attributes) {
 			this(parent);
+			addAttributesTo(this, attributes, children);
+		}
+
+		AttributesTreeNode(TreeNode parent, NamedNodeMap attributes) {
+			this(parent);
+			Vector<TreeNode> children2 = children;
+			TreeNode parent2 = this;
+			addAttributesTo(parent2, attributes, children2);
+		}
+
+		static void addAttributesTo(TreeNode parent, HashMap<String, String> attributes, Vector<TreeNode> children) {
 			Vector<String> keys = new Vector<>( attributes.keySet() );
 			keys.sort(null);
 			for (String key:keys) {
 				String value = attributes.get(key);
-				children.add(new AttributeTreeNode(key,value));
+				children.add(new AttributeTreeNode(parent, key, value));
 			}
 		}
-	
-		AttributesTreeNode(TreeNode parent, NamedNodeMap attributes) {
-			this(parent);
+
+		static void addAttributesTo(TreeNode parent, NamedNodeMap attributes, Vector<TreeNode> children) {
 			for (Node attrNode : XML.makeIterable(attributes))
-				children.add(new AttributeTreeNode(attrNode.getNodeName(), attrNode.getNodeValue()));
+				children.add(new AttributeTreeNode(parent, attrNode.getNodeName(), attrNode.getNodeValue()));
 		}
 	
 		@Override protected Vector<TreeNode> createChildren() {
@@ -242,11 +328,11 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 			return "[Attributes]";
 		}
 		
-		private class AttributeTreeNode extends AbstractTreeNode {
+		static class AttributeTreeNode extends AbstractTreeNode {
 			private final String key;
 			private final String value;
-			AttributeTreeNode(String key, String value) {
-				super(AttributesTreeNode.this,false, true);
+			AttributeTreeNode(TreeNode parent, String key, String value) {
+				super(parent,false, true);
 				this.key = key;
 				this.value = value;
 			}
@@ -254,7 +340,7 @@ class GenericXmlNodeParsingStateDialog extends JDialog {
 				return new Vector<>();
 			}
 			@Override public String toString() {
-				return String.format("%s = %s", key, value);
+				return String.format("%s = \"%s\"", key, value);
 			}
 		}
 	}
