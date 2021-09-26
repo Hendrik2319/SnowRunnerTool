@@ -152,22 +152,36 @@ class XML {
 			}
 		};
 	}
+	
+	enum NodeType {
+		ATTRIBUTE_NODE              ( Node.ATTRIBUTE_NODE              ),
+		CDATA_SECTION_NODE          ( Node.CDATA_SECTION_NODE          ),
+		COMMENT_NODE                ( Node.COMMENT_NODE                ),
+		DOCUMENT_FRAGMENT_NODE      ( Node.DOCUMENT_FRAGMENT_NODE      ),
+		DOCUMENT_NODE               ( Node.DOCUMENT_NODE               ),
+		DOCUMENT_TYPE_NODE          ( Node.DOCUMENT_TYPE_NODE          ),
+		ELEMENT_NODE                ( Node.ELEMENT_NODE                ),
+		ENTITY_NODE                 ( Node.ENTITY_NODE                 ),
+		ENTITY_REFERENCE_NODE       ( Node.ENTITY_REFERENCE_NODE       ),
+		NOTATION_NODE               ( Node.NOTATION_NODE               ),
+		PROCESSING_INSTRUCTION_NODE ( Node.PROCESSING_INSTRUCTION_NODE ),
+		TEXT_NODE                   ( Node.TEXT_NODE                   ),
+		;
+		final short value;
+		NodeType(short value) {
+			this.value = value;
+		}
+		static NodeType get(short nodeType) {
+			for (NodeType nt : values())
+				if (nt.value == nodeType)
+					return nt;
+			return null;
+		}
+	}
 
 	static String getNodeTypeStr(short nodeType) {
-		switch (nodeType) {
-		case Node.ATTRIBUTE_NODE             : return "ATTRIBUTE_NODE";
-		case Node.CDATA_SECTION_NODE         : return "CDATA_SECTION_NODE";
-		case Node.COMMENT_NODE               : return "COMMENT_NODE";
-		case Node.DOCUMENT_FRAGMENT_NODE     : return "DOCUMENT_FRAGMENT_NODE";
-		case Node.DOCUMENT_NODE              : return "DOCUMENT_NODE";
-		case Node.DOCUMENT_TYPE_NODE         : return "DOCUMENT_TYPE_NODE";
-		case Node.ELEMENT_NODE               : return "ELEMENT_NODE";
-		case Node.ENTITY_NODE                : return "ENTITY_NODE";
-		case Node.ENTITY_REFERENCE_NODE      : return "ENTITY_REFERENCE_NODE";
-		case Node.NOTATION_NODE              : return "NOTATION_NODE";
-		case Node.PROCESSING_INSTRUCTION_NODE: return "PROCESSING_INSTRUCTION_NODE";
-		case Node.TEXT_NODE                  : return "TEXT_NODE";
-		}
+		NodeType nt = NodeType.get(nodeType);
+		if (nt!=null) return nt.toString();
 		return String.format("Unkown Node Type (%d)", nodeType);
 	}
 

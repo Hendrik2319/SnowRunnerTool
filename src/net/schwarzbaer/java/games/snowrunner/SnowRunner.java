@@ -171,6 +171,9 @@ public class SnowRunner {
 			for (AppSettings.ValueKey key:AppSettings.ValueKey.values())
 				settings.remove(key);
 		}));
+		fileMenu.add(createMenuItem("Test XMLTemplateStructure", true, e->{
+			testXMLTemplateStructure();
+		}));
 		
 		languageMenu = menuBar.add(new JMenu("Language"));
 		
@@ -222,11 +225,6 @@ public class SnowRunner {
 	private boolean reloadInitialPAK() {
 		File initialPAK = getInitialPAK();
 		if (initialPAK!=null) {
-			// ######### TEST
-			System.out.printf("XMLTemplateStructure.readPAK(\"%s\") --> ", initialPAK.getAbsolutePath());
-			@SuppressWarnings("unused")
-			XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK);
-			// ######### TEST
 			Data newData = Data.readInitialPAK(initialPAK);
 			if (newData!=null) {
 				data = newData;
@@ -234,6 +232,18 @@ public class SnowRunner {
 			}
 		}
 		return false;
+	}
+
+	private void testXMLTemplateStructure() {
+		File initialPAK = getInitialPAK();
+		if (initialPAK!=null)
+			testXMLTemplateStructure(initialPAK);
+	}
+
+	private void testXMLTemplateStructure(File initialPAK) {
+		System.out.printf("XMLTemplateStructure.readPAK(\"%s\") --> ", initialPAK.getAbsolutePath());
+		@SuppressWarnings("unused")
+		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
 	}
 
 
