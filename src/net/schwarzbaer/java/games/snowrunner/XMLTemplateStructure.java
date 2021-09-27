@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.ZipFile;
 
@@ -344,7 +345,7 @@ class XMLTemplateStructure {
 		private final ZipFile zipFile;
 		private final ZipEntryTreeNode contentRootFolder;
 		private final HashMap<String,Vector<String>> parentRelations;
-		private final HashMap<String,HashSet<String>> specialAttributes;
+		private final HashMap<String,HashMap<String,Integer>> specialAttributes;
 		private final Window mainWindow;
 
 		TestingGround(ZipFile zipFile, ZipEntryTreeNode contentRootFolder, Window mainWindow) {
@@ -383,6 +384,10 @@ class XMLTemplateStructure {
 						out.printf("%s %s     Child: \"%s\"%n", marker1, marker2, c);
 					}
 				}
+				out.println();
+				
+				out.printf("[SpecialAttributes]%n");
+				out.println(specialAttributesToString());
 					
 			}
 			catch (FileNotFoundException e) {
@@ -468,18 +473,7 @@ class XMLTemplateStructure {
 		void showCurrentState(GenericXmlNode parentTemplate, GenericXmlNode template, Node xmlNode, GenericXmlNode currentState, Templates templates, Source source, String reason) {
 			JButton[] extraButtons = new JButton[] {
 				SnowRunner.createButton("Show Special Attributes", true, e->{
-					StringBuilder sb = new StringBuilder();
-					Vector<String> attrNames = new Vector<>(specialAttributes.keySet());
-					attrNames.sort(null);
-					for (String attrName : attrNames) {
-						Vector<String> attrValues = new Vector<>(specialAttributes.get(attrName));
-						attrValues.sort(null);
-						sb.append(String.format("\"%s\": [%d]%n", attrName, attrValues.size()));
-						for (String attrValue : attrValues)
-							sb.append(String.format("   = \"%s\"%n", attrValue));
-					}
-					
-					TextAreaDialog.showText(mainWindow, "Special Attributes", 600, 800, true, sb.toString());
+					TextAreaDialog.showText(mainWindow, "Special Attributes", 600, 800, true, specialAttributesToString());
 				})
 			};
 			GenericXmlNodeParsingStateDialog dlg = new GenericXmlNodeParsingStateDialog(mainWindow, parentTemplate, template, xmlNode, currentState, templates, source, reason, extraButtons);
@@ -489,10 +483,27 @@ class XMLTemplateStructure {
 			}
 		}
 
+		private String specialAttributesToString() {
+			StringBuilder sb = new StringBuilder();
+			Vector<String> attrNames = new Vector<>(specialAttributes.keySet());
+			attrNames.sort(null);
+			for (String attrName : attrNames) {
+				HashMap<String, Integer> attrValuesMap = specialAttributes.get(attrName);
+				Vector<String> attrValues = new Vector<>(attrValuesMap.keySet());
+				attrValues.sort(null);
+				sb.append(String.format("\"%s\": [%d]%n", attrName, attrValues.size()));
+				for (String attrValue : attrValues)
+					sb.append(String.format("   = \"%s\" (%dx)%n", attrValue, attrValuesMap.get(attrValue)));
+			}
+			return sb.toString();
+		}
+
 		void addSpecialAttribute(String attrName, String attrValue) {
-			HashSet<String> values = specialAttributes.get(attrName);
-			if (values == null) specialAttributes.put(attrName, values = new HashSet<>());
-			values.add(attrValue);
+			HashMap<String, Integer> values = specialAttributes.get(attrName);
+			if (values == null) specialAttributes.put(attrName, values = new HashMap<>());
+			Integer count = values.get(attrValue);
+			if (count==null) count = 0;
+			values.put(attrValue, count+1);
 		}
 		
 	}
@@ -865,26 +876,52 @@ class XMLTemplateStructure {
 		final HashMap<String, String> attributes;
 		final MultiMap<GenericXmlNode> nodes;
 		
-		GenericXmlNode(GenericXmlNode node) {
-			this.nodeName = node.nodeName;
-			attributes = new HashMap<>(node.attributes);
+		GenericXmlNode(GenericXmlNode sourceNode) {
+			if (sourceNode==null) throw new IllegalArgumentException();
+			
+			this.nodeName = sourceNode.nodeName;
+			attributes = new HashMap<>(sourceNode.attributes);
 			nodes = new MultiMap<>();
-			node.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(childNode)));
+			sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(childNode)));
 		}
-		GenericXmlNode(Node xmlNode, Templates templates, GenericXmlNode parentTemplate, Source source) throws ParseException {
-			this(xmlNode.getNodeName(), xmlNode, templates, parentTemplate, source);
+		
+		GenericXmlNode(GenericXmlNode sourceNode, GenericXmlNode templateNode, Source source) throws ParseException {
+			if (sourceNode==null) throw new IllegalArgumentException();
+			
+			this.nodeName = sourceNode.nodeName;
+			attributes = new HashMap<>();
+			nodes = new MultiMap<>();
+			
+			
+			if (templateNode!=null)
+				attributes.putAll(templateNode.attributes);
+			attributes.putAll(sourceNode.attributes);
+
+			if (templateNode == null)
+				sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(childNode)));
+			
+			else {
+				Consumer<String> debugOutput = str->testingGround.showCurrentState(templateNode, sourceNode, null, this, null, source, str);
+				mergeNodes(sourceNode.nodes, templateNode.nodes, "ParentTemplate", this.nodes, GenericXmlNodeConstructor.createGenericNodeBased(), source, debugOutput);
+			}
 		}
-		GenericXmlNode(String nodeName, Node xmlNode, Templates templates, GenericXmlNode parentTemplate, Source source) throws ParseException {
+		
+		GenericXmlNode(Node xmlNode, Templates templates, GenericXmlNode parentNode, Source source) throws ParseException {
+			this(xmlNode.getNodeName(), xmlNode, templates, parentNode, source);
+		}
+		
+		GenericXmlNode(String nodeName, Node sourceNode, Templates templates, GenericXmlNode parentNode, Source source) throws ParseException {
+			if (sourceNode==null) throw new IllegalArgumentException();
+			
 			this.nodeName = nodeName;
 			attributes = new HashMap<>();
 			nodes = new MultiMap<>();
 			
-			if (xmlNode==null) throw new IllegalArgumentException();
-			if (parentTemplate!=null && !parentTemplate.nodeName.equals(this.nodeName))
-				throw new ParseException("Parent node has different name (\"%s\") than this node (\"%s\") [File:%s]", parentTemplate.nodeName, this.nodeName, source.getFilePath());
+			if (parentNode!=null && !parentNode.nodeName.equals(this.nodeName))
+				throw new ParseException("Parent node has different name (\"%s\") than this node (\"%s\") [File:%s]", parentNode.nodeName, this.nodeName, source.getFilePath());
 			
-			GenericXmlNode template = null;
-			NamedNodeMap xmlAttributes = xmlNode.getAttributes();
+			GenericXmlNode templateNode = null;
+			NamedNodeMap xmlAttributes = sourceNode.getAttributes();
 			if (xmlAttributes!=null) {
 				
 				String templateName = getAttribute(xmlAttributes, TEMPLATE_ATTR_NAME);
@@ -892,20 +929,20 @@ class XMLTemplateStructure {
 					if (templates==null)
 						throw new ParseException("Found \"_template\" attribute but no Templates are defined  [Node:%s, File:%s]", this.nodeName, source.getFilePath());
 					
-					template = templates.getTemplate(this.nodeName, templateName);
-					if (templates==null)
+					templateNode = templates.getTemplate(this.nodeName, templateName);
+					if (templateNode==null)
 						throw new ParseException("Can't find template \"%s\" for node \"%s\" [File:%s]", templateName, this.nodeName, source.getFilePath());
 				}
 				
 				String noinheritValue = getAttribute(xmlAttributes, "_noinherit");
 				if (noinheritValue!=null && noinheritValue.toLowerCase().equals("true"))
-					parentTemplate = null;
+					parentNode = null;
 			}
 			
-			if (parentTemplate!=null)
-				attributes.putAll(parentTemplate.attributes);
-			if (template!=null)
-				attributes.putAll(template.attributes);
+			if (parentNode!=null)
+				attributes.putAll(parentNode.attributes);
+			if (templateNode!=null)
+				attributes.putAll(templateNode.attributes);
 			for (Node attrNode : XML.makeIterable(xmlAttributes)) {
 				String attrName = attrNode.getNodeName();
 				String attrValue = attrNode.getNodeValue();
@@ -915,92 +952,115 @@ class XMLTemplateStructure {
 					attributes.put(attrName,attrValue);
 			}
 			
-			MultiMap<Node> elementNodes = getElementNodes(xmlNode, source);
+			MultiMap<Node> elementNodes = getElementNodes(sourceNode, source);
 			
-			if (parentTemplate==null && template==null)
+			GenericXmlNode parentNode_ = parentNode;
+			GenericXmlNode templateNode_ = templateNode;
+			Consumer<String> debugOutput = str->testingGround.showCurrentState(parentNode_, templateNode_, sourceNode, this, templates, source, str);
+			
+			if (parentNode==null && templateNode==null)
 				for (String key : elementNodes.getKeys())
 					for (Node xmlSubNode : elementNodes.get(key))
 						nodes.add(key, new GenericXmlNode(xmlSubNode, templates, null, source));
 			
-			else if (parentTemplate==null || template==null) {
-				GenericXmlNode unifiedTemplate;
-				String templateLabel;
-				if (template!=null) {
-					unifiedTemplate = template;
-					templateLabel = "Template";
-				} else {
-					unifiedTemplate = parentTemplate;
-					templateLabel = "ParentTemplate";
-				}
+			else if (parentNode!=null && templateNode!=null) {
+				MultiMap<GenericXmlNode> temporary = new MultiMap<>();
+				mergeNodes(elementNodes, templateNode.nodes, "Template"      , temporary , GenericXmlNodeConstructor.createXmlNodeBased(templates), source, debugOutput);
+				mergeNodes(temporary   , parentNode  .nodes, "ParentTemplate", this.nodes, GenericXmlNodeConstructor.createGenericNodeBased()     , source, debugOutput);
 				
-				Vector<String> keysInTemplateOnly = new Vector<>();
-				Vector<String> keysInXMLOnly = new Vector<>();
-				Vector<String> keysInBothEqualCount = new Vector<>();
-				Vector<String> keysInBothDifferentCount = new Vector<>();
+			} else if (parentNode!=null) {
+				mergeNodes(elementNodes, parentNode.nodes, "ParentTemplate", this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source, debugOutput);
 				
-				Set<String> templateKeys = unifiedTemplate.nodes.getKeys();
-				Set<String> xmlKeys = elementNodes.getKeys();
+			} else if (templateNode!=null) {
+				mergeNodes(elementNodes, templateNode.nodes, "Template", this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source, debugOutput);
 				
-				for (String key : templateKeys)
-					if (!xmlKeys.contains(key))
-						keysInTemplateOnly.add(key);
-				
-				for (String key : xmlKeys) {
-					Vector<GenericXmlNode> tempNodes = unifiedTemplate.nodes.get(key);
-					if (tempNodes==null)
-						keysInXMLOnly.add(key);
-					else {
-						Vector<Node> xmlNodes = elementNodes.get(key);
-						if (tempNodes.size()==xmlNodes.size())
-							keysInBothEqualCount.add(key);
-						else
-							keysInBothDifferentCount.add(key);
-					}
-				}
-				
-				for (String key : keysInTemplateOnly)
-					for (GenericXmlNode tempChildNode : unifiedTemplate.nodes.get(key))
-						nodes.add(key, new GenericXmlNode(tempChildNode));
-				
-				for (String key : keysInXMLOnly)
-					for (Node xmlChildNode : elementNodes.get(key))
-						nodes.add(key, new GenericXmlNode(xmlChildNode, templates, null, source));
-				
-				for (String key : keysInBothEqualCount) {
-					
-					Vector<Node> xmlNodes = elementNodes.get(key);
-					Vector<GenericXmlNode> tempNodes = unifiedTemplate.nodes.get(key);
-					if (xmlNodes.size()!=tempNodes.size()) throw new IllegalStateException();
-					
-					for (int i=0; i<xmlNodes.size(); i++) {
-						Node xmlChildNode = xmlNodes.get(i);
-						GenericXmlNode tempChildNode = tempNodes.get(i);
-						nodes.add(key, new GenericXmlNode(xmlChildNode, templates, tempChildNode, source));
-					}
-					
-				}
-				
-				if (!keysInBothDifferentCount.isEmpty()) {
-					testingGround.showCurrentState(parentTemplate, template, xmlNode, this, templates, source, toString(String.format("Nodes in XML and %s with different counts", templateLabel),keysInBothDifferentCount));
-					// TODO
-				}
-				
-			} else {
-				Set<String> parentTemplateKeys = parentTemplate.nodes.getKeys();
-				Set<String> templateKeys = template.nodes.getKeys();
-				Set<String> xmlKeys = elementNodes.getKeys();
-				
-				if (parentTemplateKeys.isEmpty() && templateKeys.isEmpty() && xmlKeys.isEmpty()) {
-					// nothing to do
-					
-				} else {
-					testingGround.showCurrentState(parentTemplate, template, xmlNode, this, templates, source, "Template & ParentTemplate");
-					// TODO
-					
+			}
+		}
+		
+		private <SourceNodeType> void mergeNodes(
+				MultiMap<SourceNodeType> sourceNodes,
+				MultiMap<GenericXmlNode> templateNodes, String templateLabel,
+				MultiMap<GenericXmlNode> targetNodes,
+				GenericXmlNodeConstructor<SourceNodeType> nodeConstructor,
+				Source source, Consumer<String> debugOutput)
+				throws ParseException {
+			Vector<String> keysInTemplateOnly = new Vector<>();
+			Vector<String> keysInSourceOnly = new Vector<>();
+			Vector<String> keysInBothEqualCount = new Vector<>();
+			Vector<String> keysInBothDifferentCount = new Vector<>();
+			
+			Set<String> templateKeys = templateNodes.getKeys();
+			Set<String> sourceKeys = sourceNodes.getKeys();
+			
+			for (String key : templateKeys)
+				if (!sourceKeys.contains(key))
+					keysInTemplateOnly.add(key);
+			
+			for (String key : sourceKeys) {
+				Vector<GenericXmlNode> tempNodes = templateNodes.get(key);
+				if (tempNodes==null)
+					keysInSourceOnly.add(key);
+				else {
+					Vector<SourceNodeType> xmlNodes = sourceNodes.get(key);
+					if (tempNodes.size()==xmlNodes.size())
+						keysInBothEqualCount.add(key);
+					else
+						keysInBothDifferentCount.add(key);
 				}
 			}
 			
-			// TODO Auto-generated constructor stub
+			for (String key : keysInTemplateOnly)
+				for (GenericXmlNode tempChildNode : templateNodes.get(key)) {
+					targetNodes.add(key, new GenericXmlNode(tempChildNode));
+				}
+			
+			for (String key : keysInSourceOnly)
+				for (SourceNodeType srcChildNode : sourceNodes.get(key))
+					targetNodes.add(key, nodeConstructor.construct(srcChildNode, null, source));
+			
+			for (String key : keysInBothEqualCount) {
+				
+				Vector<SourceNodeType> srcNodes = sourceNodes.get(key);
+				Vector<GenericXmlNode> tempNodes = templateNodes.get(key);
+				if (srcNodes.size()!=tempNodes.size()) throw new IllegalStateException();
+				
+				for (int i=0; i<srcNodes.size(); i++) {
+					SourceNodeType srcChildNode = srcNodes.get(i);
+					GenericXmlNode tempChildNode = tempNodes.get(i);
+					targetNodes.add(key, nodeConstructor.construct(srcChildNode, tempChildNode, source));
+				}
+				
+			}
+			
+			for (String key : keysInBothDifferentCount) {
+				
+				Vector<SourceNodeType> srcNodes = sourceNodes.get(key);
+				Vector<GenericXmlNode> tempNodes = templateNodes.get(key);
+				
+				for (int i=0; i<srcNodes.size(); i++) {
+					SourceNodeType srcChildNode = srcNodes.get(i);
+					GenericXmlNode tempChildNode = i>=tempNodes.size() ? null : tempNodes.get(i);
+					targetNodes.add(key, nodeConstructor.construct(srcChildNode, tempChildNode, source));
+				}
+			}
+			//if (!keysInBothDifferentCount.isEmpty()) {
+			//	String reason = toString(String.format("Nodes in XML and %s with different counts", templateLabel),keysInBothDifferentCount);
+			//	debugOutput.accept(reason);
+			//	
+			//	// TODO
+			//}
+		}
+		
+		interface GenericXmlNodeConstructor<SourceNodeType> {
+			GenericXmlNode construct(SourceNodeType sourceNode, GenericXmlNode templateNode, Source source) throws ParseException;
+			
+			static GenericXmlNodeConstructor<Node> createXmlNodeBased(Templates templates) {
+				return (sourceNode, templateNode, source) -> new GenericXmlNode(sourceNode, templates, templateNode, source);
+			}
+			
+			static GenericXmlNodeConstructor<GenericXmlNode> createGenericNodeBased() {
+				return (sourceNode, templateNode, source) -> new GenericXmlNode(sourceNode, templateNode, source);
+			}
 		}
 		
 		private String toString(String label, Vector<String> strings) {
