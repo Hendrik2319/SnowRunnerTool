@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Vector;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.zip.ZipFile;
 
@@ -17,6 +18,9 @@ import org.w3c.dom.Node;
 
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 
 public class Data {
 
@@ -29,13 +33,40 @@ public class Data {
 	final HashMap<String,WheelsDef> wheels;
 	final HashMap<String,Truck> trucks;
 
+	Data(XMLTemplateStructure data) {
+		languages = data.languages;
+		trucksTemplate = null;
+		
+		//MultiMap<String> wheelsTypes = new MultiMap<>();
+		wheels = new HashMap<>();
+		Class_ wheelsClass = data.classes.get("wheels");
+		wheelsClass.items.forEach((name,item)->{
+			//wheelsTypes.add(item.content.nodeName, item.filePath);
+			if (item.isMainItem() && item.content.nodeName.equals("TruckWheels"))
+				wheels.put(name+".xml", new WheelsDef(item));
+		});
+		//System.err.println("WheelsTypes:");
+		//wheelsTypes.printTo(System.err, str->str);
+		
+		trucks = new HashMap<>();
+		Class_ trucksClass = data.classes.get("trucks");
+		trucksClass.items.forEach((name,item)->{
+			if (item.isMainItem()) {
+				trucks.put(name+".xml", new Truck(item, wheelType->{
+					WheelsDef wheelsDef = wheels.get(wheelType+".xml");
+					if (wheelsDef==null) return null;
+					return wheelsDef.truckTires;
+				}));
+			}
+		});
+	}
+	
 	Data(ZipFile zipFile, ZipEntryTreeNode zipRoot) throws IOException {
 		Predicate<String> isXML = fileName->fileName.endsWith(".xml");
-		Predicate<String> isSTR = fileName->fileName.endsWith(".str");
 		
 		languages = new HashMap<>();
-		ZipEntryTreeNode[] languageNodes = zipRoot.getSubFiles("[strings]", isSTR);
-		readEntries(zipFile, languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
+		HashMap<String, Language> languages2 = languages;
+		readLanguages(zipFile, zipRoot, languages2);
 		
 		ZipEntryTreeNode trucksTemplateNode = zipRoot.getSubFile ("[media]\\_templates\\", "trucks.xml");
 		trucksTemplate = readXMLEntry(zipFile, trucksTemplateNode, (name,doc)->TrucksTemplates.readFromXML(name, doc));
@@ -68,7 +99,7 @@ public class Data {
 		}
 		
 	}
-	
+
 	static class DLC {
 		final String name;
 		final HashMap<String,WheelsDef> wheels;
@@ -110,7 +141,7 @@ public class Data {
 		});
 	}
 	
-	private <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
+	private static <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
 		for (ZipEntryTreeNode node:nodes) {
 			ValueType value = readEntry(zipFile, node, readInput);
 			if (value!=null) {
@@ -121,11 +152,17 @@ public class Data {
 		}
 	}
 
-	private <ValueType> ValueType readEntry(ZipFile zipFile, ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) throws IOException {
+	private static <ValueType> ValueType readEntry(ZipFile zipFile, ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) throws IOException {
 		InputStream input = zipFile.getInputStream(node.entry);
 		return readInput.apply(node.name, input);
 	}
 	
+	static void readLanguages(ZipFile zipFile, ZipEntryTreeNode zipRoot, HashMap<String, Language> languages) throws IOException {
+		Predicate<String> isSTR = fileName->fileName.endsWith(".str");
+		ZipEntryTreeNode[] languageNodes = zipRoot.getSubFiles("[strings]", isSTR);
+		readEntries(zipFile, languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
+	}
+
 	static class Language {
 		final String name;
 		final HashMap<String,String> dictionary;
@@ -272,6 +309,16 @@ public class Data {
 		final boolean onIce;
 		final WheelFriction template;
 
+		WheelFriction(GenericXmlNode node) {
+			id = null;
+			template = null;
+			name_StringID   =             node.attributes.get("UiName");
+			frictionHighway = parseFloat( node.attributes.get("BodyFrictionAsphalt") );
+			frictionOffroad = parseFloat( node.attributes.get("BodyFriction"       ) );
+			frictionMud     = parseFloat( node.attributes.get("SubstanceFriction"  ) );
+			onIce           = parseBool ( node.attributes.get("IsIgnoreIce"), false );
+		}
+
 		WheelFriction(String id, Node node) { // as template
 			this.id = id;
 			template = null;
@@ -340,6 +387,17 @@ public class Data {
 		final String xmlName;
 		final String dlcName;
 		final Vector<TruckTire> truckTires;
+
+		public WheelsDef(Item item) {
+			parent = null;
+			xmlName = item.name+".xml";
+			dlcName = item.dlcName;
+			
+			truckTires = new Vector<>();
+			GenericXmlNode[] truckTireNodes = item.content.getNodes("TruckWheels","TruckTires","TruckTire");
+			for (int i=0; i<truckTireNodes.length; i++)
+				truckTires.add(new TruckTire(truckTireNodes[i], xmlName, i, dlcName));
+		}
 
 		WheelsDef(String xmlName, String dlcName, Document doc, TrucksTemplates trucksTemplates) throws ParseException {
 			this.xmlName = xmlName;
@@ -410,6 +468,16 @@ public class Data {
 		final WheelFriction wheelFriction;
 		final GameData gameData;
 	
+		TruckTire(GenericXmlNode node, String definingXML, int indexInDef, String dlc) {
+			this.id = null;
+			this.template = null;
+			this.definingXML = definingXML;
+			this.indexInDef = indexInDef;
+			this.dlc = dlc;
+			this.wheelFriction = new WheelFriction( node.getNode("TruckTire", "WheelFriction") );
+			this.gameData      = new GameData     ( node.getNode("TruckTire", "GameData"     ) );
+		}
+
 		private TruckTire(String id, TruckTire template, Node node, String definingXML, int indexInDef, String dlc, TrucksTemplates trucksTemplates) throws ParseException { // base constructor
 			this.id = id;
 			this.template = template;
@@ -480,6 +548,22 @@ public class Data {
 			final String description_StringID;
 			final String name_StringID;
 		
+			GameData(GenericXmlNode node) {
+				price               = parseInt (node.attributes.get("Price"));
+				unlockByExploration = parseBool(node.attributes.get("UnlockByExploration"));
+				unlockByRank        = parseInt (node.attributes.get("UnlockByRank"));
+				
+				GenericXmlNode uiDescNode = node.getNode("GameData", "UiDesc");
+				if (uiDescNode!=null) {
+					description_StringID = uiDescNode.attributes.get("UiDesc");
+					name_StringID        = uiDescNode.attributes.get("UiName");
+					
+				} else {
+					description_StringID = null;
+					name_StringID        = null;
+				}
+			}
+
 			GameData(Node node) {
 				price               = parseInt (XML.getAttribute(node,"Price"));
 				unlockByExploration = parseBool(XML.getAttribute(node,"UnlockByExploration"));
@@ -526,6 +610,34 @@ public class Data {
 			Vector<TruckTire> get(String id) throws ParseException;
 		}
 		
+		Truck(Item item, Function<String, Vector<TruckTire>> getTruckTires) {
+			if (!item.className.equals("trucks"))
+				throw new IllegalStateException();
+			xmlName = item.name+".xml";
+			dlcName = item.dlcName;
+			
+			GenericXmlNode truckDataNode = item.content.getNode("Truck", "TruckData");
+			type = truckDataNode.attributes.get("TruckType");
+			
+			GenericXmlNode gameDataNode = item.content.getNode("Truck", "GameData");
+			country             =           gameDataNode.attributes.get("Country");
+			price               = parseInt (gameDataNode.attributes.get("Price") );
+			unlockByExploration = parseBool(gameDataNode.attributes.get("UnlockByExploration") );
+			unlockByRank        = parseInt (gameDataNode.attributes.get("UnlockByRank") );
+			
+			GenericXmlNode uiDescNode = gameDataNode.getNode("GameData","UiDesc");
+			
+			description_StringID = uiDescNode.attributes.get("UiDesc");
+			name_StringID        = uiDescNode.attributes.get("UiName");
+			
+			compatibleWheels = new Vector<>();
+			GenericXmlNode[] compatibleWheelsNodes = truckDataNode.getNodes("TruckData", "CompatibleWheels");
+			for (GenericXmlNode compatibleWheelsNode : compatibleWheelsNodes)
+				compatibleWheels.add(new CompatibleWheel(compatibleWheelsNode, getTruckTires));
+			
+			expandedCompatibleWheels = ExpandedCompatibleWheel.expand(compatibleWheels);
+		}
+
 		Truck(String xmlName, String dlcName, Document doc, GetTruckTires getTruckTires) throws ParseException {
 			this.xmlName = xmlName;
 			this.dlcName = dlcName;
@@ -678,7 +790,16 @@ public class Data {
 			final String type;
 			final Vector<TruckTire> truckTires;
 			
-			CompatibleWheel(Node node, GetTruckTires  getTruckTires) throws ParseException {
+			CompatibleWheel(GenericXmlNode node, Function<String,Vector<TruckTire>> getTruckTires) {
+				if (!node.nodeName.equals("CompatibleWheels"))
+					throw new IllegalStateException();
+				
+				scale = parseFloat( node.attributes.get("Scale") );
+				type  =             node.attributes.get("Type");
+				truckTires = type==null ? null : getTruckTires.apply(type);
+			}
+
+			CompatibleWheel(Node node, GetTruckTires getTruckTires) throws ParseException {
 				scale = parseFloat( XML.getAttribute(node, "Scale") );
 				type  = XML.getAttribute(node, "Type");
 				truckTires = type==null ? null : getTruckTires.get(type);

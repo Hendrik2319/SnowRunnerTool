@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -18,6 +19,7 @@ import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.zip.ZipFile;
 
@@ -28,12 +30,11 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.InheritRemoveException;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.Source;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Templates;
 import net.schwarzbaer.system.DateTimeFormatter;
 
 @SuppressWarnings("unused")
@@ -46,6 +47,7 @@ class XMLTemplateStructure {
 	final HashMap<String, Templates> globalTemplates;
 	final HashMap<String, Class_> classes;
 	final Vector<String> ignoredFiles;
+	final HashMap<String, Data.Language> languages;
 
 	static XMLTemplateStructure readPAK(File pakFile, Window mainWindow) {
 		return PAKReader.readPAK(pakFile, (zipFile, zipRoot) -> {
@@ -62,6 +64,10 @@ class XMLTemplateStructure {
 	}
 	
 	XMLTemplateStructure(ZipFile zipFile, ZipEntryTreeNode zipRoot, Window mainWindow) throws IOException, EntryStructureException, ParseException {
+		
+		languages = new HashMap<>();
+		Data.readLanguages(zipFile, zipRoot, languages);
+		
 		ZipEntryTreeNode contentRootFolder = zipRoot.getSubFolder("[media]");
 		if (contentRootFolder==null)
 			throw new EntryStructureException("Found no content root folder \"[media]\" in \"%s\"", zipFile.getName());
@@ -262,29 +268,29 @@ class XMLTemplateStructure {
 			for (ZipEntryTreeNode classFolder : classesFolder.folders.values()) {
 				String className = classFolder.name;
 				StructClass class_ = classes.get(className);
-				if (class_==null) classes.put(className, class_ = new StructClass(className,dlc));
-				scanClass(class_, classFolder);
+				if (class_==null) classes.put(className, class_ = new StructClass(className));
+				scanClass(class_, dlc, classFolder);
 			}
 		}
 		
-		private static void scanClass(StructClass class_, ZipEntryTreeNode classFolder) throws EntryStructureException {
+		private static void scanClass(StructClass class_, String dlc, ZipEntryTreeNode classFolder) throws EntryStructureException {
 			for (ZipEntryTreeNode subClassFolder : classFolder.folders.values()) {
 				if (!subClassFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in sub class folder \"%s\"", subClassFolder.getPath());
 				if ( subClassFolder.files  .isEmpty()) throw new EntryStructureException("Found no item files in sub class folder \"%s\"", subClassFolder.getPath());
 				
-				scanItems(class_, subClassFolder.name, subClassFolder);
+				scanItems(class_, dlc, subClassFolder.name, subClassFolder);
 			}
 			
-			scanItems(class_, null, classFolder);
+			scanItems(class_, dlc, null, classFolder);
 		}
 
-		private static void scanItems(StructClass class_, String subClassName, ZipEntryTreeNode folder) throws EntryStructureException {
+		private static void scanItems(StructClass class_, String dlc, String subClassName, ZipEntryTreeNode folder) throws EntryStructureException {
 			for (ZipEntryTreeNode itemFile : folder.files.values()) {
 				String itemName = getXmlItemName(itemFile);
 				StructItem otherItem = class_.items.get(itemName);
 				if (otherItem!=null)
 					throw new EntryStructureException("Found more than one item file with name \"%s\" in class folder \"%s\"", itemName, folder.getPath());
-				class_.items.put(itemName, new StructItem(class_.dlcName,class_.className,subClassName,itemName,itemFile));
+				class_.items.put(itemName, new StructItem(dlc, class_.className, subClassName, itemName, itemFile));
 			}
 		}
 
@@ -312,12 +318,10 @@ class XMLTemplateStructure {
 		static class StructClass {
 	
 			final String className;
-			final String dlcName;
 			final HashMap<String, StructItem> items;
 	
-			StructClass(String className, String dlc) {
+			StructClass(String className) {
 				this.className = className;
-				this.dlcName = dlc;
 				items = new HashMap<>();
 			}
 		}
@@ -532,7 +536,6 @@ class XMLTemplateStructure {
 
 	static class Class_ {
 		
-		final String dlc;
 		final String name;
 		final HashMap<String,Item> items;
 	
@@ -542,7 +545,6 @@ class XMLTemplateStructure {
 			if (globalTemplates==null) throw new IllegalArgumentException();
 			if (ignoredFiles==null) throw new IllegalArgumentException();
 			
-			this.dlc = structClass.dlcName;
 			name = structClass.className;
 			
 			items = new HashMap<>();
@@ -721,7 +723,7 @@ class XMLTemplateStructure {
 				}
 			}
 			
-			private String getParentFile(Node node, String itemFilePath) throws ParseException {
+			private static String getParentFile(Node node, String itemFilePath) throws ParseException {
 				if (node==null) return null;
 				if (!node.getNodeName().equals("_parent")) throw new IllegalStateException();
 				if (node.getChildNodes().getLength()!=0)
@@ -741,6 +743,10 @@ class XMLTemplateStructure {
 				//System.err.printf("[INFO] Found <_parent> node (->\"%s\") in item file \"%s\"%n", parentFile, itemFilePath);
 				
 				return parentFile;
+			}
+
+			boolean isMainItem() {
+				return subClassName==null;
 			}
 		}
 	}
@@ -1170,6 +1176,32 @@ class XMLTemplateStructure {
 				return ()->sourceFile.getPath();
 			}
 		}
+
+		GenericXmlNode getNode(String... path) {
+			GenericXmlNode[] nodes = getNodes(path);
+			if (nodes.length>1) throw new IllegalStateException();
+			return nodes.length<1 ? null : nodes[0];
+		}
+		
+		GenericXmlNode[] getNodes(String... path) {
+			if (path.length<2) throw new IllegalArgumentException();
+			if (!nodeName.equals(path[0]))
+				throw new IllegalArgumentException();
+			Vector<GenericXmlNode> nodes = new Vector<>();
+			getSubnodes(path,1,nodes);
+			return nodes.toArray(new GenericXmlNode[nodes.size()]);
+		}
+
+		private void getSubnodes(String[] path, int index, Vector<GenericXmlNode> nodes) {
+			Vector<GenericXmlNode> childNodes = this.nodes.get(path[index]);
+			if (childNodes==null) return;
+			for (GenericXmlNode childNode : childNodes) {
+				if (index+1>=path.length)
+					nodes.add(childNode);
+				else
+					childNode.getSubnodes(path, index+1, nodes);
+			}
+		}
 	}
 	
 	static class MultiMap<ValueType> {
@@ -1195,6 +1227,17 @@ class XMLTemplateStructure {
 
 		Set<String> getKeys() {
 			return map.keySet();
+		}
+
+		void printTo(PrintStream out, Function<ValueType,String> toString) {
+			Vector<String> keys = new Vector<>( map.keySet() );
+			keys.sort(null);
+			for (String key : keys) {
+				Vector<ValueType> list = map.get(key);
+				out.printf("   \"%s\" [%d]%n", key, list.size());
+				for (ValueType value : list)
+					out.printf("      %s%n", toString.apply(value));
+			}
 		}
 	}
 }
