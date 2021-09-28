@@ -1,18 +1,19 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.util.HashMap;
 import java.util.Vector;
+import java.util.function.Function;
 
 import javax.swing.BorderFactory;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTree;
+import javax.swing.tree.TreeNode;
 
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Templates;
 
 class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver {
 	private static final long serialVersionUID = 10671596986103400L;
@@ -53,27 +54,21 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 		classesPanel.removeAll();
 		
 		if (data!=null && data.rawdata!=null) {
-			Vector<String> keys;
-			
-			keys = new Vector<>( data.rawdata.globalTemplates.keySet() );
-			keys.sort(null);
-			for (String key : keys) {
-				Templates templates = data.rawdata.globalTemplates.get(key);
-				JTree tree = new JTree(new DataTrees.Templates_TreeNode(templates));
-				JScrollPane scrollPane = new JScrollPane(tree);
-				scrollPane.setBorder(null);
-				globalTemplatesPanel.addTab(key, scrollPane);
-			}
-			
-			keys = new Vector<>( data.rawdata.classes.keySet() );
-			keys.sort(null);
-			for (String key : keys) {
-				Class_ class_ = data.rawdata.classes.get(key);
-				JTree tree = new JTree(new DataTrees.Class_TreeNode(class_));
-				JScrollPane scrollPane = new JScrollPane(tree);
-				scrollPane.setBorder(null);
-				classesPanel.addTab(key, scrollPane);
-			}
+			addTreeTabs(globalTemplatesPanel, data.rawdata.globalTemplates, DataTrees.Templates_TreeNode::new);
+			addTreeTabs(classesPanel        , data.rawdata.classes        , DataTrees.    Class_TreeNode::new);
+		}
+	}
+
+	private <ValueType> void addTreeTabs(JTabbedPane panel, HashMap<String, ValueType> map, Function<ValueType,TreeNode> treeNodeContructor) {
+		Vector<String> keys = new Vector<>( map.keySet() );
+		keys.sort(null);
+		for (String key : keys) {
+			ValueType templates = map.get(key);
+			JTree tree = new JTree(treeNodeContructor.apply(templates));
+			tree.setCellRenderer(new DataTrees.TreeNodeRenderer());
+			JScrollPane scrollPane = new JScrollPane(tree);
+			scrollPane.setBorder(null);
+			panel.addTab(key, scrollPane);
 		}
 	}
 

@@ -1,11 +1,15 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.awt.Color;
+import java.awt.Component;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Vector;
 
 import javax.swing.Icon;
+import javax.swing.JTree;
+import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreeNode;
 
 import org.w3c.dom.NamedNodeMap;
@@ -27,12 +31,37 @@ class DataTrees {
 		Icon getIcon() { return TreeIconsIS.getCachedIcon(this); }
 	}
 
+	static class TreeNodeRenderer extends DefaultTreeCellRenderer {
+		private static final long serialVersionUID = 4669699537680450275L;
+	
+		@Override
+		public Component getTreeCellRendererComponent(JTree tree, Object value, boolean isSelected, boolean isExpanded, boolean isLeaf, int row, boolean hasFocus) {
+			super.getTreeCellRendererComponent(tree, value, isSelected, isExpanded, isLeaf, row, hasFocus);
+			
+			if (value instanceof AbstractTreeNode) {
+				AbstractTreeNode treeNode = (AbstractTreeNode) value;
+				if (!isSelected) {
+					Color color = treeNode.getColor();
+					setForeground(color!=null ? color : tree.getForeground());
+				}
+				Icon icon = treeNode.getIcon();
+				if (icon!=null) setIcon(icon);
+				
+			} else {
+				if (!isSelected) setForeground(tree.getForeground());
+				//setIcon(null);
+			}
+			
+			return this;
+		}
+	}
+
 	static class Class_TreeNode extends AbstractTreeNode {
 
 		final Class_ class_;
 
 		Class_TreeNode(Class_ class_) {
-			super(null, true, class_.items.isEmpty());
+			super(null, true, class_.items.isEmpty(), TreeIcons.Folder);
 			this.class_ = class_;
 		}
 
@@ -76,7 +105,7 @@ class DataTrees {
 			final Vector<Item> list;
 
 			public SubClass_TreeNode(Class_TreeNode class_TreeNode, String name, Vector<Item> list) {
-				super(class_TreeNode, true, list.isEmpty());
+				super(class_TreeNode, true, list.isEmpty(), TreeIcons.Folder);
 				this.name = name;
 				this.list = list;
 			}
@@ -100,7 +129,7 @@ class DataTrees {
 		final Item item;
 
 		public Item_TreeNode(TreeNode parent, Item item) {
-			super(parent, true, false);
+			super(parent, true, false, TreeIcons.Folder);
 			this.item = item;
 		}
 
@@ -133,7 +162,7 @@ class DataTrees {
 		final String label;
 	
 		private Templates_TreeNode(Templates_TreeNode parent, String label, Templates templates) {
-			super(parent, true, false);
+			super(parent, true, false, TreeIcons.Folder);
 			this.label = label;
 			this.templates = templates;
 		}
@@ -166,7 +195,7 @@ class DataTrees {
 			final HashMap<String, GenericXmlNode> templates;
 	
 			TemplatesForNode_TreeNode(Templates_TreeNode parent, String nodeName, HashMap<String, GenericXmlNode> templates) {
-				super(parent, true, templates.isEmpty());
+				super(parent, true, templates.isEmpty(), TreeIcons.Folder);
 				this.nodeName = nodeName;
 				this.templates = templates;
 			}
@@ -194,7 +223,7 @@ class DataTrees {
 		final Node node;
 	
 		XmlNode_TreeNode(XmlNode_TreeNode parent, Node node) {
-			super(parent, true, false);
+			super(parent, true, false, TreeIcons.Node);
 			this.node = node;
 		}
 	
@@ -262,7 +291,7 @@ class DataTrees {
 			this(parent, null, node);
 		}
 		GenericXmlNode_TreeNode(TreeNode parent, String label, GenericXmlNode node) {
-			super(parent, true, false);
+			super(parent, true, false, TreeIcons.Node);
 			this.label = label;
 			this.node = node;
 		}
@@ -293,7 +322,7 @@ class DataTrees {
 		final Vector<TreeNode> children;
 	
 		private AttributesTreeNode(TreeNode parent) {
-			super(parent, true, false);
+			super(parent, true, false, TreeIcons.Folder);
 			children = new Vector<>();
 		}
 		
@@ -334,7 +363,7 @@ class DataTrees {
 			private final String key;
 			private final String value;
 			AttributeTreeNode(TreeNode parent, String key, String value) {
-				super(parent,false, true);
+				super(parent,false, true, TreeIcons.Attribute);
 				this.key = key;
 				this.value = value;
 			}
@@ -353,16 +382,27 @@ class DataTrees {
 		Vector<TreeNode> children;
 		final boolean allowsChildren;
 		final boolean isLeaf;
+		final TreeIcons icon;
+		final Color color;
 	
 		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf) {
+			this(parent, allowsChildren, isLeaf, null, null);
+		}
+		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, TreeIcons icon) {
+			this(parent, allowsChildren, isLeaf, icon, null);
+		}
+		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, TreeIcons icon, Color color) {
 			this.parent = parent;
 			this.allowsChildren = allowsChildren;
 			this.isLeaf = isLeaf;
+			this.icon = icon;
+			this.color = color;
 			children = null;
 		}
 		
-		
-	
+		Icon getIcon() { return icon==null ? null : icon.getIcon(); }
+		Color getColor() { return color; }
+
 		@Override public abstract String toString();
 		protected abstract Vector<TreeNode> createChildren();
 	
