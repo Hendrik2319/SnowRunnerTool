@@ -360,8 +360,8 @@ class DataTrees {
 		}
 		
 		static class AttributeTreeNode extends AbstractTreeNode {
-			private final String key;
-			private final String value;
+			final String key;
+			final String value;
 			AttributeTreeNode(TreeNode parent, String key, String value) {
 				super(parent,false, true, TreeIcons.Attribute);
 				this.key = key;

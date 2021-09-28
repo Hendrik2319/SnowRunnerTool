@@ -254,15 +254,16 @@ public class SnowRunner {
 	}
 
 	private boolean reloadInitialPAK() {
-		File initialPAK = getInitialPAK();
-		if (initialPAK!=null) {
-			Data newData = Data.readInitialPAK(initialPAK);
-			if (newData!=null) {
-				data = newData;
-				return true;
-			}
-		}
-		return false;
+		return testXMLTemplateStructure();
+//		File initialPAK = getInitialPAK();
+//		if (initialPAK!=null) {
+//			Data newData = Data.readInitialPAK(initialPAK);
+//			if (newData!=null) {
+//				data = newData;
+//				return true;
+//			}
+//		}
+//		return false;
 	}
 
 	private boolean testXMLTemplateStructure() {

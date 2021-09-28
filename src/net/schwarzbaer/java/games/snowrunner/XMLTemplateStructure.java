@@ -717,7 +717,7 @@ class XMLTemplateStructure {
 				Item parentItem = parentFile==null ? null : parentFinder.getParent(parentFile);
 				
 				try {
-					content = new GenericXmlNode(contentNode, localTemplates, parentItem==null ? null : parentItem.content, GenericXmlNode.Source.create(structItem.itemFile));
+					content = new GenericXmlNode(null, contentNode, localTemplates, parentItem==null ? null : parentItem.content, GenericXmlNode.Source.create(structItem.itemFile));
 				} catch (InheritRemoveException e) {
 					throw new ParseException("Found unexpected attribute (\"%s\") in content node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, structItem.itemFile.getPath());
 				}
@@ -931,7 +931,7 @@ class XMLTemplateStructure {
 		private static GenericXmlNode addNewTemplate_unchecked(Node node, String originalNodeName, String templateName, HashMap<String, GenericXmlNode> templatesList, ZipEntryTreeNode sourceFile, TemplatesInterface ti) throws ParseException {
 			GenericXmlNode template;
 			try {
-				template = new GenericXmlNode(originalNodeName, node, ti, null, GenericXmlNode.Source.create(sourceFile));
+				template = new GenericXmlNode(null, originalNodeName, node, ti, null, GenericXmlNode.Source.create(sourceFile));
 			} catch (InheritRemoveException e) {
 				throw new ParseException("Found unexpected attribute (\"%s\") in <_templates> node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, sourceFile.getPath());
 			}
@@ -984,22 +984,25 @@ class XMLTemplateStructure {
 			private static final long serialVersionUID = -9221801644995970360L;
 		}
 		
+		final GenericXmlNode parent;
 		final String nodeName;
 		final HashMap<String, String> attributes;
 		final MultiMap<GenericXmlNode> nodes;
 		
-		GenericXmlNode(GenericXmlNode sourceNode) {
+		GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode) {
 			if (sourceNode==null) throw new IllegalArgumentException();
 			
+			this.parent = parent;
 			this.nodeName = sourceNode.nodeName;
 			attributes = new HashMap<>(sourceNode.attributes);
 			nodes = new MultiMap<>();
-			sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(childNode)));
+			sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
 		}
 		
-		GenericXmlNode(GenericXmlNode sourceNode, GenericXmlNode templateNode, Source source) throws ParseException {
+		GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode, GenericXmlNode templateNode, Source source) throws ParseException {
 			if (sourceNode==null) throw new IllegalArgumentException();
 			
+			this.parent = parent;
 			this.nodeName = sourceNode.nodeName;
 			attributes = new HashMap<>();
 			nodes = new MultiMap<>();
@@ -1010,21 +1013,22 @@ class XMLTemplateStructure {
 			attributes.putAll(sourceNode.attributes);
 
 			if (templateNode == null)
-				sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(childNode)));
+				sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
 			
 			else {
 				Consumer<String> debugOutput = str->testingGround.showCurrentState(templateNode, sourceNode, null, this, null, source, str);
-				mergeNodes(sourceNode.nodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased(), source);
+				mergeNodes(this, sourceNode.nodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased(), source);
 			}
 		}
 		
-		GenericXmlNode(Node xmlNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
-			this(xmlNode.getNodeName(), xmlNode, templates, parentNode, source);
+		GenericXmlNode(GenericXmlNode parent, Node xmlNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
+			this(parent, xmlNode.getNodeName(), xmlNode, templates, parentNode, source);
 		}
 		
-		GenericXmlNode(String nodeName, Node sourceNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
+		GenericXmlNode(GenericXmlNode parent, String nodeName, Node sourceNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
 			if (sourceNode==null) throw new IllegalArgumentException();
 			
+			this.parent = parent;
 			this.nodeName = nodeName;
 			attributes = new HashMap<>();
 			nodes = new MultiMap<>();
@@ -1076,23 +1080,24 @@ class XMLTemplateStructure {
 			if (parentNode==null && templateNode==null)
 				for (String key : elementNodes.getKeys())
 					for (Node xmlSubNode : elementNodes.get(key))
-						nodes.add(key, new GenericXmlNode(xmlSubNode, templates, null, source));
+						nodes.add(key, new GenericXmlNode(this, xmlSubNode, templates, null, source));
 			
 			else if (parentNode!=null && templateNode!=null) {
 				MultiMap<GenericXmlNode> temporary = new MultiMap<>();
-				mergeNodes(elementNodes, templateNode.nodes, temporary , GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
-				mergeNodes(temporary   , parentNode  .nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased()     , source);
+				mergeNodes(this, elementNodes, templateNode.nodes, temporary , GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
+				mergeNodes(this, temporary   , parentNode  .nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased()     , source);
 				
 			} else if (parentNode!=null) {
-				mergeNodes(elementNodes, parentNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
+				mergeNodes(this, elementNodes, parentNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
 				
 			} else if (templateNode!=null) {
-				mergeNodes(elementNodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
+				mergeNodes(this, elementNodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
 				
 			}
 		}
 		
 		private static <SourceNodeType> void mergeNodes(
+				GenericXmlNode parent,
 				MultiMap<SourceNodeType> sourceNodes,
 				MultiMap<GenericXmlNode> templateNodes,
 				MultiMap<GenericXmlNode> targetNodes,
@@ -1103,7 +1108,7 @@ class XMLTemplateStructure {
 			for (String key : templateNodes.getKeys())
 				if (!sourceNodes.containsKey(key))
 					for (GenericXmlNode tempChildNode : templateNodes.get(key))
-						targetNodes.add(key, new GenericXmlNode(tempChildNode));
+						targetNodes.add(key, new GenericXmlNode(parent, tempChildNode));
 			
 			for (String key : sourceNodes.getKeys()) {
 				Vector<GenericXmlNode> tempNodes = templateNodes.get(key);
@@ -1112,7 +1117,7 @@ class XMLTemplateStructure {
 					SourceNodeType srcChildNode = srcNodes.get(i);
 					GenericXmlNode tempChildNode = tempNodes==null || i>=tempNodes.size() ? null : tempNodes.get(i);
 					try {
-						targetNodes.add(key, nodeConstructor.construct(srcChildNode, tempChildNode, source));
+						targetNodes.add(key, nodeConstructor.construct(parent, srcChildNode, tempChildNode, source));
 					} catch (InheritRemoveException e) {
 						if (tempChildNode==null)
 							throwParseException(false, "Found unexpected attribute (\"%s\") in <%s> node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, key, source.getFilePath());
@@ -1122,14 +1127,14 @@ class XMLTemplateStructure {
 		}
 		
 		interface GenericXmlNodeConstructor<SourceNodeType> {
-			GenericXmlNode construct(SourceNodeType sourceNode, GenericXmlNode templateNode, Source source) throws ParseException, InheritRemoveException;
+			GenericXmlNode construct(GenericXmlNode parent, SourceNodeType sourceNode, GenericXmlNode templateNode, Source source) throws ParseException, InheritRemoveException;
 			
 			static GenericXmlNodeConstructor<Node> createXmlNodeBased(TemplatesInterface templates) {
-				return (sourceNode, templateNode, source) -> new GenericXmlNode(sourceNode, templates, templateNode, source);
+				return (parent, sourceNode, templateNode, source) -> new GenericXmlNode(parent, sourceNode, templates, templateNode, source);
 			}
 			
 			static GenericXmlNodeConstructor<GenericXmlNode> createGenericNodeBased() {
-				return (sourceNode, templateNode, source) -> new GenericXmlNode(sourceNode, templateNode, source);
+				return (parent, sourceNode, templateNode, source) -> new GenericXmlNode(parent, sourceNode, templateNode, source);
 			}
 		}
 		
@@ -1175,6 +1180,18 @@ class XMLTemplateStructure {
 			static Source create(ZipEntryTreeNode sourceFile) {
 				return ()->sourceFile.getPath();
 			}
+		}
+
+		String[] getPath() {
+			Vector<String> vec = getPathVec();
+			return vec.toArray(new String[vec.size()]);
+		}
+		Vector<String> getPathVec() {
+			Vector<String> vec;
+			if (parent==null) vec = new Vector<>();
+			else vec = parent.getPathVec();
+			vec.add(this.nodeName);
+			return vec;
 		}
 
 		GenericXmlNode getNode(String... path) {
