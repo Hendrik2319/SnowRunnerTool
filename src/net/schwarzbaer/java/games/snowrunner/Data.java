@@ -28,18 +28,20 @@ public class Data {
 		return PAKReader.readPAK(initialPAK, Data::new);
 	}
 
+	final XMLTemplateStructure rawdata;
 	final HashMap<String,Language> languages;
 	final TrucksTemplates trucksTemplate;
 	final HashMap<String,WheelsDef> wheels;
 	final HashMap<String,Truck> trucks;
 
-	Data(XMLTemplateStructure data) {
-		languages = data.languages;
+	Data(XMLTemplateStructure rawdata) {
+		this.rawdata = rawdata;
+		languages = rawdata.languages;
 		trucksTemplate = null;
 		
 		//MultiMap<String> wheelsTypes = new MultiMap<>();
 		wheels = new HashMap<>();
-		Class_ wheelsClass = data.classes.get("wheels");
+		Class_ wheelsClass = rawdata.classes.get("wheels");
 		wheelsClass.items.forEach((name,item)->{
 			//wheelsTypes.add(item.content.nodeName, item.filePath);
 			if (item.isMainItem() && item.content.nodeName.equals("TruckWheels"))
@@ -49,7 +51,7 @@ public class Data {
 		//wheelsTypes.printTo(System.err, str->str);
 		
 		trucks = new HashMap<>();
-		Class_ trucksClass = data.classes.get("trucks");
+		Class_ trucksClass = rawdata.classes.get("trucks");
 		trucksClass.items.forEach((name,item)->{
 			if (item.isMainItem()) {
 				trucks.put(name+".xml", new Truck(item, wheelType->{
@@ -62,6 +64,7 @@ public class Data {
 	}
 	
 	Data(ZipFile zipFile, ZipEntryTreeNode zipRoot) throws IOException {
+		this.rawdata = null;
 		Predicate<String> isXML = fileName->fileName.endsWith(".xml");
 		
 		languages = new HashMap<>();

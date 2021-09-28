@@ -13,7 +13,7 @@ class PAKReader {
 
 	static <ValueType> ValueType readPAK(File pakFile, NextParsingStage<ValueType> nextParsingStage) {
 		try (ZipFile zipFile = new ZipFile(pakFile, ZipFile.OPEN_READ); ) {
-			System.out.printf("Read \"%s\" ...%n", pakFile.getName());
+			System.out.printf("Read \"%s\" ...%n", pakFile.getAbsolutePath());
 			ZipEntryTreeNode zipRoot = new ZipEntryTreeNode();
 			
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
@@ -30,6 +30,7 @@ class PAKReader {
 			
 		} catch (IOException e) { e.printStackTrace(); }
 		
+		System.out.printf("... error [readPAK()]%n");
 		return null;
 	}
 	

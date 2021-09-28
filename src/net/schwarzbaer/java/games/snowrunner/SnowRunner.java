@@ -63,9 +63,8 @@ public class SnowRunner {
 	private final StandardMainWindow mainWindow;
 	private final JList<Truck> truckList;
 	private final JMenu languageMenu;
-	private final LanguageListenerController languageListenerController;
-	private final TruckToDLCAssignmentListenerController truckToDLCAssignmentListenerController;
-	private final DataReceiverController dataReceiverController;
+	private final Controllers controllers;
+	private final RawDataPanel rawDataPanel;
 	
 	SnowRunner() {
 		data = null;
@@ -73,14 +72,12 @@ public class SnowRunner {
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		
-		languageListenerController = new LanguageListenerController();
-		truckToDLCAssignmentListenerController = new TruckToDLCAssignmentListenerController();
-		dataReceiverController = new DataReceiverController();
+		controllers = new Controllers();
 		
 		TruckPanel truckPanel = new TruckPanel(mainWindow);
 		truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
-		languageListenerController.add(truckPanel);
-		truckToDLCAssignmentListenerController.add(truckPanel);
+		controllers.languageListeners.add(truckPanel);
+		controllers.truckToDLCAssignmentListeners.add(truckPanel);
 		
 		JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
 		truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
@@ -88,12 +85,15 @@ public class SnowRunner {
 		truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
 		
 		TruckListContextMenu truckListContextMenu = new TruckListContextMenu();
-		languageListenerController.add(truckListContextMenu);
+		controllers.languageListeners.add(truckListContextMenu);
 		
 		TruckListCellRenderer truckListCellRenderer = new TruckListCellRenderer(truckList);
 		truckList.setCellRenderer(truckListCellRenderer);
-		languageListenerController.add(truckListCellRenderer);
+		controllers.languageListeners.add(truckListCellRenderer);
 		
+		rawDataPanel = new RawDataPanel();
+		controllers.languageListeners.add(rawDataPanel);
+		controllers.dataReceivers.add(rawDataPanel);
 		
 		JSplitPane trucksPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 		trucksPanel.setResizeWeight(0);
@@ -107,8 +107,8 @@ public class SnowRunner {
 		WheelsTableModel wheelsTableModel = new WheelsTableModel();
 		wheelsTable.setModel(wheelsTableModel);
 		wheelsTableModel.setColumnWidths(wheelsTable);
-		languageListenerController.add(wheelsTableModel);
-		dataReceiverController.add(wheelsTableModel);
+		controllers.languageListeners.add(wheelsTableModel);
+		controllers.dataReceivers.add(wheelsTableModel);
 				
 		SimplifiedRowSorter wheelsTableRowSorter = new SimplifiedRowSorter(wheelsTableModel);
 		wheelsTable.setRowSorter(wheelsTableRowSorter);
@@ -133,9 +133,9 @@ public class SnowRunner {
 		DLCTableModel dlcsTableModel = new DLCTableModel();
 		dlcsTable.setModel(dlcsTableModel);
 		dlcsTableModel.setColumnWidths(dlcsTable);
-		languageListenerController.add(dlcsTableModel);
-		truckToDLCAssignmentListenerController.add(dlcsTableModel);
-		dataReceiverController.add(dlcsTableModel);
+		controllers.languageListeners.add(dlcsTableModel);
+		controllers.truckToDLCAssignmentListeners.add(dlcsTableModel);
+		controllers.dataReceivers.add(dlcsTableModel);
 		
 		SimplifiedRowSorter dlcsTableRowSorter = new SimplifiedRowSorter(dlcsTableModel);
 		dlcsTable.setRowSorter(dlcsTableRowSorter);
@@ -159,6 +159,7 @@ public class SnowRunner {
 		contentPane.addTab("Trucks", trucksPanel);
 		contentPane.addTab("Wheels", wheelsPanel);
 		contentPane.addTab("DLCs", dlcsPanel);
+		contentPane.addTab("Raw Data", rawDataPanel);
 		
 		JMenuBar menuBar = new JMenuBar();
 		
@@ -178,7 +179,7 @@ public class SnowRunner {
 		
 		languageMenu = menuBar.add(new JMenu("Language"));
 		
-		mainWindow.setIconImagesFromResource("/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
+		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
 		
 		if (settings.isSet(AppSettings.ValueGroup.WindowPos )) mainWindow.setLocation(settings.getWindowPos ());
@@ -192,32 +193,61 @@ public class SnowRunner {
 		});
 	}
 	
+	private static class Controllers {
+		
+		final LanguageListenerController languageListeners;
+		final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
+		final DataReceiverController dataReceivers;
+		
+		Controllers() {
+			languageListeners = new LanguageListenerController();
+			truckToDLCAssignmentListeners = new TruckToDLCAssignmentListenerController();
+			dataReceivers = new DataReceiverController();
+		}
+
+		static class AbstractController<Listener> {
+			protected final Vector<Listener> listeners = new Vector<>();
+			
+			@SuppressWarnings("unused")
+			void remove(Listener l) { listeners.remove(l); }
+			void    add(Listener l) { listeners.   add(l); }
+		}
+
+		static class TruckToDLCAssignmentListenerController extends AbstractController<TruckToDLCAssignmentListener> implements TruckToDLCAssignmentListener {
+			
+			@Override public void setTruckToDLCAssignments(HashMap<String, String> assignments) {
+				for (TruckToDLCAssignmentListener l:listeners)
+					l.setTruckToDLCAssignments(assignments);
+			}
+			@Override public void updateAfterAssignmentsChange() {
+				for (TruckToDLCAssignmentListener l:listeners)
+					l.updateAfterAssignmentsChange();
+			}
+		}
+
+		static class DataReceiverController extends AbstractController<DataReceiver> implements DataReceiver {
+			@Override public void setData(Data data) {
+				for (DataReceiver r:listeners)
+					r.setData(data);
+			}
+		}
+
+		static class LanguageListenerController extends AbstractController<LanguageListener> implements LanguageListener {
+			@Override public void setLanguage(Language language) {
+				for (LanguageListener l:listeners)
+					l.setLanguage(language);
+			}
+		}
+	}
+	
 	interface TruckToDLCAssignmentListener {
 		void setTruckToDLCAssignments(HashMap<String, String> assignments);
 		void updateAfterAssignmentsChange();
 	}
 	
-	private static class TruckToDLCAssignmentListenerController implements TruckToDLCAssignmentListener {
-		
-		private final Vector<TruckToDLCAssignmentListener> listeners = new Vector<>();
-		
-		@SuppressWarnings("unused")
-		void remove(TruckToDLCAssignmentListener l) { listeners.remove(l); }
-		void    add(TruckToDLCAssignmentListener l) { listeners.   add(l); }
-		
-		@Override public void setTruckToDLCAssignments(HashMap<String, String> assignments) {
-			for (TruckToDLCAssignmentListener l:listeners)
-				l.setTruckToDLCAssignments(assignments);
-		}
-		@Override public void updateAfterAssignmentsChange() {
-			for (TruckToDLCAssignmentListener l:listeners)
-				l.updateAfterAssignmentsChange();
-		}
-	}
-	
 	private void initialize() {
 		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
-		truckToDLCAssignmentListenerController.setTruckToDLCAssignments(truckToDLCAssignments);
+		controllers.truckToDLCAssignmentListeners.setTruckToDLCAssignments(truckToDLCAssignments);
 		
 		boolean changed = reloadInitialPAK();
 		if (changed) updateAfterDataChange();
@@ -248,9 +278,11 @@ public class SnowRunner {
 	}
 
 	private Data testXMLTemplateStructure(File initialPAK) {
-		System.out.printf("XMLTemplateStructure.readPAK(\"%s\") --> ", initialPAK.getAbsolutePath());
+		//System.out.printf("XMLTemplateStructure.readPAK(\"%s\") --> ", initialPAK.getAbsolutePath());
+		System.out.printf("XMLTemplateStructure.");
 		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
-		System.out.printf("parse Data from XMLTemplateStructure ...%n");
+		if (structure==null) return null;
+		System.out.printf("Parse Data from XMLTemplateStructure ...%n");
 		Data data = new Data(structure);
 		System.out.printf("... done");
 		return data;
@@ -273,27 +305,13 @@ public class SnowRunner {
 		void setData(Data data);
 	}
 	
-	private static class DataReceiverController implements DataReceiver {
-		
-		private final Vector<DataReceiver> receivers = new Vector<>();
-		
-		@SuppressWarnings("unused")
-		void remove(DataReceiver r) { receivers.remove(r); }
-		void    add(DataReceiver r) { receivers.   add(r); }
-		
-		@Override public void setData(Data data) {
-			for (DataReceiver r:receivers)
-				r.setData(data);
-		}
-	}
-
 	private void updateAfterDataChange() {
 		
 		Vector<Truck> items = new Vector<>(data.trucks.values());
 		items.sort(Comparator.<Truck,String>comparing(Truck->Truck.xmlName));
 		truckList.setListData(items);
 		
-		dataReceiverController.setData(data);
+		controllers.dataReceivers.setData(data);
 		
 		Vector<String> langs = new Vector<>(data.languages.keySet());
 		langs.sort(null);
@@ -311,20 +329,6 @@ public class SnowRunner {
 		void setLanguage(Language language);
 	}
 	
-	private static class LanguageListenerController implements LanguageListener {
-		
-		private final Vector<LanguageListener> listeners = new Vector<>();
-		
-		@SuppressWarnings("unused")
-		void remove(LanguageListener l) { listeners.remove(l); }
-		void    add(LanguageListener l) { listeners.   add(l); }
-		
-		@Override public void setLanguage(Language language) {
-			for (LanguageListener l:listeners)
-				l.setLanguage(language);
-		}
-	}
-
 	private void setLanguage(String langID) {
 		Language language = langID==null ? null : data.languages.get(langID);
 		
@@ -333,7 +337,7 @@ public class SnowRunner {
 		else
 			settings.remove(AppSettings.ValueKey.Language);
 		
-		languageListenerController.setLanguage(language);
+		controllers.languageListeners.setLanguage(language);
 	}
 
 	static String solveStringID(String strID, Language language) {
@@ -709,7 +713,7 @@ public class SnowRunner {
 				TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
 				boolean assignmentsChanged = dlg.showDialog();
 				if (assignmentsChanged)
-					truckToDLCAssignmentListenerController.updateAfterAssignmentsChange();
+					controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
 			}));
 			
 			addContextMenuInvokeListener((comp, x, y) -> {
