@@ -1,58 +1,58 @@
 [DLC]
 name = Anniversary DLC
-truck = cat_ct681.xml
-truck = international_hx_520.xml
+truck = cat_ct681
+truck = international_hx_520
 
 [DLC]
 name = Clasico Pack
-truck = chevy_apache.xml
+truck = chevy_apache
 
 [DLC]
 name = GMC Brigadier
-truck = gmc_8000.xml
+truck = gmc_8000
 
 [DLC]
 name = Jeep Dual Pack
-truck = jeep_cj7_renegade.xml
-truck = jeep_wrangler.xml
+truck = jeep_cj7_renegade
+truck = jeep_wrangler
 
 [DLC]
 name = Navistar 5000-MV Tractor
-truck = navistar_5000mv.xml
+truck = navistar_5000mv
 
 [DLC]
 name = Season 1: Search & Recover
-truck = ford_f750.xml
-truck = tuz_16_actaeon.xml
+truck = ford_f750
+truck = tuz_16_actaeon
 
 [DLC]
 name = Season 2: Explore & Expand
-truck = cat_770g.xml
-truck = cat_th357.xml
-truck = krs_58_bandit.xml
+truck = cat_770g
+truck = cat_th357
+truck = krs_58_bandit
 
 [DLC]
 name = Season 3: Locate & Deliver
-truck = boar_45318.xml
-truck = pacific_p512.xml
-truck = paystar_5600ts.xml
+truck = boar_45318
+truck = pacific_p512
+truck = paystar_5600ts
 
 [DLC]
 name = Season 4: New Frontiers
-truck = khan_317_sentinel.xml
-truck = zikz_605r.xml
+truck = khan_317_sentinel
+truck = zikz_605r
 
 [DLC]
 name = Season 5: Build & Dispatch
-truck = tatra_force_t815_7.xml
-truck = tatra_phoenix.xml
+truck = tatra_force_t815_7
+truck = tatra_phoenix
 
 [DLC]
 name = TATRA Dual Pack
-truck = tatra_805.xml
-truck = tatra_t813.xml
+truck = tatra_805
+truck = tatra_t813
 
 [DLC]
 name = Western Star 49X
-truck = western_star_49x.xml
+truck = western_star_49x
 

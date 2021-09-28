@@ -309,7 +309,7 @@ public class SnowRunner {
 	private void updateAfterDataChange() {
 		
 		Vector<Truck> items = new Vector<>(data.trucks.values());
-		items.sort(Comparator.<Truck,String>comparing(Truck->Truck.xmlName));
+		items.sort(Comparator.<Truck,String>comparing(Truck->Truck.id));
 		truckList.setListData(items);
 		
 		controllers.dataReceivers.setData(data);
@@ -405,7 +405,7 @@ public class SnowRunner {
 		if (truck==null)
 			return "<null>";
 		
-		String truckName = SnowRunner.solveStringID(truck.name_StringID, language, "<"+truck.xmlName+">");
+		String truckName = SnowRunner.solveStringID(truck.name_StringID, language, "<"+truck.id+">");
 		
 		if (addInternalDLC && truck.dlcName!=null)
 			truckName = String.format("%s [%s]", truckName, truck.dlcName);

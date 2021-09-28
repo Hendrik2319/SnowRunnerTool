@@ -50,7 +50,7 @@ class TruckAssignToDLCDialog extends JDialog {
 		useKnownDLC = null;
 		selectedNewDLC = null;
 		assignmentsChanged = false;
-		String key = truck.xmlName;
+		String key = truck.id;
 
 		if (key==null) {
 			System.err.printf("Selected truck has no source XML file. You should cancel this dialog now.");

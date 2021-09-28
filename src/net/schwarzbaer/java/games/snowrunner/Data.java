@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -19,7 +20,18 @@ import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 
 public class Data {
-
+	
+	@SuppressWarnings("unused")
+	private static class HashSetMap<MapKeyType,SetValueType> extends HashMap<MapKeyType,HashSet<SetValueType>> {
+		private static final long serialVersionUID = -6897179951968079373L;
+		void add(MapKeyType key, SetValueType value) {
+			if (key==null) new IllegalArgumentException();
+			HashSet<SetValueType> set = get(key);
+			if (set==null) put(key, set = new HashSet<>());
+			set.add(value);
+		}
+	}
+	
 //	public static Data readInitialPAK(File initialPAK) {
 //		return PAKReader.readPAK(initialPAK, Data::new);
 //	}
@@ -41,22 +53,33 @@ public class Data {
 		wheelsClass.items.forEach((name,item)->{
 			//wheelsTypes.add(item.content.nodeName, item.filePath);
 			if (item.isMainItem() && item.content.nodeName.equals("TruckWheels"))
-				wheels.put(name+".xml", new WheelsDef(item));
+				wheels.put(name, new WheelsDef(item));
 		});
 		//System.err.println("WheelsTypes:");
 		//wheelsTypes.printTo(System.err, str->str);
 		
+		// Truck      Attributes: {AttachType=[Saddle], Type=[Trailer]}
+		// TruckAddon Attributes: {IsChassisFullOcclusion=[true]}
+//		HashSetMap<String,String> truckAttributes = new HashSetMap<>();
+//		HashSetMap<String,String> truckAddonAttributes = new HashSetMap<>();
 		trucks = new HashMap<>();
 		Class_ trucksClass = rawdata.classes.get("trucks");
 		trucksClass.items.forEach((name,item)->{
-			if (item.isMainItem()) {
-				trucks.put(name+".xml", new Truck(item, wheelType->{
-					WheelsDef wheelsDef = wheels.get(wheelType+".xml");
-					if (wheelsDef==null) return null;
-					return wheelsDef.truckTires;
-				}));
-			}
+			if (!item.content.nodeName.equals("Truck")) return;
+			String type = item.content.attributes.get("Type");
+			if (type!=null) return;
+//			if (item.content.nodeName.equals("Truck"))
+//				item.content.attributes.forEach(truckAttributes::add);
+//			if (item.content.nodeName.equals("TruckAddon"))
+//				item.content.attributes.forEach(truckAddonAttributes::add);
+			trucks.put(name, new Truck(item, wheelType->{
+				WheelsDef wheelsDef = wheels.get(wheelType);
+				if (wheelsDef==null) return null;
+				return wheelsDef.truckTires;
+			}));
 		});
+//		System.out.printf("Truck      Attributes: %s%n", truckAttributes.toString());
+//		System.out.printf("TruckAddon Attributes: %s%n", truckAddonAttributes.toString());
 	}
 	
 //	Data(ZipFile zipFile, ZipEntryTreeNode zipRoot) throws IOException {
@@ -600,6 +623,7 @@ public class Data {
 
 	static class Truck {
 		
+		final String id;
 		final String xmlName;
 		final String dlcName;
 		final String type;
@@ -619,6 +643,7 @@ public class Data {
 		Truck(Item item, Function<String, Vector<TruckTire>> getTruckTires) {
 			if (!item.className.equals("trucks"))
 				throw new IllegalStateException();
+			id      = item.name;
 			xmlName = item.name+".xml";
 			dlcName = item.dlcName;
 			

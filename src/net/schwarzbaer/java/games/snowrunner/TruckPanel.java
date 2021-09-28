@@ -191,21 +191,22 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		
 		ValueListOutput outTop = new ValueListOutput();
 		
-		if (truck.dlcName!=null)
-			outTop.add(0, "Internal DLC", truck.dlcName);
-		
-		if (truckToDLCAssignments!=null && truck.xmlName!=null) {
-			String dlc = truckToDLCAssignments.get(truck.xmlName);
-			if (dlc!=null)
-				outTop.add(0, "Official DLC", dlc);
-		}
-		
+		outTop.add(0, "ID"     , truck.id);
 		outTop.add(0, "Country", truck.country);
 		outTop.add(0, "Price"  , truck.price);
 		outTop.add(0, "Type"   , truck.type);
 		outTop.add(0, "Unlock By Exploration", truck.unlockByExploration);
 		outTop.add(0, "Unlock By Rank"       , truck.unlockByRank);
 		outTop.add(0, "XML file"             , truck.xmlName);
+		
+		if (truck.dlcName!=null)
+			outTop.add(0, "Internal DLC", truck.dlcName);
+		
+		if (truckToDLCAssignments!=null && truck.id!=null) {
+			String dlc = truckToDLCAssignments.get(truck.id);
+			if (dlc!=null)
+				outTop.add(0, "Official DLC", dlc);
+		}
 		
 		outTop.add(0, "");
 		
