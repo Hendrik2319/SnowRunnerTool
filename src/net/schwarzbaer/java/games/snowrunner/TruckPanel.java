@@ -16,6 +16,7 @@ import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.Window;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,6 +51,8 @@ import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.gui.ZoomableCanvas;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
+import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets;
+import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets.Socket;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
@@ -61,6 +64,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 	private final JTextArea truckInfoTextArea;
 	private final JTextArea allWheelsInfoTextArea;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
+	private final AddonSocketsPanel addonSocketsPanel;
 	private Language language;
 	private Truck truck;
 	private HashMap<String, String> truckToDLCAssignments;
@@ -89,41 +93,40 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		allWheelsInfoTextAreaScrollPane.setBorder(null);
 		
 		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow);
+		addonSocketsPanel = new AddonSocketsPanel();
 		
 		JTabbedPane bottomPanel = new JTabbedPane();
 		bottomPanel.addTab("Compatible Wheels (Full Info)", allWheelsInfoTextAreaScrollPane);
 		bottomPanel.addTab("Compatible Wheels (Condensed Info)", compatibleWheelsPanel);
+		bottomPanel.addTab("Addon Sockets", addonSocketsPanel);
 		bottomPanel.setSelectedIndex(1);
 		
 		setTopComponent(truckInfoTextAreaScrollPane);
 		setBottomComponent(bottomPanel);
 		
-		compatibleWheelsPanel.updateWheelInfo();
 		updateOutput();
 	}
 	
 	@Override public void setLanguage(Language language) {
 		this.language = language;
 		compatibleWheelsPanel.setLanguage(language);
-		compatibleWheelsPanel.updateWheelInfo();
+		addonSocketsPanel.setLanguage(language);
 		updateOutput();
 	}
 
 	void setTruck(Truck truck) {
 		this.truck = truck;
 		compatibleWheelsPanel.setData(this.truck);
-		compatibleWheelsPanel.updateWheelInfo();
+		addonSocketsPanel.setData(this.truck);
 		updateOutput();
 	}
 
 	@Override public void updateAfterAssignmentsChange() {
-		compatibleWheelsPanel.updateWheelInfo();
 		updateOutput();
 	}
 
 	@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
 		this.truckToDLCAssignments = truckToDLCAssignments;
-		compatibleWheelsPanel.updateWheelInfo();
 		updateOutput();
 	}
 
@@ -185,8 +188,187 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			allWheelsInfoTextArea.setText("<No Compatible Wheels>");
 	}
 
+	private static class AddonSocketsPanel extends JPanel {
+		private static final long serialVersionUID = 8965968181190111458L;
+		
+		private final JTable table;
+		private final AddonTableModel tableModel;
+		@SuppressWarnings("unused")
+		private Language language;
+		
+		AddonSocketsPanel() {
+			super(new BorderLayout());
+			language = null;
+			
+			table = new JTable(tableModel = new AddonTableModel());
+			tableModel.setTable(table);
+			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
+			table.setRowSorter(rowSorter);
+			tableModel.setRenderers();
+			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			tableModel.setColumnWidths(table);
+			JScrollPane addonTableScrollPane = new JScrollPane(table);
+			addonTableScrollPane.setBorder(null);
+			
+			
+			ContextMenu tableContextMenu = new ContextMenu();
+			tableContextMenu.addTo(table);
+			
+			tableContextMenu.add(SnowRunner.createMenuItem("Reset Row Order",true,e->{
+				rowSorter.resetSortOrder();
+				table.repaint();
+			}));
+			tableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
+				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
+			}));
+			
+			add(addonTableScrollPane, BorderLayout.CENTER);
+		}
+		
+		void setLanguage(Language language) {
+			this.language = language;
+			tableModel.setLanguage(language);
+		}
+	
+		void setData(Truck truck) {
+			if (truck!=null && truck.addonSockets.length>0)
+				tableModel.setData(truck.addonSockets);
+			else
+				tableModel.setData(null);
+		}
+
+		private static class AddonTableCellRenderer implements TableCellRenderer {
+		
+			private final AddonTableModel tableModel;
+			private final Tables.LabelRendererComponent rendererComp;
+		
+			AddonTableCellRenderer(AddonTableModel tableModel) {
+				this.tableModel = tableModel;
+				rendererComp = new Tables.LabelRendererComponent();
+			}
+		
+			@Override
+			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
+				String valueStr = value==null ? null : value.toString();
+				
+				int columnM = table.convertColumnIndexToModel(columnV);
+				AddonTableModel.ColumnID columnID = tableModel.getColumnID(columnM);
+				
+				if (columnID!=null) {
+					//if (columnID.config.columnClass==Float.class) {
+					//	valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
+					//	rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+					//}
+					if (columnID.config.columnClass==Integer.class) {
+						rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+					}
+				}
+				
+				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
+				return rendererComp;
+			}
+		
+		}
+
+		private static class AddonTableModel extends SimplifiedTableModel<AddonTableModel.ColumnID>{
+			private final Vector<RowItem> data;
+			@SuppressWarnings("unused")
+			private Language language;
+		
+			AddonTableModel() {
+				super(ColumnID.values());
+				data = new Vector<>();
+				language = null;
+			}
+			
+			void setRenderers() {
+				AddonTableCellRenderer renderer = new AddonTableCellRenderer(this);
+				//table.setDefaultRenderer(String .class, renderer);
+				table.setDefaultRenderer(Integer.class, renderer);
+				//table.setDefaultRenderer(Float  .class, renderer);
+				//table.setDefaultRenderer(Boolean.class, null);
+			}
+			
+			void setLanguage(Language language) {
+				this.language = language;
+				fireTableUpdate();
+			}
+			
+			private static class RowItem {
+				final int indexAS;
+				final AddonSockets as;
+				final int indexSocket;
+				final Socket socket;
+
+				public RowItem(int indexAS, AddonSockets as, int indexSocket, Socket socket) {
+					this.indexAS = indexAS;
+					this.as = as;
+					this.indexSocket = indexSocket;
+					this.socket = socket;
+				}
+			}
+			
+			void setData(Data.Truck.AddonSockets[] addonSockets) {
+				data.clear();
+				if (addonSockets!=null)
+					for (int i=0; i<addonSockets.length; i++) {
+						AddonSockets as = addonSockets[i];
+						for (int j=0; j<as.sockets.length; j++) {
+							Socket socket = as.sockets[j];
+							data.add(new RowItem(i,as,j,socket));
+						}
+					}
+				fireTableUpdate();
+			}
+		
+			private RowItem getRow(int rowIndex) {
+				if (rowIndex<0 || rowIndex>=data.size()) return null;
+				return data.get(rowIndex);
+			}
+
+			@Override
+			public int getRowCount() {
+				return data.size();
+			}
+		
+			@Override
+			public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
+				RowItem row = getRow(rowIndex);
+				if (row==null) return null;
+				
+				switch (columnID) {
+				case IndexAS          : return row.indexAS;
+				case DefaultAddon     : return row.as.defaultAddon;
+				case IndexSocket      : return row.indexSocket;
+				case InCockpit        : return row.socket.isInCockpit;
+				case SocketID         : return row.socket.socketID;
+				case BlockedSocketIDs : return Arrays.toString( row.socket.blockedSocketIDs );
+				}
+				return null;
+			}
+
+			enum ColumnID implements SimplifiedColumnIDInterface {
+				IndexAS         ("#"                , Integer.class,  30), 
+				DefaultAddon    ("Default Addon"    ,  String.class, 210),
+				IndexSocket     ("#"                , Integer.class,  30),
+				SocketID        ("SocketID"         ,  String.class, 230),
+				InCockpit       ("In Cockpit"       , Boolean.class,  60),
+				BlockedSocketIDs("Blocked SocketIDs",  String.class, 700), 
+				;
+				
+				private final SimplifiedColumnConfig config;
+				ColumnID(String name, Class<?> columnClass, int prefWidth) {
+					config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
+				}
+				@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
+			}
+		}
+	}
+
 	private static class CompatibleWheelsPanel extends JSplitPane {
 		private static final long serialVersionUID = -6605852766458546928L;
+		
 		private final JTextArea textArea;
 		private final JTable table;
 		private final CWTableModel tableModel;
@@ -201,6 +383,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			
 			selectedWheel = null;
 			language = null;
+			
 			
 			table = new JTable(tableModel = new CWTableModel());
 			tableModel.setTable(table);
@@ -256,6 +439,8 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			
 			setTopComponent(tablePanel);
 			setBottomComponent(textAreaScrollPane);
+			
+			updateWheelInfo();
 		}
 	
 		private void updateWheelInfo() {
@@ -269,14 +454,17 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		}
 	
 		void setLanguage(Language language) {
+			this.language = language;
 			tableModel.setLanguage(language);
+			updateWheelInfo();
 		}
 	
 		void setData(Truck truck) {
-			if (truck!=null && truck.compatibleWheels.length>0) {
+			if (truck!=null && truck.compatibleWheels.length>0)
 				tableModel.setData(truck.compatibleWheels);
-			} else
+			else
 				tableModel.setData(null);
+			updateWheelInfo();
 		}
 
 		private static class CWTableCellRenderer implements TableCellRenderer {
@@ -284,7 +472,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			private final CWTableModel tableModel;
 			private final Tables.LabelRendererComponent rendererComp;
 		
-			public CWTableCellRenderer(CWTableModel tableModel) {
+			CWTableCellRenderer(CWTableModel tableModel) {
 				this.tableModel = tableModel;
 				rendererComp = new Tables.LabelRendererComponent();
 			}
@@ -330,37 +518,16 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 
 		private static class CWTableModel extends SimplifiedTableModel<CWTableModel.ColumnID>{
 		
-			enum ColumnID implements SimplifiedColumnIDInterface {
-				WheelsDefID         ("WheelsDef"            , String .class, 140), 
-				Type                ("Type"                 , String .class,  80), 
-				Name                ("Name"                 , String .class, 130), 
-				DLC                 ("DLC"                  , String .class,  80), 
-				Size                ("Size"                 , Integer.class,  50), 
-				Friction_highway    ("Highway"              , Float  .class,  55), 
-				Friction_offroad    ("Offroad"              , Float  .class,  50), 
-				Friction_mud        ("Mud"                  , Float  .class,  50), 
-				OnIce               ("On Ice"               , Boolean.class,  50), 
-				Price               ("Price"                , Integer.class,  50), 
-				UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
-				UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
-				Description         ("Description"          , String .class, 200), 
-				;
-			
-				private final SimplifiedColumnConfig config;
-				ColumnID(String name, Class<?> columnClass, int prefWidth) {
-					config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
-				}
-				@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
-			}
-		
-			private Vector<RowItem> data;
+			private final Vector<RowItem> data;
 			private Language language;
 		
 			CWTableModel() {
 				super(ColumnID.values());
+				data = new Vector<>();
+				language = null;
 			}
 		
-			public void setRenderers() {
+			void setRenderers() {
 				CWTableCellRenderer renderer = new CWTableCellRenderer(this);
 				//table.setDefaultRenderer(String .class, renderer);
 				table.setDefaultRenderer(Integer.class, renderer);
@@ -368,12 +535,12 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				//table.setDefaultRenderer(Boolean.class, null);
 			}
 		
-			public void setLanguage(Language language) {
+			void setLanguage(Language language) {
 				this.language = language;
 				fireTableUpdate();
 			}
 			
-			private static class RowItem {
+			static class RowItem {
 				final String wheelsDefID;
 				final String dlc;
 				final Float scale;
@@ -390,7 +557,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			}
 		
 			void setData(CompatibleWheel[] compatibleWheels) {
-				data = new Vector<>();
+				data.clear();
 				
 				if (compatibleWheels!=null) {
 					for (CompatibleWheel wheel : compatibleWheels) {
@@ -409,7 +576,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 							.<RowItem,String>comparing(cw->cw.tire.tireType_StringID,typeComparator)
 							.thenComparing(cw->cw.scale,floatNullsLast)
 							.thenComparing(cw->cw.tire.name_StringID,stringNullsLast);
-					this.data.sort(comparator);
+					data.sort(comparator);
 				}
 				
 				fireTableUpdate();
@@ -427,6 +594,16 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				return 0;
 			}
 		
+			private String reducedString(String str, int maxLength) {
+				if (str.length() > maxLength-4)
+					return str.substring(0,maxLength-4)+" ...";
+				return str;
+			}
+
+			private String getLangString(String stringID) {
+				return SnowRunner.solveStringID(stringID, language);
+			}
+
 			public RowItem getRow(int rowIndex) {
 				if (data==null || rowIndex<0 || rowIndex>=data.size())
 					return null;
@@ -459,14 +636,27 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				return null;
 			}
 		
-			private String reducedString(String str, int maxLength) {
-				if (str.length() > maxLength-4)
-					return str.substring(0,maxLength-4)+" ...";
-				return str;
-			}
-		
-			private String getLangString(String stringID) {
-				return SnowRunner.solveStringID(stringID, language);
+			enum ColumnID implements SimplifiedColumnIDInterface {
+				WheelsDefID         ("WheelsDef"            , String .class, 140), 
+				Type                ("Type"                 , String .class,  80), 
+				Name                ("Name"                 , String .class, 130), 
+				DLC                 ("DLC"                  , String .class,  80), 
+				Size                ("Size"                 , Integer.class,  50), 
+				Friction_highway    ("Highway"              , Float  .class,  55), 
+				Friction_offroad    ("Offroad"              , Float  .class,  50), 
+				Friction_mud        ("Mud"                  , Float  .class,  50), 
+				OnIce               ("On Ice"               , Boolean.class,  50), 
+				Price               ("Price"                , Integer.class,  50), 
+				UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
+				UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
+				Description         ("Description"          , String .class, 200), 
+				;
+			
+				private final SimplifiedColumnConfig config;
+				ColumnID(String name, Class<?> columnClass, int prefWidth) {
+					config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
+				}
+				@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 			}
 			
 		}

@@ -355,8 +355,8 @@ public class Data {
 			
 			GenericXmlNode[] addonSocketsNodes = gameDataNode.getNodes("GameData","AddonSockets");
 			addonSockets = new AddonSockets[addonSocketsNodes.length];
-			for (int i1=0; i1<addonSockets.length; i1++)
-				addonSockets[i1] = new AddonSockets(addonSocketsNodes[i1]);
+			for (int i=0; i<addonSockets.length; i++)
+				addonSockets[i] = new AddonSockets(addonSocketsNodes[i]);
 			
 			GenericXmlNode[] compatibleWheelsNodes = truckDataNode.getNodes("TruckData", "CompatibleWheels");
 			compatibleWheels = new CompatibleWheel[compatibleWheelsNodes.length];
@@ -367,6 +367,7 @@ public class Data {
 		static class AddonSockets {
 
 			final String defaultAddon; // <---> item.id
+			final Socket[] sockets;
 
 			AddonSockets(GenericXmlNode node) {
 				if (!node.nodeName.equals("AddonSockets"))
@@ -375,7 +376,7 @@ public class Data {
 				defaultAddon = node.attributes.get("DefaultAddon");
 				
 				GenericXmlNode[] socketNodes = node.getNodes("AddonSockets","Socket");
-				Socket[] sockets = new Socket[socketNodes.length];
+				sockets = new Socket[socketNodes.length];
 				for (int i=0; i<sockets.length; i++)
 					sockets[i] = new Socket(socketNodes[i]);
 			}
@@ -383,16 +384,16 @@ public class Data {
 			static class Socket {
 
 				final String socketID; // "Names" attribute   <--->   <TruckAddon> <GameData> <InstallSocket Type="#####">
-				final String[] blockedSocketID;
+				final String[] blockedSocketIDs;
 				final boolean isInCockpit;
 
 				public Socket(GenericXmlNode node) {
 					if (!node.nodeName.equals("Socket"))
 						throw new IllegalStateException();
 					
-					socketID        = node.attributes.get("Names");
-					blockedSocketID = splitColonSeparatedIDList(node.attributes.get("NamesBlock"));
-					isInCockpit     = parseBool(node.attributes.get("InCockpit"),false);
+					socketID         = node.attributes.get("Names");
+					blockedSocketIDs = splitColonSeparatedIDList(node.attributes.get("NamesBlock"));
+					isInCockpit      = parseBool(node.attributes.get("InCockpit"),false);
 				}
 			}
 		}
