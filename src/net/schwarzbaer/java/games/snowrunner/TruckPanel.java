@@ -594,16 +594,6 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				}
 				return 0;
 			}
-		
-			private String reducedString(String str, int maxLength) {
-				if (str.length() > maxLength-4)
-					return str.substring(0,maxLength-4)+" ...";
-				return str;
-			}
-
-			private String getLangString(String stringID) {
-				return SnowRunner.solveStringID(stringID, language);
-			}
 
 			public RowItem getRow(int rowIndex) {
 				if (data==null || rowIndex<0 || rowIndex>=data.size())
@@ -621,9 +611,9 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				if (row!=null)
 					switch (columnID) {
 					case WheelsDefID: return row.wheelsDefID;
-					case Type       : return getLangString( row.tire.tireType_StringID );
-					case Name       : return getLangString( row.tire.name_StringID );
-					case Description: return reducedString( getLangString( row.tire.description_StringID ), 40 );
+					case Type       : return SnowRunner.solveStringID(row.tire.tireType_StringID, language);
+					case Name       : return SnowRunner.solveStringID(row.tire.name_StringID, language);
+					case Description: return SnowRunner.getReducedString( SnowRunner.solveStringID(row.tire.description_StringID, language), 40 );
 					case DLC        : return row.dlc;
 					case Friction_highway: return row.tire.frictionHighway;
 					case Friction_offroad: return row.tire.frictionOffroad;

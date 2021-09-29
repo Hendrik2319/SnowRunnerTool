@@ -221,6 +221,15 @@ public class Data {
 		return null;
 	}
 
+	private static String getAttribute(GenericXmlNode[] nodes, String key) {
+		if (key==null) throw new IllegalArgumentException();
+		if (nodes==null) throw new IllegalArgumentException();
+		for (GenericXmlNode node : nodes) {
+			String value = node.attributes.get(key);
+			if (value!=null) return value;
+		}
+		return null;
+	}
 	private static String getAttribute(GenericXmlNode node, String key) {
 		if (key==null) throw new IllegalArgumentException();
 		if (node==null) return null;
@@ -233,6 +242,17 @@ public class Data {
 		for (int i=0; i<strs.length; i++)
 			strs[i] = strs[i].trim();
 		return strs;
+	}
+
+	static class ItemBased {
+		final String id;
+		final String xmlName;
+		final String dlcName;
+		ItemBased(Item item) {
+			id      = item.name;
+			xmlName = item.name+".xml";
+			dlcName = item.dlcName;
+		}
 	}
 
 	static class WheelsDef extends ItemBased {
@@ -310,17 +330,6 @@ public class Data {
 			out.add(indentLevel, "Description", "<%s>", description_StringID);
 		}
 	
-	}
-
-	static class ItemBased {
-		final String id;
-		final String xmlName;
-		final String dlcName;
-		ItemBased(Item item) {
-			id      = item.name;
-			xmlName = item.name+".xml";
-			dlcName = item.dlcName;
-		}
 	}
 
 	static class Truck extends ItemBased {
@@ -445,6 +454,13 @@ public class Data {
 		final Boolean isQuestItem;
 		final String[] excludedCargoTypes;
 		final String[] requiredAddons;
+		final String description_StringID;
+		final String name_StringID;
+		final String installSocket;
+		final Integer cargoSlots;
+		final Integer repairsCapacity;
+		final Integer wheelRepairsCapacity;
+		final Integer fuelCapacity;
 
 		public Trailer(Item item) {
 			super(item);
@@ -452,11 +468,41 @@ public class Data {
 				throw new IllegalStateException();
 			
 			attachType = item.content.attributes.get("AttachType");
-
+			
+			
+			GenericXmlNode truckDataNode = item.content.getNode("Truck", "TruckData");
+			repairsCapacity      = parseInt( getAttribute(truckDataNode, "RepairsCapacity"     ) );
+			wheelRepairsCapacity = parseInt( getAttribute(truckDataNode, "WheelRepairsCapacity") );
+			fuelCapacity         = parseInt( getAttribute(truckDataNode, "FuelCapacity"        ) );
+			//if (truckDataNode!=null)
+			//	truckDataNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("Class[trucks] <Truck Type=\"Trailer\"> <TruckData ####=\"...\">", key);
+			//	});
+			
+			
 			GenericXmlNode gameDataNode = item.content.getNode("Truck", "GameData");
 			//gameDataNode.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("Class[trucks] <Truck Type=\"Trailer\"> <GameData ####=\"...\">", key);
 			//});
+			
+			GenericXmlNode uiDescNode = gameDataNode.getNode("GameData", "UiDesc");
+			description_StringID = getAttribute(uiDescNode, "UiDesc");
+			name_StringID        = getAttribute(uiDescNode, "UiName");
+			
+			GenericXmlNode installSocketNode = gameDataNode.getNode("GameData", "InstallSocket");
+			installSocket = getAttribute(installSocketNode, "Type");
+			//if (installSocketNode!=null)
+			//	installSocketNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("Class[trucks] <Truck Type=\"Trailer\"> <GameData> <InstallSocket ####=\"...\">", key);
+			//	});
+			
+			GenericXmlNode addonSlotsNode = gameDataNode.getNode("GameData", "AddonSlots");
+			cargoSlots = parseInt( getAttribute(addonSlotsNode, "Quantity") );
+			//if (addonSlotsNode!=null)
+			//	addonSlotsNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("Class[trucks] <Truck Type=\"Trailer\"> <GameData> <AddonSlots ####=\"...\">", key);
+			//	});
+			
 			price               = parseInt (gameDataNode.attributes.get("Price") );
 			unlockByExploration = parseBool(gameDataNode.attributes.get("UnlockByExploration") );
 			unlockByRank        = parseInt (gameDataNode.attributes.get("UnlockByRank") );
@@ -484,11 +530,29 @@ public class Data {
 		final Integer cargoValue;
 		final String[] excludedCargoTypes;
 		final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
+		final Integer repairsCapacity;
+		final Integer wheelRepairsCapacity;
+		final Integer fuelCapacity;
+		final Integer cargoSlots;
+		final Boolean enablesAllWheelDrive;
+		final Boolean enablesDiffLock;
 
 		public TruckAddon(Item item) {
 			super(item);
 			if (!item.content.nodeName.equals("TruckAddon"))
 				throw new IllegalStateException();
+			
+			GenericXmlNode[] truckDataNodes = item.content.getNodes("TruckAddon", "TruckData");
+			repairsCapacity      = parseInt ( getAttribute(truckDataNodes, "RepairsCapacity"       ) );
+			wheelRepairsCapacity = parseInt ( getAttribute(truckDataNodes, "WheelRepairsCapacity"  ) );
+			fuelCapacity         = parseInt ( getAttribute(truckDataNodes, "FuelCapacity"          ) );
+			enablesAllWheelDrive = parseBool( getAttribute(truckDataNodes, "AllWheelDriveInstalled") );
+			enablesDiffLock      = parseBool( getAttribute(truckDataNodes, "DiffLockInstalled"     ) );
+			//for (GenericXmlNode truckDataNode : truckDataNodes)
+			//	truckDataNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("Class[trucks] <TruckAddon> <TruckData ####=\"...\">", key);
+			//	});
+		
 			
 			GenericXmlNode gameDataNode = item.content.getNode("TruckAddon", "GameData");
 			//gameDataNode.attributes.forEach((key,value)->{
@@ -505,7 +569,7 @@ public class Data {
 			//    \[media]\_dlc\dlc_1_1\classes\trucks\addons\frame_addon_sideboard_1.xml
 			//    \[media]\classes\trucks\addons\international_loadstar_1700_pickup.xml
 			//    \[media]\classes\trucks\addons\international_loadstar_1700_service_body.xml
-			// <TruckAddon> <GameData OriginalAddon=\"...\"> --> verwendet bei angewandelten AddOns --> im Spiel testen
+			// <TruckAddon> <GameData OriginalAddon=\"...\"> --> verwendet bei abgewandelten AddOns --> im Spiel testen
 			//    \[media]\classes\trucks\addons\big_crane_us_ws4964.xml
 			
 			category            =            gameDataNode.attributes.get("Category"           );
@@ -524,6 +588,13 @@ public class Data {
 			GenericXmlNode uiDescNode = gameDataNode.getNode("GameData", "UiDesc"); // normal AddOn
 			description_StringID = getAttribute(uiDescNode, "UiDesc");
 			name_StringID        = getAttribute(uiDescNode, "UiName");
+			
+			GenericXmlNode addonSlotsNode = gameDataNode.getNode("GameData", "AddonSlots");
+			cargoSlots = parseInt( getAttribute(addonSlotsNode, "Quantity") );
+			//if (addonSlotsNode!=null)
+			//	addonSlotsNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("Class[trucks] <TruckAddon> <GameData> <AddonSlots ####=\"...\">", key);
+			//	});
 			
 			GenericXmlNode installSocketNode = gameDataNode.getNode("GameData", "InstallSocket"); // normal AddOn
 			installSocket = getAttribute(installSocketNode, "Type");

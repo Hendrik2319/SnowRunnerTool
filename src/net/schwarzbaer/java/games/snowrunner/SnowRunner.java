@@ -9,6 +9,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,6 +19,7 @@ import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
@@ -29,10 +31,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
@@ -77,14 +82,13 @@ public class SnowRunner {
 		rawDataPanel = new RawDataPanel(mainWindow, controllers);
 		trucksPanel = new TrucksPanel(mainWindow,controllers);
 		
-		JPanel wheelsPanel = createSimplifiedTablePanel(new WheelsTableModel(controllers));
-		JPanel dlcsPanel   = createSimplifiedTablePanel(new DLCTableModel(controllers));
-		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks", trucksPanel);
-		contentPane.addTab("Wheels", wheelsPanel);
-		contentPane.addTab("DLCs", dlcsPanel);
+		contentPane.addTab("Trucks"      , trucksPanel);
+		contentPane.addTab("Wheels"      , createSimplifiedTablePanel(new WheelsTableModel     (controllers)));
+		contentPane.addTab("DLCs"        , createSimplifiedTablePanel(new DLCTableModel        (controllers)));
+		contentPane.addTab("Trailers"    , createSimplifiedTablePanel(new TrailersTableModel   (controllers)));
+		contentPane.addTab("Truck Addons", createSimplifiedTablePanel(new TruckAddonsTableModel(controllers)));
 		contentPane.addTab("Raw Data", rawDataPanel);
 		
 		JMenuBar menuBar = new JMenuBar();
@@ -119,12 +123,13 @@ public class SnowRunner {
 		});
 	}
 
-	private JPanel createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
+	private JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
 		JTable table = new JTable();
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 		JScrollPane scrollPane = new JScrollPane(table);
 		
 		table.setModel(tableModel);
+		tableModel.setTable(table);
 		tableModel.setColumnWidths(table);
 		
 		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
@@ -140,10 +145,54 @@ public class SnowRunner {
 			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
 		}));
 		
-		JPanel panel = new JPanel(new BorderLayout());
-		panel.add(scrollPane);
+		if (tableModel instanceof RowTextTableModel) {
+			RowTextTableModel rowTextTableModel = (RowTextTableModel) tableModel;
+			
+			JTextArea textArea = new JTextArea();
+			textArea.setEditable(false);
+			textArea.setWrapStyleWord(true);
+			textArea.setLineWrap(true);
+			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
+			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
+			textAreaScrollPane.setPreferredSize(new Dimension(400,100));
+			
+			ValueContainer<Integer> selectedRow = new ValueContainer<>();
+			Runnable textAreaUpdateMethod = ()->{
+				if (selectedRow.value != null)
+					textArea.setText(rowTextTableModel.getTextForRow(selectedRow.value));
+				else
+					textArea.setText("");
+			};
+			rowTextTableModel.setTextAreaUpdateMethod(textAreaUpdateMethod);
+			
+			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			table.getSelectionModel().addListSelectionListener(e->{
+				int rowV = table.getSelectedRow();
+				if (rowV<0)
+					selectedRow.value = null;
+				else {
+					int rowM = table.convertRowIndexToModel(rowV);
+					selectedRow.value = rowM<0 ? null : rowM;
+				}
+				textAreaUpdateMethod.run();
+			});
+			
+			JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
+			panel.setResizeWeight(1);
+			panel.setTopComponent(scrollPane);
+			panel.setBottomComponent(textAreaScrollPane);
+			return panel;
+			
+		} else {
+			JPanel panel = new JPanel(new BorderLayout());
+			panel.add(scrollPane);
+			return panel;
+		}
 		
-		return panel;
+	}
+	
+	static class ValueContainer<ValueType> {
+		ValueType value = null;
 	}
 	
 	static class Controllers {
@@ -289,12 +338,21 @@ public class SnowRunner {
 	}
 
 	static String solveStringID(String strID, Language language) {
+		if (strID==null) return null;
 		return solveStringID(strID, language, "<"+strID+">");
 	}
 	static String solveStringID(String strID, Language language, String defaultStr) {
+		if (strID==null) strID = defaultStr;
 		String str = null;
 		if (language!=null) str = language.dictionary.get(strID);
 		if (str==null) str = defaultStr;
+		return str;
+	}
+	
+	static String getReducedString(String str, int maxLength) {
+		if (str==null) return null;
+		if (str.length() > maxLength-4)
+			return str.substring(0,maxLength-4)+" ...";
 		return str;
 	}
 
@@ -360,21 +418,644 @@ public class SnowRunner {
 		return truckName;
 	}
 
-	private static class DLCTableModel extends Tables.SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver{
+	private interface RowTextTableModel {
+		String getTextForRow(int rowIndex);
+		void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod);
+	}
+
+	private static class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTableModel.ColumnID> implements LanguageListener, DataReceiver, RowTextTableModel {
+		
+		private Language language;
+		private final Vector<Data.TruckAddon> rows;
+		private Runnable textAreaUpdateMethod;
+		
+		TruckAddonsTableModel(Controllers controllers) {
+			super(ColumnID.values());
+			language = null;
+			textAreaUpdateMethod = null;
+			rows = new Vector<>();
+			controllers.languageListeners.add(this);
+			controllers.dataReceivers.add(this);
+		}
+		
+		@Override public void setLanguage(Language language) {
+			this.language = language;
+			if (textAreaUpdateMethod!=null)
+				textAreaUpdateMethod.run();
+			fireTableUpdate();
+		}
+		
+		@Override public void setData(Data data) {
+			rows.clear();
+			if (data!=null) {
+				rows.addAll(data.truckAddons.values());
+				Comparator<String> nullsLast_String = Comparator.nullsLast(Comparator.naturalOrder());
+				rows.sort(Comparator.<Data.TruckAddon,String>comparing(rowItem->rowItem.category,nullsLast_String).thenComparing(rowItem->rowItem.id));
+			}
+			fireTableUpdate();
+		}
+
+		private class CWTableCellRenderer implements TableCellRenderer {
+		
+			private final Tables.LabelRendererComponent rendererComp;
+		
+			CWTableCellRenderer() {
+				rendererComp = new Tables.LabelRendererComponent();
+			}
+		
+			@Override
+			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
+				String valueStr = value==null ? null : value.toString();
+				
+				int columnM = table.convertColumnIndexToModel(columnV);
+				ColumnID columnID = getColumnID(columnM);
+				
+				if (columnID!=null) {
+					//if (columnID.config.columnClass==Float.class) {
+					//	valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
+					//	rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+					//}
+					if (columnID.config.columnClass==Integer.class) {
+						switch (columnID) {
+						
+						case Price:
+							valueStr = value==null ? "" : String.format("%d Cr", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+							
+						case UnlockByRank:
+						case CargoSlots:
+						case CargoLength:
+							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+							break;
+							
+						case FuelCapacity:
+							valueStr = value==null ? "" : String.format("%d L", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+							
+						case RepairsCapacity:
+							valueStr = value==null ? "" : String.format("%d R", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+							
+						case WheelRepairsCapacity:
+							valueStr = value==null ? "" : String.format("%d WR", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+							break;
+							
+						default:
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+						}
+					}
+				}
+				
+				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
+				return rendererComp;
+			}
+		
+		}
+		
+		@Override public void setTable(JTable table) {
+			super.setTable(table);
+			
+			CWTableCellRenderer renderer = new CWTableCellRenderer();
+			//table.setDefaultRenderer(String .class, renderer);
+			table.setDefaultRenderer(Integer.class, renderer);
+			//table.setDefaultRenderer(Float  .class, renderer);
+			//table.setDefaultRenderer(Boolean.class, null);
+		}
+		
+		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
+			this.textAreaUpdateMethod = textAreaUpdateMethod;
+		}
+
+		@Override public String getTextForRow(int rowIndex) {
+			Data.TruckAddon row = getRow(rowIndex);
+			if (row==null) return null;
+			
+			StringBuilder sb = new StringBuilder();
+			
+			String description = SnowRunner.solveStringID(row.description_StringID, language);
+			if (description!=null && !"EMPTY_LINE".equals(description)) {
+				sb.append(String.format("Description: <%s>%n", row.description_StringID));
+				sb.append(description);
+				sb.append("\r\n");
+				sb.append("\r\n");
+			}
+			
+			if (row.requiredAddons.length>0) {
+				sb.append("Required Addons:\r\n");
+				for (int i=0; i<row.requiredAddons.length; i++) {
+					for (int j=0; j<row.requiredAddons[i].length; j++) {
+						String ect = row.requiredAddons[i][j];
+						sb.append(String.format("      %s%s%n", ect, j+1<row.requiredAddons[i].length ? " or" : ""));
+					}
+					if (i+1<row.requiredAddons.length)
+						sb.append(String.format("   and%n"));
+				}
+			}
+			sb.append("\r\n");
+			
+			if (row.excludedCargoTypes.length>0) {
+				sb.append("Excluded Cargo Types:\r\n");
+				for (String ect : row.excludedCargoTypes)
+					sb.append(String.format("   %s%n", ect));
+			}
+			
+			return sb.toString();
+		}
+
+		@Override public int getRowCount() {
+			return rows.size();
+		}
+
+		Data.TruckAddon getRow(int rowIndex) {
+			if (rowIndex<0 || rowIndex>=rows.size()) return null;
+			return rows.get(rowIndex);
+		}
+
+		private String toString(String[] strs) {
+			if (strs==null) return "<null>";
+			if (strs.length==0) return "[]";
+			if (strs.length==1) return strs[0];
+			return Arrays.toString(strs);
+		}
+
+		private String toString(String[][] strs) {
+			if (strs==null) return "<null>";
+			if (strs.length==0) return "-----";
+			
+			Iterable<String> it = ()->Arrays.stream(strs).map(list->{
+				String str = String.join(" || ", Arrays.asList(list));
+				if (list.length==1) return str;
+				return String.format("(%s)", str);
+			}).iterator();
+			
+			String str = String.join(" && ", it);
+			if (strs.length==1) return str;
+			return String.format("(%s)", str);
+		}
+		
+		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
+			Data.TruckAddon row = getRow(rowIndex);
+			if (row==null) return null;
+			
+			switch (columnID) {
+			case ID                  : return row.id;
+			case DLC                 : return row.dlcName;
+			case Name                : return solveStringID(row.name_StringID, language, null);
+			case Description         : return getReducedString( SnowRunner.solveStringID(row.description_StringID, language, null), 40 );
+			case InstallSocket       : return row.installSocket;
+			case CargoSlots          : return row.cargoSlots;
+			case RepairsCapacity     : return row.repairsCapacity;
+			case WheelRepairsCapacity: return row.wheelRepairsCapacity;
+			case FuelCapacity        : return row.fuelCapacity;
+			case EnablesAWD          : return row.enablesAllWheelDrive;
+			case EnablesDiffLock     : return row.enablesDiffLock;
+			case Category            : return row.category;
+			case CargoLength         : return row.cargoLength;
+			case CargoType           : return row.cargoType;
+			case IsCargo             : return row.isCargo;
+			case Price               : return row.price;
+			case UnlockByExploration : return row.unlockByExploration;
+			case UnlockByRank        : return row.unlockByRank;
+			case ExcludedCargoTypes  : return toString(row.excludedCargoTypes);
+			case RequiredAddons      : return toString(row.requiredAddons);
+			}
+			return null;
+		}
 
 		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
-			Internal ("Internal Label", String .class, 100),
-			Official ("Official DLC"  , String .class, 200),
-			Truck    ("Truck"         , String .class, 200),
+			ID                  ("ID"                   ,  String.class, 230),
+			DLC                 ("DLC"                  ,  String.class,  80),
+			Category            ("Category"             ,  String.class, 150),
+			Name                ("Name"                 ,  String.class, 200), 
+			InstallSocket       ("Install Socket"       ,  String.class, 130),
+			CargoSlots          ("Cargo Slots"          , Integer.class,  70),
+			RepairsCapacity     ("Repairs"              , Integer.class,  50),
+			WheelRepairsCapacity("Wheel Repairs"        , Integer.class,  85),
+			FuelCapacity        ("Fuel"                 , Integer.class,  50),
+			EnablesAWD          ("Enables AWD"          , Boolean.class,  80), 
+			EnablesDiffLock     ("Enables DiffLock"     , Boolean.class,  90), 
+			Price               ("Price"                , Integer.class,  50), 
+			UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
+			UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
+			Description         ("Description"          ,  String.class, 200), 
+			ExcludedCargoTypes  ("Excluded Cargo Types" ,  String.class, 150),
+			RequiredAddons      ("Required Addons"      ,  String.class, 200),
+			IsCargo             ("Is Cargo"             , Boolean.class,  80),
+			CargoLength         ("Cargo Length"         , Integer.class,  80),
+			CargoType           ("Cargo Type"           ,  String.class, 170),
 			;
-
+		
 			private final SimplifiedColumnConfig config;
 			ColumnID(String name, Class<?> columnClass, int prefWidth) {
 				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
 			}
 			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 		}
+	}
+
+	private static class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.ColumnID> implements LanguageListener, DataReceiver, RowTextTableModel {
 		
+		private Language language;
+		private final Vector<Data.Trailer> rows;
+		private Runnable textAreaUpdateMethod;
+		
+		TrailersTableModel(Controllers controllers) {
+			super(ColumnID.values());
+			language = null;
+			textAreaUpdateMethod = null;
+			rows = new Vector<>();
+			controllers.languageListeners.add(this);
+			controllers.dataReceivers.add(this);
+		}
+		
+		@Override public void setLanguage(Language language) {
+			this.language = language;
+			if (textAreaUpdateMethod!=null)
+				textAreaUpdateMethod.run();
+			fireTableUpdate();
+		}
+		
+		@Override public void setData(Data data) {
+			rows.clear();
+			if (data!=null) {
+				rows.addAll(data.trailers.values());
+				rows.sort(Comparator.<Data.Trailer,String>comparing(rowItem->rowItem.id));
+			}
+			fireTableUpdate();
+		}
+
+		private class CWTableCellRenderer implements TableCellRenderer {
+		
+			private final Tables.LabelRendererComponent rendererComp;
+		
+			CWTableCellRenderer() {
+				rendererComp = new Tables.LabelRendererComponent();
+			}
+		
+			@Override
+			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
+				String valueStr = value==null ? null : value.toString();
+				
+				int columnM = table.convertColumnIndexToModel(columnV);
+				ColumnID columnID = getColumnID(columnM);
+				
+				if (columnID!=null) {
+					//if (columnID.config.columnClass==Float.class) {
+					//	valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
+					//	rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+					//}
+					if (columnID.config.columnClass==Integer.class) {
+						switch (columnID) {
+						
+						case Price:
+							valueStr = value==null ? "" : String.format("%d Cr", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+							
+						case UnlockByRank:
+						case CargoSlots:
+							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+							break;
+							
+						case FuelCapacity:
+							valueStr = value==null ? "" : String.format("%d L", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+							
+						case RepairsCapacity:
+							valueStr = value==null ? "" : String.format("%d R", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+							
+						case WheelRepairsCapacity:
+							valueStr = value==null ? "" : String.format("%d WR", value);
+							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+							break;
+							
+						default:
+							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+							break;
+						}
+					}
+				}
+				
+				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
+				return rendererComp;
+			}
+		
+		}
+		
+		@Override public void setTable(JTable table) {
+			super.setTable(table);
+			
+			CWTableCellRenderer renderer = new CWTableCellRenderer();
+			//table.setDefaultRenderer(String .class, renderer);
+			table.setDefaultRenderer(Integer.class, renderer);
+			//table.setDefaultRenderer(Float  .class, renderer);
+			//table.setDefaultRenderer(Boolean.class, null);
+		}
+		
+		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
+			this.textAreaUpdateMethod = textAreaUpdateMethod;
+		}
+
+		@Override public String getTextForRow(int rowIndex) {
+			Data.Trailer row = getRow(rowIndex);
+			if (row==null) return null;
+			
+			StringBuilder sb = new StringBuilder();
+			sb.append("Description:\r\n");
+			sb.append(SnowRunner.solveStringID(row.description_StringID, language));
+			sb.append("\r\n");
+			sb.append("\r\n");
+			
+			if (row.requiredAddons.length>0) {
+				sb.append("Required Addons:\r\n");
+				for (String ect : row.requiredAddons)
+					sb.append(String.format("   %s%n", ect));
+			}
+			sb.append("\r\n");
+			
+			if (row.excludedCargoTypes.length>0) {
+				sb.append("Excluded Cargo Types:\r\n");
+				for (String ect : row.excludedCargoTypes)
+					sb.append(String.format("   %s%n", ect));
+			}
+			
+			return sb.toString();
+		}
+
+		@Override public int getRowCount() {
+			return rows.size();
+		}
+
+		Data.Trailer getRow(int rowIndex) {
+			if (rowIndex<0 || rowIndex>=rows.size()) return null;
+			return rows.get(rowIndex);
+		}
+
+		private String toString(String[] strs) {
+			if (strs==null) return "<null>";
+			if (strs.length==0) return "[]";
+			if (strs.length==1) return strs[0];
+			return Arrays.toString(strs);
+		}
+		
+		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
+			Data.Trailer row = getRow(rowIndex);
+			if (row==null) return null;
+			
+			switch (columnID) {
+			case ID                  : return row.id;
+			case DLC                 : return row.dlcName;
+			case Name                : return solveStringID(row.name_StringID, language);
+			case Description         : return getReducedString( SnowRunner.solveStringID(row.description_StringID, language), 40 );
+			case InstallSocket       : return row.installSocket;
+			case CargoSlots          : return row.cargoSlots;
+			case RepairsCapacity     : return row.repairsCapacity;
+			case WheelRepairsCapacity: return row.wheelRepairsCapacity;
+			case FuelCapacity        : return row.fuelCapacity;
+			case QuestItem           : return row.isQuestItem;
+			case Price               : return row.price;
+			case UnlockByExploration : return row.unlockByExploration;
+			case UnlockByRank        : return row.unlockByRank;
+			case AttachType          : return row.attachType;
+			case ExcludedCargoTypes  : return toString(row.excludedCargoTypes);
+			case RequiredAddons      : return toString(row.requiredAddons);
+			}
+			return null;
+		}
+
+		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
+			ID                  ("ID"                   ,  String.class, 230),
+			Name                ("Name"                 ,  String.class, 200), 
+			DLC                 ("DLC"                  ,  String.class,  80),
+			InstallSocket       ("Install Socket"       ,  String.class, 130),
+			CargoSlots          ("Cargo Slots"          , Integer.class,  70),
+			RepairsCapacity     ("Repairs"              , Integer.class,  50),
+			WheelRepairsCapacity("Wheel Repairs"        , Integer.class,  85),
+			FuelCapacity        ("Fuel"                 , Integer.class,  50),
+			QuestItem           ("Is Quest Item"        , Boolean.class,  80),
+			Price               ("Price"                , Integer.class,  50), 
+			UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
+			UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
+			AttachType          ("Attach Type"          ,  String.class,  70),
+			Description         ("Description"          ,  String.class, 200), 
+			ExcludedCargoTypes  ("Excluded Cargo Types" ,  String.class, 150),
+			RequiredAddons      ("Required Addons"      ,  String.class, 150),
+			;
+		
+			private final SimplifiedColumnConfig config;
+			ColumnID(String name, Class<?> columnClass, int prefWidth) {
+				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
+			}
+			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
+		}
+	}
+
+	private static class WheelsTableModel extends Tables.SimplifiedTableModel<WheelsTableModel.ColumnID> implements LanguageListener, DataReceiver{
+	
+		private Language language;
+		private final Vector<RowItem> rows;
+	
+		WheelsTableModel(Controllers controllers) {
+			super(ColumnID.values());
+			this.language = null;
+			rows = new Vector<>();
+			controllers.languageListeners.add(this);
+			controllers.dataReceivers.add(this);
+		}
+	
+		@Override public void setLanguage(Language language) {
+			this.language = language;
+			fireTableUpdate();
+		}
+		
+		private static class RowItem {
+	
+			final String key;
+			final String label;
+			final HashSet<Truck> trucks;
+			final HashSet<Integer> sizes;
+			final HashSet<String> names_StringID;
+			final TireValues tireValues;
+	
+			public RowItem(String key, String label, TireValues tireValues) {
+				this.key = key;
+				this.label = label;
+				this.tireValues = tireValues;
+				trucks = new HashSet<>();
+				sizes = new HashSet<>();
+				names_StringID = new HashSet<>();
+			}
+	
+			public void add(Float scale, TruckTire tire, Truck truck) {
+				trucks.add(truck);
+				sizes.add(CompatibleWheel.computeSize_inch(scale));
+				names_StringID.add(tire.name_StringID);
+				TireValues newTireValues = new TireValues(tire);
+				if (!tireValues.equals(newTireValues)) {
+					System.err.printf("[WheelsTable] Found a wheel with same source (%s) but different values: %s <-> %s", key, tireValues, newTireValues);
+				}
+			}
+			
+			private static class TireValues {
+	
+				final Float frictionHighway;
+				final Float frictionOffroad;
+				final Float frictionMud;
+				final Boolean onIce;
+	
+				public TireValues(TruckTire wheel) {
+					frictionHighway = wheel.frictionHighway;
+					frictionOffroad = wheel.frictionOffroad;
+					frictionMud     = wheel.frictionMud;
+					onIce           = wheel.onIce;
+				}
+	
+				@Override
+				public int hashCode() {
+					int hashCode = 0;
+					if (frictionHighway!=null) hashCode ^= frictionHighway.hashCode();
+					if (frictionOffroad!=null) hashCode ^= frictionOffroad.hashCode();
+					if (frictionMud    !=null) hashCode ^= frictionMud    .hashCode();
+					if (onIce          !=null) hashCode ^= onIce          .hashCode();
+					return hashCode;
+				}
+	
+				@Override
+				public boolean equals(Object obj) {
+					if (!(obj instanceof TireValues))
+						return false;
+					
+					TireValues other = (TireValues) obj;
+					if (!equals( this.frictionHighway, other.frictionHighway )) return false;
+					if (!equals( this.frictionOffroad, other.frictionOffroad )) return false;
+					if (!equals( this.frictionMud    , other.frictionMud     )) return false;
+					if (!equals( this.onIce          , other.onIce           )) return false;
+					
+					return true;
+				}
+	
+				private boolean equals(Boolean v1, Boolean v2) {
+					if (v1==null && v2==null) return true;
+					if (v1==null || v2==null) return false;
+					return v1.booleanValue() == v2.booleanValue();
+				}
+	
+				private boolean equals(Float v1, Float v2) {
+					if (v1==null && v2==null) return true;
+					if (v1==null || v2==null) return false;
+					return v1.floatValue() == v2.floatValue();
+				}
+	
+				@Override public String toString() {
+					return String.format("(H:%1.2f,O:%1.2f,M:%1.2f%s)\"", frictionHighway, frictionOffroad, frictionMud, onIce!=null && onIce ? ",Ice" : "");
+				}
+				
+			}
+		}
+		
+		@Override public void setData(Data data) {
+			HashMap<String,RowItem> rows = new HashMap<>();
+			for (Truck truck:data.trucks.values()) {
+				for (CompatibleWheel wheel : truck.compatibleWheels) {
+					if (wheel.wheelsDef==null) continue;
+					String wheelsDefID = wheel.wheelsDef.id;
+					String dlc = wheel.wheelsDef.dlcName;
+					for (int i=0; i<wheel.wheelsDef.truckTires.size(); i++) {
+						TruckTire tire = wheel.wheelsDef.truckTires.get(i);
+						String key   = String.format("%s|%s[%d]", dlc==null ? "----" : dlc, wheelsDefID, i);
+						String label = dlc==null
+								? String.format(     "%s [%d]",      wheelsDefID, i)
+								: String.format("%s | %s [%d]", dlc, wheelsDefID, i);
+						RowItem rowItem = rows.get(key);
+						if (rowItem==null)
+							rows.put(key, rowItem = new RowItem(key, label, new RowItem.TireValues(tire)));
+						rowItem.add(wheel.scale,tire,truck);
+					}
+				}
+			}
+			this.rows.clear();
+			this.rows.addAll(rows.values());
+			this.rows.sort(Comparator.<RowItem,String>comparing(rowItem->rowItem.key));
+			fireTableUpdate();
+		}
+	
+		@Override public int getRowCount() {
+			return rows.size();
+		}
+	
+		private String getTruckList(HashSet<Truck> trucks) {
+			Iterable<String> it = ()->trucks
+					.stream()
+					.map(t->getTruckLabel(t,language))
+					.sorted()
+					.iterator();
+			return trucks.isEmpty() ? "" :  String.join(", ", it);
+		}
+	
+		private String getSizeList(HashSet<Integer> sizes) {
+			Iterable<String> it = ()->sizes
+					.stream()
+					.sorted()
+					.map(size->String.format("%d\"", size))
+					.iterator();
+			return sizes.isEmpty() ? "" :  String.join(", ", it);
+		}
+	
+		private String getNameList(HashSet<String> names_StringID) {
+			Iterable<String> it = ()->names_StringID
+					.stream()
+					.sorted()
+					.map(strID->solveStringID(strID, language))
+					.iterator();
+			return names_StringID.isEmpty() ? "" :  String.join(", ", it);
+		}
+	
+		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
+			if (rowIndex<0 || rowIndex>=rows.size()) return null;
+			RowItem row = rows.get(rowIndex);
+			switch (columnID) {
+			case ID    : return row.label;
+			case Sizes : return getSizeList ( row.sizes );
+			case Trucks: return getTruckList( row.trucks );
+			case Names : return getNameList ( row.names_StringID );
+			case Friction_highway: return row.tireValues.frictionHighway;
+			case Friction_offroad: return row.tireValues.frictionOffroad;
+			case Friction_mud    : return row.tireValues.frictionMud;
+			case OnIce           : return row.tireValues.onIce;
+			}
+			return null;
+		}
+	
+		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
+			ID               ("ID"     , String .class, 300),
+			Names            ("Names"  , String .class, 130),
+			Sizes            ("Sizes"  , String .class, 300),
+			Friction_highway ("Highway", Float  .class,  55), 
+			Friction_offroad ("Offroad", Float  .class,  50), 
+			Friction_mud     ("Mud"    , Float  .class,  50), 
+			OnIce            ("On Ice" , Boolean.class,  50), 
+			Trucks           ("Trucks" , String .class, 800),
+			;
+		
+			private final SimplifiedColumnConfig config;
+			ColumnID(String name, Class<?> columnClass, int prefWidth) {
+				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
+			}
+			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
+		}
+	
+	}
+
+	private static class DLCTableModel extends Tables.SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver {
+
 		private Language language;
 		private final Vector<RowItem> rows;
 		private HashMap<String, String> truckToDLCAssignments;
@@ -455,202 +1136,19 @@ public class SnowRunner {
 			}
 			return null;
 		}
-	}
-
-	private static class WheelsTableModel extends Tables.SimplifiedTableModel<WheelsTableModel.ColumnID> implements LanguageListener, DataReceiver{
 
 		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
-			ID               ("ID"     , String .class, 300),
-			Names            ("Names"  , String .class, 130),
-			Sizes            ("Sizes"  , String .class, 300),
-			Friction_highway ("Highway", Float  .class,  55), 
-			Friction_offroad ("Offroad", Float  .class,  50), 
-			Friction_mud     ("Mud"    , Float  .class,  50), 
-			OnIce            ("On Ice" , Boolean.class,  50), 
-			Trucks           ("Trucks" , String .class, 800),
+			Internal ("Internal Label", String .class, 100),
+			Official ("Official DLC"  , String .class, 200),
+			Truck    ("Truck"         , String .class, 200),
 			;
-
+		
 			private final SimplifiedColumnConfig config;
 			ColumnID(String name, Class<?> columnClass, int prefWidth) {
 				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
 			}
 			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 		}
-		
-		private Language language;
-		private final Vector<RowItem> rows;
-
-		WheelsTableModel(Controllers controllers) {
-			super(ColumnID.values());
-			this.language = null;
-			rows = new Vector<>();
-			controllers.languageListeners.add(this);
-			controllers.dataReceivers.add(this);
-		}
-
-		@Override public void setLanguage(Language language) {
-			this.language = language;
-			fireTableUpdate();
-		}
-		
-		private static class RowItem {
-
-			final String key;
-			final String label;
-			final HashSet<Truck> trucks;
-			final HashSet<Integer> sizes;
-			final HashSet<String> names_StringID;
-			final TireValues tireValues;
-
-			public RowItem(String key, String label, TireValues tireValues) {
-				this.key = key;
-				this.label = label;
-				this.tireValues = tireValues;
-				trucks = new HashSet<>();
-				sizes = new HashSet<>();
-				names_StringID = new HashSet<>();
-			}
-
-			public void add(Float scale, TruckTire tire, Truck truck) {
-				trucks.add(truck);
-				sizes.add(CompatibleWheel.computeSize_inch(scale));
-				names_StringID.add(tire.name_StringID);
-				TireValues newTireValues = new TireValues(tire);
-				if (!tireValues.equals(newTireValues)) {
-					System.err.printf("[WheelsTable] Found a wheel with same source (%s) but different values: %s <-> %s", key, tireValues, newTireValues);
-				}
-			}
-			
-			private static class TireValues {
-
-				final Float frictionHighway;
-				final Float frictionOffroad;
-				final Float frictionMud;
-				final Boolean onIce;
-
-				public TireValues(TruckTire wheel) {
-					frictionHighway = wheel.frictionHighway;
-					frictionOffroad = wheel.frictionOffroad;
-					frictionMud     = wheel.frictionMud;
-					onIce           = wheel.onIce;
-				}
-
-				@Override
-				public int hashCode() {
-					int hashCode = 0;
-					if (frictionHighway!=null) hashCode ^= frictionHighway.hashCode();
-					if (frictionOffroad!=null) hashCode ^= frictionOffroad.hashCode();
-					if (frictionMud    !=null) hashCode ^= frictionMud    .hashCode();
-					if (onIce          !=null) hashCode ^= onIce          .hashCode();
-					return hashCode;
-				}
-
-				@Override
-				public boolean equals(Object obj) {
-					if (!(obj instanceof TireValues))
-						return false;
-					
-					TireValues other = (TireValues) obj;
-					if (!equals( this.frictionHighway, other.frictionHighway )) return false;
-					if (!equals( this.frictionOffroad, other.frictionOffroad )) return false;
-					if (!equals( this.frictionMud    , other.frictionMud     )) return false;
-					if (!equals( this.onIce          , other.onIce           )) return false;
-					
-					return true;
-				}
-
-				private boolean equals(Boolean v1, Boolean v2) {
-					if (v1==null && v2==null) return true;
-					if (v1==null || v2==null) return false;
-					return v1.booleanValue() == v2.booleanValue();
-				}
-
-				private boolean equals(Float v1, Float v2) {
-					if (v1==null && v2==null) return true;
-					if (v1==null || v2==null) return false;
-					return v1.floatValue() == v2.floatValue();
-				}
-
-				@Override public String toString() {
-					return String.format("(H:%1.2f,O:%1.2f,M:%1.2f%s)\"", frictionHighway, frictionOffroad, frictionMud, onIce!=null && onIce ? ",Ice" : "");
-				}
-				
-			}
-		}
-		
-		@Override public void setData(Data data) {
-			HashMap<String,RowItem> rows = new HashMap<>();
-			for (Truck truck:data.trucks.values()) {
-				for (CompatibleWheel wheel : truck.compatibleWheels) {
-					if (wheel.wheelsDef==null) continue;
-					String wheelsDefID = wheel.wheelsDef.id;
-					String dlc = wheel.wheelsDef.dlcName;
-					for (int i=0; i<wheel.wheelsDef.truckTires.size(); i++) {
-						TruckTire tire = wheel.wheelsDef.truckTires.get(i);
-						String key   = String.format("%s|%s[%d]", dlc==null ? "----" : dlc, wheelsDefID, i);
-						String label = dlc==null
-								? String.format(     "%s [%d]",      wheelsDefID, i)
-								: String.format("%s | %s [%d]", dlc, wheelsDefID, i);
-						RowItem rowItem = rows.get(key);
-						if (rowItem==null)
-							rows.put(key, rowItem = new RowItem(key, label, new RowItem.TireValues(tire)));
-						rowItem.add(wheel.scale,tire,truck);
-					}
-				}
-			}
-			this.rows.clear();
-			this.rows.addAll(rows.values());
-			this.rows.sort(Comparator.<RowItem,String>comparing(rowItem->rowItem.key));
-			fireTableUpdate();
-		}
-
-		@Override public int getRowCount() {
-			return rows.size();
-		}
-
-		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
-			if (rowIndex<0 || rowIndex>=rows.size()) return null;
-			RowItem row = rows.get(rowIndex);
-			switch (columnID) {
-			case ID    : return row.label;
-			case Sizes : return getSizeList ( row.sizes );
-			case Trucks: return getTruckList( row.trucks );
-			case Names : return getNameList ( row.names_StringID );
-			case Friction_highway: return row.tireValues.frictionHighway;
-			case Friction_offroad: return row.tireValues.frictionOffroad;
-			case Friction_mud    : return row.tireValues.frictionMud;
-			case OnIce           : return row.tireValues.onIce;
-			}
-			return null;
-		}
-
-		private String getTruckList(HashSet<Truck> trucks) {
-			Iterable<String> it = ()->trucks
-					.stream()
-					.map(t->getTruckLabel(t,language))
-					.sorted()
-					.iterator();
-			return trucks.isEmpty() ? "" :  String.join(", ", it);
-		}
-
-		private String getSizeList(HashSet<Integer> sizes) {
-			Iterable<String> it = ()->sizes
-					.stream()
-					.sorted()
-					.map(size->String.format("%d\"", size))
-					.iterator();
-			return sizes.isEmpty() ? "" :  String.join(", ", it);
-		}
-
-		private String getNameList(HashSet<String> names_StringID) {
-			Iterable<String> it = ()->names_StringID
-					.stream()
-					.sorted()
-					.map(strID->solveStringID(strID, language))
-					.iterator();
-			return names_StringID.isEmpty() ? "" :  String.join(", ", it);
-		}
-
 	}
 
 	private static class TrucksPanel extends JSplitPane {
