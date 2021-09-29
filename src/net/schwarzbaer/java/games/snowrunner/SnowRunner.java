@@ -43,7 +43,8 @@ import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
-import net.schwarzbaer.java.games.snowrunner.Data.Truck.ExpandedCompatibleWheel;
+import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
+import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
@@ -550,20 +551,20 @@ public class SnowRunner {
 			final HashSet<String> names_StringID;
 			final TireValues tireValues;
 
-			public RowItem(String key, String label, ExpandedCompatibleWheel wheel) {
+			public RowItem(String key, String label, TireValues tireValues) {
 				this.key = key;
 				this.label = label;
+				this.tireValues = tireValues;
 				trucks = new HashSet<>();
 				sizes = new HashSet<>();
 				names_StringID = new HashSet<>();
-				tireValues = new TireValues(wheel);
 			}
 
-			public void add(ExpandedCompatibleWheel wheel, Truck truck) {
+			public void add(Float scale, TruckTire tire, Truck truck) {
 				trucks.add(truck);
-				sizes.add(wheel.getSize());
-				names_StringID.add(wheel.name_StringID);
-				TireValues newTireValues = new TireValues(wheel);
+				sizes.add(CompatibleWheel.computeSize_inch(scale));
+				names_StringID.add(tire.name_StringID);
+				TireValues newTireValues = new TireValues(tire);
 				if (!tireValues.equals(newTireValues)) {
 					System.err.printf("[WheelsTable] Found a wheel with same source (%s) but different values: %s <-> %s", key, tireValues, newTireValues);
 				}
@@ -576,7 +577,7 @@ public class SnowRunner {
 				final Float frictionMud;
 				final Boolean onIce;
 
-				public TireValues(ExpandedCompatibleWheel wheel) {
+				public TireValues(TruckTire wheel) {
 					frictionHighway = wheel.frictionHighway;
 					frictionOffroad = wheel.frictionOffroad;
 					frictionMud     = wheel.frictionMud;
@@ -629,15 +630,21 @@ public class SnowRunner {
 		@Override public void setData(Data data) {
 			HashMap<String,RowItem> rows = new HashMap<>();
 			for (Truck truck:data.trucks.values()) {
-				for (ExpandedCompatibleWheel wheel:truck.expandedCompatibleWheels) {
-					String key   = String.format("%s|%s[%d]", wheel.dlc==null ? "----" : wheel.dlc, wheel.definingXML, wheel.indexInDef);
-					String label = wheel.dlc==null
-							? String.format(     "%s [%d]",            wheel.definingXML, wheel.indexInDef)
-							: String.format("%s | %s [%d]", wheel.dlc, wheel.definingXML, wheel.indexInDef);
-					RowItem rowItem = rows.get(key);
-					if (rowItem==null)
-						rows.put(key, rowItem = new RowItem(key,label,wheel));
-					rowItem.add(wheel,truck);
+				for (CompatibleWheel wheel : truck.compatibleWheels) {
+					if (wheel.wheelsDef==null) continue;
+					String wheelsDefID = wheel.wheelsDef.id;
+					String dlc = wheel.wheelsDef.dlcName;
+					for (int i=0; i<wheel.wheelsDef.truckTires.size(); i++) {
+						TruckTire tire = wheel.wheelsDef.truckTires.get(i);
+						String key   = String.format("%s|%s[%d]", dlc==null ? "----" : dlc, wheelsDefID, i);
+						String label = dlc==null
+								? String.format(     "%s [%d]",      wheelsDefID, i)
+								: String.format("%s | %s [%d]", dlc, wheelsDefID, i);
+						RowItem rowItem = rows.get(key);
+						if (rowItem==null)
+							rows.put(key, rowItem = new RowItem(key, label, new RowItem.TireValues(tire)));
+						rowItem.add(wheel.scale,tire,truck);
+					}
 				}
 			}
 			this.rows.clear();

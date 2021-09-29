@@ -235,15 +235,45 @@ public class Data {
 		return strs;
 	}
 
-	static class WheelFriction {
+	static class WheelsDef extends ItemBased {
 	
-		final String name_StringID;
+		final Vector<TruckTire> truckTires;
+	
+		public WheelsDef(Item item) {
+			super(item);
+			
+			truckTires = new Vector<>();
+			GenericXmlNode[] truckTireNodes = item.content.getNodes("TruckWheels","TruckTires","TruckTire");
+			for (int i=0; i<truckTireNodes.length; i++)
+				truckTires.add(new TruckTire(truckTireNodes[i], id, i, dlcName));
+		}
+	
+	}
+
+	static class TruckTire {
+	
+		final String wheelsDefID;
+		final int indexInDef;
+		final String dlc;
+		
+		final String tireType_StringID;
 		final Float frictionHighway;
 		final Float frictionOffroad;
 		final Float frictionMud;
 		final boolean onIce;
-
-		WheelFriction(GenericXmlNode node) {
+		
+		final Integer price;
+		final Boolean unlockByExploration;
+		final Integer unlockByRank;
+		final String description_StringID;
+		final String name_StringID;
+	
+		TruckTire(GenericXmlNode node, String wheelsDefID, int indexInDef, String dlc) {
+			this.wheelsDefID = wheelsDefID;
+			this.indexInDef = indexInDef;
+			this.dlc = dlc;
+			
+			GenericXmlNode wheelFrictionNode = node.getNode("TruckTire", "WheelFriction");
 			
 //			BodyFriction="2.0"
 //			BodyFrictionAsphalt="0.9"
@@ -251,93 +281,33 @@ public class Data {
 //			SubstanceFriction="1.1"
 //			UiName="UI_TIRE_TYPE_CHAINS_NAME"
 			
-			name_StringID   =             node.attributes.get("UiName");
-			frictionHighway = parseFloat( node.attributes.get("BodyFrictionAsphalt") );
-			frictionOffroad = parseFloat( node.attributes.get("BodyFriction"       ) );
-			frictionMud     = parseFloat( node.attributes.get("SubstanceFriction"  ) );
-			onIce           = parseBool ( node.attributes.get("IsIgnoreIce"), false );
+			tireType_StringID =             wheelFrictionNode.attributes.get("UiName");
+			frictionHighway   = parseFloat( wheelFrictionNode.attributes.get("BodyFrictionAsphalt") );
+			frictionOffroad   = parseFloat( wheelFrictionNode.attributes.get("BodyFriction"       ) );
+			frictionMud       = parseFloat( wheelFrictionNode.attributes.get("SubstanceFriction"  ) );
+			onIce             = parseBool ( wheelFrictionNode.attributes.get("IsIgnoreIce"), false );
+			
+			GenericXmlNode gameDataNode = node.getNode("TruckTire", "GameData"     );
+			price               = parseInt (gameDataNode.attributes.get("Price"));
+			unlockByExploration = parseBool(gameDataNode.attributes.get("UnlockByExploration"));
+			unlockByRank        = parseInt (gameDataNode.attributes.get("UnlockByRank"));
+			
+			GenericXmlNode uiDescNode = gameDataNode.getNode("GameData", "UiDesc");
+			description_StringID = getAttribute(uiDescNode, "UiDesc");
+			name_StringID        = getAttribute(uiDescNode, "UiName");
 		}
-
+	
 		void printValues(ValueListOutput out, int indentLevel) {
-			out.add(indentLevel, "Name [StringID]", name_StringID);
+			out.add(indentLevel, "TireType [StringID]", tireType_StringID);
 			out.add(indentLevel, "Friction (highway)", frictionHighway);
 			out.add(indentLevel, "Friction (offroad)", frictionOffroad);
 			out.add(indentLevel, "Friction (mud)"    , frictionMud);
 			out.add(indentLevel, "OnIce", onIce);
-		}
-		
-	}
-
-	static class WheelsDef extends ItemBased {
-
-		final Vector<TruckTire> truckTires;
-
-		public WheelsDef(Item item) {
-			super(item);
-			
-			truckTires = new Vector<>();
-			GenericXmlNode[] truckTireNodes = item.content.getNodes("TruckWheels","TruckTires","TruckTire");
-			for (int i=0; i<truckTireNodes.length; i++)
-				truckTires.add(new TruckTire(truckTireNodes[i], xmlName, i, dlcName));
-		}
-	
-	}
-
-	static class TruckTire {
-	
-		final String definingXML;
-		final int indexInDef;
-		final String dlc;
-		final WheelFriction wheelFriction;
-		final GameData gameData;
-	
-		TruckTire(GenericXmlNode node, String definingXML, int indexInDef, String dlc) {
-			this.definingXML = definingXML;
-			this.indexInDef = indexInDef;
-			this.dlc = dlc;
-			this.wheelFriction = new WheelFriction( node.getNode("TruckTire", "WheelFriction") );
-			this.gameData      = new GameData     ( node.getNode("TruckTire", "GameData"     ) );
-		}
-	
-		void printValues(ValueListOutput out, int indentLevel) {
-			out.add(indentLevel, "WheelFriction");
-			wheelFriction.printValues(out, indentLevel+1);
-			out.add(indentLevel, "GameData");
-			gameData.printValues(out, indentLevel+1);
-		}
-
-		static class GameData {
-		
-			final Integer price;
-			final Boolean unlockByExploration;
-			final Integer unlockByRank;
-			final String description_StringID;
-			final String name_StringID;
-		
-			GameData(GenericXmlNode node) {
-				price               = parseInt (node.attributes.get("Price"));
-				unlockByExploration = parseBool(node.attributes.get("UnlockByExploration"));
-				unlockByRank        = parseInt (node.attributes.get("UnlockByRank"));
-				
-				GenericXmlNode uiDescNode = node.getNode("GameData", "UiDesc");
-				if (uiDescNode!=null) {
-					description_StringID = uiDescNode.attributes.get("UiDesc");
-					name_StringID        = uiDescNode.attributes.get("UiName");
-					
-				} else {
-					description_StringID = null;
-					name_StringID        = null;
-				}
-			}
-
-			void printValues(ValueListOutput out, int indentLevel) {
-				out.add(indentLevel, "Price"                , price);
-				out.add(indentLevel, "Unlock By Exploration", unlockByExploration);
-				out.add(indentLevel, "Unlock By Rank"       , unlockByRank);
-				out.add(indentLevel, "Name"       , "<%s>", name_StringID);
-				out.add(indentLevel, "Description", "<%s>", description_StringID);
-			}
-		
+			out.add(indentLevel, "Price"                , price);
+			out.add(indentLevel, "Unlock By Exploration", unlockByExploration);
+			out.add(indentLevel, "Unlock By Rank"       , unlockByRank);
+			out.add(indentLevel, "Name"       , "<%s>", name_StringID);
+			out.add(indentLevel, "Description", "<%s>", description_StringID);
 		}
 	
 	}
@@ -363,7 +333,6 @@ public class Data {
 		final String description_StringID;
 		final String name_StringID;
 		final CompatibleWheel[] compatibleWheels;
-		final ExpandedCompatibleWheel[] expandedCompatibleWheels;
 		final AddonSockets[] addonSockets;
 		
 		Truck(Item item, Function<String, WheelsDef> getWheelsDef) {
@@ -393,8 +362,6 @@ public class Data {
 			compatibleWheels = new CompatibleWheel[compatibleWheelsNodes.length];
 			for (int i=0; i<compatibleWheelsNodes.length; i++)
 				compatibleWheels[i] = new CompatibleWheel(compatibleWheelsNodes[i], getWheelsDef);
-			
-			expandedCompatibleWheels = ExpandedCompatibleWheel.expand(compatibleWheels);
 		}
 		
 		static class AddonSockets {
@@ -434,7 +401,7 @@ public class Data {
 			
 			final Float scale;
 			final String type;
-			final Vector<TruckTire> truckTires;
+			final WheelsDef wheelsDef;
 			
 			CompatibleWheel(GenericXmlNode node, Function<String,WheelsDef> getWheelsDef) {
 				if (!node.nodeName.equals("CompatibleWheels"))
@@ -442,8 +409,7 @@ public class Data {
 				
 				scale = parseFloat( node.attributes.get("Scale") );
 				type  =             node.attributes.get("Type");
-				WheelsDef wheelsDef = type==null ? null : getWheelsDef.apply(type);
-				truckTires = wheelsDef==null ? null : wheelsDef.truckTires;
+				wheelsDef = type==null ? null : getWheelsDef.apply(type);
 			}
 		
 			Integer getSize() {
@@ -455,9 +421,9 @@ public class Data {
 			}
 		
 			void printTireList(ValueListOutput out, int indentLevel) {
-				if (truckTires!=null)
-					for (int i=0; i<truckTires.size(); i++) {
-						TruckTire truckTire = truckTires.get(i);
+				if (wheelsDef!=null)
+					for (int i=0; i<wheelsDef.truckTires.size(); i++) {
+						TruckTire truckTire = wheelsDef.truckTires.get(i);
 						out.add(indentLevel, String.format("[%d]", i+1) );
 						truckTire.printValues(out, indentLevel+1);
 					}
@@ -467,80 +433,6 @@ public class Data {
 			}
 		}
 
-		static class ExpandedCompatibleWheel {
-
-			final Float scale;
-			final String definingXML;
-			final int indexInDef;
-			final String dlc;
-			final String name_StringID;
-			final String description_StringID;
-			final String type_StringID;
-			final Float frictionHighway;
-			final Float frictionOffroad;
-			final Float frictionMud;
-			final Boolean onIce;
-			final Integer price;
-			final Boolean unlockByExploration;
-			final Integer unlockByRank;
-
-			public ExpandedCompatibleWheel(Float scale, TruckTire tire) {
-				this.scale = scale;
-				
-				if (tire!=null) {
-					this.definingXML  = tire.definingXML;
-					this.indexInDef = tire.indexInDef;
-					this.dlc = tire.dlc;
-				} else {
-					this.definingXML  = null;
-					this.indexInDef = 0;
-					this.dlc = null;
-				}
-				
-				if (tire!=null && tire.gameData!=null) {
-					price                = tire.gameData.price;
-					unlockByExploration  = tire.gameData.unlockByExploration;
-					unlockByRank         = tire.gameData.unlockByRank;
-					description_StringID = tire.gameData.description_StringID;
-					name_StringID        = tire.gameData.name_StringID;
-				} else {
-					price                = null;
-					unlockByExploration  = null;
-					unlockByRank         = null;
-					description_StringID = null;
-					name_StringID        = null;
-				}
-				
-				if (tire!=null && tire.wheelFriction!=null) {
-					type_StringID   = tire.wheelFriction.name_StringID;
-					frictionHighway = tire.wheelFriction.frictionHighway;
-					frictionOffroad = tire.wheelFriction.frictionOffroad;
-					frictionMud     = tire.wheelFriction.frictionMud;
-					onIce           = tire.wheelFriction.onIce;
-				} else {
-					type_StringID   = null;
-					frictionHighway = null;
-					frictionOffroad = null;
-					frictionMud     = null;
-					onIce           = null;
-				}
-			}
-
-			static ExpandedCompatibleWheel[] expand(CompatibleWheel[] compatibleWheels) {
-				Vector<ExpandedCompatibleWheel> expanded = new Vector<>();
-				
-				for (CompatibleWheel cw:compatibleWheels)
-					if (cw.truckTires!=null)
-						for (TruckTire tire : cw.truckTires)
-							expanded.add( new ExpandedCompatibleWheel(cw.scale,tire) );
-				
-				return expanded.toArray(new ExpandedCompatibleWheel[expanded.size()]);
-			}
-
-			Integer getSize() {
-				return CompatibleWheel.computeSize_inch(scale);
-			}
-		}
 	}
 	
 	static class Trailer extends ItemBased {

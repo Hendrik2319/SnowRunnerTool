@@ -31,6 +31,18 @@ class DataTrees {
 		Icon getIcon() { return TreeIconsIS.getCachedIcon(this); }
 	}
 
+	static class GlobalColorizer {
+		private static final Color COLOR_ITEM_TRAILER = new Color(0x007FFF);
+
+		static Color getColor(Item item) {
+			if (!item.content.nodeName.equals("Truck")) return null;
+			String type = item.content.attributes.get("Type");
+			if (type==null) return null;
+			if (type.equals("Trailer")) return COLOR_ITEM_TRAILER;
+			return Color.RED;
+		}
+	}
+
 	static class TreeNodeRenderer extends DefaultTreeCellRenderer {
 		private static final long serialVersionUID = 4669699537680450275L;
 		
@@ -126,21 +138,11 @@ class DataTrees {
 	
 	static class Item_TreeNode extends AbstractTreeNode {
 
-		private static final Color COLOR_ITEM_TRAILER = new Color(0x007FFF);
 		final Item item;
 
 		public Item_TreeNode(TreeNode parent, Item item) {
-			super(parent, true, false, TreeIcons.Folder);
+			super(parent, true, false, TreeIcons.Folder, GlobalColorizer.getColor(item));
 			this.item = item;
-		}
-
-		@Override
-		Color getColor() {
-			if (!item.content.nodeName.equals("Truck")) return null;
-			String type = item.content.attributes.get("Type");
-			if (type==null) return null;
-			if (type.equals("Trailer")) return COLOR_ITEM_TRAILER;
-			return Color.RED;
 		}
 
 		@Override
