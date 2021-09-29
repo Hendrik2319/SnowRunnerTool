@@ -298,7 +298,7 @@ public class Data {
 		}
 	
 		void printValues(ValueListOutput out, int indentLevel) {
-			out.add(indentLevel, "TireType [StringID]", tireType_StringID);
+			out.add(indentLevel, "TireType [StringID]", "<%s>", tireType_StringID);
 			out.add(indentLevel, "Friction (highway)", frictionHighway);
 			out.add(indentLevel, "Friction (offroad)", frictionOffroad);
 			out.add(indentLevel, "Friction (mud)"    , frictionMud);

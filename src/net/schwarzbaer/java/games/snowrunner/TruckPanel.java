@@ -96,8 +96,8 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		addonSocketsPanel = new AddonSocketsPanel();
 		
 		JTabbedPane bottomPanel = new JTabbedPane();
-		bottomPanel.addTab("Compatible Wheels (Full Info)", allWheelsInfoTextAreaScrollPane);
-		bottomPanel.addTab("Compatible Wheels (Condensed Info)", compatibleWheelsPanel);
+		bottomPanel.addTab("(Debug Info)", allWheelsInfoTextAreaScrollPane);
+		bottomPanel.addTab("Compatible Wheels", compatibleWheelsPanel);
 		bottomPanel.addTab("Addon Sockets", addonSocketsPanel);
 		bottomPanel.setSelectedIndex(1);
 		
