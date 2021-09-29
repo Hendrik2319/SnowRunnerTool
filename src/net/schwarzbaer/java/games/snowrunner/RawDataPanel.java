@@ -37,7 +37,7 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 	private final JTabbedPane classesPanel;
 	private final Window window;
 
-	RawDataPanel(Window window) {
+	RawDataPanel(Window window, SnowRunner.Controllers controllers) {
 		super(JSplitPane.HORIZONTAL_SPLIT, true);
 		this.window = window;
 		data = null;
@@ -53,8 +53,15 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 		setRightComponent(classesPanel);
 		
 		updatePanels();
+		controllers.languageListeners.add(this);
+		controllers.dataReceivers.add(this);
 	}
 	
+	@Override
+	public void setLanguage(Language language) {
+		this.language = language;
+	}
+
 	@Override
 	public void setData(Data data) {
 		this.data = data;
@@ -159,11 +166,6 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 			Iterable<String> it = ()->Arrays.stream(path).map(str->"\""+str+"\"").iterator();
 			return String.join(", ", it);
 		}
-	}
-
-	@Override
-	public void setLanguage(Language language) {
-		this.language = language;
 	}
 
 }

@@ -62,98 +62,23 @@ public class SnowRunner {
 	private Data data;
 	private HashMap<String,String> truckToDLCAssignments;
 	private final StandardMainWindow mainWindow;
-	private final JList<Truck> truckList;
 	private final JMenu languageMenu;
 	private final Controllers controllers;
 	private final RawDataPanel rawDataPanel;
+	private final TrucksPanel trucksPanel;
 	
 	SnowRunner() {
 		data = null;
 		truckToDLCAssignments = null;
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
-		
 		controllers = new Controllers();
 		
-		TruckPanel truckPanel = new TruckPanel(mainWindow);
-		truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
-		controllers.languageListeners.add(truckPanel);
-		controllers.truckToDLCAssignmentListeners.add(truckPanel);
+		rawDataPanel = new RawDataPanel(mainWindow, controllers);
+		trucksPanel = new TrucksPanel(mainWindow,controllers);
 		
-		JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
-		truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
-		truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
-		
-		TruckListContextMenu truckListContextMenu = new TruckListContextMenu();
-		controllers.languageListeners.add(truckListContextMenu);
-		
-		TruckListCellRenderer truckListCellRenderer = new TruckListCellRenderer(truckList);
-		truckList.setCellRenderer(truckListCellRenderer);
-		controllers.languageListeners.add(truckListCellRenderer);
-		
-		rawDataPanel = new RawDataPanel(mainWindow);
-		controllers.languageListeners.add(rawDataPanel);
-		controllers.dataReceivers.add(rawDataPanel);
-		
-		JSplitPane trucksPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-		trucksPanel.setResizeWeight(0);
-		trucksPanel.setLeftComponent(truckListScrollPane);
-		trucksPanel.setRightComponent(truckPanel);
-		
-		JTable wheelsTable = new JTable();
-		wheelsTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		JScrollPane wheelsTableScrollPane = new JScrollPane(wheelsTable);
-		
-		WheelsTableModel wheelsTableModel = new WheelsTableModel();
-		wheelsTable.setModel(wheelsTableModel);
-		wheelsTableModel.setColumnWidths(wheelsTable);
-		controllers.languageListeners.add(wheelsTableModel);
-		controllers.dataReceivers.add(wheelsTableModel);
-				
-		SimplifiedRowSorter wheelsTableRowSorter = new SimplifiedRowSorter(wheelsTableModel);
-		wheelsTable.setRowSorter(wheelsTableRowSorter);
-		
-		ContextMenu wheelsTableContextMenu = new ContextMenu();
-		wheelsTableContextMenu.addTo(wheelsTable);
-		wheelsTableContextMenu.add(createMenuItem("Reset Row Order",true,e->{
-			wheelsTableRowSorter.resetSortOrder();
-			wheelsTable.repaint();
-		}));
-		wheelsTableContextMenu.add(createMenuItem("Show Column Widths", true, e->{
-			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(wheelsTable));
-		}));
-		
-		JPanel wheelsPanel = new JPanel(new BorderLayout());
-		wheelsPanel.add(wheelsTableScrollPane);
-		
-		JTable dlcsTable = new JTable();
-		dlcsTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		JScrollPane dlcsTableScrollPane = new JScrollPane(dlcsTable);
-		
-		DLCTableModel dlcsTableModel = new DLCTableModel();
-		dlcsTable.setModel(dlcsTableModel);
-		dlcsTableModel.setColumnWidths(dlcsTable);
-		controllers.languageListeners.add(dlcsTableModel);
-		controllers.truckToDLCAssignmentListeners.add(dlcsTableModel);
-		controllers.dataReceivers.add(dlcsTableModel);
-		
-		SimplifiedRowSorter dlcsTableRowSorter = new SimplifiedRowSorter(dlcsTableModel);
-		dlcsTable.setRowSorter(dlcsTableRowSorter);
-		
-		ContextMenu dlcsTableContextMenu = new ContextMenu();
-		dlcsTableContextMenu.addTo(dlcsTable);
-		dlcsTableContextMenu.add(createMenuItem("Reset Row Order",true,e->{
-			dlcsTableRowSorter.resetSortOrder();
-			dlcsTable.repaint();
-		}));
-		dlcsTableContextMenu.add(createMenuItem("Show Column Widths", true, e->{
-			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(dlcsTable));
-		}));
-		
-		JPanel dlcsPanel = new JPanel(new BorderLayout());
-		dlcsPanel.add(dlcsTableScrollPane);
-		
+		JPanel wheelsPanel = createSimplifiedTablePanel(new WheelsTableModel(controllers));
+		JPanel dlcsPanel   = createSimplifiedTablePanel(new DLCTableModel(controllers));
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
@@ -193,8 +118,35 @@ public class SnowRunner {
 			@Override public void componentMoved  (ComponentEvent e) { settings.setWindowPos ( mainWindow.getLocation() ); }
 		});
 	}
+
+	private JPanel createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
+		JTable table = new JTable();
+		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+		JScrollPane scrollPane = new JScrollPane(table);
+		
+		table.setModel(tableModel);
+		tableModel.setColumnWidths(table);
+		
+		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
+		table.setRowSorter(rowSorter);
+		
+		ContextMenu contextMenu = new ContextMenu();
+		contextMenu.addTo(table);
+		contextMenu.add(createMenuItem("Reset Row Order",true,e->{
+			rowSorter.resetSortOrder();
+			table.repaint();
+		}));
+		contextMenu.add(createMenuItem("Show Column Widths", true, e->{
+			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
+		}));
+		
+		JPanel panel = new JPanel(new BorderLayout());
+		panel.add(scrollPane);
+		
+		return panel;
+	}
 	
-	private static class Controllers {
+	static class Controllers {
 		
 		final LanguageListenerController languageListeners;
 		final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
@@ -209,7 +161,6 @@ public class SnowRunner {
 		static class AbstractController<Listener> {
 			protected final Vector<Listener> listeners = new Vector<>();
 			
-			@SuppressWarnings("unused")
 			void remove(Listener l) { listeners.remove(l); }
 			void    add(Listener l) { listeners.   add(l); }
 		}
@@ -308,11 +259,6 @@ public class SnowRunner {
 	}
 	
 	private void updateAfterDataChange() {
-		
-		Vector<Truck> items = new Vector<>(data.trucks.values());
-		items.sort(Comparator.<Truck,String>comparing(Truck->Truck.id));
-		truckList.setListData(items);
-		
 		controllers.dataReceivers.setData(data);
 		
 		Vector<String> langs = new Vector<>(data.languages.keySet());
@@ -434,12 +380,15 @@ public class SnowRunner {
 		private HashMap<String, String> truckToDLCAssignments;
 		private Data data;
 
-		DLCTableModel() {
+		DLCTableModel(Controllers controllers) {
 			super(ColumnID.values());
 			language = null;
 			truckToDLCAssignments = null;
 			data = null;
 			rows = new Vector<>();
+			controllers.languageListeners.add(this);
+			controllers.truckToDLCAssignmentListeners.add(this);
+			controllers.dataReceivers.add(this);
 		}
 
 		@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
@@ -531,10 +480,12 @@ public class SnowRunner {
 		private Language language;
 		private final Vector<RowItem> rows;
 
-		WheelsTableModel() {
+		WheelsTableModel(Controllers controllers) {
 			super(ColumnID.values());
 			this.language = null;
 			rows = new Vector<>();
+			controllers.languageListeners.add(this);
+			controllers.dataReceivers.add(this);
 		}
 
 		@Override public void setLanguage(Language language) {
@@ -702,80 +653,130 @@ public class SnowRunner {
 
 	}
 
-	private class TruckListContextMenu extends ContextMenu implements LanguageListener {
-		private static final long serialVersionUID = 2917583352980234668L;
+	private static class TrucksPanel extends JSplitPane {
+		private static final long serialVersionUID = 7004081774916835136L;
 		
-		private int clickedIndex;
-		private Truck clickedItem;
-		private Language language;
-	
-		TruckListContextMenu() {
-			clickedIndex = -1;
-			clickedItem = null;
-			language = null;
+		private final JList<Truck> truckList;
+		private final Controllers controllers;
+		private final StandardMainWindow mainWindow;
+		private HashMap<String, String> truckToDLCAssignments;
+		
+		TrucksPanel(StandardMainWindow mainWindow, Controllers controllers) {
+			super(JSplitPane.HORIZONTAL_SPLIT);
+			this.mainWindow = mainWindow;
+			this.controllers = controllers;
+			this.truckToDLCAssignments = null;
+			setResizeWeight(0);
 			
-			addTo(truckList);
+			TruckPanel truckPanel = new TruckPanel(this.mainWindow);
+			truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
+			this.controllers.languageListeners.add(truckPanel);
+			this.controllers.truckToDLCAssignmentListeners.add(truckPanel);
 			
-			JMenuItem miAssignToDLC = add(createMenuItem("Assign truck to an official DLC", true, e->{
-				if (clickedItem==null) return;
-				TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
-				boolean assignmentsChanged = dlg.showDialog();
-				if (assignmentsChanged)
-					controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
-			}));
-			
-			addContextMenuInvokeListener((comp, x, y) -> {
-				clickedIndex = truckList.locationToIndex(new Point(x,y));
-				clickedItem = clickedIndex<0 ? null : truckList.getModel().getElementAt(clickedIndex);
-				
-				miAssignToDLC.setEnabled(clickedItem!=null);
-				
-				miAssignToDLC.setText(
-					clickedItem==null
-					? "Assign truck to an official DLC"
-					: String.format("Assign \"%s\" to an official DLC", getTruckLabel(clickedItem,language))
-				);
+			JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
+			truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
+			truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
+			this.controllers.dataReceivers.add(data -> {
+				Vector<Truck> items = new Vector<>(data.trucks.values());
+				items.sort(Comparator.<Truck,String>comparing(Truck->Truck.id));
+				truckList.setListData(items);
 			});
 			
+			TruckListContextMenu truckListContextMenu = new TruckListContextMenu();
+			this.controllers.languageListeners.add(truckListContextMenu);
+			
+			TruckListCellRenderer truckListCellRenderer = new TruckListCellRenderer(truckList);
+			truckList.setCellRenderer(truckListCellRenderer);
+			this.controllers.languageListeners.add(truckListCellRenderer);
+			
+			setLeftComponent(truckListScrollPane);
+			setRightComponent(truckPanel);
+			
+			this.controllers.truckToDLCAssignmentListeners.add(new TruckToDLCAssignmentListener() {
+				@Override public void updateAfterAssignmentsChange() {}
+				@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+					TrucksPanel.this.truckToDLCAssignments = truckToDLCAssignments;
+				}
+			});
+		}
+
+		private class TruckListContextMenu extends ContextMenu implements LanguageListener {
+			private static final long serialVersionUID = 2917583352980234668L;
+			
+			private int clickedIndex;
+			private Truck clickedItem;
+			private Language language;
+		
+			TruckListContextMenu() {
+				clickedIndex = -1;
+				clickedItem = null;
+				language = null;
+				
+				addTo(truckList);
+				
+				JMenuItem miAssignToDLC = add(createMenuItem("Assign truck to an official DLC", true, e->{
+					if (clickedItem==null) return;
+					TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
+					boolean assignmentsChanged = dlg.showDialog();
+					if (assignmentsChanged)
+						controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
+				}));
+				
+				addContextMenuInvokeListener((comp, x, y) -> {
+					clickedIndex = truckList.locationToIndex(new Point(x,y));
+					clickedItem = clickedIndex<0 ? null : truckList.getModel().getElementAt(clickedIndex);
+					
+					miAssignToDLC.setEnabled(clickedItem!=null);
+					
+					miAssignToDLC.setText(
+						clickedItem==null
+						? "Assign truck to an official DLC"
+						: String.format("Assign \"%s\" to an official DLC", getTruckLabel(clickedItem,language))
+					);
+				});
+				
+			}
+			
+			@Override public void setLanguage(Language language) {
+				this.language = language;
+			}
+		}
+
+		private static class TruckListCellRenderer implements ListCellRenderer<Truck>, LanguageListener {
+			
+			private static final Color COLOR_FG_DLCTRUCK = new Color(0x0070FF);
+			private final Tables.LabelRendererComponent rendererComp;
+			private Language language;
+			private final JList<Truck> truckList;
+		
+			TruckListCellRenderer(JList<Truck> truckList) {
+				this.truckList = truckList;
+				rendererComp = new Tables.LabelRendererComponent();
+				language = null;
+			}
+			
+			@Override public void setLanguage(Language language) {
+				this.language = language;
+				truckList.repaint();
+			}
+		
+			@Override
+			public Component getListCellRendererComponent( JList<? extends Truck> list, Truck value, int index, boolean isSelected, boolean cellHasFocus) {
+				rendererComp.configureAsListCellRendererComponent(list, null, getTruckLabel(value, language), index, isSelected, cellHasFocus, null, ()->getForeground(value));
+				return rendererComp;
+			}
+		
+			private Color getForeground(Truck truck) {
+				if (truck!=null && truck.dlcName!=null)
+					return COLOR_FG_DLCTRUCK;
+				return null;
+			}
+		
 		}
 		
-		@Override public void setLanguage(Language language) {
-			this.language = language;
-		}
 	}
 
-	private static class TruckListCellRenderer implements ListCellRenderer<Truck>, LanguageListener {
-		
-		private static final Color COLOR_FG_DLCTRUCK = new Color(0x0070FF);
-		private final Tables.LabelRendererComponent rendererComp;
-		private Language language;
-		private final JList<Truck> truckList;
-
-		TruckListCellRenderer(JList<Truck> truckList) {
-			this.truckList = truckList;
-			rendererComp = new Tables.LabelRendererComponent();
-			language = null;
-		}
-		
-		@Override public void setLanguage(Language language) {
-			this.language = language;
-			truckList.repaint();
-		}
-
-		@Override
-		public Component getListCellRendererComponent( JList<? extends Truck> list, Truck value, int index, boolean isSelected, boolean cellHasFocus) {
-			rendererComp.configureAsListCellRendererComponent(list, null, getTruckLabel(value, language), index, isSelected, cellHasFocus, null, ()->getForeground(value));
-			return rendererComp;
-		}
-
-		private Color getForeground(Truck truck) {
-			if (truck!=null && truck.dlcName!=null)
-				return COLOR_FG_DLCTRUCK;
-			return null;
-		}
-	
-	}
-	
 	private static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		enum ValueKey {
 			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK,
