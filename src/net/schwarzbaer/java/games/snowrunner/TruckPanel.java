@@ -16,6 +16,7 @@ import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.Window;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -164,7 +165,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 
 	void setTruck(Truck truck) {
 		this.truck = truck;
-		if (this.truck!=null && !this.truck.expandedCompatibleWheels.isEmpty()) {
+		if (this.truck!=null && this.truck.expandedCompatibleWheels.length>0) {
 			compatibleWheelsTableModel.setData(this.truck.expandedCompatibleWheels);
 		} else
 			compatibleWheelsTableModel.setData(null);
@@ -228,11 +229,11 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		
 		topTextArea.setText(outTop.generateOutput());
 		
-		if (!truck.compatibleWheels.isEmpty()) {
+		if (truck.compatibleWheels.length>0) {
 			ValueListOutput outFull = new ValueListOutput();
-			outFull.add(0, "Compatible Wheels", truck.compatibleWheels.size());
-			for (int i=0; i<truck.compatibleWheels.size(); i++) {
-				Data.Truck.CompatibleWheel cw = truck.compatibleWheels.get(i);
+			outFull.add(0, "Compatible Wheels", truck.compatibleWheels.length);
+			for (int i=0; i<truck.compatibleWheels.length; i++) {
+				Data.Truck.CompatibleWheel cw = truck.compatibleWheels[i];
 				outFull.add(1, String.format("[%d]", i+1), "(%s) %s", cw.scale, cw.type);
 				cw.printTireList(outFull,2);
 			}
@@ -344,11 +345,11 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			fireTableUpdate();
 		}
 
-		void setData(Vector<ExpandedCompatibleWheel> data) {
+		void setData(ExpandedCompatibleWheel[] expandedCompatibleWheels) {
 			this.data = new Vector<>();
 			
-			if (data!=null) {
-				this.data.addAll(data);
+			if (expandedCompatibleWheels!=null) {
+				this.data.addAll(Arrays.asList(expandedCompatibleWheels));
 				Comparator<Float >  floatNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 				Comparator<String> stringNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 				Comparator<String> typeComparator = Comparator.nullsLast(Comparator.<String,Integer>comparing(this::getTypeOrder).thenComparing(Comparator.naturalOrder()));

@@ -91,7 +91,7 @@ public class SnowRunner {
 		truckList.setCellRenderer(truckListCellRenderer);
 		controllers.languageListeners.add(truckListCellRenderer);
 		
-		rawDataPanel = new RawDataPanel();
+		rawDataPanel = new RawDataPanel(mainWindow);
 		controllers.languageListeners.add(rawDataPanel);
 		controllers.dataReceivers.add(rawDataPanel);
 		

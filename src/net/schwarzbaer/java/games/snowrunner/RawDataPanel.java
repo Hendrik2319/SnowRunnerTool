@@ -1,9 +1,11 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.awt.Window;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Vector;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.JMenuItem;
@@ -15,6 +17,7 @@ import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 
 import net.schwarzbaer.gui.ContextMenu;
+import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AbstractTreeNode;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AttributesTreeNode.AttributeTreeNode;
@@ -28,15 +31,15 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 	private static final long serialVersionUID = 10671596986103400L;
 	
 	private Data data;
-	@SuppressWarnings("unused")
 	private Language language;
 
-	private JTabbedPane globalTemplatesPanel;
+	private final JTabbedPane globalTemplatesPanel;
+	private final JTabbedPane classesPanel;
+	private final Window window;
 
-	private JTabbedPane classesPanel;
-
-	RawDataPanel() {
+	RawDataPanel(Window window) {
 		super(JSplitPane.HORIZONTAL_SPLIT, true);
+		this.window = window;
 		data = null;
 		language = null;
 		
@@ -72,7 +75,7 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 		Vector<String> keys = new Vector<>( map.keySet() );
 		keys.sort(null);
 		for (String key : keys)
-			panel.addTab(key, new TreePanel(treeNodeContructor.apply(map.get(key))));
+			panel.addTab(key, new TreePanel(treeNodeContructor.apply(map.get(key)), window, ()->language));
 	}
 
 	private static class TreePanel extends JScrollPane {
@@ -80,7 +83,7 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 		private TreePath selectedPath;
 		private AbstractTreeNode selectedTreeNode;
 
-		TreePanel(TreeNode root) {
+		TreePanel(TreeNode root, Window window, Supplier<Language> getLanguage) {
 			selectedPath = null;
 			
 			JTree tree = new JTree(root);
@@ -127,6 +130,13 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 				}
 			}));
 			
+			JMenuItem miAttributeValue2Text = contextMenu.add(SnowRunner.createMenuItem("Use Attribute Value as StringID -> Show Text", true, e->{
+				if (selectedTreeNode instanceof AttributeTreeNode) {
+					AttributeTreeNode treeNode = (AttributeTreeNode) selectedTreeNode;
+					TextAreaDialog.showText(window, String.format("String ID \"%s\"", treeNode.value), 500, 300, true, SnowRunner.solveStringID(treeNode.value, getLanguage.get()));
+				}
+			}));
+			
 			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
 				selectedPath = tree.getPathForLocation(x, y);
 				selectedTreeNode = null;
@@ -135,11 +145,12 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 					selectedNode = selectedPath.getLastPathComponent();
 				if (selectedNode instanceof AbstractTreeNode)
 					selectedTreeNode = (AbstractTreeNode) selectedNode;
-				miCopyItemName      .setEnabled(selectedTreeNode instanceof Item_TreeNode);
-				miCopyNodeName      .setEnabled(selectedTreeNode instanceof GenericXmlNode_TreeNode);
-				miCopyNodePath      .setEnabled(selectedTreeNode instanceof GenericXmlNode_TreeNode);
-				miCopyAttributeName .setEnabled(selectedTreeNode instanceof AttributeTreeNode);
-				miCopyAttributeValue.setEnabled(selectedTreeNode instanceof AttributeTreeNode);
+				miCopyItemName       .setEnabled(selectedTreeNode instanceof Item_TreeNode);
+				miCopyNodeName       .setEnabled(selectedTreeNode instanceof GenericXmlNode_TreeNode);
+				miCopyNodePath       .setEnabled(selectedTreeNode instanceof GenericXmlNode_TreeNode);
+				miCopyAttributeName  .setEnabled(selectedTreeNode instanceof AttributeTreeNode);
+				miCopyAttributeValue .setEnabled(selectedTreeNode instanceof AttributeTreeNode);
+				miAttributeValue2Text.setEnabled(selectedTreeNode instanceof AttributeTreeNode);
 			});
 		}
 

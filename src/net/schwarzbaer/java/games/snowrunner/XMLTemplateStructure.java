@@ -1196,7 +1196,8 @@ class XMLTemplateStructure {
 
 		GenericXmlNode getNode(String... path) {
 			GenericXmlNode[] nodes = getNodes(path);
-			if (nodes.length>1) throw new IllegalStateException();
+			if (nodes.length>1)
+				throw new IllegalStateException();
 			return nodes.length<1 ? null : nodes[0];
 		}
 		

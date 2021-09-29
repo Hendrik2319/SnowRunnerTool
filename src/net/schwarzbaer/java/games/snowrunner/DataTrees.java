@@ -33,7 +33,7 @@ class DataTrees {
 
 	static class TreeNodeRenderer extends DefaultTreeCellRenderer {
 		private static final long serialVersionUID = 4669699537680450275L;
-	
+		
 		@Override
 		public Component getTreeCellRendererComponent(JTree tree, Object value, boolean isSelected, boolean isExpanded, boolean isLeaf, int row, boolean hasFocus) {
 			super.getTreeCellRendererComponent(tree, value, isSelected, isExpanded, isLeaf, row, hasFocus);
@@ -126,11 +126,21 @@ class DataTrees {
 	
 	static class Item_TreeNode extends AbstractTreeNode {
 
+		private static final Color COLOR_ITEM_TRAILER = new Color(0x007FFF);
 		final Item item;
 
 		public Item_TreeNode(TreeNode parent, Item item) {
 			super(parent, true, false, TreeIcons.Folder);
 			this.item = item;
+		}
+
+		@Override
+		Color getColor() {
+			if (!item.content.nodeName.equals("Truck")) return null;
+			String type = item.content.attributes.get("Type");
+			if (type==null) return null;
+			if (type.equals("Trailer")) return COLOR_ITEM_TRAILER;
+			return Color.RED;
 		}
 
 		@Override
