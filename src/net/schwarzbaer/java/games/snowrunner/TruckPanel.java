@@ -116,8 +116,8 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 
 	void setTruck(Truck truck) {
 		this.truck = truck;
-		compatibleWheelsPanel.setData(this.truck);
-		addonSocketsPanel.setData(this.truck);
+		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels);
+		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
 		updateOutput();
 	}
 
@@ -231,11 +231,8 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			tableModel.setLanguage(language);
 		}
 	
-		void setData(Truck truck) {
-			if (truck!=null && truck.addonSockets.length>0)
-				tableModel.setData(truck.addonSockets);
-			else
-				tableModel.setData(null);
+		void setData(AddonSockets[] addonSockets) {
+			tableModel.setData(addonSockets);
 		}
 
 		private static class AddonTableCellRenderer implements TableCellRenderer {
@@ -342,10 +339,17 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				case DefaultAddon     : return row.as.defaultAddon;
 				case IndexSocket      : return row.indexSocket;
 				case InCockpit        : return row.socket.isInCockpit;
-				case SocketID         : return row.socket.socketID;
-				case BlockedSocketIDs : return Arrays.toString( row.socket.blockedSocketIDs );
+				case SocketID         : return toString( row.socket.socketIDs );
+				case BlockedSocketIDs : return toString( row.socket.blockedSocketIDs );
 				}
 				return null;
+			}
+
+			private String toString(String[] strs) {
+				if (strs==null) return "<null>";
+				if (strs.length==0) return "[]";
+				if (strs.length==1) return strs[0];
+				return Arrays.toString(strs);
 			}
 
 			enum ColumnID implements SimplifiedColumnIDInterface {
@@ -459,11 +463,8 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			updateWheelInfo();
 		}
 	
-		void setData(Truck truck) {
-			if (truck!=null && truck.compatibleWheels.length>0)
-				tableModel.setData(truck.compatibleWheels);
-			else
-				tableModel.setData(null);
+		void setData(CompatibleWheel[] compatibleWheels) {
+			tableModel.setData(compatibleWheels);
 			updateWheelInfo();
 		}
 

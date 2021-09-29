@@ -383,7 +383,7 @@ public class Data {
 			
 			static class Socket {
 
-				final String socketID; // "Names" attribute   <--->   <TruckAddon> <GameData> <InstallSocket Type="#####">
+				final String[] socketIDs; // "Names" attribute   <--->   <TruckAddon> <GameData> <InstallSocket Type="#####">
 				final String[] blockedSocketIDs;
 				final boolean isInCockpit;
 
@@ -391,7 +391,7 @@ public class Data {
 					if (!node.nodeName.equals("Socket"))
 						throw new IllegalStateException();
 					
-					socketID         = node.attributes.get("Names");
+					socketIDs         = splitColonSeparatedIDList(node.attributes.get("Names"));
 					blockedSocketIDs = splitColonSeparatedIDList(node.attributes.get("NamesBlock"));
 					isInCockpit      = parseBool(node.attributes.get("InCockpit"),false);
 				}
