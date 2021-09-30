@@ -671,7 +671,7 @@ public class Data {
 		final Integer unlockByRank;
 		final Boolean isQuestItem;
 		final String[] excludedCargoTypes;
-		final String[] requiredAddons;
+		final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
 		final String description_StringID;
 		final String name_StringID;
 		final String installSocket;
@@ -729,8 +729,12 @@ public class Data {
 			isQuestItem         = parseBool(gameDataNode.attributes.get("IsQuest") );
 			excludedCargoTypes  = splitColonSeparatedIDList( gameDataNode.attributes.get("ExcludedCargoTypes") );
 			
-			GenericXmlNode requiredAddonNode = gameDataNode.getNode("GameData", "RequiredAddon");
-			requiredAddons = splitColonSeparatedIDList( getAttribute(requiredAddonNode, "Types") );
+			GenericXmlNode[] requiredAddonNodes = gameDataNode.getNodes("GameData", "RequiredAddon");
+			requiredAddons = new String[requiredAddonNodes.length][];
+			for (int i=0; i<requiredAddonNodes.length; i++) {
+				GenericXmlNode requiredAddonNode = requiredAddonNodes[i];
+				requiredAddons[i] = splitColonSeparatedIDList( getAttribute(requiredAddonNode, "Types") );
+			}
 		}
 	
 	}

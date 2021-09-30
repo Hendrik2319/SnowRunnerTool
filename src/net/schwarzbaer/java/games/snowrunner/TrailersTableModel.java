@@ -148,17 +148,22 @@ class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.
 		if (row.requiredAddons.length>0) {
 			if (!isFirst) sb.append("\r\n\r\n");
 			isFirst = false;
-			sb.append("Required Addons:");
-			for (String ect : row.requiredAddons)
-				sb.append(String.format("%n   %s", ect));
+			sb.append("Required Addons:\r\n");
+			sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "  "));
 		}
 		
 		if (row.excludedCargoTypes.length>0) {
 			if (!isFirst) sb.append("\r\n\r\n");
 			isFirst = false;
-			sb.append("Excluded Cargo Types:");
-			for (String ect : row.excludedCargoTypes)
-				sb.append(String.format("%n   %s", ect));
+			sb.append("Excluded Cargo Types:\r\n");
+			sb.append(toString(row.excludedCargoTypes));
+		}
+		
+		if (!row.usableBy.isEmpty()) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Usable By:\r\n");
+			sb.append(SnowRunner.toString(row.usableBy,language));
 		}
 		
 		return sb.toString();
@@ -200,7 +205,8 @@ class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.
 		case UnlockByRank        : return row.unlockByRank;
 		case AttachType          : return row.attachType;
 		case ExcludedCargoTypes  : return toString(row.excludedCargoTypes);
-		case RequiredAddons      : return toString(row.requiredAddons);
+		case RequiredAddons      : return SnowRunner.joinRequiredAddonsToString_OneLine(row.requiredAddons);
+		case UsableBy            : return SnowRunner.toString(row.usableBy, language);
 		}
 		return null;
 	}
@@ -222,6 +228,7 @@ class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.
 		Description         ("Description"          ,  String.class, 200), 
 		ExcludedCargoTypes  ("Excluded Cargo Types" ,  String.class, 150),
 		RequiredAddons      ("Required Addons"      ,  String.class, 150),
+		UsableBy            ("Usable By"            ,  String.class, 150),
 		;
 	
 		private final SimplifiedColumnConfig config;

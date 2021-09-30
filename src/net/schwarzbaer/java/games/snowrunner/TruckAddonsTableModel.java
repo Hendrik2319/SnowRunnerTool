@@ -150,23 +150,22 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 		if (row.requiredAddons.length>0) {
 			if (!isFirst) sb.append("\r\n\r\n");
 			isFirst = false;
-			sb.append("Required Addons:");
-			for (int i=0; i<row.requiredAddons.length; i++) {
-				for (int j=0; j<row.requiredAddons[i].length; j++) {
-					String ect = row.requiredAddons[i][j];
-					sb.append(String.format("%n      %s%s", ect, j+1<row.requiredAddons[i].length ? " or" : ""));
-				}
-				if (i+1<row.requiredAddons.length)
-					sb.append(String.format("%n   and"));
-			}
+			sb.append("Required Addons:\r\n");
+			sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "  "));
 		}
 		
 		if (row.excludedCargoTypes.length>0) {
 			if (!isFirst) sb.append("\r\n\r\n");
 			isFirst = false;
-			sb.append("Excluded Cargo Types:");
-			for (String ect : row.excludedCargoTypes)
-				sb.append(String.format("%n   %s", ect));
+			sb.append("Excluded Cargo Types:\r\n");
+			sb.append(toString(row.excludedCargoTypes));
+		}
+		
+		if (!row.usableBy.isEmpty()) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Usable By:\r\n");
+			sb.append(SnowRunner.toString(row.usableBy,language));
 		}
 		
 		return sb.toString();
@@ -186,21 +185,6 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 		if (strs.length==0) return "[]";
 		if (strs.length==1) return strs[0];
 		return Arrays.toString(strs);
-	}
-
-	private String toString(String[][] strs) {
-		if (strs==null) return "<null>";
-		if (strs.length==0) return "-----";
-		
-		Iterable<String> it = ()->Arrays.stream(strs).map(list->{
-			String str = String.join(" || ", Arrays.asList(list));
-			if (list.length==1) return str;
-			return String.format("(%s)", str);
-		}).iterator();
-		
-		String str = String.join(" && ", it);
-		if (strs.length==1) return str;
-		return String.format("(%s)", str);
 	}
 	
 	@Override public Object getValueAt(int rowIndex, int columnIndex, TruckAddonsTableModel.ColumnID columnID) {
@@ -227,7 +211,8 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 		case UnlockByExploration : return row.unlockByExploration;
 		case UnlockByRank        : return row.unlockByRank;
 		case ExcludedCargoTypes  : return toString(row.excludedCargoTypes);
-		case RequiredAddons      : return toString(row.requiredAddons);
+		case RequiredAddons      : return SnowRunner.joinRequiredAddonsToString_OneLine(row.requiredAddons);
+		case UsableBy            : return SnowRunner.toString(row.usableBy, language);
 		}
 		return null;
 	}
@@ -253,6 +238,7 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 		IsCargo             ("Is Cargo"             , Boolean.class,  80),
 		CargoLength         ("Cargo Length"         , Integer.class,  80),
 		CargoType           ("Cargo Type"           ,  String.class, 170),
+		UsableBy            ("Usable By"            ,  String.class, 150),
 		;
 	
 		private final SimplifiedColumnConfig config;

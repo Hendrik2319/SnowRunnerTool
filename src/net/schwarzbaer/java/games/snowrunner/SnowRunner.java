@@ -9,6 +9,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -418,6 +419,30 @@ public class SnowRunner {
 			truckName = String.format("%s [%s]", truckName, truck.dlcName);
 		
 		return truckName;
+	}
+
+	static String toString(Vector<Truck> list, Language language) {
+		return String.join(", ", (Iterable<String>)()->list.stream().map(truck->SnowRunner.solveStringID(truck.name_StringID, language, "<"+truck.id+">")).sorted().iterator());
+	}
+
+	static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
+		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", list)).iterator();
+		return indent+"  "+String.join(String.format("%n%1$sAND%n%1$s  ", indent), it);
+	}
+
+	static String joinRequiredAddonsToString_OneLine(String[][] strs) {
+		if (strs==null) return "<null>";
+		if (strs.length==0) return "-----";
+		
+		Iterable<String> it = ()->Arrays.stream(strs).map(list->{
+			String str = String.join(" OR ", Arrays.asList(list));
+			if (list.length==1) return str;
+			return String.format("(%s)", str);
+		}).iterator();
+		
+		String str = String.join(" AND ", it);
+		if (strs.length==1) return str;
+		return String.format("(%s)", str);
 	}
 
 	interface RowTextTableModel {

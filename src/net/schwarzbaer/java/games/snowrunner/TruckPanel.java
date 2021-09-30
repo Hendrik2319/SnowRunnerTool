@@ -184,6 +184,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 
 	private static class AddonsPanel2 extends JTabbedPane {
 		private static final long serialVersionUID = 4098254083170104250L;
+		private static final Vector<String> CATEGORIES_ORDER = new Vector<>(Arrays.asList("frame_addons", "engine", "gearbox", "suspension"));
 		
 		private final Controllers controllers;
 		private Language language;
@@ -253,7 +254,11 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				
 				StringMultiMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				currentAddonCategories.addAll(compatibleTruckAddons.keySet());
-				currentAddonCategories.sort(null);
+				currentAddonCategories.sort(Comparator.<String>comparingInt(category->{
+					int pos = CATEGORIES_ORDER.indexOf(category);
+					return pos>=0 ? pos : CATEGORIES_ORDER.size();
+				}).thenComparing(Comparator.naturalOrder()));
+				
 				for (String category : currentAddonCategories) {
 					Vector<TruckAddon> values = compatibleTruckAddons.get(category);
 					TruckAddonsTableModel tableModel = new TruckAddonsTableModel(controllers);
