@@ -138,32 +138,35 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 		if (row==null) return null;
 		
 		StringBuilder sb = new StringBuilder();
+		boolean isFirst = true;
 		
-		String description = SnowRunner.solveStringID(row.description_StringID, language);
+		String description_StringID = SnowRunner.selectNonNull( row.description_StringID, row.cargoDescription_StringID );
+		String description = SnowRunner.solveStringID(description_StringID, language);
 		if (description!=null && !"EMPTY_LINE".equals(description)) {
-			sb.append(String.format("Description: <%s>%n", row.description_StringID));
-			sb.append(description);
-			sb.append("\r\n");
-			sb.append("\r\n");
+			sb.append(String.format("Description: <%s>%n%s", description_StringID, description));
+			isFirst = false;
 		}
 		
 		if (row.requiredAddons.length>0) {
-			sb.append("Required Addons:\r\n");
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Required Addons:");
 			for (int i=0; i<row.requiredAddons.length; i++) {
 				for (int j=0; j<row.requiredAddons[i].length; j++) {
 					String ect = row.requiredAddons[i][j];
-					sb.append(String.format("      %s%s%n", ect, j+1<row.requiredAddons[i].length ? " or" : ""));
+					sb.append(String.format("%n      %s%s", ect, j+1<row.requiredAddons[i].length ? " or" : ""));
 				}
 				if (i+1<row.requiredAddons.length)
-					sb.append(String.format("   and%n"));
+					sb.append(String.format("%n   and"));
 			}
 		}
-		sb.append("\r\n");
 		
 		if (row.excludedCargoTypes.length>0) {
-			sb.append("Excluded Cargo Types:\r\n");
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Excluded Cargo Types:");
 			for (String ect : row.excludedCargoTypes)
-				sb.append(String.format("   %s%n", ect));
+				sb.append(String.format("%n   %s", ect));
 		}
 		
 		return sb.toString();
@@ -207,8 +210,8 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 		switch (columnID) {
 		case ID                  : return row.id;
 		case DLC                 : return row.dlcName;
-		case Name                : return SnowRunner.solveStringID(row.name_StringID, language, null);
-		case Description         : return SnowRunner.solveStringID(row.description_StringID, language, null);
+		case Name                : return SnowRunner.solveStringID( SnowRunner.selectNonNull( row.name_StringID       , row.cargoName_StringID        ), language, null);
+		case Description         : return SnowRunner.solveStringID( SnowRunner.selectNonNull( row.description_StringID, row.cargoDescription_StringID ), language, null);
 		case InstallSocket       : return row.installSocket;
 		case CargoSlots          : return row.cargoSlots;
 		case RepairsCapacity     : return row.repairsCapacity;

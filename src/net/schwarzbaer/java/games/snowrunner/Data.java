@@ -62,6 +62,7 @@ public class Data {
 	final XMLTemplateStructure rawdata;
 	final HashMap<String,Language> languages;
 	final AddonCategories addonCategories;
+	final HashMap<String,CargoType> cargoTypes;
 	final HashMap<String,WheelsDef> wheels;
 	final HashMap<String,Truck> trucks;
 	final HashMap<String,Trailer> trailers;
@@ -77,15 +78,26 @@ public class Data {
 		unexpectedValues = new HashSetMap<>(null,null);
 		
 		
+		
 		Class_ addonCategoriesClass = rawdata.classes.get("addons_category");
-		if (addonCategoriesClass!=null) {
-			Item addonCategoriesItem = addonCategoriesClass.items.get("addons_category");
-			if (addonCategoriesItem!=null)
-				addonCategories = new AddonCategories(addonCategoriesItem);
-			else
-				addonCategories = null;
-		} else
+		if (addonCategoriesClass == null)
 			addonCategories = null;
+		else {
+			Item addonCategoriesItem = addonCategoriesClass.items.get("addons_category");
+			if (addonCategoriesItem == null)
+				addonCategories = null;
+			else
+				addonCategories = new AddonCategories(addonCategoriesItem);
+		}
+		
+		
+		
+		cargoTypes = new HashMap<>();
+		Class_ cargoTypesClass = rawdata.classes.get("cargo_types");
+		if (cargoTypesClass!=null)
+			cargoTypesClass.items.forEach((name,item)->{
+				cargoTypes.put(name, new CargoType(item));
+			});
 		
 		
 		
@@ -100,6 +112,7 @@ public class Data {
 			});
 		//System.err.println("WheelsTypes:");
 		//wheelsTypes.printTo(System.err, str->str);
+		
 		
 		
 		// Truck      Attributes: {AttachType=[Saddle], Type=[Trailer]}
@@ -132,7 +145,7 @@ public class Data {
 					break;
 					
 				case "TruckAddon":
-					truckAddons.put(name, new TruckAddon(item));
+					truckAddons.put(name, new TruckAddon(item, addonCategories, cargoTypes));
 					break;
 					
 				default:
@@ -140,6 +153,7 @@ public class Data {
 					break;
 				}
 			});
+		
 		
 		
 		socketIDsUsedByTrucks = new StringMultiMap<>();
@@ -304,14 +318,6 @@ public class Data {
 		if ("false".equalsIgnoreCase(str)) return false;
 		return defaultValue;
 	}
-	
-	@SuppressWarnings("unused")
-	private static String selectNonNull(String... strings) {
-		for (String str : strings)
-			if (str!=null)
-				return str;
-		return null;
-	}
 
 	private static String getAttribute(GenericXmlNode[] nodes, String key) {
 		if (key==null) throw new IllegalArgumentException();
@@ -345,6 +351,36 @@ public class Data {
 			xmlName = item.name+".xml";
 			dlcName = item.dlcName;
 		}
+	}
+
+	static class CargoType extends ItemBased {
+	
+		final String description_StringID;
+		final String name_StringID;
+		final String icon100;
+		final String icon40;
+		final String icon20;
+
+		public CargoType(Item item) {
+			super(item);
+			
+			//item.content.attributes.forEach((key,value)->{
+			//	unexpectedValues.add(String.format("Class[addons_category] <%s ####=\"...\">", item.content.nodeName), key);
+			//});
+			
+			GenericXmlNode uiDescNode = item.content.getNode("CargoType", "UiDesc");
+			description_StringID = getAttribute(uiDescNode, "UiDesc");
+			name_StringID        = getAttribute(uiDescNode, "UiName");
+			icon100              = getAttribute(uiDescNode, "UiIcon100x100");
+			icon40               = getAttribute(uiDescNode, "UiIcon40x40");
+			icon20               = getAttribute(uiDescNode, "UiIcon20x20");
+			
+			//if (uiDescNode!=null)
+			//	uiDescNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("Class[addons_category] <CargoType> <UiDesc ####=\"...\">", key);
+			//	});
+		}
+	
 	}
 
 	static class AddonCategories extends ItemBased {
@@ -713,6 +749,8 @@ public class Data {
 		final Integer cargoLength;
 		final String  cargoType;
 		final Integer cargoValue;
+		final String  cargoName_StringID;
+		final String  cargoDescription_StringID;
 		final String[] excludedCargoTypes;
 		final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
 		final Integer repairsCapacity;
@@ -723,7 +761,7 @@ public class Data {
 		final Boolean enablesDiffLock;
 		final Vector<Truck> usableBy;
 
-		public TruckAddon(Item item) {
+		public TruckAddon(Item item, AddonCategories addonCategories, HashMap<String, CargoType> cargoTypes) {
 			super(item);
 			if (!item.content.nodeName.equals("TruckAddon"))
 				throw new IllegalStateException();
@@ -792,6 +830,16 @@ public class Data {
 			cargoLength = parseInt ( getAttribute(installSlotNode, "CargoLength") );
 			cargoType   =            getAttribute(installSlotNode, "CargoType"  );
 			cargoValue  = parseInt ( getAttribute(installSlotNode, "CargoValue" ) );
+			CargoType ct = null;
+			if (cargoType!=null && name_StringID==null)
+				ct = cargoTypes.get(cargoType);
+			if (ct!=null) {
+				cargoName_StringID = ct.name_StringID;
+				cargoDescription_StringID = ct.description_StringID;
+			} else {
+				cargoName_StringID = null;
+				cargoDescription_StringID = null;
+			}
 			
 			//if (installSlotNode!=null)
 			//	installSlotNode.attributes.forEach((key,value)->{

@@ -136,22 +136,29 @@ class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.
 		if (row==null) return null;
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("Description:\r\n");
-		sb.append(SnowRunner.solveStringID(row.description_StringID, language));
-		sb.append("\r\n");
-		sb.append("\r\n");
+		boolean isFirst = true;
+		
+		
+		String description = SnowRunner.solveStringID(row.description_StringID, language);
+		if (description!=null && !"EMPTY_LINE".equals(description)) {
+			sb.append(String.format("Description: <%s>%n%s", row.description_StringID, description));
+			isFirst = false;
+		}
 		
 		if (row.requiredAddons.length>0) {
-			sb.append("Required Addons:\r\n");
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Required Addons:");
 			for (String ect : row.requiredAddons)
-				sb.append(String.format("   %s%n", ect));
+				sb.append(String.format("%n   %s", ect));
 		}
-		sb.append("\r\n");
 		
 		if (row.excludedCargoTypes.length>0) {
-			sb.append("Excluded Cargo Types:\r\n");
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Excluded Cargo Types:");
 			for (String ect : row.excludedCargoTypes)
-				sb.append(String.format("   %s%n", ect));
+				sb.append(String.format("%n   %s", ect));
 		}
 		
 		return sb.toString();

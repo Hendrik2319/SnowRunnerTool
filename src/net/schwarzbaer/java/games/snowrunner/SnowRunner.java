@@ -284,6 +284,13 @@ public class SnowRunner {
 			return str.substring(0,maxLength-4)+" ...";
 		return str;
 	}
+	
+	static String selectNonNull(String... strings) {
+		for (String str : strings)
+			if (str!=null)
+				return str;
+		return null;
+	}
 
 	static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, ActionListener al) {
 		JCheckBoxMenuItem comp = new JCheckBoxMenuItem(title,isSelected);
