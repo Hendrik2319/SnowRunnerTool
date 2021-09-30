@@ -315,7 +315,7 @@ class DataTrees {
 				//children.add(new AttributesTreeNode(this,node.attributes));
 				AttributesTreeNode.addAttributesTo(this, node.attributes, children);
 			
-			Vector<String> keys = new Vector<>( node.nodes.getKeys() );
+			Vector<String> keys = new Vector<>( node.nodes.keySet() );
 			keys.sort(null);
 			for (String key:keys)
 				for (GenericXmlNode childNode : node.nodes.get(key))

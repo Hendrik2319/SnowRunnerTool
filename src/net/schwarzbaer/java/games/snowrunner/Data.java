@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,10 +17,12 @@ import java.util.function.Predicate;
 import java.util.zip.ZipFile;
 
 import net.schwarzbaer.gui.ValueListOutput;
+import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
 
 public class Data {
 
@@ -54,13 +57,17 @@ public class Data {
 		}
 	}
 
+	private static HashSetMap<String,String> unexpectedValues;
+	
 	final XMLTemplateStructure rawdata;
 	final HashMap<String,Language> languages;
 	final HashMap<String,WheelsDef> wheels;
 	final HashMap<String,Truck> trucks;
 	final HashMap<String,Trailer> trailers;
 	final HashMap<String,TruckAddon> truckAddons;
-	private static HashSetMap<String,String> unexpectedValues;
+	final StringMultiMap<Truck> socketIDsUsedByTrucks;
+	final StringMultiMap<Trailer> socketIDsUsedByTrailers;
+	final StringMultiMap<TruckAddon> socketIDsUsedByTruckAddons;
 
 	Data(XMLTemplateStructure rawdata) {
 		this.rawdata = rawdata;
@@ -90,8 +97,10 @@ public class Data {
 			
 			case "Truck":
 				String type = item.content.attributes.get("Type");
+				
 				if (type==null)
 					trucks.put(name, new Truck(item, wheels::get));
+				
 				else
 					switch (type) {
 					case "Trailer":
@@ -113,6 +122,56 @@ public class Data {
 				break;
 			}
 		});
+		
+		socketIDsUsedByTrucks = new StringMultiMap<>();
+		for (Truck truck : trucks.values())
+			for (AddonSockets as : truck.addonSockets)
+				for (String socketID : as.compatibleSocketIDs)
+					socketIDsUsedByTrucks.add(socketID, truck);
+
+		socketIDsUsedByTrailers = new StringMultiMap<>();
+		for (Trailer trailer : trailers.values()) {
+			if (trailer.installSocket == null)
+				System.err.printf("No InstallSocket for trailer <%s>%n", trailer.id);
+			
+			else {
+				socketIDsUsedByTrailers.add(trailer.installSocket, trailer);
+				
+				Vector<Truck> trucks = socketIDsUsedByTrucks.get(trailer.installSocket);
+				if (trucks != null)
+					trailer.usableBy.addAll(trucks);
+				//else
+				//	System.err.printf("No Trucks are using SocketID \"%s\" of Trailer <%s>%n", trailer.installSocket, trailer.id);
+			}
+			
+		}
+
+		socketIDsUsedByTruckAddons = new StringMultiMap<>();
+		for (TruckAddon truckAddon : truckAddons.values())
+			if (truckAddon.installSocket!=null) {
+				socketIDsUsedByTruckAddons.add(truckAddon.installSocket, truckAddon);
+				
+				Vector<Truck> trucks = socketIDsUsedByTrucks.get(truckAddon.installSocket);
+				if (trucks != null)
+					truckAddon.usableBy.addAll(trucks);
+				//else
+				//	System.err.printf("No Trucks are using SocketID \"%s\" of TruckAddon <%s>%n", truckAddon.installSocket, truckAddon.id);
+			}
+		
+		// TODO: trucks <-[socketID]-> trailers | trucks <-[socketID]-> truckAddons
+		for (Truck truck : trucks.values()) {
+			for (AddonSockets as : truck.addonSockets) {
+				for (String socketID : as.compatibleSocketIDs) {
+					
+					Vector<Trailer> trailers = socketIDsUsedByTrailers.get(socketID);
+					if (trailers != null) as.compatibleTrailers.addAll(socketID, trailers);
+					
+					Vector<TruckAddon> truckAddons = socketIDsUsedByTruckAddons.get(socketID);
+					if (truckAddons != null) as.compatibleTruckAddons.addAll(socketID, truckAddons);
+				}
+			}
+		}
+		
 		if (!unexpectedValues.isEmpty())
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
@@ -375,19 +434,35 @@ public class Data {
 		
 		static class AddonSockets {
 
+			final StringMultiMap<TruckAddon> compatibleTruckAddons;
+			final StringMultiMap<Trailer> compatibleTrailers;
 			final String defaultAddon; // <---> item.id
 			final Socket[] sockets;
+			final HashSet<String> compatibleSocketIDs;
 
 			AddonSockets(GenericXmlNode node) {
 				if (!node.nodeName.equals("AddonSockets"))
 					throw new IllegalStateException();
 				
+				//node.attributes.forEach((key,value)->{
+				//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets ####=\"...\">", key);
+				//});
+				//   Class[trucks] <Truck> <GameData> <AddonSockets ####="...">
+				//      DefaultAddon
+				//      ParentFrame
+				//      RequiredAddonIfNoConflicts
+				
 				defaultAddon = node.attributes.get("DefaultAddon");
 				
+				compatibleTrailers = new StringMultiMap<>();
+				compatibleTruckAddons = new StringMultiMap<>();
+				compatibleSocketIDs = new HashSet<>();
 				GenericXmlNode[] socketNodes = node.getNodes("AddonSockets","Socket");
 				sockets = new Socket[socketNodes.length];
-				for (int i=0; i<sockets.length; i++)
+				for (int i=0; i<sockets.length; i++) {
 					sockets[i] = new Socket(socketNodes[i]);
+					compatibleSocketIDs.addAll(Arrays.asList(sockets[i].socketIDs));
+				}
 			}
 			
 			static class Socket {
@@ -400,7 +475,19 @@ public class Data {
 					if (!node.nodeName.equals("Socket"))
 						throw new IllegalStateException();
 					
-					socketIDs         = splitColonSeparatedIDList(node.attributes.get("Names"));
+					//node.attributes.forEach((key,value)->{
+					//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket ####=\"...\">", key);
+					//});
+					//   Class[trucks] <Truck> <GameData> <AddonSockets> <Socket ####="...">
+					//      Dir
+					//      InCockpit
+					//      Names
+					//      NamesBlock
+					//      Offset
+					//      ParentFrame
+					//      UpDir
+					
+					socketIDs        = splitColonSeparatedIDList(node.attributes.get("Names"));
 					blockedSocketIDs = splitColonSeparatedIDList(node.attributes.get("NamesBlock"));
 					isInCockpit      = parseBool(node.attributes.get("InCockpit"),false);
 				}
@@ -461,12 +548,14 @@ public class Data {
 		final Integer repairsCapacity;
 		final Integer wheelRepairsCapacity;
 		final Integer fuelCapacity;
+		final Vector<Truck> usableBy;
 
 		public Trailer(Item item) {
 			super(item);
 			if (!item.content.nodeName.equals("Truck"))
 				throw new IllegalStateException();
 			
+			usableBy = new Vector<>();
 			attachType = item.content.attributes.get("AttachType");
 			
 			
@@ -536,11 +625,14 @@ public class Data {
 		final Integer cargoSlots;
 		final Boolean enablesAllWheelDrive;
 		final Boolean enablesDiffLock;
+		final Vector<Truck> usableBy;
 
 		public TruckAddon(Item item) {
 			super(item);
 			if (!item.content.nodeName.equals("TruckAddon"))
 				throw new IllegalStateException();
+			
+			usableBy = new Vector<>();
 			
 			GenericXmlNode[] truckDataNodes = item.content.getNodes("TruckAddon", "TruckData");
 			repairsCapacity      = parseInt ( getAttribute(truckDataNodes, "RepairsCapacity"       ) );

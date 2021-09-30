@@ -9,7 +9,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.io.File;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,10 +33,8 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
-import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
@@ -123,74 +120,6 @@ public class SnowRunner {
 		});
 	}
 
-	private JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
-		JTable table = new JTable();
-		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		JScrollPane scrollPane = new JScrollPane(table);
-		
-		table.setModel(tableModel);
-		tableModel.setTable(table);
-		tableModel.setColumnWidths(table);
-		
-		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
-		table.setRowSorter(rowSorter);
-		
-		ContextMenu contextMenu = new ContextMenu();
-		contextMenu.addTo(table);
-		contextMenu.add(createMenuItem("Reset Row Order",true,e->{
-			rowSorter.resetSortOrder();
-			table.repaint();
-		}));
-		contextMenu.add(createMenuItem("Show Column Widths", true, e->{
-			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
-		}));
-		
-		if (tableModel instanceof RowTextTableModel) {
-			RowTextTableModel rowTextTableModel = (RowTextTableModel) tableModel;
-			
-			JTextArea textArea = new JTextArea();
-			textArea.setEditable(false);
-			textArea.setWrapStyleWord(true);
-			textArea.setLineWrap(true);
-			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
-			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
-			textAreaScrollPane.setPreferredSize(new Dimension(400,100));
-			
-			ValueContainer<Integer> selectedRow = new ValueContainer<>();
-			Runnable textAreaUpdateMethod = ()->{
-				if (selectedRow.value != null)
-					textArea.setText(rowTextTableModel.getTextForRow(selectedRow.value));
-				else
-					textArea.setText("");
-			};
-			rowTextTableModel.setTextAreaUpdateMethod(textAreaUpdateMethod);
-			
-			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			table.getSelectionModel().addListSelectionListener(e->{
-				int rowV = table.getSelectedRow();
-				if (rowV<0)
-					selectedRow.value = null;
-				else {
-					int rowM = table.convertRowIndexToModel(rowV);
-					selectedRow.value = rowM<0 ? null : rowM;
-				}
-				textAreaUpdateMethod.run();
-			});
-			
-			JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
-			panel.setResizeWeight(1);
-			panel.setTopComponent(scrollPane);
-			panel.setBottomComponent(textAreaScrollPane);
-			return panel;
-			
-		} else {
-			JPanel panel = new JPanel(new BorderLayout());
-			panel.add(scrollPane);
-			return panel;
-		}
-		
-	}
-	
 	static class ValueContainer<ValueType> {
 		ValueType value = null;
 	}
@@ -403,6 +332,72 @@ public class SnowRunner {
 		return comp;
 	}
 
+	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
+		JTable table = new JTable();
+		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+		JScrollPane scrollPane = new JScrollPane(table);
+		
+		table.setModel(tableModel);
+		tableModel.setTable(table);
+		tableModel.setColumnWidths(table);
+		
+		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
+		table.setRowSorter(rowSorter);
+		
+		ContextMenu contextMenu = new ContextMenu();
+		contextMenu.addTo(table);
+		contextMenu.add(createMenuItem("Reset Row Order",true,e->{
+			rowSorter.resetSortOrder();
+			table.repaint();
+		}));
+		contextMenu.add(createMenuItem("Show Column Widths", true, e->{
+			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
+		}));
+		
+		if (tableModel instanceof RowTextTableModel) {
+			RowTextTableModel rowTextTableModel = (RowTextTableModel) tableModel;
+			
+			JTextArea textArea = new JTextArea();
+			textArea.setEditable(false);
+			textArea.setWrapStyleWord(true);
+			textArea.setLineWrap(true);
+			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
+			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
+			textAreaScrollPane.setPreferredSize(new Dimension(400,100));
+			
+			Runnable textAreaUpdateMethod = ()->{
+				Integer selectedRow = null;
+				int rowV = table.getSelectedRow();
+				if (rowV>=0) {
+					int rowM = table.convertRowIndexToModel(rowV);
+					selectedRow = rowM>=0 ? rowM : null;
+				}
+				if (selectedRow != null)
+					textArea.setText(rowTextTableModel.getTextForRow(selectedRow));
+				else
+					textArea.setText("");
+			};
+			rowTextTableModel.setTextAreaUpdateMethod(textAreaUpdateMethod);
+			
+			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			table.getSelectionModel().addListSelectionListener(e->{
+				textAreaUpdateMethod.run();
+			});
+			
+			JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
+			panel.setResizeWeight(1);
+			panel.setTopComponent(scrollPane);
+			panel.setBottomComponent(textAreaScrollPane);
+			return panel;
+			
+		} else {
+			JPanel panel = new JPanel(new BorderLayout());
+			panel.add(scrollPane);
+			return panel;
+		}
+		
+	}
+
 	static String getTruckLabel(Truck truck, Language language) {
 		return getTruckLabel(truck, language, true);
 	}
@@ -418,444 +413,9 @@ public class SnowRunner {
 		return truckName;
 	}
 
-	private interface RowTextTableModel {
+	interface RowTextTableModel {
 		String getTextForRow(int rowIndex);
 		void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod);
-	}
-
-	private static class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTableModel.ColumnID> implements LanguageListener, DataReceiver, RowTextTableModel {
-		
-		private Language language;
-		private final Vector<Data.TruckAddon> rows;
-		private Runnable textAreaUpdateMethod;
-		
-		TruckAddonsTableModel(Controllers controllers) {
-			super(ColumnID.values());
-			language = null;
-			textAreaUpdateMethod = null;
-			rows = new Vector<>();
-			controllers.languageListeners.add(this);
-			controllers.dataReceivers.add(this);
-		}
-		
-		@Override public void setLanguage(Language language) {
-			this.language = language;
-			if (textAreaUpdateMethod!=null)
-				textAreaUpdateMethod.run();
-			fireTableUpdate();
-		}
-		
-		@Override public void setData(Data data) {
-			rows.clear();
-			if (data!=null) {
-				rows.addAll(data.truckAddons.values());
-				Comparator<String> nullsLast_String = Comparator.nullsLast(Comparator.naturalOrder());
-				rows.sort(Comparator.<Data.TruckAddon,String>comparing(rowItem->rowItem.category,nullsLast_String).thenComparing(rowItem->rowItem.id));
-			}
-			fireTableUpdate();
-		}
-
-		private class CWTableCellRenderer implements TableCellRenderer {
-		
-			private final Tables.LabelRendererComponent rendererComp;
-		
-			CWTableCellRenderer() {
-				rendererComp = new Tables.LabelRendererComponent();
-			}
-		
-			@Override
-			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
-				String valueStr = value==null ? null : value.toString();
-				
-				int columnM = table.convertColumnIndexToModel(columnV);
-				ColumnID columnID = getColumnID(columnM);
-				
-				if (columnID!=null) {
-					//if (columnID.config.columnClass==Float.class) {
-					//	valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
-					//	rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-					//}
-					if (columnID.config.columnClass==Integer.class) {
-						switch (columnID) {
-						
-						case Price:
-							valueStr = value==null ? "" : String.format("%d Cr", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-							
-						case UnlockByRank:
-						case CargoSlots:
-						case CargoLength:
-							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-							break;
-							
-						case FuelCapacity:
-							valueStr = value==null ? "" : String.format("%d L", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-							
-						case RepairsCapacity:
-							valueStr = value==null ? "" : String.format("%d R", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-							
-						case WheelRepairsCapacity:
-							valueStr = value==null ? "" : String.format("%d WR", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-							break;
-							
-						default:
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-						}
-					}
-				}
-				
-				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
-				return rendererComp;
-			}
-		
-		}
-		
-		@Override public void setTable(JTable table) {
-			super.setTable(table);
-			
-			CWTableCellRenderer renderer = new CWTableCellRenderer();
-			//table.setDefaultRenderer(String .class, renderer);
-			table.setDefaultRenderer(Integer.class, renderer);
-			//table.setDefaultRenderer(Float  .class, renderer);
-			//table.setDefaultRenderer(Boolean.class, null);
-		}
-		
-		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
-			this.textAreaUpdateMethod = textAreaUpdateMethod;
-		}
-
-		@Override public String getTextForRow(int rowIndex) {
-			Data.TruckAddon row = getRow(rowIndex);
-			if (row==null) return null;
-			
-			StringBuilder sb = new StringBuilder();
-			
-			String description = SnowRunner.solveStringID(row.description_StringID, language);
-			if (description!=null && !"EMPTY_LINE".equals(description)) {
-				sb.append(String.format("Description: <%s>%n", row.description_StringID));
-				sb.append(description);
-				sb.append("\r\n");
-				sb.append("\r\n");
-			}
-			
-			if (row.requiredAddons.length>0) {
-				sb.append("Required Addons:\r\n");
-				for (int i=0; i<row.requiredAddons.length; i++) {
-					for (int j=0; j<row.requiredAddons[i].length; j++) {
-						String ect = row.requiredAddons[i][j];
-						sb.append(String.format("      %s%s%n", ect, j+1<row.requiredAddons[i].length ? " or" : ""));
-					}
-					if (i+1<row.requiredAddons.length)
-						sb.append(String.format("   and%n"));
-				}
-			}
-			sb.append("\r\n");
-			
-			if (row.excludedCargoTypes.length>0) {
-				sb.append("Excluded Cargo Types:\r\n");
-				for (String ect : row.excludedCargoTypes)
-					sb.append(String.format("   %s%n", ect));
-			}
-			
-			return sb.toString();
-		}
-
-		@Override public int getRowCount() {
-			return rows.size();
-		}
-
-		Data.TruckAddon getRow(int rowIndex) {
-			if (rowIndex<0 || rowIndex>=rows.size()) return null;
-			return rows.get(rowIndex);
-		}
-
-		private String toString(String[] strs) {
-			if (strs==null) return "<null>";
-			if (strs.length==0) return "[]";
-			if (strs.length==1) return strs[0];
-			return Arrays.toString(strs);
-		}
-
-		private String toString(String[][] strs) {
-			if (strs==null) return "<null>";
-			if (strs.length==0) return "-----";
-			
-			Iterable<String> it = ()->Arrays.stream(strs).map(list->{
-				String str = String.join(" || ", Arrays.asList(list));
-				if (list.length==1) return str;
-				return String.format("(%s)", str);
-			}).iterator();
-			
-			String str = String.join(" && ", it);
-			if (strs.length==1) return str;
-			return String.format("(%s)", str);
-		}
-		
-		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
-			Data.TruckAddon row = getRow(rowIndex);
-			if (row==null) return null;
-			
-			switch (columnID) {
-			case ID                  : return row.id;
-			case DLC                 : return row.dlcName;
-			case Name                : return solveStringID(row.name_StringID, language, null);
-			case Description         : return getReducedString( SnowRunner.solveStringID(row.description_StringID, language, null), 40 );
-			case InstallSocket       : return row.installSocket;
-			case CargoSlots          : return row.cargoSlots;
-			case RepairsCapacity     : return row.repairsCapacity;
-			case WheelRepairsCapacity: return row.wheelRepairsCapacity;
-			case FuelCapacity        : return row.fuelCapacity;
-			case EnablesAWD          : return row.enablesAllWheelDrive;
-			case EnablesDiffLock     : return row.enablesDiffLock;
-			case Category            : return row.category;
-			case CargoLength         : return row.cargoLength;
-			case CargoType           : return row.cargoType;
-			case IsCargo             : return row.isCargo;
-			case Price               : return row.price;
-			case UnlockByExploration : return row.unlockByExploration;
-			case UnlockByRank        : return row.unlockByRank;
-			case ExcludedCargoTypes  : return toString(row.excludedCargoTypes);
-			case RequiredAddons      : return toString(row.requiredAddons);
-			}
-			return null;
-		}
-
-		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
-			ID                  ("ID"                   ,  String.class, 230),
-			DLC                 ("DLC"                  ,  String.class,  80),
-			Category            ("Category"             ,  String.class, 150),
-			Name                ("Name"                 ,  String.class, 200), 
-			InstallSocket       ("Install Socket"       ,  String.class, 130),
-			CargoSlots          ("Cargo Slots"          , Integer.class,  70),
-			RepairsCapacity     ("Repairs"              , Integer.class,  50),
-			WheelRepairsCapacity("Wheel Repairs"        , Integer.class,  85),
-			FuelCapacity        ("Fuel"                 , Integer.class,  50),
-			EnablesAWD          ("Enables AWD"          , Boolean.class,  80), 
-			EnablesDiffLock     ("Enables DiffLock"     , Boolean.class,  90), 
-			Price               ("Price"                , Integer.class,  50), 
-			UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
-			UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
-			Description         ("Description"          ,  String.class, 200), 
-			ExcludedCargoTypes  ("Excluded Cargo Types" ,  String.class, 150),
-			RequiredAddons      ("Required Addons"      ,  String.class, 200),
-			IsCargo             ("Is Cargo"             , Boolean.class,  80),
-			CargoLength         ("Cargo Length"         , Integer.class,  80),
-			CargoType           ("Cargo Type"           ,  String.class, 170),
-			;
-		
-			private final SimplifiedColumnConfig config;
-			ColumnID(String name, Class<?> columnClass, int prefWidth) {
-				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
-			}
-			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
-		}
-	}
-
-	private static class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.ColumnID> implements LanguageListener, DataReceiver, RowTextTableModel {
-		
-		private Language language;
-		private final Vector<Data.Trailer> rows;
-		private Runnable textAreaUpdateMethod;
-		
-		TrailersTableModel(Controllers controllers) {
-			super(ColumnID.values());
-			language = null;
-			textAreaUpdateMethod = null;
-			rows = new Vector<>();
-			controllers.languageListeners.add(this);
-			controllers.dataReceivers.add(this);
-		}
-		
-		@Override public void setLanguage(Language language) {
-			this.language = language;
-			if (textAreaUpdateMethod!=null)
-				textAreaUpdateMethod.run();
-			fireTableUpdate();
-		}
-		
-		@Override public void setData(Data data) {
-			rows.clear();
-			if (data!=null) {
-				rows.addAll(data.trailers.values());
-				rows.sort(Comparator.<Data.Trailer,String>comparing(rowItem->rowItem.id));
-			}
-			fireTableUpdate();
-		}
-
-		private class CWTableCellRenderer implements TableCellRenderer {
-		
-			private final Tables.LabelRendererComponent rendererComp;
-		
-			CWTableCellRenderer() {
-				rendererComp = new Tables.LabelRendererComponent();
-			}
-		
-			@Override
-			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
-				String valueStr = value==null ? null : value.toString();
-				
-				int columnM = table.convertColumnIndexToModel(columnV);
-				ColumnID columnID = getColumnID(columnM);
-				
-				if (columnID!=null) {
-					//if (columnID.config.columnClass==Float.class) {
-					//	valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
-					//	rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-					//}
-					if (columnID.config.columnClass==Integer.class) {
-						switch (columnID) {
-						
-						case Price:
-							valueStr = value==null ? "" : String.format("%d Cr", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-							
-						case UnlockByRank:
-						case CargoSlots:
-							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-							break;
-							
-						case FuelCapacity:
-							valueStr = value==null ? "" : String.format("%d L", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-							
-						case RepairsCapacity:
-							valueStr = value==null ? "" : String.format("%d R", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-							
-						case WheelRepairsCapacity:
-							valueStr = value==null ? "" : String.format("%d WR", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-							break;
-							
-						default:
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-						}
-					}
-				}
-				
-				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
-				return rendererComp;
-			}
-		
-		}
-		
-		@Override public void setTable(JTable table) {
-			super.setTable(table);
-			
-			CWTableCellRenderer renderer = new CWTableCellRenderer();
-			//table.setDefaultRenderer(String .class, renderer);
-			table.setDefaultRenderer(Integer.class, renderer);
-			//table.setDefaultRenderer(Float  .class, renderer);
-			//table.setDefaultRenderer(Boolean.class, null);
-		}
-		
-		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
-			this.textAreaUpdateMethod = textAreaUpdateMethod;
-		}
-
-		@Override public String getTextForRow(int rowIndex) {
-			Data.Trailer row = getRow(rowIndex);
-			if (row==null) return null;
-			
-			StringBuilder sb = new StringBuilder();
-			sb.append("Description:\r\n");
-			sb.append(SnowRunner.solveStringID(row.description_StringID, language));
-			sb.append("\r\n");
-			sb.append("\r\n");
-			
-			if (row.requiredAddons.length>0) {
-				sb.append("Required Addons:\r\n");
-				for (String ect : row.requiredAddons)
-					sb.append(String.format("   %s%n", ect));
-			}
-			sb.append("\r\n");
-			
-			if (row.excludedCargoTypes.length>0) {
-				sb.append("Excluded Cargo Types:\r\n");
-				for (String ect : row.excludedCargoTypes)
-					sb.append(String.format("   %s%n", ect));
-			}
-			
-			return sb.toString();
-		}
-
-		@Override public int getRowCount() {
-			return rows.size();
-		}
-
-		Data.Trailer getRow(int rowIndex) {
-			if (rowIndex<0 || rowIndex>=rows.size()) return null;
-			return rows.get(rowIndex);
-		}
-
-		private String toString(String[] strs) {
-			if (strs==null) return "<null>";
-			if (strs.length==0) return "[]";
-			if (strs.length==1) return strs[0];
-			return Arrays.toString(strs);
-		}
-		
-		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
-			Data.Trailer row = getRow(rowIndex);
-			if (row==null) return null;
-			
-			switch (columnID) {
-			case ID                  : return row.id;
-			case DLC                 : return row.dlcName;
-			case Name                : return solveStringID(row.name_StringID, language);
-			case Description         : return getReducedString( SnowRunner.solveStringID(row.description_StringID, language), 40 );
-			case InstallSocket       : return row.installSocket;
-			case CargoSlots          : return row.cargoSlots;
-			case RepairsCapacity     : return row.repairsCapacity;
-			case WheelRepairsCapacity: return row.wheelRepairsCapacity;
-			case FuelCapacity        : return row.fuelCapacity;
-			case QuestItem           : return row.isQuestItem;
-			case Price               : return row.price;
-			case UnlockByExploration : return row.unlockByExploration;
-			case UnlockByRank        : return row.unlockByRank;
-			case AttachType          : return row.attachType;
-			case ExcludedCargoTypes  : return toString(row.excludedCargoTypes);
-			case RequiredAddons      : return toString(row.requiredAddons);
-			}
-			return null;
-		}
-
-		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
-			ID                  ("ID"                   ,  String.class, 230),
-			Name                ("Name"                 ,  String.class, 200), 
-			DLC                 ("DLC"                  ,  String.class,  80),
-			InstallSocket       ("Install Socket"       ,  String.class, 130),
-			CargoSlots          ("Cargo Slots"          , Integer.class,  70),
-			RepairsCapacity     ("Repairs"              , Integer.class,  50),
-			WheelRepairsCapacity("Wheel Repairs"        , Integer.class,  85),
-			FuelCapacity        ("Fuel"                 , Integer.class,  50),
-			QuestItem           ("Is Quest Item"        , Boolean.class,  80),
-			Price               ("Price"                , Integer.class,  50), 
-			UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
-			UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
-			AttachType          ("Attach Type"          ,  String.class,  70),
-			Description         ("Description"          ,  String.class, 200), 
-			ExcludedCargoTypes  ("Excluded Cargo Types" ,  String.class, 150),
-			RequiredAddons      ("Required Addons"      ,  String.class, 150),
-			;
-		
-			private final SimplifiedColumnConfig config;
-			ColumnID(String name, Class<?> columnClass, int prefWidth) {
-				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
-			}
-			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
-		}
 	}
 
 	private static class WheelsTableModel extends Tables.SimplifiedTableModel<WheelsTableModel.ColumnID> implements LanguageListener, DataReceiver{
@@ -1166,10 +726,8 @@ public class SnowRunner {
 			this.truckToDLCAssignments = null;
 			setResizeWeight(0);
 			
-			TruckPanel truckPanel = new TruckPanel(this.mainWindow);
+			TruckPanel truckPanel = new TruckPanel(this.mainWindow, this.controllers);
 			truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
-			this.controllers.languageListeners.add(truckPanel);
-			this.controllers.truckToDLCAssignmentListeners.add(truckPanel);
 			
 			JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
 			truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));

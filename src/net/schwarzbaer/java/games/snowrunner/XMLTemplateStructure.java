@@ -12,6 +12,8 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -31,6 +33,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import net.schwarzbaer.gui.TextAreaDialog;
+import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.InheritRemoveException;
@@ -987,7 +990,7 @@ class XMLTemplateStructure {
 		final GenericXmlNode parent;
 		final String nodeName;
 		final HashMap<String, String> attributes;
-		final MultiMap<GenericXmlNode> nodes;
+		final StringMultiMap<GenericXmlNode> nodes;
 		
 		GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode) {
 			if (sourceNode==null) throw new IllegalArgumentException();
@@ -995,8 +998,8 @@ class XMLTemplateStructure {
 			this.parent = parent;
 			this.nodeName = sourceNode.nodeName;
 			attributes = new HashMap<>(sourceNode.attributes);
-			nodes = new MultiMap<>();
-			sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
+			nodes = new StringMultiMap<>();
+			sourceNode.nodes.forEachPair((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
 		}
 		
 		GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode, GenericXmlNode templateNode, Source source) throws ParseException {
@@ -1005,7 +1008,7 @@ class XMLTemplateStructure {
 			this.parent = parent;
 			this.nodeName = sourceNode.nodeName;
 			attributes = new HashMap<>();
-			nodes = new MultiMap<>();
+			nodes = new StringMultiMap<>();
 			
 			
 			if (templateNode!=null)
@@ -1013,7 +1016,7 @@ class XMLTemplateStructure {
 			attributes.putAll(sourceNode.attributes);
 
 			if (templateNode == null)
-				sourceNode.nodes.forEach((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
+				sourceNode.nodes.forEachPair((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
 			
 			else {
 				Consumer<String> debugOutput = str->testingGround.showCurrentState(templateNode, sourceNode, null, this, null, source, str);
@@ -1031,7 +1034,7 @@ class XMLTemplateStructure {
 			this.parent = parent;
 			this.nodeName = nodeName;
 			attributes = new HashMap<>();
-			nodes = new MultiMap<>();
+			nodes = new StringMultiMap<>();
 			
 			if (parentNode!=null && !parentNode.nodeName.equals(this.nodeName))
 				throw new ParseException("Parent node has different name (\"%s\") than this node (\"%s\") [File:%s]", parentNode.nodeName, this.nodeName, source.getFilePath());
@@ -1075,15 +1078,15 @@ class XMLTemplateStructure {
 					attributes.put(attrName,attrValue);
 			}
 			
-			MultiMap<Node> elementNodes = getElementNodes(sourceNode, source);
+			StringMultiMap<Node> elementNodes = getElementNodes(sourceNode, source);
 			
 			if (parentNode==null && templateNode==null)
-				for (String key : elementNodes.getKeys())
+				for (String key : elementNodes.keySet())
 					for (Node xmlSubNode : elementNodes.get(key))
 						nodes.add(key, new GenericXmlNode(this, xmlSubNode, templates, null, source));
 			
 			else if (parentNode!=null && templateNode!=null) {
-				MultiMap<GenericXmlNode> temporary = new MultiMap<>();
+				StringMultiMap<GenericXmlNode> temporary = new StringMultiMap<>();
 				mergeNodes(this, elementNodes, templateNode.nodes, temporary , GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
 				mergeNodes(this, temporary   , parentNode  .nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased()     , source);
 				
@@ -1098,19 +1101,19 @@ class XMLTemplateStructure {
 		
 		private static <SourceNodeType> void mergeNodes(
 				GenericXmlNode parent,
-				MultiMap<SourceNodeType> sourceNodes,
-				MultiMap<GenericXmlNode> templateNodes,
-				MultiMap<GenericXmlNode> targetNodes,
+				StringMultiMap<SourceNodeType> sourceNodes,
+				StringMultiMap<GenericXmlNode> templateNodes,
+				StringMultiMap<GenericXmlNode> targetNodes,
 				GenericXmlNodeConstructor<SourceNodeType> nodeConstructor,
 				Source source)
 				throws ParseException {
 			
-			for (String key : templateNodes.getKeys())
+			for (String key : templateNodes.keySet())
 				if (!sourceNodes.containsKey(key))
 					for (GenericXmlNode tempChildNode : templateNodes.get(key))
 						targetNodes.add(key, new GenericXmlNode(parent, tempChildNode));
 			
-			for (String key : sourceNodes.getKeys()) {
+			for (String key : sourceNodes.keySet()) {
 				Vector<GenericXmlNode> tempNodes = templateNodes.get(key);
 				Vector<SourceNodeType> srcNodes = sourceNodes.get(key);
 				for (int i=0; i<srcNodes.size(); i++) {
@@ -1146,8 +1149,8 @@ class XMLTemplateStructure {
 //			return sb.toString();
 //		}
 		
-		private static MultiMap<Node> getElementNodes(Node xmlNode, Source source) throws ParseException {
-			MultiMap<Node> elementNodes = new MultiMap<>();
+		private static StringMultiMap<Node> getElementNodes(Node xmlNode, Source source) throws ParseException {
+			StringMultiMap<Node> elementNodes = new StringMultiMap<>();
 			
 			NodeList nodes = xmlNode.getChildNodes();
 			for (Node childNode : XML.makeIterable(nodes)) {
@@ -1222,39 +1225,41 @@ class XMLTemplateStructure {
 		}
 	}
 	
-	static class MultiMap<ValueType> {
-		final HashMap<String,Vector<ValueType>> map = new HashMap<>();
-		
-		void add(String key, ValueType value) {
-			Vector<ValueType> list = map.get(key);
-			if (list==null) map.put(key, list = new Vector<>());
+	static class StringMultiMap<ValueType> extends MultiMap<String,ValueType> {
+		private static final long serialVersionUID = -8709491018088867713L;
+
+		void printTo(PrintStream out, Function<ValueType, String> valueToStr) {
+			super.printTo(out, valueToStr, key->String.format("\"%s\"", key), null);
+		}
+	}
+	
+	static class MultiMap<KeyType,ValueType> extends HashMap<KeyType,Vector<ValueType>> {
+		private static final long serialVersionUID = -5963711992044437609L;
+
+		void add(KeyType key, ValueType value) {
+			Vector<ValueType> list = get(key);
+			if (list==null) put(key, list = new Vector<>());
 			list.add(value);
 		}
 		
-		boolean containsKey(String key) {
-			return map.containsKey(key);
+		void addAll(KeyType key, Collection<ValueType> values) {
+			Vector<ValueType> list = get(key);
+			if (list==null) put(key, list = new Vector<>());
+			list.addAll(values);
 		}
 
-		void forEach(BiConsumer<String,ValueType> action) {
-			map.forEach((key,list)->list.forEach(value->action.accept(key, value)));
+		void forEachPair(BiConsumer<KeyType,ValueType> action) {
+			forEach((key,list)->list.forEach(value->action.accept(key, value)));
 		}
 
-		Vector<ValueType> get(String key) {
-			return map.get(key);
-		}
-
-		Set<String> getKeys() {
-			return map.keySet();
-		}
-
-		void printTo(PrintStream out, Function<ValueType,String> toString) {
-			Vector<String> keys = new Vector<>( map.keySet() );
-			keys.sort(null);
-			for (String key : keys) {
-				Vector<ValueType> list = map.get(key);
-				out.printf("   \"%s\" [%d]%n", key, list.size());
+		void printTo(PrintStream out, Function<ValueType,String> valueToStr, Function<KeyType,String> keyToStr, Comparator<KeyType> keyOrder) {
+			Vector<KeyType> keys = new Vector<>( keySet() );
+			keys.sort(keyOrder);
+			for (KeyType key : keys) {
+				Vector<ValueType> list = get(key);
+				out.printf("   \"%s\" [%d]%n", keyToStr.apply(key), list.size());
 				for (ValueType value : list)
-					out.printf("      %s%n", toString.apply(value));
+					out.printf("      %s%n", valueToStr.apply(value));
 			}
 		}
 	}

@@ -17,6 +17,7 @@ import java.awt.Stroke;
 import java.awt.Window;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,14 +48,18 @@ import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnIDInterface;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
+import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.gui.ZoomableCanvas;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
+import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets.Socket;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
+import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
@@ -62,15 +67,15 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 	private static final long serialVersionUID = -5138746858742450458L;
 	
 	private final JTextArea truckInfoTextArea;
-	private final JTextArea allWheelsInfoTextArea;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
 	private final AddonSocketsPanel addonSocketsPanel;
+	private final AddonsPanel addonsPanel;
 	private Language language;
 	private Truck truck;
 	private HashMap<String, String> truckToDLCAssignments;
 
 
-	TruckPanel(StandardMainWindow mainWindow) {
+	TruckPanel(StandardMainWindow mainWindow, Controllers controllers) {
 		super(JSplitPane.VERTICAL_SPLIT, true);
 		setResizeWeight(0);
 
@@ -85,24 +90,21 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		JScrollPane truckInfoTextAreaScrollPane = new JScrollPane(truckInfoTextArea);
 		truckInfoTextAreaScrollPane.setPreferredSize(new Dimension(300,300));
 		
-		allWheelsInfoTextArea = new JTextArea();
-		allWheelsInfoTextArea.setEditable(false);
-		allWheelsInfoTextArea.setWrapStyleWord(true);
-		allWheelsInfoTextArea.setLineWrap(true);
-		JScrollPane allWheelsInfoTextAreaScrollPane = new JScrollPane(allWheelsInfoTextArea);
-		allWheelsInfoTextAreaScrollPane.setBorder(null);
-		
 		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow);
 		addonSocketsPanel = new AddonSocketsPanel();
+		addonsPanel = new AddonsPanel(controllers);
 		
 		JTabbedPane bottomPanel = new JTabbedPane();
-		bottomPanel.addTab("(Debug Info)", allWheelsInfoTextAreaScrollPane);
 		bottomPanel.addTab("Compatible Wheels", compatibleWheelsPanel);
 		bottomPanel.addTab("Addon Sockets", addonSocketsPanel);
+		bottomPanel.addTab("Addons", addonsPanel);
 		bottomPanel.setSelectedIndex(1);
 		
 		setTopComponent(truckInfoTextAreaScrollPane);
 		setBottomComponent(bottomPanel);
+		
+		controllers.languageListeners.add(this);
+		controllers.truckToDLCAssignmentListeners.add(this);
 		
 		updateOutput();
 	}
@@ -118,6 +120,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		this.truck = truck;
 		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels);
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
+		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
 		updateOutput();
 	}
 
@@ -174,18 +177,98 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			outTop.add(0, null, description);
 		
 		truckInfoTextArea.setText(outTop.generateOutput());
+	}
+
+	private static class AddonsPanel extends JPanel {
+		private static final long serialVersionUID = 5515829836865733889L;
 		
-		if (truck.compatibleWheels.length>0) {
-			ValueListOutput outFull = new ValueListOutput();
-			outFull.add(0, "Compatible Wheels", truck.compatibleWheels.length);
-			for (int i=0; i<truck.compatibleWheels.length; i++) {
-				Data.Truck.CompatibleWheel cw = truck.compatibleWheels[i];
-				outFull.add(1, String.format("[%d]", i+1), "(%s) %s", cw.scale, cw.type);
-				cw.printTireList(outFull,2);
+		private final JLabel socketIndexLabel;
+		private final JLabel defaultAddonLabel;
+		private final JTabbedPane tablePanels;
+		private final TrailersTableModel trailersTableModel;
+		private final TruckAddonsTableModel truckAddonsTableModel;
+		private AddonSockets[] addonSockets;
+		private int currentSocketIndex;
+
+		AddonsPanel(Controllers controllers) {
+			super(new GridBagLayout());
+			
+			addonSockets = null;
+			currentSocketIndex = 0;
+			
+			tablePanels = new JTabbedPane();
+			tablePanels.addTab("Trailers", SnowRunner.createSimplifiedTablePanel(   trailersTableModel = new    TrailersTableModel(controllers)));
+			tablePanels.addTab("Addons"  , SnowRunner.createSimplifiedTablePanel(truckAddonsTableModel = new TruckAddonsTableModel(controllers)));
+			
+			GridBagConstraints c = new GridBagConstraints();
+			c.fill = GridBagConstraints.BOTH;
+			
+			c.weighty = 0;
+			c.weightx = 0;
+			add(SnowRunner.createButton("<", true, e->switchSocket(-1)),c);
+			add(socketIndexLabel = new JLabel(" # / # "),c);
+			add(SnowRunner.createButton(">", true, e->switchSocket(+1)),c);
+			
+			c.weightx = 1;
+			c.gridwidth = GridBagConstraints.REMAINDER;
+			add(defaultAddonLabel = new JLabel(" Default: ########"),c);
+			
+			c.weighty = 1;
+			add(tablePanels,c);
+			
+			updatePanel();
+		}
+
+		void setData(AddonSockets[] addonSockets) {
+			this.addonSockets = addonSockets;
+			currentSocketIndex = 0;
+			updatePanel();
+		}
+
+		private void switchSocket(int inc) {
+			if (addonSockets==null) return;
+			if (currentSocketIndex+inc<0) return;
+			if (currentSocketIndex+inc>=addonSockets.length) return;
+			currentSocketIndex = currentSocketIndex+inc;
+			updatePanel();
+		}
+
+		private void updatePanel() {
+			if (addonSockets==null || currentSocketIndex<0 || currentSocketIndex>=addonSockets.length) {
+				socketIndexLabel.setText(" # / # ");
+				defaultAddonLabel.setText(" Default: ########");
+				trailersTableModel.setData((Collection<Trailer>)null);
+				truckAddonsTableModel.setData((Collection<TruckAddon>)null);
+				tablePanels.setTitleAt(0, "Trailers");
+				tablePanels.setTitleAt(1, "Addons");
+				
 			}
-			allWheelsInfoTextArea.setText(outFull.generateOutput());
-		} else
-			allWheelsInfoTextArea.setText("<No Compatible Wheels>");
+			else {
+				socketIndexLabel.setText(String.format(" %d / %d ", currentSocketIndex+1, addonSockets.length));
+				AddonSockets socket = addonSockets[currentSocketIndex];
+				
+				String defaultAddon = "-- None --";
+				if (socket.defaultAddon!=null)
+					defaultAddon = String.format("<%s>", socket.defaultAddon);
+				defaultAddonLabel.setText(String.format(" Default: %s", defaultAddon));
+				
+				HashSet<Trailer> trailers = new HashSet<>();
+				socket.compatibleTrailers.values().forEach(trailers::addAll);
+				trailersTableModel.setData(trailers);
+				
+				HashSet<TruckAddon> truckAddons = new HashSet<>();
+				socket.compatibleTruckAddons.values().forEach(truckAddons::addAll);
+				truckAddonsTableModel.setData(truckAddons);
+				
+				if (trailers.isEmpty() && !truckAddons.isEmpty())
+					tablePanels.setSelectedIndex(1);
+				else
+					tablePanels.setSelectedIndex(0);
+				
+				tablePanels.setTitleAt(0, String.format("Trailers [%d]", trailers.size()));
+				tablePanels.setTitleAt(1, String.format("Addons [%d]", truckAddons.size()));
+			}
+		}
 	}
 
 	private static class AddonSocketsPanel extends JPanel {
@@ -379,6 +462,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		private CWTableModel.RowItem selectedWheel;
 		private final StandardMainWindow mainWindow;
 		private Language language;
+		private CompatibleWheel[] compatibleWheels;
 		
 		CompatibleWheelsPanel(StandardMainWindow mainWindow) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
@@ -387,6 +471,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			
 			selectedWheel = null;
 			language = null;
+			compatibleWheels = null;
 			
 			
 			table = new JTable(tableModel = new CWTableModel());
@@ -431,11 +516,32 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			JPanel tableButtonsPanel = new JPanel(new GridBagLayout());
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;
-			c.weightx = 0; tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data in Diagram", true, e->{
+			
+			c.weightx = 0;
+			tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data in Diagram", true, e->{
 				if (tableModel.data!=null)
 					new WheelsDiagramDialog(this.mainWindow, tableModel.data, language).showDialog();
 			}),c);
-			c.weightx = 1; tableButtonsPanel.add(new JLabel(),c);
+			
+			tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data as Text", true, e->{
+				String text;
+				if (compatibleWheels == null || compatibleWheels.length == 0)
+					text = "<No Compatible Wheels>";
+				else {
+					ValueListOutput outFull = new ValueListOutput();
+					outFull.add(0, "Compatible Wheels", compatibleWheels.length);
+					for (int i=0; i<compatibleWheels.length; i++) {
+						Data.Truck.CompatibleWheel cw = compatibleWheels[i];
+						outFull.add(1, String.format("[%d]", i+1), "(%s) %s", cw.scale, cw.type);
+						cw.printTireList(outFull,2);
+					}
+					text = outFull.generateOutput();
+				}
+				TextAreaDialog.showText(mainWindow, "Compatible Wheels", 600, 400, true, text);
+			}),c);
+			
+			c.weightx = 1;
+			tableButtonsPanel.add(new JLabel(),c);
 			
 			JPanel tablePanel = new JPanel(new BorderLayout());
 			tablePanel.add(tableScrollPane, BorderLayout.CENTER);
@@ -464,6 +570,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		}
 	
 		void setData(CompatibleWheel[] compatibleWheels) {
+			this.compatibleWheels = compatibleWheels;
 			tableModel.setData(compatibleWheels);
 			updateWheelInfo();
 		}
