@@ -181,7 +181,7 @@ class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.
 		case ID                  : return row.id;
 		case DLC                 : return row.dlcName;
 		case Name                : return SnowRunner.solveStringID(row.name_StringID, language);
-		case Description         : return SnowRunner.getReducedString( SnowRunner.solveStringID(row.description_StringID, language), 40 );
+		case Description         : return SnowRunner.solveStringID(row.description_StringID, language);
 		case InstallSocket       : return row.installSocket;
 		case CargoSlots          : return row.cargoSlots;
 		case RepairsCapacity     : return row.repairsCapacity;

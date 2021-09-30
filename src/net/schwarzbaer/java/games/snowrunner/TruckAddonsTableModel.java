@@ -208,7 +208,7 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 		case ID                  : return row.id;
 		case DLC                 : return row.dlcName;
 		case Name                : return SnowRunner.solveStringID(row.name_StringID, language, null);
-		case Description         : return SnowRunner.getReducedString( SnowRunner.solveStringID(row.description_StringID, language, null), 40 );
+		case Description         : return SnowRunner.solveStringID(row.description_StringID, language, null);
 		case InstallSocket       : return row.installSocket;
 		case CargoSlots          : return row.cargoSlots;
 		case RepairsCapacity     : return row.repairsCapacity;

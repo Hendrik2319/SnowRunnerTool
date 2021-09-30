@@ -61,6 +61,7 @@ public class Data {
 	
 	final XMLTemplateStructure rawdata;
 	final HashMap<String,Language> languages;
+	final AddonCategories addonCategories;
 	final HashMap<String,WheelsDef> wheels;
 	final HashMap<String,Truck> trucks;
 	final HashMap<String,Trailer> trailers;
@@ -73,16 +74,33 @@ public class Data {
 		this.rawdata = rawdata;
 		languages = rawdata.languages;
 		
+		unexpectedValues = new HashSetMap<>(null,null);
+		
+		
+		Class_ addonCategoriesClass = rawdata.classes.get("addons_category");
+		if (addonCategoriesClass!=null) {
+			Item addonCategoriesItem = addonCategoriesClass.items.get("addons_category");
+			if (addonCategoriesItem!=null)
+				addonCategories = new AddonCategories(addonCategoriesItem);
+			else
+				addonCategories = null;
+		} else
+			addonCategories = null;
+		
+		
+		
 		//MultiMap<String> wheelsTypes = new MultiMap<>();
 		wheels = new HashMap<>();
 		Class_ wheelsClass = rawdata.classes.get("wheels");
-		wheelsClass.items.forEach((name,item)->{
-			//wheelsTypes.add(item.content.nodeName, item.filePath);
-			if (item.isMainItem() && item.content.nodeName.equals("TruckWheels"))
-				wheels.put(name, new WheelsDef(item));
-		});
+		if (wheelsClass!=null)
+			wheelsClass.items.forEach((name,item)->{
+				//wheelsTypes.add(item.content.nodeName, item.filePath);
+				if (item.isMainItem() && item.content.nodeName.equals("TruckWheels"))
+					wheels.put(name, new WheelsDef(item));
+			});
 		//System.err.println("WheelsTypes:");
 		//wheelsTypes.printTo(System.err, str->str);
+		
 		
 		// Truck      Attributes: {AttachType=[Saddle], Type=[Trailer]}
 		// TruckAddon Attributes: {IsChassisFullOcclusion=[true]}
@@ -90,44 +108,48 @@ public class Data {
 		trailers = new HashMap<>();
 		truckAddons = new HashMap<>();
 		
-		unexpectedValues = new HashSetMap<>(null,null);
 		Class_ trucksClass = rawdata.classes.get("trucks");
-		trucksClass.items.forEach((name,item)->{
-			switch (item.content.nodeName) {
-			
-			case "Truck":
-				String type = item.content.attributes.get("Type");
+		if (trucksClass!=null)
+			trucksClass.items.forEach((name,item)->{
+				switch (item.content.nodeName) {
 				
-				if (type==null)
-					trucks.put(name, new Truck(item, wheels::get));
-				
-				else
-					switch (type) {
-					case "Trailer":
-						trailers.put(name, new Trailer(item));
-						break;
-						
-					default:
-						unexpectedValues.add("Class[trucks] <Truck Type=\"###\">", type);
-						break;
-					}
-				break;
-				
-			case "TruckAddon":
-				truckAddons.put(name, new TruckAddon(item));
-				break;
-				
-			default:
-				unexpectedValues.add("Class[trucks] <###>", item.content.nodeName);
-				break;
-			}
-		});
+				case "Truck":
+					String type = item.content.attributes.get("Type");
+					
+					if (type==null)
+						trucks.put(name, new Truck(item, wheels::get));
+					
+					else
+						switch (type) {
+						case "Trailer":
+							trailers.put(name, new Trailer(item));
+							break;
+							
+						default:
+							unexpectedValues.add("Class[trucks] <Truck Type=\"###\">", type);
+							break;
+						}
+					break;
+					
+				case "TruckAddon":
+					truckAddons.put(name, new TruckAddon(item));
+					break;
+					
+				default:
+					unexpectedValues.add("Class[trucks] <###>", item.content.nodeName);
+					break;
+				}
+			});
+		
 		
 		socketIDsUsedByTrucks = new StringMultiMap<>();
 		for (Truck truck : trucks.values())
-			for (AddonSockets as : truck.addonSockets)
+			for (AddonSockets as : truck.addonSockets) {
+				if (as.defaultAddonName!=null)
+					as.defaultAddonItem = truckAddons.get(as.defaultAddonName);
 				for (String socketID : as.compatibleSocketIDs)
 					socketIDsUsedByTrucks.add(socketID, truck);
+			}
 
 		socketIDsUsedByTrailers = new StringMultiMap<>();
 		for (Trailer trailer : trailers.values()) {
@@ -158,16 +180,27 @@ public class Data {
 				//	System.err.printf("No Trucks are using SocketID \"%s\" of TruckAddon <%s>%n", truckAddon.installSocket, truckAddon.id);
 			}
 		
-		// TODO: trucks <-[socketID]-> trailers | trucks <-[socketID]-> truckAddons
 		for (Truck truck : trucks.values()) {
+			truck.compatibleTrailers.clear();
+			truck.compatibleTruckAddons.clear();
 			for (AddonSockets as : truck.addonSockets) {
 				for (String socketID : as.compatibleSocketIDs) {
 					
 					Vector<Trailer> trailers = socketIDsUsedByTrailers.get(socketID);
-					if (trailers != null) as.compatibleTrailers.addAll(socketID, trailers);
+					if (trailers != null) {
+						as.compatibleTrailers.addAll(socketID, trailers);
+						truck.compatibleTrailers.addAll(trailers);
+					}
 					
 					Vector<TruckAddon> truckAddons = socketIDsUsedByTruckAddons.get(socketID);
-					if (truckAddons != null) as.compatibleTruckAddons.addAll(socketID, truckAddons);
+					if (truckAddons != null) {
+						as.compatibleTruckAddons.addAll(socketID, truckAddons);
+						for (TruckAddon truckAddon : truckAddons) {
+							String category = truckAddon.category;
+							if (category==null) category = TruckAddon.NULL_CATEGORY;
+							truck.compatibleTruckAddons.add(category, truckAddon);
+						}
+					}
 				}
 			}
 		}
@@ -314,6 +347,61 @@ public class Data {
 		}
 	}
 
+	static class AddonCategories extends ItemBased {
+	
+		final Category[] categories;
+		
+		AddonCategories(Item item) {
+			super(item);
+
+			GenericXmlNode[] categoryNodes = item.content.getNodes("CategoryList", "Category");
+			categories = new Category[categoryNodes.length];
+			for (int i=0; i<categoryNodes.length; i++) {
+				GenericXmlNode node = categoryNodes[i];
+				categories[i] = new Category(node);
+			}
+		}
+		
+		String getCategoryLabel(String category, Language language) {
+			if (category==null || category.equals(TruckAddon.NULL_CATEGORY))
+				return "<Unknown Category>";
+			
+			String label_StringID = null;;
+			for (Category c : categories)
+				if (category.equals(c.name)) {
+					label_StringID = c.label_StringID;
+					break;
+				}
+			
+			return SnowRunner.solveStringID(label_StringID, language, String.format("<%s>", category));
+		}
+		
+		static class Category {
+
+			final String name;
+			final boolean requiresOneAddonInstalled;
+			final String icon;
+			final String label_StringID;
+
+			Category(GenericXmlNode node) {
+				//node.attributes.forEach((key,value)->{
+				//	unexpectedValues.add("Class[addons_category] <CategoryList> <Category ####=\"...\">", key);
+				//});
+				//   Class[addons_category] <CategoryList> <Category ####="...">
+				//      Name
+				//      RequiresOneAddonInstalled
+				//      UiIcon
+				//      UiName
+				
+				name                      =             node.attributes.get("Name");
+				requiresOneAddonInstalled = parseBool ( node.attributes.get("RequiresOneAddonInstalled"), false );
+				icon                      =             node.attributes.get("UiIcon");
+				label_StringID            =             node.attributes.get("UiName");
+			}
+		}
+	
+	}
+
 	static class WheelsDef extends ItemBased {
 	
 		final Vector<TruckTire> truckTires;
@@ -402,6 +490,8 @@ public class Data {
 		final String name_StringID;
 		final CompatibleWheel[] compatibleWheels;
 		final AddonSockets[] addonSockets;
+		final HashSet<Trailer> compatibleTrailers;
+		final StringMultiMap<TruckAddon> compatibleTruckAddons;
 		
 		Truck(Item item, Function<String, WheelsDef> getWheelsDef) {
 			super(item);
@@ -430,15 +520,19 @@ public class Data {
 			compatibleWheels = new CompatibleWheel[compatibleWheelsNodes.length];
 			for (int i=0; i<compatibleWheelsNodes.length; i++)
 				compatibleWheels[i] = new CompatibleWheel(compatibleWheelsNodes[i], getWheelsDef);
+			
+			compatibleTrailers = new HashSet<>();
+			compatibleTruckAddons = new StringMultiMap<>();
 		}
 		
 		static class AddonSockets {
 
 			final StringMultiMap<TruckAddon> compatibleTruckAddons;
 			final StringMultiMap<Trailer> compatibleTrailers;
-			final String defaultAddon; // <---> item.id
+			final String defaultAddonName; // <---> item.id
 			final Socket[] sockets;
 			final HashSet<String> compatibleSocketIDs;
+			TruckAddon defaultAddonItem;
 
 			AddonSockets(GenericXmlNode node) {
 				if (!node.nodeName.equals("AddonSockets"))
@@ -452,7 +546,8 @@ public class Data {
 				//      ParentFrame
 				//      RequiredAddonIfNoConflicts
 				
-				defaultAddon = node.attributes.get("DefaultAddon");
+				defaultAddonName = node.attributes.get("DefaultAddon");
+				defaultAddonItem = null;
 				
 				compatibleTrailers = new StringMultiMap<>();
 				compatibleTruckAddons = new StringMultiMap<>();
@@ -606,6 +701,7 @@ public class Data {
 
 	static class TruckAddon extends ItemBased {
 
+		static final String NULL_CATEGORY = "NULL_CATEGORY";
 		final String category;
 		final Integer price;
 		final Boolean unlockByExploration;

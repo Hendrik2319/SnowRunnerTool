@@ -51,6 +51,7 @@ import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.gui.ZoomableCanvas;
+import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -60,16 +61,17 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
 
-class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssignmentListener {
+class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 	private static final long serialVersionUID = -5138746858742450458L;
 	
 	private final JTextArea truckInfoTextArea;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
 	private final AddonSocketsPanel addonSocketsPanel;
 	private final AddonsPanel addonsPanel;
+	private final AddonsPanel2 addonsPanel2;
 	private Language language;
 	private Truck truck;
 	private HashMap<String, String> truckToDLCAssignments;
@@ -93,26 +95,26 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow);
 		addonSocketsPanel = new AddonSocketsPanel();
 		addonsPanel = new AddonsPanel(controllers);
+		addonsPanel2 = new AddonsPanel2(controllers);
 		
 		JTabbedPane bottomPanel = new JTabbedPane();
 		bottomPanel.addTab("Compatible Wheels", compatibleWheelsPanel);
 		bottomPanel.addTab("Addon Sockets", addonSocketsPanel);
-		bottomPanel.addTab("Addons", addonsPanel);
-		bottomPanel.setSelectedIndex(1);
+		bottomPanel.addTab("Addons by Socket", addonsPanel);
+		bottomPanel.addTab("Addons by Category", addonsPanel2);
+		bottomPanel.setSelectedIndex(3);
 		
 		setTopComponent(truckInfoTextAreaScrollPane);
 		setBottomComponent(bottomPanel);
 		
-		controllers.languageListeners.add(this);
+		controllers.languageListeners.add(language->{
+			this.language = language;
+			compatibleWheelsPanel.setLanguage(language);
+			addonSocketsPanel.setLanguage(language);
+			updateOutput();
+		});
 		controllers.truckToDLCAssignmentListeners.add(this);
 		
-		updateOutput();
-	}
-	
-	@Override public void setLanguage(Language language) {
-		this.language = language;
-		compatibleWheelsPanel.setLanguage(language);
-		addonSocketsPanel.setLanguage(language);
 		updateOutput();
 	}
 
@@ -121,6 +123,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels);
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
+		addonsPanel2         .setData(truck);
 		updateOutput();
 	}
 
@@ -179,6 +182,91 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
+	private static class AddonsPanel2 extends JTabbedPane {
+		private static final long serialVersionUID = 4098254083170104250L;
+		
+		private final Controllers controllers;
+		private Language language;
+		private Truck truck;
+		private boolean trailersTabExists;
+		private final Vector<String> currentAddonCategories;
+		private AddonCategories addonCategories;
+
+		AddonsPanel2(Controllers controllers) {
+			this.controllers = controllers;
+			this.truck = null;
+			trailersTabExists = false;
+			addonCategories = null;
+			currentAddonCategories = new Vector<>();
+			language = null;
+			this.controllers.languageListeners.add(language -> {
+				this.language = language;
+				updateTabTitles();
+			});
+			this.controllers.dataReceivers.add(data->{
+				this.addonCategories = data.addonCategories;
+				updateTabTitles();
+			});
+		}
+
+		private void updateTabTitles() {
+			for (int i=0; i<currentAddonCategories.size(); i++) {
+				String category = currentAddonCategories.get(i);
+				Vector<TruckAddon> values = truck.compatibleTruckAddons.get(category);
+				String title = makeTabTitle(category, values.size());
+				setTitleAt( i + (trailersTabExists?1:0), title );
+			}
+			
+		}
+
+		private String makeTabTitle(String category, int amount) {
+			String categoryLabel;
+			if (addonCategories!=null)
+				categoryLabel = addonCategories.getCategoryLabel(category, language);
+			
+			else if (!category.equals(TruckAddon.NULL_CATEGORY))
+				categoryLabel = category;
+			
+			else
+				categoryLabel = "<Unknown  Category>";
+			
+			return String.format("%s [%d]", categoryLabel, amount);
+		}
+
+		public void setData(Truck truck) {
+			this.truck = truck;
+			
+			trailersTabExists = false;
+			currentAddonCategories.clear();
+			removeAll();
+			if (this.truck!=null) {
+				
+				HashSet<Trailer> compatibleTrailers = this.truck.compatibleTrailers;
+				if (!compatibleTrailers.isEmpty()) {
+					TrailersTableModel tableModel = new TrailersTableModel(controllers);
+					String title = String.format("Trailers [%d]", compatibleTrailers.size());
+					addTab(title, SnowRunner.createSimplifiedTablePanel(tableModel));
+					tableModel.setData(compatibleTrailers);
+					tableModel.setLanguage(language);
+					trailersTabExists = true;
+				}
+				
+				StringMultiMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
+				currentAddonCategories.addAll(compatibleTruckAddons.keySet());
+				currentAddonCategories.sort(null);
+				for (String category : currentAddonCategories) {
+					Vector<TruckAddon> values = compatibleTruckAddons.get(category);
+					TruckAddonsTableModel tableModel = new TruckAddonsTableModel(controllers);
+					String title = makeTabTitle(category, values.size());
+					addTab(title, SnowRunner.createSimplifiedTablePanel(tableModel));
+					tableModel.setData(values);
+					tableModel.setLanguage(language);
+				}
+			}
+		}
+		
+	}
+
 	private static class AddonsPanel extends JPanel {
 		private static final long serialVersionUID = 5515829836865733889L;
 		
@@ -189,12 +277,14 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		private final TruckAddonsTableModel truckAddonsTableModel;
 		private AddonSockets[] addonSockets;
 		private int currentSocketIndex;
+		private Language language;
 
 		AddonsPanel(Controllers controllers) {
 			super(new GridBagLayout());
 			
 			addonSockets = null;
 			currentSocketIndex = 0;
+			language = null;
 			
 			tablePanels = new JTabbedPane();
 			tablePanels.addTab("Trailers", SnowRunner.createSimplifiedTablePanel(   trailersTableModel = new    TrailersTableModel(controllers)));
@@ -217,6 +307,11 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 			add(tablePanels,c);
 			
 			updatePanel();
+			
+			controllers.languageListeners.add(language -> {
+				this.language = language;
+				updateDefaultAddonLabel();
+			});
 		}
 
 		void setData(AddonSockets[] addonSockets) {
@@ -234,23 +329,18 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 		}
 
 		private void updatePanel() {
+			updateDefaultAddonLabel();
+			
 			if (addonSockets==null || currentSocketIndex<0 || currentSocketIndex>=addonSockets.length) {
 				socketIndexLabel.setText(" # / # ");
-				defaultAddonLabel.setText(" Default: ########");
 				trailersTableModel.setData((Collection<Trailer>)null);
 				truckAddonsTableModel.setData((Collection<TruckAddon>)null);
 				tablePanels.setTitleAt(0, "Trailers");
 				tablePanels.setTitleAt(1, "Addons");
 				
-			}
-			else {
+			} else {
 				socketIndexLabel.setText(String.format(" %d / %d ", currentSocketIndex+1, addonSockets.length));
 				AddonSockets socket = addonSockets[currentSocketIndex];
-				
-				String defaultAddon = "-- None --";
-				if (socket.defaultAddon!=null)
-					defaultAddon = String.format("<%s>", socket.defaultAddon);
-				defaultAddonLabel.setText(String.format(" Default: %s", defaultAddon));
 				
 				HashSet<Trailer> trailers = new HashSet<>();
 				socket.compatibleTrailers.values().forEach(trailers::addAll);
@@ -267,6 +357,25 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				
 				tablePanels.setTitleAt(0, String.format("Trailers [%d]", trailers.size()));
 				tablePanels.setTitleAt(1, String.format("Addons [%d]", truckAddons.size()));
+			}
+		}
+
+		private void updateDefaultAddonLabel() {
+			if (addonSockets==null || currentSocketIndex<0 || currentSocketIndex>=addonSockets.length) {
+				defaultAddonLabel.setText(" Default: ########");
+			} else {
+				AddonSockets socket = addonSockets[currentSocketIndex];
+				
+				String defaultAddon = "-- None --";
+				if (socket.defaultAddonName!=null) {
+					defaultAddon = String.format("<%s>", socket.defaultAddonName);
+					if (socket.defaultAddonItem!=null) {
+						String name = SnowRunner.solveStringID(socket.defaultAddonItem.name_StringID, language, null);
+						if (name!=null) defaultAddon = name;
+					}
+				}
+				defaultAddonLabel.setText(String.format(" Default: %s", defaultAddon));
+				
 			}
 		}
 	}
@@ -419,7 +528,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 				
 				switch (columnID) {
 				case IndexAS          : return row.indexAS;
-				case DefaultAddon     : return row.as.defaultAddon;
+				case DefaultAddon     : return row.as.defaultAddonName;
 				case IndexSocket      : return row.indexSocket;
 				case InCockpit        : return row.socket.isInCockpit;
 				case SocketID         : return toString( row.socket.socketIDs );
@@ -720,7 +829,7 @@ class TruckPanel extends JSplitPane implements LanguageListener, TruckToDLCAssig
 					case WheelsDefID: return row.wheelsDefID;
 					case Type       : return SnowRunner.solveStringID(row.tire.tireType_StringID, language);
 					case Name       : return SnowRunner.solveStringID(row.tire.name_StringID, language);
-					case Description: return SnowRunner.getReducedString( SnowRunner.solveStringID(row.tire.description_StringID, language), 40 );
+					case Description: return SnowRunner.solveStringID(row.tire.description_StringID, language);
 					case DLC        : return row.dlc;
 					case Friction_highway: return row.tire.frictionHighway;
 					case Friction_offroad: return row.tire.frictionOffroad;
