@@ -244,7 +244,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				
 				HashSet<Trailer> compatibleTrailers = this.truck.compatibleTrailers;
 				if (!compatibleTrailers.isEmpty()) {
-					TrailersTableModel tableModel = new TrailersTableModel(controllers,false);
+					DataTables.TrailersTableModel tableModel = new DataTables.TrailersTableModel(controllers,false);
 					String title = String.format("Trailers [%d]", compatibleTrailers.size());
 					addTab(title, SnowRunner.createSimplifiedTablePanel(tableModel));
 					tableModel.setData(compatibleTrailers);
@@ -261,7 +261,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				
 				for (String category : currentAddonCategories) {
 					Vector<TruckAddon> values = compatibleTruckAddons.get(category);
-					TruckAddonsTableModel tableModel = new TruckAddonsTableModel(controllers,false);
+					DataTables.TruckAddonsTableModel tableModel = new DataTables.TruckAddonsTableModel(controllers,false);
 					String title = makeTabTitle(category, values.size());
 					addTab(title, SnowRunner.createSimplifiedTablePanel(tableModel));
 					tableModel.setData(values);
@@ -278,8 +278,8 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		private final JLabel socketIndexLabel;
 		private final JLabel defaultAddonLabel;
 		private final JTabbedPane tablePanels;
-		private final TrailersTableModel trailersTableModel;
-		private final TruckAddonsTableModel truckAddonsTableModel;
+		private final DataTables.TrailersTableModel trailersTableModel;
+		private final DataTables.TruckAddonsTableModel truckAddonsTableModel;
 		private AddonSockets[] addonSockets;
 		private int currentSocketIndex;
 		private Language language;
@@ -292,8 +292,8 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", SnowRunner.createSimplifiedTablePanel(   trailersTableModel = new    TrailersTableModel(controllers,false)));
-			tablePanels.addTab("Addons"  , SnowRunner.createSimplifiedTablePanel(truckAddonsTableModel = new TruckAddonsTableModel(controllers,false)));
+			tablePanels.addTab("Trailers", SnowRunner.createSimplifiedTablePanel(   trailersTableModel = new DataTables.   TrailersTableModel(controllers,false)));
+			tablePanels.addTab("Addons"  , SnowRunner.createSimplifiedTablePanel(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers,false)));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;
