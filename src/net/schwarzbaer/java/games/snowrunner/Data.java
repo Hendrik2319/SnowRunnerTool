@@ -70,12 +70,30 @@ public class Data {
 	final StringMultiMap<Truck> socketIDsUsedByTrucks;
 	final StringMultiMap<Trailer> socketIDsUsedByTrailers;
 	final StringMultiMap<TruckAddon> socketIDsUsedByTruckAddons;
+	final HashMap<String,Vector<Engine>> engineSets;
+	final HashMap<String,Engine> engines;
+	final HashMap<String,Vector<Gearbox>> gearboxSets;
+	final HashMap<String,Gearbox> gearboxes;
+	final HashMap<String,Vector<Suspension>> suspensionSets;
+	final HashMap<String,Suspension> suspensions;
+	final HashMap<String,Vector<Winch>> winchSets;
+	final HashMap<String,Winch> winches;
 
 	Data(XMLTemplateStructure rawdata) {
 		this.rawdata = rawdata;
 		languages = rawdata.languages;
 		
 		unexpectedValues = new HashSetMap<>(null,null);
+		
+		
+		
+		//HashSetMap<String,String> baseNodesInClasses = new HashSetMap<>(null,null);
+		//rawdata.classes.forEach((className,class_)->{
+		//	class_.items.forEach((itemName,item)->{
+		//		baseNodesInClasses.add(item.content.nodeName, className);
+		//	});
+		//});
+		//baseNodesInClasses.print(System.out, "NodeNames in Classes");
 		
 		
 		
@@ -98,6 +116,42 @@ public class Data {
 			cargoTypesClass.items.forEach((name,item)->{
 				cargoTypes.put(name, new CargoType(item));
 			});
+		
+		
+		
+		engineSets = new HashMap<String,Vector<Engine>>();
+		engines = new HashMap<String,Engine>();
+		VariantSetInstance.parseSet(
+				rawdata, "engines",
+				engineSets, engines,
+				Engine::new,
+				"EngineVariants", "Engine");
+		
+		gearboxSets = new HashMap<String,Vector<Gearbox>>();
+		gearboxes = new HashMap<String,Gearbox>();
+		VariantSetInstance.parseSet(
+				rawdata, "gearboxes",
+				gearboxSets, gearboxes,
+				Gearbox::new,
+				"GearboxVariants", "Gearbox");
+		
+		
+		
+		suspensionSets = new HashMap<String,Vector<Suspension>>();
+		suspensions = new HashMap<String,Suspension>();
+		VariantSetInstance.parseSet(
+				rawdata, "suspensions",
+				suspensionSets, suspensions,
+				Suspension::new,
+				"SuspensionSetVariants", "SuspensionSet");
+		
+		winchSets = new HashMap<String,Vector<Winch>>();
+		winches = new HashMap<String,Winch>();
+		VariantSetInstance.parseSet(
+				rawdata, "winches",
+				winchSets, winches,
+				Winch::new,
+				"WinchVariants", "Winch");
 		
 		
 		
@@ -436,6 +490,218 @@ public class Data {
 			}
 		}
 	
+	}
+	
+	static class VariantSetInstance {
+		
+		final String name;
+		final Integer price;
+		final Boolean unlockByExploration;
+		final Integer unlockByRank;
+		final String description_StringID;
+		final String name_StringID;
+		protected final GenericXmlNode gameDataNode;
+		
+		protected VariantSetInstance(GenericXmlNode node, String instanceNodeName) {
+			name = node.attributes.get("Name");
+			
+			gameDataNode = node.getNode(instanceNodeName, "GameData");
+			price               = parseInt ( getAttribute( gameDataNode, "Price" ) );
+			unlockByExploration = parseBool( getAttribute( gameDataNode, "UnlockByExploration" ) );
+			unlockByRank        = parseInt ( getAttribute( gameDataNode, "UnlockByRank" ) );
+			//if (gameDataNode!=null)
+			//	gameDataNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("[VariantSetInstance] <[InstanceNode]> <GameData ####=\"...\">", key);
+			//	});
+			
+			GenericXmlNode uiDescNode = gameDataNode==null ? null : gameDataNode.getNode("GameData", "UiDesc");
+			description_StringID = getAttribute(uiDescNode, "UiDesc");
+			name_StringID        = getAttribute(uiDescNode, "UiName");
+			//if (uiDescNode!=null)
+			//	uiDescNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("[VariantSetInstance] <[InstanceNode]> <GameData> <UiDesc ####=\"...\">", key);
+			//	});
+		}
+
+		static <InstanceType extends VariantSetInstance> void parseSet(
+				XMLTemplateStructure rawdata, String className,
+				HashMap<String,Vector<InstanceType>> setList,
+				HashMap<String,InstanceType> instanceList,
+				Function<GenericXmlNode,InstanceType> constructor,
+				String setNodeName, String instanceNodeName) {
+			
+			Class_ class_ = rawdata.classes.get(className);
+			if (class_ == null) return;
+			
+			class_.items.forEach((name,item)->{
+				if (!item.content.nodeName.equals(setNodeName))
+					return;
+				
+				item.content.attributes.forEach((key,value)->{
+					unexpectedValues.add(String.format("Class[%s] <%s ####=\"...\">", className, setNodeName), key);
+				});
+				
+				GenericXmlNode[] nodes = item.content.getNodes(setNodeName, instanceNodeName);
+				Vector<InstanceType> set = new Vector<>();
+				setList.put(name, set);
+				for (GenericXmlNode node : nodes) {
+					InstanceType instance = constructor.apply(node);
+					set.add(instance);
+					if (instance.name!=null) {
+						if (instanceList.containsKey(instance.name))
+							System.err.printf("Found more than one %s instances with the same name (\"%s\") --> subsequent instances will be ignored", instanceNodeName, instance.name);
+						else
+							instanceList.put(instance.name, instance);
+					}
+				}
+			});
+			
+		}
+		
+	}
+
+	static class Winch extends VariantSetInstance {
+
+		final boolean isEngineIgnitionRequired;
+		final Integer length;
+		final Float strengthMult;
+
+		Winch(GenericXmlNode node) {
+			super(node, "Winch");
+			
+			//node.attributes.forEach((key,value)->{
+			//	unexpectedValues.add("[VariantSetInstance] <Winch ####=\"...\">", key);
+			//});
+			//   [VariantSetInstance] <Winch ####="...">
+			//      IsEngineIgnitionRequired
+			//      Length
+			//      Name
+			//      StrengthMult
+			
+			isEngineIgnitionRequired = parseBool ( node.attributes.get("IsEngineIgnitionRequired"), false );
+			length                   = parseInt  ( node.attributes.get("Length") );
+			strengthMult             = parseFloat( node.attributes.get("StrengthMult") );
+			
+			GenericXmlNode winchParamsNode = gameDataNode.getNode("GameData", "WinchParams");
+			if (winchParamsNode!=null)
+				winchParamsNode.attributes.forEach((key,value)->{
+					unexpectedValues.add("[VariantSetInstance] <Winch> <GameData> <WinchParams ####=\"...\">", key);
+				});
+		}
+
+	}
+
+	static class Suspension extends VariantSetInstance {
+
+		final Integer damageCapacity;
+		final String type_StringID;
+
+		Suspension(GenericXmlNode node) {
+			super(node, "SuspensionSet");
+			
+			//node.attributes.forEach((key,value)->{
+			//	unexpectedValues.add("[VariantSetInstance] <SuspensionSet ####=\"...\">", key);
+			//});
+			//   [VariantSetInstance] <SuspensionSet ####="...">
+			//      BrokenWheelDamageMultiplier
+			//      CriticalDamageThreshold
+			//      DamageCapacity
+			//      DeviationDelta
+			//      Name
+			//      UiName
+			
+			damageCapacity = parseInt  ( node.attributes.get("DamageCapacity") );
+			type_StringID  =             node.attributes.get("UiName");
+		}
+
+	}
+
+	static class Gearbox extends VariantSetInstance {
+
+		final Integer damageCapacity;
+		final Float fuelConsumption;
+		final Float awdConsumptionModifier;
+		final Float idleFuelModifier;
+		final boolean existsHighGear;
+		final boolean existsLowerGear;
+		final boolean existsLowerMinusGear;
+		final boolean existsLowerPlusGear;
+		final boolean isManualLowGear;
+
+		Gearbox(GenericXmlNode node) {
+			super(node, "Gearbox");
+			
+			//node.attributes.forEach((key,value)->{
+			//	unexpectedValues.add("[VariantSetInstance] <Gearbox ####=\"...\">", key);
+			//});
+			//   [VariantSetInstance] <Gearbox ####="...">
+			//      AWDConsumptionModifier
+			//      CriticalDamageThreshold
+			//      DamageCapacity
+			//      DamagedConsumptionModifier
+			//      FuelConsumption
+			//      IdleFuelModifier
+			//      MaxBreakFreq
+			//      MinBreakFreq
+			//      Name
+			damageCapacity         = parseInt  ( node.attributes.get("DamageCapacity") );
+			fuelConsumption        = parseFloat( node.attributes.get("FuelConsumption") );
+			awdConsumptionModifier = parseFloat( node.attributes.get("AWDConsumptionModifier") );
+			idleFuelModifier       = parseFloat( node.attributes.get("IdleFuelModifier") );
+			
+			GenericXmlNode paramsNode = gameDataNode.getNode("GameData", "GearboxParams");
+			//if (paramsNode!=null)
+			//	paramsNode.attributes.forEach((key,value)->{
+			//		unexpectedValues.add("[VariantSetInstance] <Winch> <GameData> <GearboxParams ####=\"...\">", key);
+			//	});
+			//   [VariantSetInstance] <Winch> <GameData> <GearboxParams ####="...">
+			//      IsHighGearExists
+			//      IsLowerGearExists
+			//      IsLowerMinusGearExists
+			//      IsLowerPlusGearExists
+			//      IsManualLowGear
+			existsHighGear       = parseBool ( getAttribute( paramsNode, "IsHighGearExists"), false );
+			existsLowerGear      = parseBool ( getAttribute( paramsNode, "IsLowerGearExists"), false );
+			existsLowerMinusGear = parseBool ( getAttribute( paramsNode, "IsLowerMinusGearExists"), false );
+			existsLowerPlusGear  = parseBool ( getAttribute( paramsNode, "IsLowerPlusGearExists"), false );
+			isManualLowGear      = parseBool ( getAttribute( paramsNode, "IsManualLowGear"), false );
+		}
+
+	}
+
+	static class Engine extends VariantSetInstance {
+
+		final Integer damageCapacity;
+		final Float fuelConsumption;
+		final Float brakesDelay;
+		final Integer torque;
+		final Float engineResponsiveness;
+
+		Engine(GenericXmlNode node) {
+			super(node, "Engine");
+			
+			//node.attributes.forEach((key,value)->{
+			//	unexpectedValues.add("[VariantSetInstance] <Engine ####=\"...\">", key);
+			//});
+			//   [VariantSetInstance] <Engine ####="...">
+			//      BrakesDelay
+			//      CriticalDamageThreshold
+			//      DamageCapacity
+			//      DamagedConsumptionModifier
+			//      DamagedMaxTorqueMultiplier
+			//      DamagedMinTorqueMultiplier
+			//      EngineResponsiveness
+			//      FuelConsumption
+			//      MaxDeltaAngVel
+			//      Name
+			//      Torque
+			damageCapacity       = parseInt  ( node.attributes.get("DamageCapacity") );
+			fuelConsumption      = parseFloat( node.attributes.get("FuelConsumption") );
+			brakesDelay          = parseFloat( node.attributes.get("BrakesDelay") );
+			torque               = parseInt  ( node.attributes.get("Torque") );
+			engineResponsiveness = parseFloat( node.attributes.get("EngineResponsiveness") );
+		}
+
 	}
 
 	static class WheelsDef extends ItemBased {

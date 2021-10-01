@@ -34,11 +34,13 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
+import net.schwarzbaer.gui.ProgressDialog;
 import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
@@ -200,7 +202,12 @@ public class SnowRunner {
 	private boolean testXMLTemplateStructure() {
 		File initialPAK = getInitialPAK();
 		if (initialPAK!=null) {
-			Data newData = testXMLTemplateStructure(initialPAK);
+			Data newData = ProgressDialog.runWithProgressDialogRV(mainWindow, String.format("Read \"%s\"", initialPAK.getAbsolutePath()), 600, pd->{
+				Data localData = testXMLTemplateStructure(pd,initialPAK);
+				if (Thread.currentThread().isInterrupted()) return null;
+				return localData;
+			});
+			//Data newData = testXMLTemplateStructure(initialPAK);
 			if (newData!=null) {
 				data = newData;
 				return true;
@@ -208,18 +215,28 @@ public class SnowRunner {
 		}
 		return false;
 	}
-
-	private Data testXMLTemplateStructure(File initialPAK) {
-		//System.out.printf("XMLTemplateStructure.readPAK(\"%s\") --> ", initialPAK.getAbsolutePath());
+	
+	private Data testXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
+		setTask(pd, "Read XMLTemplateStructure");
 		System.out.printf("XMLTemplateStructure.");
 		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
 		if (structure==null) return null;
+		if (Thread.currentThread().isInterrupted()) return null;
+		setTask(pd, "Parse Data from XMLTemplateStructure");
 		System.out.printf("Parse Data from XMLTemplateStructure ...%n");
 		Data data = new Data(structure);
 		System.out.printf("... done");
+		if (Thread.currentThread().isInterrupted()) return null;
 		return data;
 	}
 
+
+	static void setTask(ProgressDialog pd, String taskTitle) {
+		SwingUtilities.invokeLater(()->{
+			pd.setTaskTitle(taskTitle);
+			pd.setIndeterminate(true);
+		});
+	}
 
 	private File getInitialPAK() {
 		File initialPAK = settings.getFile(AppSettings.ValueKey.InitialPAK, null);

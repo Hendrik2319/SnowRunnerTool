@@ -17,7 +17,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -33,9 +32,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import net.schwarzbaer.gui.TextAreaDialog;
-import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.InheritRemoveException;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.Source;
 import net.schwarzbaer.system.DateTimeFormatter;
@@ -1205,7 +1202,8 @@ class XMLTemplateStructure {
 		}
 		
 		GenericXmlNode[] getNodes(String... path) {
-			if (path.length<2) throw new IllegalArgumentException();
+			if (path.length<2)
+				throw new IllegalArgumentException();
 			if (!nodeName.equals(path[0]))
 				throw new IllegalArgumentException();
 			Vector<GenericXmlNode> nodes = new Vector<>();
