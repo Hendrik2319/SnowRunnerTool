@@ -517,7 +517,7 @@ public class SnowRunner {
 		
 		void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
 			if (getData!=null)
-				controllers.dataReceivers.add(data -> setData(getData.apply(data)));
+				controllers.dataReceivers.add(data -> setData(data==null ? null : getData.apply(data)));
 		}
 		
 		protected void extraUpdate() {}
@@ -530,7 +530,7 @@ public class SnowRunner {
 
 		void setData(Collection<RowType> rows) {
 			this.rows.clear();
-			this.rows.addAll(rows);
+			if (rows!=null) this.rows.addAll(rows);
 			extraUpdate();
 			fireTableUpdate();
 		}
@@ -544,7 +544,7 @@ public class SnowRunner {
 			
 			if (columnID!=null) {
 				
-				if (columnID.format!=null)
+				if (columnID.format!=null && value!=null)
 					valueStr = String.format(Locale.ENGLISH, columnID.format, value);
 				
 				if (columnID.horizontalAlignment!=null)
