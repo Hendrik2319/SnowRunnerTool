@@ -472,37 +472,6 @@ public class SnowRunner {
 		return String.format("(%s)", str);
 	}
 
-	static class EnginesTableModel extends ExtendedVerySimpleTableModel<Data.Engine> {
-
-		EnginesTableModel(Controllers controllers, boolean connectToGlobalData) {
-			super(controllers, new ColumnID[] {
-					new ColumnID("Set ID"               ,  String.class, 160,   null,    null, false, row->((Data.Engine)row).setID),
-					new ColumnID("ID"                   ,  String.class, 190,   null,    null, false, row->((Data.Engine)row).id),
-					new ColumnID("Name"                 ,  String.class, 130,   null,    null,  true, row->((Data.Engine)row).name_StringID),
-					new ColumnID("Description"          ,  String.class, 150,   null,    null,  true, row->((Data.Engine)row).description_StringID),
-					new ColumnID("Price"                , Integer.class,  60,  RIGHT, "%d Cr", false, row->((Data.Engine)row).price),
-					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,    null, false, row->((Data.Engine)row).unlockByExploration),
-					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER,    null, false, row->((Data.Engine)row).unlockByRank),
-					new ColumnID("Torque"               , Integer.class,  70,   null,    null, false, row->((Data.Engine)row).torque),
-					new ColumnID("Fuel Consumption"     ,   Float.class, 100,  RIGHT, "%1.2f", false, row->((Data.Engine)row).fuelConsumption),
-					new ColumnID("Damage Capacity"      , Integer.class, 100,  RIGHT,  "%d R", false, row->((Data.Engine)row).damageCapacity),
-					new ColumnID("Brakes Delay"         ,   Float.class,  70,  RIGHT, "%1.2f", false, row->((Data.Engine)row).brakesDelay),
-					new ColumnID("Responsiveness"       ,   Float.class,  90,  RIGHT, "%1.4f", false, row->((Data.Engine)row).engineResponsiveness),
-			});
-			if (connectToGlobalData)
-				connectToGlobalData(data->{
-					Vector<Engine> values = new Vector<>(data.engines.values());
-					values.sort(Comparator.<Data.Engine,String>comparing(e->e.setID).thenComparing(e->e.id));
-					return values;
-				});
-		}
-
-		@Override public String getTextForRow(Data.Engine row) {
-			if (row.description_StringID == null) return "";
-			return String.format("Description: <%s>%n%s", row.description_StringID, solveStringID(row.description_StringID, language));
-		}
-	}
-
 	static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements RowTextTableModel {
 		
 		private Runnable textAreaUpdateMethod;
@@ -623,26 +592,47 @@ public class SnowRunner {
 		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
 			RowType row = getRow(rowIndex);
 			if (row==null) return null;
-			if (columnID.useValueAsStringID) {
-				String stringID = (String) columnID.getValue.apply(row);
-				return solveStringID(stringID, language);
+			
+			if (columnID.getValue!=null) {
+				if (columnID.useValueAsStringID) {
+					String stringID = (String) columnID.getValue.apply(row);
+					return solveStringID(stringID, language);
+				}
+				return columnID.getValue.apply(row);
 			}
-			return columnID.getValue.apply(row);
+			if (columnID.getValueL!=null) {
+				return columnID.getValueL.getValue(row,language);
+			}
+			
+			return null;
+			
 		}
 		
 		static class ColumnID implements Tables.SimplifiedColumnIDInterface {
 			
+			interface LanguageBasedStringBuilder {
+				String getValue(Object value, Language language);
+			}
+			
 			private final SimplifiedColumnConfig config;
 			private final Function<Object, ?> getValue;
+			private final LanguageBasedStringBuilder getValueL;
 			private final boolean useValueAsStringID;
 			private final Integer horizontalAlignment;
 			private final String format;
 			
+			ColumnID(String name, Class<String> columnClass, int prefWidth, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
+				this(name, columnClass, prefWidth, horizontalAlignment, format, false, null, getValue);
+			}
 			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
+				this(name, columnClass, prefWidth, horizontalAlignment, format, useValueAsStringID, getValue, null);
+			}
+			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue, LanguageBasedStringBuilder getValueL) {
 				this.horizontalAlignment = horizontalAlignment;
 				this.format = format;
 				this.useValueAsStringID = useValueAsStringID;
 				this.getValue = getValue;
+				this.getValueL = getValueL;
 				this.config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
 				if (useValueAsStringID && columnClass!=String.class)
 					throw new IllegalStateException();
@@ -656,22 +646,76 @@ public class SnowRunner {
 		void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod);
 	}
 
-	private static class WheelsTableModel extends Tables.SimplifiedTableModel<WheelsTableModel.ColumnID> implements LanguageListener, DataReceiver{
+	static class EnginesTableModel extends ExtendedVerySimpleTableModel<Data.Engine> {
 	
-		private Language language;
-		private final Vector<RowItem> rows;
-	
-		WheelsTableModel(Controllers controllers) {
-			super(ColumnID.values());
-			this.language = null;
-			rows = new Vector<>();
-			controllers.languageListeners.add(this);
-			controllers.dataReceivers.add(this);
+		EnginesTableModel(Controllers controllers, boolean connectToGlobalData) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("Set ID"               ,  String.class, 160,   null,    null, false, row->((Data.Engine)row).setID),
+					new ColumnID("ID"                   ,  String.class, 190,   null,    null, false, row->((Data.Engine)row).id),
+					new ColumnID("Name"                 ,  String.class, 130,   null,    null,  true, row->((Data.Engine)row).name_StringID),
+					new ColumnID("Description"          ,  String.class, 150,   null,    null,  true, row->((Data.Engine)row).description_StringID),
+					new ColumnID("Price"                , Integer.class,  60,  RIGHT, "%d Cr", false, row->((Data.Engine)row).price),
+					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,    null, false, row->((Data.Engine)row).unlockByExploration),
+					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER,    null, false, row->((Data.Engine)row).unlockByRank),
+					new ColumnID("Torque"               , Integer.class,  70,   null,    null, false, row->((Data.Engine)row).torque),
+					new ColumnID("Fuel Consumption"     ,   Float.class, 100,  RIGHT, "%1.2f", false, row->((Data.Engine)row).fuelConsumption),
+					new ColumnID("Damage Capacity"      , Integer.class, 100,  RIGHT,  "%d R", false, row->((Data.Engine)row).damageCapacity),
+					new ColumnID("Brakes Delay"         ,   Float.class,  70,  RIGHT, "%1.2f", false, row->((Data.Engine)row).brakesDelay),
+					new ColumnID("Responsiveness"       ,   Float.class,  90,  RIGHT, "%1.4f", false, row->((Data.Engine)row).engineResponsiveness),
+			});
+			if (connectToGlobalData)
+				connectToGlobalData(data->{
+					Vector<Engine> values = new Vector<>(data.engines.values());
+					values.sort(Comparator.<Data.Engine,String>comparing(e->e.setID).thenComparing(e->e.id));
+					return values;
+				});
 		}
 	
-		@Override public void setLanguage(Language language) {
-			this.language = language;
-			fireTableUpdate();
+		@Override public String getTextForRow(Data.Engine row) {
+			if (row.description_StringID == null) return "";
+			return String.format("Description: <%s>%n%s", row.description_StringID, solveStringID(row.description_StringID, language));
+		}
+	}
+
+	private static class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
+	
+		WheelsTableModel(Controllers controllers) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((RowItem)row).label),
+					new ColumnID("Names"  , String .class, 130,   null,    null, (row,lang) -> getNameList ( ((RowItem)row).names_StringID, lang)),
+					new ColumnID("Sizes"  , String .class, 300,   null,    null, false, row -> getSizeList ( ((RowItem)row).sizes  )),
+					new ColumnID("Highway", Float  .class,  55,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionHighway), 
+					new ColumnID("Offroad", Float  .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionOffroad), 
+					new ColumnID("Mud"    , Float  .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionMud), 
+					new ColumnID("On Ice" , Boolean.class,  50,   null,    null, false, row -> ((RowItem)row).tireValues.onIce), 
+					new ColumnID("Trucks" , String .class, 800,   null,    null, (row,lang) -> getTruckList( ((RowItem)row).trucks, lang)),
+			});
+			connectToGlobalData(WheelsTableModel::getData);
+		}
+
+		private static Vector<RowItem> getData(Data data) {
+			HashMap<String,RowItem> rows = new HashMap<>();
+			for (Truck truck:data.trucks.values()) {
+				for (CompatibleWheel wheel : truck.compatibleWheels) {
+					if (wheel.wheelsDef==null) continue;
+					String wheelsDefID = wheel.wheelsDef.id;
+					String dlc = wheel.wheelsDef.dlcName;
+					for (int i=0; i<wheel.wheelsDef.truckTires.size(); i++) {
+						TruckTire tire = wheel.wheelsDef.truckTires.get(i);
+						String key   = String.format("%s|%s[%d]", dlc==null ? "----" : dlc, wheelsDefID, i);
+						String label = dlc==null
+								? String.format(     "%s [%d]",      wheelsDefID, i)
+								: String.format("%s | %s [%d]", dlc, wheelsDefID, i);
+						RowItem rowItem = rows.get(key);
+						if (rowItem==null)
+							rows.put(key, rowItem = new RowItem(key, label, new RowItem.TireValues(tire)));
+						rowItem.add(wheel.scale,tire,truck);
+					}
+				}
+			}
+			Vector<RowItem> values = new Vector<>(rows.values());
+			values.sort(Comparator.<RowItem,String>comparing(rowItem->rowItem.key));
+			return values;
 		}
 		
 		private static class RowItem {
@@ -758,38 +802,8 @@ public class SnowRunner {
 				
 			}
 		}
-		
-		@Override public void setData(Data data) {
-			HashMap<String,RowItem> rows = new HashMap<>();
-			for (Truck truck:data.trucks.values()) {
-				for (CompatibleWheel wheel : truck.compatibleWheels) {
-					if (wheel.wheelsDef==null) continue;
-					String wheelsDefID = wheel.wheelsDef.id;
-					String dlc = wheel.wheelsDef.dlcName;
-					for (int i=0; i<wheel.wheelsDef.truckTires.size(); i++) {
-						TruckTire tire = wheel.wheelsDef.truckTires.get(i);
-						String key   = String.format("%s|%s[%d]", dlc==null ? "----" : dlc, wheelsDefID, i);
-						String label = dlc==null
-								? String.format(     "%s [%d]",      wheelsDefID, i)
-								: String.format("%s | %s [%d]", dlc, wheelsDefID, i);
-						RowItem rowItem = rows.get(key);
-						if (rowItem==null)
-							rows.put(key, rowItem = new RowItem(key, label, new RowItem.TireValues(tire)));
-						rowItem.add(wheel.scale,tire,truck);
-					}
-				}
-			}
-			this.rows.clear();
-			this.rows.addAll(rows.values());
-			this.rows.sort(Comparator.<RowItem,String>comparing(rowItem->rowItem.key));
-			fireTableUpdate();
-		}
 	
-		@Override public int getRowCount() {
-			return rows.size();
-		}
-	
-		private String getTruckList(HashSet<Truck> trucks) {
+		private static String getTruckList(HashSet<Truck> trucks, Language language) {
 			Iterable<String> it = ()->trucks
 					.stream()
 					.map(t->getTruckLabel(t,language))
@@ -798,7 +812,7 @@ public class SnowRunner {
 			return trucks.isEmpty() ? "" :  String.join(", ", it);
 		}
 	
-		private String getSizeList(HashSet<Integer> sizes) {
+		private static String getSizeList(HashSet<Integer> sizes) {
 			Iterable<String> it = ()->sizes
 					.stream()
 					.sorted()
@@ -807,47 +821,13 @@ public class SnowRunner {
 			return sizes.isEmpty() ? "" :  String.join(", ", it);
 		}
 	
-		private String getNameList(HashSet<String> names_StringID) {
+		private static String getNameList(HashSet<String> names_StringID, Language language) {
 			Iterable<String> it = ()->names_StringID
 					.stream()
 					.sorted()
 					.map(strID->solveStringID(strID, language))
 					.iterator();
 			return names_StringID.isEmpty() ? "" :  String.join(", ", it);
-		}
-	
-		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
-			if (rowIndex<0 || rowIndex>=rows.size()) return null;
-			RowItem row = rows.get(rowIndex);
-			switch (columnID) {
-			case ID    : return row.label;
-			case Sizes : return getSizeList ( row.sizes );
-			case Trucks: return getTruckList( row.trucks );
-			case Names : return getNameList ( row.names_StringID );
-			case Friction_highway: return row.tireValues.frictionHighway;
-			case Friction_offroad: return row.tireValues.frictionOffroad;
-			case Friction_mud    : return row.tireValues.frictionMud;
-			case OnIce           : return row.tireValues.onIce;
-			}
-			return null;
-		}
-	
-		enum ColumnID implements Tables.SimplifiedColumnIDInterface {
-			ID               ("ID"     , String .class, 300),
-			Names            ("Names"  , String .class, 130),
-			Sizes            ("Sizes"  , String .class, 300),
-			Friction_highway ("Highway", Float  .class,  55), 
-			Friction_offroad ("Offroad", Float  .class,  50), 
-			Friction_mud     ("Mud"    , Float  .class,  50), 
-			OnIce            ("On Ice" , Boolean.class,  50), 
-			Trucks           ("Trucks" , String .class, 800),
-			;
-		
-			private final SimplifiedColumnConfig config;
-			ColumnID(String name, Class<?> columnClass, int prefWidth) {
-				config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
-			}
-			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 		}
 	
 	}
