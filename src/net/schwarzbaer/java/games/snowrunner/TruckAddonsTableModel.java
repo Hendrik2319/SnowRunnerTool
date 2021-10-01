@@ -25,13 +25,14 @@ class TruckAddonsTableModel extends Tables.SimplifiedTableModel<TruckAddonsTable
 	private final Vector<Data.TruckAddon> rows;
 	private Runnable textAreaUpdateMethod;
 	
-	TruckAddonsTableModel(Controllers controllers) {
+	TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData) {
 		super(ColumnID.values());
 		language = null;
 		textAreaUpdateMethod = null;
 		rows = new Vector<>();
 		controllers.languageListeners.add(this);
-		controllers.dataReceivers.add(this);
+		if (connectToGlobalData)
+			controllers.dataReceivers.add(this);
 	}
 	
 	@Override public void setLanguage(Language language) {

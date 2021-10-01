@@ -25,13 +25,14 @@ class TrailersTableModel extends Tables.SimplifiedTableModel<TrailersTableModel.
 	private final Vector<Data.Trailer> rows;
 	private Runnable textAreaUpdateMethod;
 	
-	TrailersTableModel(Controllers controllers) {
+	TrailersTableModel(Controllers controllers, boolean connectToGlobalData) {
 		super(ColumnID.values());
 		language = null;
 		textAreaUpdateMethod = null;
 		rows = new Vector<>();
 		controllers.languageListeners.add(this);
-		controllers.dataReceivers.add(this);
+		if (connectToGlobalData)
+			controllers.dataReceivers.add(this);
 	}
 	
 	@Override public void setLanguage(Language language) {

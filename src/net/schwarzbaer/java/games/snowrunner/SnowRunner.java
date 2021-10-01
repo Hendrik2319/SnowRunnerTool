@@ -10,10 +10,13 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Vector;
+import java.util.function.Function;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -34,18 +37,24 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
 import net.schwarzbaer.gui.ProgressDialog;
 import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.Tables;
+import net.schwarzbaer.gui.Tables.LabelRendererComponent;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
+import net.schwarzbaer.java.games.snowrunner.Data.Engine;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
@@ -87,8 +96,9 @@ public class SnowRunner {
 		contentPane.addTab("Trucks"      , trucksPanel);
 		contentPane.addTab("Wheels"      , createSimplifiedTablePanel(new WheelsTableModel     (controllers)));
 		contentPane.addTab("DLCs"        , createSimplifiedTablePanel(new DLCTableModel        (controllers)));
-		contentPane.addTab("Trailers"    , createSimplifiedTablePanel(new TrailersTableModel   (controllers)));
-		contentPane.addTab("Truck Addons", createSimplifiedTablePanel(new TruckAddonsTableModel(controllers)));
+		contentPane.addTab("Trailers"    , createSimplifiedTablePanel(new TrailersTableModel   (controllers,true)));
+		contentPane.addTab("Truck Addons", createSimplifiedTablePanel(new TruckAddonsTableModel(controllers,true)));
+		contentPane.addTab("Engines"     , createSimplifiedTablePanel(new EnginesTableModel    (controllers,true)));
 		contentPane.addTab("Raw Data", rawDataPanel);
 		
 		JMenuBar menuBar = new JMenuBar();
@@ -225,7 +235,7 @@ public class SnowRunner {
 		setTask(pd, "Parse Data from XMLTemplateStructure");
 		System.out.printf("Parse Data from XMLTemplateStructure ...%n");
 		Data data = new Data(structure);
-		System.out.printf("... done");
+		System.out.printf("... done%n");
 		if (Thread.currentThread().isInterrupted()) return null;
 		return data;
 	}
@@ -460,6 +470,185 @@ public class SnowRunner {
 		String str = String.join(" AND ", it);
 		if (strs.length==1) return str;
 		return String.format("(%s)", str);
+	}
+
+	static class EnginesTableModel extends ExtendedVerySimpleTableModel<Data.Engine> {
+
+		EnginesTableModel(Controllers controllers, boolean connectToGlobalData) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("Set ID"               ,  String.class, 160,   null,    null, false, row->((Data.Engine)row).setID),
+					new ColumnID("ID"                   ,  String.class, 190,   null,    null, false, row->((Data.Engine)row).id),
+					new ColumnID("Name"                 ,  String.class, 130,   null,    null,  true, row->((Data.Engine)row).name_StringID),
+					new ColumnID("Description"          ,  String.class, 150,   null,    null,  true, row->((Data.Engine)row).description_StringID),
+					new ColumnID("Price"                , Integer.class,  60,  RIGHT, "%d Cr", false, row->((Data.Engine)row).price),
+					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,    null, false, row->((Data.Engine)row).unlockByExploration),
+					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER,    null, false, row->((Data.Engine)row).unlockByRank),
+					new ColumnID("Torque"               , Integer.class,  70,   null,    null, false, row->((Data.Engine)row).torque),
+					new ColumnID("Fuel Consumption"     ,   Float.class, 100,  RIGHT, "%1.2f", false, row->((Data.Engine)row).fuelConsumption),
+					new ColumnID("Damage Capacity"      , Integer.class, 100,  RIGHT,  "%d R", false, row->((Data.Engine)row).damageCapacity),
+					new ColumnID("Brakes Delay"         ,   Float.class,  70,  RIGHT, "%1.2f", false, row->((Data.Engine)row).brakesDelay),
+					new ColumnID("Responsiveness"       ,   Float.class,  90,  RIGHT, "%1.4f", false, row->((Data.Engine)row).engineResponsiveness),
+			});
+			if (connectToGlobalData)
+				connectToGlobalData(data->{
+					Vector<Engine> values = new Vector<>(data.engines.values());
+					values.sort(Comparator.<Data.Engine,String>comparing(e->e.setID).thenComparing(e->e.id));
+					return values;
+				});
+		}
+
+		@Override public String getTextForRow(Data.Engine row) {
+			if (row.description_StringID == null) return "";
+			return String.format("Description: <%s>%n%s", row.description_StringID, solveStringID(row.description_StringID, language));
+		}
+	}
+
+	static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements RowTextTableModel {
+		
+		private Runnable textAreaUpdateMethod;
+
+		ExtendedVerySimpleTableModel(Controllers controllers, ColumnID[] columns) {
+			super(controllers, columns);
+			textAreaUpdateMethod = null;
+		}
+
+		@Override protected void extraUpdate() {
+			if (textAreaUpdateMethod!=null)
+				textAreaUpdateMethod.run();
+		}
+
+		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
+			this.textAreaUpdateMethod = textAreaUpdateMethod;
+		}
+		
+		@Override public String getTextForRow(int rowIndex) {
+			RowType row = getRow(rowIndex);
+			if (row==null) return "";
+			return getTextForRow(row);
+		}
+
+		protected abstract String getTextForRow(RowType row);
+	}
+
+	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, TableCellRenderer, SwingConstants {
+		
+		protected final Controllers controllers;
+		protected final Vector<RowType> rows;
+		protected Language language;
+		private final LabelRendererComponent rendererComp;
+
+		VerySimpleTableModel(Controllers controllers, ColumnID[] columns) {
+			super(columns);
+			this.controllers = controllers;
+			this.language = null;
+			rows = new Vector<>();
+			this.controllers.languageListeners.add(this);
+			rendererComp = new Tables.LabelRendererComponent();
+		}
+		
+		void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
+			if (getData!=null)
+				controllers.dataReceivers.add(data -> setData(getData.apply(data)));
+		}
+		
+		protected void extraUpdate() {}
+		
+		@Override public void setLanguage(Language language) {
+			this.language = language;
+			extraUpdate();
+			fireTableUpdate();
+		}
+
+		void setData(Collection<RowType> rows) {
+			this.rows.clear();
+			this.rows.addAll(rows);
+			extraUpdate();
+			fireTableUpdate();
+		}
+		
+		@Override
+		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
+			String valueStr = value==null ? null : value.toString();
+			
+			int columnM = table.convertColumnIndexToModel(columnV);
+			ColumnID columnID = getColumnID(columnM);
+			
+			if (columnID!=null) {
+				
+				if (columnID.format!=null)
+					valueStr = String.format(Locale.ENGLISH, columnID.format, value);
+				
+				if (columnID.horizontalAlignment!=null)
+					rendererComp.setHorizontalAlignment(columnID.horizontalAlignment);
+				
+				else if (Number.class.isAssignableFrom(columnID.config.columnClass))
+					rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
+				
+				else
+					rendererComp.setHorizontalAlignment(SwingConstants.LEFT);
+			}
+			
+			rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
+			return rendererComp;
+		}
+		
+		@Override public void setTable(JTable table) {
+			super.setTable(table);
+			
+			TableColumnModel columnModel = table.getColumnModel();
+			if (columnModel!=null) {
+				for (int i=0; i<columns.length; i++) {
+					ColumnID columnID = columns[i];
+					if (columnID.horizontalAlignment==null && columnID.format==null)
+						continue;
+					
+					int colV = table.convertColumnIndexToView(i);
+					TableColumn column = columnModel.getColumn(colV);
+					if (column!=null)
+						column.setCellRenderer(this);
+					
+				}
+			}
+		}
+		
+		@Override public int getRowCount() {
+			return rows.size();
+		}
+
+		RowType getRow(int rowIndex) {
+			if (rowIndex<0 || rowIndex>=rows.size()) return null;
+			return rows.get(rowIndex);
+		}
+
+		@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
+			RowType row = getRow(rowIndex);
+			if (row==null) return null;
+			if (columnID.useValueAsStringID) {
+				String stringID = (String) columnID.getValue.apply(row);
+				return solveStringID(stringID, language);
+			}
+			return columnID.getValue.apply(row);
+		}
+		
+		static class ColumnID implements Tables.SimplifiedColumnIDInterface {
+			
+			private final SimplifiedColumnConfig config;
+			private final Function<Object, ?> getValue;
+			private final boolean useValueAsStringID;
+			private final Integer horizontalAlignment;
+			private final String format;
+			
+			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
+				this.horizontalAlignment = horizontalAlignment;
+				this.format = format;
+				this.useValueAsStringID = useValueAsStringID;
+				this.getValue = getValue;
+				this.config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
+				if (useValueAsStringID && columnClass!=String.class)
+					throw new IllegalStateException();
+			}
+			@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
+		}
 	}
 
 	interface RowTextTableModel {

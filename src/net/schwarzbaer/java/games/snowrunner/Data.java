@@ -494,7 +494,8 @@ public class Data {
 	
 	static class VariantSetInstance {
 		
-		final String name;
+		final String setID;
+		final String id;
 		final Integer price;
 		final Boolean unlockByExploration;
 		final Integer unlockByRank;
@@ -502,8 +503,9 @@ public class Data {
 		final String name_StringID;
 		protected final GenericXmlNode gameDataNode;
 		
-		protected VariantSetInstance(GenericXmlNode node, String instanceNodeName) {
-			name = node.attributes.get("Name");
+		protected VariantSetInstance(String setID, GenericXmlNode node, String instanceNodeName) {
+			this.setID = setID;
+			id = node.attributes.get("Name");
 			
 			gameDataNode = node.getNode(instanceNodeName, "GameData");
 			price               = parseInt ( getAttribute( gameDataNode, "Price" ) );
@@ -527,13 +529,13 @@ public class Data {
 				XMLTemplateStructure rawdata, String className,
 				HashMap<String,Vector<InstanceType>> setList,
 				HashMap<String,InstanceType> instanceList,
-				Function<GenericXmlNode,InstanceType> constructor,
+				BiFunction<String,GenericXmlNode,InstanceType> constructor,
 				String setNodeName, String instanceNodeName) {
 			
 			Class_ class_ = rawdata.classes.get(className);
 			if (class_ == null) return;
 			
-			class_.items.forEach((name,item)->{
+			class_.items.forEach((setID,item)->{
 				if (!item.content.nodeName.equals(setNodeName))
 					return;
 				
@@ -543,15 +545,15 @@ public class Data {
 				
 				GenericXmlNode[] nodes = item.content.getNodes(setNodeName, instanceNodeName);
 				Vector<InstanceType> set = new Vector<>();
-				setList.put(name, set);
+				setList.put(setID, set);
 				for (GenericXmlNode node : nodes) {
-					InstanceType instance = constructor.apply(node);
+					InstanceType instance = constructor.apply(setID,node);
 					set.add(instance);
-					if (instance.name!=null) {
-						if (instanceList.containsKey(instance.name))
-							System.err.printf("Found more than one %s instances with the same name (\"%s\") --> subsequent instances will be ignored", instanceNodeName, instance.name);
+					if (instance.id!=null) {
+						if (instanceList.containsKey(instance.id))
+							System.err.printf("Found more than one %s instances with the same ID (\"%s\") --> subsequent instances will be ignored", instanceNodeName, instance.id);
 						else
-							instanceList.put(instance.name, instance);
+							instanceList.put(instance.id, instance);
 					}
 				}
 			});
@@ -566,8 +568,8 @@ public class Data {
 		final Integer length;
 		final Float strengthMult;
 
-		Winch(GenericXmlNode node) {
-			super(node, "Winch");
+		Winch(String setName, GenericXmlNode node) {
+			super(setName, node, "Winch");
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <Winch ####=\"...\">", key);
@@ -596,8 +598,8 @@ public class Data {
 		final Integer damageCapacity;
 		final String type_StringID;
 
-		Suspension(GenericXmlNode node) {
-			super(node, "SuspensionSet");
+		Suspension(String setName, GenericXmlNode node) {
+			super(setName, node, "SuspensionSet");
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <SuspensionSet ####=\"...\">", key);
@@ -628,8 +630,8 @@ public class Data {
 		final boolean existsLowerPlusGear;
 		final boolean isManualLowGear;
 
-		Gearbox(GenericXmlNode node) {
-			super(node, "Gearbox");
+		Gearbox(String setName, GenericXmlNode node) {
+			super(setName, node, "Gearbox");
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <Gearbox ####=\"...\">", key);
@@ -677,8 +679,8 @@ public class Data {
 		final Integer torque;
 		final Float engineResponsiveness;
 
-		Engine(GenericXmlNode node) {
-			super(node, "Engine");
+		Engine(String setName, GenericXmlNode node) {
+			super(setName, node, "Engine");
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <Engine ####=\"...\">", key);
