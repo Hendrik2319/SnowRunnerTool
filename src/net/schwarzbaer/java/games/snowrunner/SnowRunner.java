@@ -21,6 +21,7 @@ import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
@@ -116,6 +117,28 @@ public class SnowRunner {
 		
 		languageMenu = menuBar.add(new JMenu("Language"));
 		
+		ButtonGroup bg = new ButtonGroup();
+		JMenuItem miSGValuesSorted   = createCheckBoxMenuItem("Show Values Sorted by Name"   ,  rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(true ));
+		JMenuItem miSGValuesOriginal = createCheckBoxMenuItem("Show Values in Original Order", !rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(false));
+		
+		JMenu saveGameDataMenu = menuBar.add(new JMenu("SaveGame Data"));
+		saveGameDataMenu.add(createMenuItem("Load SaveGame Data", true, e->{
+			File saveGameFolder = getSaveGameFolder();
+			if (saveGameFolder==null) return;
+			
+			System.out.printf("Read Data from SaveGame Folder \"%s\" ...%n", saveGameFolder.getAbsolutePath());
+			SaveGameData saveGameData = new SaveGameData(saveGameFolder);
+			saveGameData.readData();
+			System.out.printf("... done%n");
+			rawDataPanel.setData(saveGameData);
+			
+			miSGValuesSorted  .setEnabled(true);
+			miSGValuesOriginal.setEnabled(true);
+		}));
+		saveGameDataMenu.addSeparator();
+		saveGameDataMenu.add(miSGValuesSorted  );
+		saveGameDataMenu.add(miSGValuesOriginal);
+		
 		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
 		
@@ -193,6 +216,53 @@ public class SnowRunner {
 			pd.setTaskTitle(taskTitle);
 			pd.setIndeterminate(true);
 		});
+	}
+	 
+	private File getSaveGameFolder() {
+		// c:\\Program Files (x86)\\Steam\\userdata\\<Account>\\1465360\\remote
+		File saveGameFolder = settings.getFile(AppSettings.ValueKey.SaveGameFolder, null);
+		if (saveGameFolder != null && saveGameFolder.isDirectory())
+			return saveGameFolder;
+		
+		File steamFolder = new File("C:\\Program Files (x86)\\Steam");
+		if (!steamFolder.isDirectory())
+			steamFolder = new File("C:\\Program Files\\Steam");
+		if (!steamFolder.isDirectory())
+			return getSaveGameFolder_askUser();
+		
+		File userdataFolder = new File(steamFolder,"userdata");
+		if (!userdataFolder.isDirectory())
+			return getSaveGameFolder_askUser();
+		
+		File[] accountFolders = userdataFolder.listFiles(file->{
+			String name = file.getName();
+			return file.isDirectory() && !name.equals(".") && !name.equals("..");
+		});
+		
+		saveGameFolder = null;
+		for (File accountFolder : accountFolders) {
+			saveGameFolder = new File(accountFolder,"1465360\\remote");
+			if (saveGameFolder.isDirectory()) break;
+			saveGameFolder = null;
+		}
+		if (saveGameFolder==null)
+			return getSaveGameFolder_askUser();
+		
+		settings.putFile(AppSettings.ValueKey.SaveGameFolder, saveGameFolder);
+		return saveGameFolder;
+	}
+	
+	private File getSaveGameFolder_askUser() {
+		JFileChooser fc = new JFileChooser("./");
+		fc.setDialogTitle("Select SaveGame Folder");
+		fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY );
+		fc.setMultiSelectionEnabled(false);
+		if (fc.showOpenDialog(mainWindow)!=JFileChooser.APPROVE_OPTION)
+			return null;
+		
+		File saveGameFolder = fc.getSelectedFile();
+		settings.putFile(AppSettings.ValueKey.SaveGameFolder, saveGameFolder);
+		return saveGameFolder;
 	}
 
 	private File getInitialPAK() {
@@ -795,7 +865,7 @@ public class SnowRunner {
 
 	private static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		enum ValueKey {
-			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK,
+			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

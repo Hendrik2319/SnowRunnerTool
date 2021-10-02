@@ -21,13 +21,16 @@ import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AbstractTreeNode;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AttributesTreeNode.AttributeTreeNode;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.V;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.GenericXmlNode_TreeNode;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.Item_TreeNode;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.system.ClipboardTools;
 
-class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver {
+class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver {
 	private static final long serialVersionUID = 10671596986103400L;
 	
 	private Data data;
@@ -36,12 +39,17 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 	private final JTabbedPane globalTemplatesPanel;
 	private final JTabbedPane classesPanel;
 	private final Window window;
+	private final JTabbedPane saveGameDataPanel;
+	private SaveGameData saveGameData;
+
+	private boolean isShowingSaveGameDataSorted;
 
 	RawDataPanel(Window window, SnowRunner.Controllers controllers) {
-		super(JSplitPane.HORIZONTAL_SPLIT, true);
+		super();
 		this.window = window;
 		data = null;
 		language = null;
+		saveGameData = null;
 		
 		globalTemplatesPanel = new JTabbedPane();
 		globalTemplatesPanel.setBorder(BorderFactory.createTitledBorder("Global Templates"));
@@ -49,14 +57,29 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 		classesPanel = new JTabbedPane();
 		classesPanel.setBorder(BorderFactory.createTitledBorder("Classes"));
 		
-		setLeftComponent(globalTemplatesPanel);
-		setRightComponent(classesPanel);
+		JSplitPane xmlTempStructPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
+		xmlTempStructPanel.setLeftComponent(globalTemplatesPanel);
+		xmlTempStructPanel.setRightComponent(classesPanel);
+		
+		saveGameDataPanel = new JTabbedPane();
+		
+		addTab("XML Template Structure", xmlTempStructPanel);
+		addTab("SaveGame Data", saveGameDataPanel);
 		
 		updatePanels();
 		controllers.languageListeners.add(this);
 		controllers.dataReceivers.add(this);
 	}
 	
+	void showSaveGameDataSorted(boolean isShowingSaveGameDataSorted) {
+		this.isShowingSaveGameDataSorted = isShowingSaveGameDataSorted;
+		rebuildSaveGameDataPanel();
+	}
+
+	boolean isShowingSaveGameDataSorted() {
+		return isShowingSaveGameDataSorted;
+	}
+
 	@Override
 	public void setLanguage(Language language) {
 		this.language = language;
@@ -66,6 +89,20 @@ class RawDataPanel extends JSplitPane implements LanguageListener, DataReceiver 
 	public void setData(Data data) {
 		this.data = data;
 		updatePanels();
+	}
+
+	void setData(SaveGameData saveGameData) {
+		this.saveGameData = saveGameData;
+		rebuildSaveGameDataPanel();
+	}
+
+	private void rebuildSaveGameDataPanel() {
+		saveGameDataPanel.removeAll();
+		addTreeTabs(saveGameDataPanel, this.saveGameData.rawJsonData, this::createJsonTreeNode);
+	}
+	
+	private DataTrees.JsonTreeNode createJsonTreeNode(JSON_Data.Value<NV,V> value) {
+		return new DataTrees.JsonTreeNode(value, isShowingSaveGameDataSorted);
 	}
 
 	private void updatePanels() {

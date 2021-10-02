@@ -17,18 +17,29 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import net.schwarzbaer.gui.IconSource;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.V;
 import net.schwarzbaer.java.games.snowrunner.XML.NodeType;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Templates;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 
 class DataTrees {
 	
+	interface CachedIcon { Icon getIcon(); }
+	
 	private static IconSource.CachedIcons<TreeIcons> TreeIconsIS = IconSource.createCachedIcons(16, 16, "/images/TreeIcons.png", TreeIcons.values());
-	enum TreeIcons {
+	enum TreeIcons implements CachedIcon {
 		Folder, Node, Attribute;
-		Icon getIcon() { return TreeIconsIS.getCachedIcon(this); }
+		@Override public Icon getIcon() { return TreeIconsIS.getCachedIcon(this); }
+	}
+	
+	private static IconSource.CachedIcons<JsonTreeIcons> JsonTreeIconsIS = IconSource.createCachedIcons(16, 16, "/images/JsonTreeIcons.png", JsonTreeIcons.values());
+	enum JsonTreeIcons implements CachedIcon {
+		Object, Array, String, Number, Bool, Null;
+		@Override public Icon getIcon() { return JsonTreeIconsIS.getCachedIcon(this); }
 	}
 
 	static class GlobalColorizer {
@@ -388,22 +399,129 @@ class DataTrees {
 		}
 	}
 
+	static class JsonTreeNode extends AbstractTreeNode {
+		
+		private final String name;
+		private final JSON_Data.Value<NV, V> value;
+		private final boolean showNamedValuesSorted;
+
+		JsonTreeNode(JSON_Data.Value<NV,V> value, boolean showNamedValuesSorted) {
+			this(null, null, value, showNamedValuesSorted);
+		}
+		JsonTreeNode(JsonTreeNode parent, String name, JSON_Data.Value<NV,V> value, boolean showNamedValuesSorted) {
+			super(parent, allowsChildren(value.type), isLeaf(value), getIcon(value.type));
+			this.name = name;
+			this.value = value;
+			this.showNamedValuesSorted = showNamedValuesSorted;
+		}
+		
+		@Override
+		protected Vector<TreeNode> createChildren() {
+			Vector<TreeNode> children = new Vector<>();
+			
+			switch (value.type) {
+			case Object:
+				Vector<JSON_Data.NamedValue<NV,V>> values;
+				if (showNamedValuesSorted) {
+					values = new Vector<>(value.castToObjectValue().value);
+					values.sort(Comparator.<JSON_Data.NamedValue<NV,V>,String>comparing(nv->nv.name));
+				} else
+					values = value.castToObjectValue().value;
+				
+				for (JSON_Data.NamedValue<NV,V> nv : values)
+					children.add(new JsonTreeNode(this, nv.name, nv.value, showNamedValuesSorted));
+				break;
+				
+			case Array:
+				for (JSON_Data.Value<NV, V> v : value.castToArrayValue().value)
+					children.add(new JsonTreeNode(this, null, v, showNamedValuesSorted));
+				break;
+				
+			default:
+				break;
+			}
+			
+			return children;
+		}
+		
+		@Override
+		public String toString() {
+			if (name==null) return getValueString();
+			return String.format("%s: %s", name, getValueString());
+		}
+		
+		private String getValueString() {
+			switch(value.type) {
+			case String : return String.format("\"%s\"", value.castToStringValue ().value);
+			case Bool   : return String.format("%s"    , value.castToBoolValue   ().value);
+			case Float  : return                      ""+value.castToFloatValue  ().value ;
+			case Integer: return String.format("%d"    , value.castToIntegerValue().value);
+			case Array  : return String.format("[%d]"  , value.castToArrayValue  ().value.size());
+			case Object : return String.format("{%d}"  , value.castToObjectValue ().value.size());
+			case Null   : return "<null>";
+			}
+			return value.toString();
+		}
+		
+		private static boolean allowsChildren(JSON_Data.Value.Type type) {
+			switch (type) {
+			case Object :
+			case Array  :
+				return true;
+			case String :
+			case Float  :
+			case Integer:
+			case Bool   :
+			case Null   :
+				break;
+			}
+			return false;
+		}
+		
+		private static boolean isLeaf(JSON_Data.Value<NV, V> value) {
+			switch (value.type) {
+			case Object : return value.castToObjectValue().value.isEmpty();
+			case Array  : return value.castToArrayValue ().value.isEmpty();
+			case String :
+			case Float  :
+			case Integer:
+			case Bool   :
+			case Null   :
+				return true;
+			}
+			return true;
+		}
+		
+		private static JsonTreeIcons getIcon(JSON_Data.Value.Type type) {
+			switch (type) {
+			case Object : return JsonTreeIcons.Object;
+			case Array  : return JsonTreeIcons.Array ;
+			case String : return JsonTreeIcons.String;
+			case Float  : return JsonTreeIcons.Number;
+			case Integer: return JsonTreeIcons.Number;
+			case Bool   : return JsonTreeIcons.Bool  ;
+			case Null   : return JsonTreeIcons.Null  ;
+			}
+			return null;
+		}
+	}
+
 	static abstract class AbstractTreeNode implements TreeNode {
 		
 		final TreeNode parent;
 		Vector<TreeNode> children;
 		final boolean allowsChildren;
 		final boolean isLeaf;
-		final TreeIcons icon;
+		final CachedIcon icon;
 		final Color color;
 	
 		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf) {
 			this(parent, allowsChildren, isLeaf, null, null);
 		}
-		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, TreeIcons icon) {
+		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, CachedIcon icon) {
 			this(parent, allowsChildren, isLeaf, icon, null);
 		}
-		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, TreeIcons icon, Color color) {
+		AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, CachedIcon icon, Color color) {
 			this.parent = parent;
 			this.allowsChildren = allowsChildren;
 			this.isLeaf = isLeaf;
