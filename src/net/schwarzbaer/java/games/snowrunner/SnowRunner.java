@@ -1,6 +1,5 @@
 package net.schwarzbaer.java.games.snowrunner;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -12,7 +11,10 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Vector;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -24,7 +26,6 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -33,6 +34,7 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
+import javax.swing.SingleSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
@@ -44,8 +46,11 @@ import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
+import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
+import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
 import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
@@ -84,7 +89,7 @@ public class SnowRunner {
 		contentPane.addTab("Wheels"      , createSimplifiedTablePanel(new DataTables.WheelsTableModel     (controllers)));
 		contentPane.addTab("DLCs"        , createSimplifiedTablePanel(new DataTables.DLCTableModel        (controllers)));
 		contentPane.addTab("Trailers"    , createSimplifiedTablePanel(new DataTables.TrailersTableModel   (controllers,true)));
-		contentPane.addTab("Truck Addons", createSimplifiedTablePanel(new DataTables.TruckAddonsTableModel(controllers,true)));
+		contentPane.addTab("Truck Addons", new TruckAddonsTablePanel(controllers));
 		contentPane.addTab("Engines"     , createSimplifiedTablePanel(new DataTables.EnginesTableModel    (controllers,true)));
 		contentPane.addTab("Gearboxes"   , createSimplifiedTablePanel(new DataTables.GearboxesTableModel  (controllers,true)));
 		contentPane.addTab("Suspensions" , createSimplifiedTablePanel(new DataTables.SuspensionsTableModel(controllers,true)));
@@ -346,72 +351,6 @@ public class SnowRunner {
 		return comp;
 	}
 
-	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
-		JTable table = new JTable();
-		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		JScrollPane scrollPane = new JScrollPane(table);
-		
-		table.setModel(tableModel);
-		tableModel.setTable(table);
-		tableModel.setColumnWidths(table);
-		
-		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
-		table.setRowSorter(rowSorter);
-		
-		ContextMenu contextMenu = new ContextMenu();
-		contextMenu.addTo(table);
-		contextMenu.add(createMenuItem("Reset Row Order",true,e->{
-			rowSorter.resetSortOrder();
-			table.repaint();
-		}));
-		contextMenu.add(createMenuItem("Show Column Widths", true, e->{
-			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
-		}));
-		
-		if (tableModel instanceof DataTables.RowTextTableModel) {
-			DataTables.RowTextTableModel rowTextTableModel = (DataTables.RowTextTableModel) tableModel;
-			
-			JTextArea textArea = new JTextArea();
-			textArea.setEditable(false);
-			textArea.setWrapStyleWord(true);
-			textArea.setLineWrap(true);
-			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
-			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
-			textAreaScrollPane.setPreferredSize(new Dimension(400,100));
-			
-			Runnable textAreaUpdateMethod = ()->{
-				Integer selectedRow = null;
-				int rowV = table.getSelectedRow();
-				if (rowV>=0) {
-					int rowM = table.convertRowIndexToModel(rowV);
-					selectedRow = rowM>=0 ? rowM : null;
-				}
-				if (selectedRow != null)
-					textArea.setText(rowTextTableModel.getTextForRow(selectedRow));
-				else
-					textArea.setText("");
-			};
-			rowTextTableModel.setTextAreaUpdateMethod(textAreaUpdateMethod);
-			
-			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			table.getSelectionModel().addListSelectionListener(e->{
-				textAreaUpdateMethod.run();
-			});
-			
-			JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
-			panel.setResizeWeight(1);
-			panel.setTopComponent(scrollPane);
-			panel.setBottomComponent(textAreaScrollPane);
-			return panel;
-			
-		} else {
-			JPanel panel = new JPanel(new BorderLayout());
-			panel.add(scrollPane);
-			return panel;
-		}
-		
-	}
-
 	static String getTruckLabel(Truck truck, Language language) {
 		return getTruckLabel(truck, language, true);
 	}
@@ -448,6 +387,232 @@ public class SnowRunner {
 		String str = String.join(" AND ", it);
 		if (strs.length==1) return str;
 		return String.format("(%s)", str);
+	}
+	
+	static final Comparator<String> CATEGORY_ORDER = Comparator.<String>comparingInt(SnowRunner::getCategoryOrderIndex).thenComparing(Comparator.naturalOrder());
+	static final List<String> CATEGORY_ORDER_LIST = Arrays.asList("Trailers", "engine", "gearbox", "suspension", "winch", "awd", "diff_lock", "frame_addons");
+	static int getCategoryOrderIndex(String category) {
+		//return "frame_addons".equals(category) ? 0 : 1;
+		int pos = CATEGORY_ORDER_LIST.indexOf(category);
+		if (pos<0) return CATEGORY_ORDER_LIST.size();
+		return pos;
+	}
+
+	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
+		return createSimplifiedTablePanel(tableModel, ()-> {
+			JTextArea textArea = new JTextArea();
+			textArea.setEditable(false);
+			textArea.setWrapStyleWord(true);
+			textArea.setLineWrap(true);
+			return textArea;
+		}, true, null);
+	}
+
+	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel, JTextArea textArea, Function<Runnable,Runnable> registerTextAreaUpdateMethod) {
+		return createSimplifiedTablePanel(tableModel, ()->textArea, false, registerTextAreaUpdateMethod);
+	}
+	
+	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel, Supplier<JTextArea> createTextArea, boolean addTextAreaToPanel, Function<Runnable,Runnable> registerTextAreaUpdateMethod) {
+		JTable table = new JTable();
+		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+		JScrollPane scrollPane = new JScrollPane(table);
+		
+		table.setModel(tableModel);
+		tableModel.setTable(table);
+		tableModel.setColumnWidths(table);
+		
+		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
+		table.setRowSorter(rowSorter);
+		
+		ContextMenu contextMenu = new ContextMenu();
+		contextMenu.addTo(table);
+		contextMenu.add(createMenuItem("Reset Row Order",true,e->{
+			rowSorter.resetSortOrder();
+			table.repaint();
+		}));
+		contextMenu.add(createMenuItem("Show Column Widths", true, e->{
+			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
+		}));
+		
+		if (tableModel instanceof DataTables.RowTextTableModel) {
+			DataTables.RowTextTableModel rowTextTableModel = (DataTables.RowTextTableModel) tableModel;
+			
+			JTextArea textArea = createTextArea.get();
+			
+			Runnable textAreaUpdateMethod = ()->{
+				Integer selectedRow = null;
+				int rowV = table.getSelectedRow();
+				if (rowV>=0) {
+					int rowM = table.convertRowIndexToModel(rowV);
+					selectedRow = rowM>=0 ? rowM : null;
+				}
+				if (selectedRow != null)
+					textArea.setText(rowTextTableModel.getTextForRow(selectedRow));
+				else
+					textArea.setText("");
+			};
+			if (registerTextAreaUpdateMethod!=null)
+				textAreaUpdateMethod = registerTextAreaUpdateMethod.apply(textAreaUpdateMethod);
+			rowTextTableModel.setTextAreaUpdateMethod(textAreaUpdateMethod);
+			
+			Runnable textAreaUpdateMethod_ = textAreaUpdateMethod;
+			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			table.getSelectionModel().addListSelectionListener(e->textAreaUpdateMethod_.run());
+			
+			if (addTextAreaToPanel) {
+				JScrollPane textAreaScrollPane = new JScrollPane(textArea);
+				//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
+				textAreaScrollPane.setPreferredSize(new Dimension(400,100));
+				
+				JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
+				panel.setResizeWeight(1);
+				panel.setTopComponent(scrollPane);
+				panel.setBottomComponent(textAreaScrollPane);
+				return panel;
+			} else
+				return scrollPane;
+			
+		} else {
+			return scrollPane;
+		}
+		
+	}
+
+	private static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
+		private static final long serialVersionUID = -2637203211606881920L;
+		
+		private final JTextArea textArea;
+		private final JTabbedPane tabbedPane;
+		private int selectedTab;
+		private final Vector<Runnable> updateMethods;
+
+		CombinedTableTabPaneTextAreaPanel() {
+			super(JSplitPane.VERTICAL_SPLIT, true);
+			selectedTab = 0;
+			updateMethods = new Vector<Runnable>();
+			
+			textArea = new JTextArea();
+			textArea.setEditable(false);
+			textArea.setWrapStyleWord(true);
+			textArea.setLineWrap(true);
+			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
+			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
+			textAreaScrollPane.setPreferredSize(new Dimension(400,100));
+			
+			tabbedPane = new JTabbedPane();
+			SingleSelectionModel tabbedPaneSelectionModel = tabbedPane.getModel();
+			tabbedPaneSelectionModel.addChangeListener(e->{
+				int i = tabbedPaneSelectionModel.getSelectedIndex();
+				selectedTab = i;
+				if (i<0 || i>=updateMethods.size()) return;
+				updateMethods.get(i).run();
+			});
+			
+			setTopComponent(tabbedPane);
+			setBottomComponent(textAreaScrollPane);
+		}
+		
+		void removeAllTabs() {
+			tabbedPane.removeAll();
+			updateMethods.clear();
+		}
+		
+		void setTabTitle(int index, String title) {
+			tabbedPane.setTitleAt(index, title);
+		}
+		
+		<TableModel extends SimplifiedTableModel<?> & DataTables.RowTextTableModel> void addTab(String title, TableModel tableModel) {
+			int tabIndex = tabbedPane.getTabCount();
+			JComponent panel = createSimplifiedTablePanel(tableModel, textArea, updateMethod->{
+				Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
+				if (tabbedPane.getTabCount()!=updateMethods.size())
+					throw new IllegalStateException();
+				updateMethods.add(modifiedUpdateMethod);
+				return modifiedUpdateMethod;
+			});
+			tabbedPane.addTab(title, panel);
+		}
+	}
+
+	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextAreaPanel {
+		private static final long serialVersionUID = 7841445317301513175L;
+		
+		private final Controllers controllers;
+		private final Vector<Tab> tabs;
+		private Data data;
+		private Language language;
+
+		TruckAddonsTablePanel(Controllers controllers) {
+			this.controllers = controllers;
+			this.language = null;
+			this.data = null;
+			this.tabs = new Vector<>();
+			
+			controllers.languageListeners.add(language->{
+				this.language = language;
+				updateTabTitles();
+			});
+			controllers.dataReceivers.add(data->{
+				this.data = data;
+				rebuildTabPanels();
+			});
+		}
+
+		private void updateTabTitles() {
+			AddonCategories addonCategories = data==null ? null : data.addonCategories;
+			for (int i=0; i<tabs.size(); i++)
+				setTabTitle(i, tabs.get(i).getTabTitle(addonCategories, language));
+			
+		}
+
+		private void rebuildTabPanels() {
+			removeAllTabs();
+			tabs.clear();
+			if (data==null) return;
+			
+			StringMultiMap<TruckAddon> truckAddons = new StringMultiMap<>();
+			for (TruckAddon addon : data.truckAddons.values())
+				truckAddons.add(addon.getCategory(), addon);
+			
+			Tab allTab = new Tab(null, data.truckAddons.size());
+			tabs.add(allTab);
+			
+			String title = allTab.getTabTitle(data.addonCategories, language);
+			DataTables.TruckAddonsTableModel tableModel = new DataTables.TruckAddonsTableModel(controllers,false);
+			addTab(title, tableModel);
+			tableModel.setData(data.truckAddons.values());
+			
+			Vector<String> categories = new Vector<>(truckAddons.keySet());
+			categories.sort(CATEGORY_ORDER);
+			
+			for (String category : categories) {
+				Vector<TruckAddon> list = truckAddons.get(category);
+				
+				Tab tab = new Tab(category, list.size());
+				tabs.add(tab);
+				
+				title = tab.getTabTitle(data.addonCategories, language);
+				tableModel = new DataTables.TruckAddonsTableModel(controllers,false);
+				addTab(title, tableModel);
+				tableModel.setData(list);
+			}
+		}
+		
+		private static class Tab {
+
+			final String category;
+			final int size;
+
+			Tab(String category, int size) {
+				this.category = category;
+				this.size = size;
+			}
+			
+			String getTabTitle(AddonCategories addonCategories, Language language) {
+				String categoryLabel = category==null ? "All" : addonCategories==null ? AddonCategories.getCategoryLabel(category) : addonCategories.getCategoryLabel(category, language);
+				return String.format("%s [%d]", categoryLabel, size);
+			}
+		}
 	}
 
 	private static class TrucksPanel extends JSplitPane {

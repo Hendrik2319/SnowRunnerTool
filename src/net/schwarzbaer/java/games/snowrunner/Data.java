@@ -267,11 +267,8 @@ public class Data {
 					Vector<TruckAddon> truckAddons = socketIDsUsedByTruckAddons.get(socketID);
 					if (truckAddons != null) {
 						as.compatibleTruckAddons.addAll(socketID, truckAddons);
-						for (TruckAddon truckAddon : truckAddons) {
-							String category = truckAddon.category;
-							if (category==null) category = TruckAddon.NULL_CATEGORY;
-							truck.compatibleTruckAddons.add(category, truckAddon);
-						}
+						for (TruckAddon truckAddon : truckAddons)
+							truck.compatibleTruckAddons.add(truckAddon.getCategory(), truckAddon);
 					}
 				}
 			}
@@ -506,6 +503,8 @@ public class Data {
 	}
 
 	static class AddonCategories extends ItemBased {
+		static final String NULL_CATEGORY = "#### NULL ####";
+		static final String CARGO_CATEGORY = "#### CARGO ####";
 	
 		final HashMap<String,Category> categories;
 		
@@ -521,8 +520,10 @@ public class Data {
 		}
 		
 		String getCategoryLabel(String category, Language language) {
-			if (category==null || category.equals(TruckAddon.NULL_CATEGORY))
+			if (category==null || category.equals(NULL_CATEGORY))
 				return "<Unknown Category>";
+			if (category.equals(CARGO_CATEGORY))
+				return "Cargo";
 			
 			Category cat = categories.get(category);
 			String stringID = cat==null ? null : cat.label_StringID;
@@ -530,6 +531,15 @@ public class Data {
 			return SnowRunner.solveStringID(stringID, language, String.format("<%s>", category));
 		}
 		
+		static String getCategoryLabel(String category) {
+			if (category==null || category.equals(NULL_CATEGORY))
+				return "<Unknown Category>";
+			if (category.equals(CARGO_CATEGORY))
+				return "Cargo";
+			
+			return category;
+		}
+
 		static class Category {
 
 			final String name;
@@ -1159,7 +1169,6 @@ public class Data {
 
 	static class TruckAddon extends ItemBased {
 
-		static final String NULL_CATEGORY = "NULL_CATEGORY";
 		final String category;
 		final Integer price;
 		final Boolean unlockByExploration;
@@ -1268,6 +1277,12 @@ public class Data {
 			//		unexpectedValues.add("Class[trucks] <TruckAddon> <GameData> <InstallSlot ####=\"...\">", key);
 			//	});
 			
+		}
+
+		String getCategory() {
+			if (isCargo) return AddonCategories.CARGO_CATEGORY;
+			if (category==null) return AddonCategories.NULL_CATEGORY;
+			return category;
 		}
 
 	}

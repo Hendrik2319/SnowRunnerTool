@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
 import java.util.function.Function;
@@ -230,18 +229,10 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				
 				StringMultiMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
-				truckAddonCategories.sort(Comparator.<String>comparingInt(AddonsPanel2::getCategoryOrderIndex).thenComparing(Comparator.naturalOrder()));
+				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
 					createTab(category, compatibleTruckAddons.get(category), DataTables.TruckAddonsTableModel::new);
 			}
-		}
-		
-		private static final List<String> CATEGORY_ORDER = Arrays.asList("Trailers", "engine", "gearbox", "suspension", "winch", "awd", "diff_lock", "frame_addons");
-		private static int getCategoryOrderIndex(String category) {
-			//return "frame_addons".equals(category) ? 0 : 1;
-			int pos = CATEGORY_ORDER.indexOf(category);
-			if (pos<0) return CATEGORY_ORDER.size();
-			return pos;
 		}
 		
 		interface TableModelConstructor<ItemType> {
@@ -270,7 +261,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				this.category = category;
 				this.size = size;
 				this.tabComp = new Tables.LabelRendererComponent();
-				if (CATEGORY_ORDER.contains(this.category))
+				if (SnowRunner.CATEGORY_ORDER_LIST.contains(this.category))
 					this.tabComp.setFont(this.tabComp.getFont().deriveFont(Font.BOLD));
 				updateTabTitle();
 			}
@@ -279,12 +270,8 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				String categoryLabel;
 				if (addonCategories!=null)
 					categoryLabel = addonCategories.getCategoryLabel(category, language);
-				
-				else if (!category.equals(TruckAddon.NULL_CATEGORY))
-					categoryLabel = category;
-				
 				else
-					categoryLabel = "<Unknown  Category>";
+					categoryLabel = AddonCategories.getCategoryLabel(category);
 				
 				this.tabComp.setText(String.format("%s [%d]", categoryLabel, size));
 			}

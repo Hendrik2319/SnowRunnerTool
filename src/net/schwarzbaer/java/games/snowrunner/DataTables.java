@@ -68,9 +68,13 @@ class DataTables {
 		protected void extraUpdate() {}
 		
 		@Override public void setLanguage(Language language) {
+			int before = table==null ? -1 : table.getSelectedRow();
 			this.language = language;
 			extraUpdate();
 			fireTableUpdate();
+			if (before>=0 && table!=null) {
+				table.setRowSelectionInterval(before, before);
+			}
 		}
 	
 		void setData(Collection<RowType> rows) {
