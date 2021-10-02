@@ -437,8 +437,7 @@ public class SnowRunner {
 	}
 
 	static String joinRequiredAddonsToString_OneLine(String[][] strs) {
-		if (strs==null) return "<null>";
-		if (strs.length==0) return "-----";
+		if (strs==null || strs.length==0) return null;
 		
 		Iterable<String> it = ()->Arrays.stream(strs).map(list->{
 			String str = String.join(" OR ", Arrays.asList(list));

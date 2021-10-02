@@ -1229,6 +1229,14 @@ class XMLTemplateStructure {
 		void printTo(PrintStream out, Function<ValueType, String> valueToStr) {
 			super.printTo(out, valueToStr, key->String.format("\"%s\"", key), null);
 		}
+
+		void removeEmptyLists() {
+			for (String key : new Vector<>(keySet())) {
+				Vector<ValueType> list = get(key);
+				if (list.isEmpty())
+					remove(key);
+			}
+		}
 	}
 	
 	static class MultiMap<KeyType,ValueType> extends HashMap<KeyType,Vector<ValueType>> {

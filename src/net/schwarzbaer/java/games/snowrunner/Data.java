@@ -253,6 +253,8 @@ public class Data {
 		for (Truck truck : trucks.values()) {
 			truck.compatibleTrailers.clear();
 			truck.compatibleTruckAddons.clear();
+			
+			// add all Addons & Trailers by SocketID
 			for (AddonSockets as : truck.addonSockets) {
 				for (String socketID : as.compatibleSocketIDs) {
 					
@@ -273,12 +275,62 @@ public class Data {
 					}
 				}
 			}
+			
+			// remove some Addons & Trailers because of RequiredAddOns
+			boolean haveSomeRemoved = true;
+			while (haveSomeRemoved) {
+				haveSomeRemoved = false;
+				for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values()) {
+					Vector<TruckAddon> addonsToRemove = new Vector<>();
+					for (TruckAddon addon : list)
+						if (!findARequiredAddon(addon.requiredAddons,truck.compatibleTruckAddons)) {
+							addonsToRemove.add(addon);
+							haveSomeRemoved = true;
+							//System.out.printf("Truck<%-20s>: Remove Addon <%s>%n", truck.id, addon.id);
+						}
+					list.removeAll(addonsToRemove);
+				}
+				Vector<Trailer> trailersToRemove = new Vector<>();
+				for (Trailer trailer : truck.compatibleTrailers) {
+					if (!findARequiredAddon(trailer.requiredAddons,truck.compatibleTruckAddons)) {
+						trailersToRemove.add(trailer);
+						haveSomeRemoved = true;
+						//System.out.printf("Truck<%-20s>: Remove Trailer <%s>%n", truck.id, trailer.id);
+					}
+				}
+				truck.compatibleTrailers.removeAll(trailersToRemove);
+			}
+			truck.compatibleTruckAddons.removeEmptyLists();
 		}
 		
 		if (!unexpectedValues.isEmpty())
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
 	
+	private static boolean findARequiredAddon(String[][] requiredAddons, StringMultiMap<TruckAddon> compatibleAddons) {
+		for (int andIndex=0; andIndex<requiredAddons.length; andIndex++) {
+			boolean foundARequiredAddon = false;
+			for (int orIndex=0; orIndex<requiredAddons[andIndex].length; orIndex++) {
+				String requiredAddon = requiredAddons[andIndex][orIndex];
+				if (findARequiredAddon(requiredAddon, compatibleAddons)) {
+					foundARequiredAddon = true;
+					break;
+				}
+			}
+			if (!foundARequiredAddon)
+				return false;
+		}
+		return true;
+	}
+
+	private static boolean findARequiredAddon(String requiredAddon, StringMultiMap<TruckAddon> compatibleAddons) {
+		for (Vector<TruckAddon> list : compatibleAddons.values())
+			for (TruckAddon addon : list)
+				if (requiredAddon.equals(addon.id))
+					return true;
+		return false;
+	}
+
 	private static <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
 		for (ZipEntryTreeNode node:nodes) {
 			ValueType value = readEntry(zipFile, node, readInput);
