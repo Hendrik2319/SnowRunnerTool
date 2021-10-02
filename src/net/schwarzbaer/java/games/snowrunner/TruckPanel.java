@@ -5,6 +5,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
@@ -21,6 +22,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
 import java.util.function.Function;
@@ -60,6 +62,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets.Socket;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
+import net.schwarzbaer.java.games.snowrunner.DataTables.VerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
@@ -184,21 +187,17 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 
 	private static class AddonsPanel2 extends JTabbedPane {
 		private static final long serialVersionUID = 4098254083170104250L;
-		private static final Vector<String> CATEGORIES_ORDER = new Vector<>(Arrays.asList("frame_addons", "engine", "gearbox", "suspension"));
-		
 		private final Controllers controllers;
 		private Language language;
 		private Truck truck;
-		private boolean trailersTabExists;
-		private final Vector<String> currentAddonCategories;
+		private final Vector<Tab> currentTabs;
 		private AddonCategories addonCategories;
 
 		AddonsPanel2(Controllers controllers) {
 			this.controllers = controllers;
 			this.truck = null;
-			trailersTabExists = false;
 			addonCategories = null;
-			currentAddonCategories = new Vector<>();
+			currentTabs = new Vector<>();
 			language = null;
 			this.controllers.languageListeners.add(language -> {
 				this.language = language;
@@ -211,65 +210,85 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		}
 
 		private void updateTabTitles() {
-			for (int i=0; i<currentAddonCategories.size(); i++) {
-				String category = currentAddonCategories.get(i);
-				Vector<TruckAddon> values = truck.compatibleTruckAddons.get(category);
-				String title = makeTabTitle(category, values.size());
-				setTitleAt( i + (trailersTabExists?1:0), title );
-			}
-			
-		}
-
-		private String makeTabTitle(String category, int amount) {
-			String categoryLabel;
-			if (addonCategories!=null)
-				categoryLabel = addonCategories.getCategoryLabel(category, language);
-			
-			else if (!category.equals(TruckAddon.NULL_CATEGORY))
-				categoryLabel = category;
-			
-			else
-				categoryLabel = "<Unknown  Category>";
-			
-			return String.format("%s [%d]", categoryLabel, amount);
+			for (Tab tab : currentTabs)
+				tab.updateTabTitle();
+			repaint();
 		}
 
 		public void setData(Truck truck) {
 			this.truck = truck;
 			
-			trailersTabExists = false;
-			currentAddonCategories.clear();
+			currentTabs.clear();
 			removeAll();
 			if (this.truck!=null) {
 				
-				HashSet<Trailer> compatibleTrailers = this.truck.compatibleTrailers;
-				if (!compatibleTrailers.isEmpty()) {
-					DataTables.TrailersTableModel tableModel = new DataTables.TrailersTableModel(controllers,false);
-					String title = String.format("Trailers [%d]", compatibleTrailers.size());
-					addTab(title, SnowRunner.createSimplifiedTablePanel(tableModel));
-					tableModel.setData(compatibleTrailers);
-					tableModel.setLanguage(language);
-					trailersTabExists = true;
-				}
+				createTab("Trailers"  , this.truck.compatibleTrailers    , DataTables.   TrailersTableModel::new);
+				createTab("engine"    , this.truck.compatibleEngines     , DataTables.    EnginesTableModel::new);
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , DataTables.  GearboxesTableModel::new);
+				createTab("suspension", this.truck.compatibleSuspensions , DataTables.SuspensionsTableModel::new);
+				createTab("winch"     , this.truck.compatibleWinches     , DataTables.    WinchesTableModel::new);
 				
 				StringMultiMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
-				currentAddonCategories.addAll(compatibleTruckAddons.keySet());
-				currentAddonCategories.sort(Comparator.<String>comparingInt(category->{
-					int pos = CATEGORIES_ORDER.indexOf(category);
-					return pos>=0 ? pos : CATEGORIES_ORDER.size();
-				}).thenComparing(Comparator.naturalOrder()));
-				
-				for (String category : currentAddonCategories) {
-					Vector<TruckAddon> values = compatibleTruckAddons.get(category);
-					DataTables.TruckAddonsTableModel tableModel = new DataTables.TruckAddonsTableModel(controllers,false);
-					String title = makeTabTitle(category, values.size());
-					addTab(title, SnowRunner.createSimplifiedTablePanel(tableModel));
-					tableModel.setData(values);
-					tableModel.setLanguage(language);
-				}
+				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
+				truckAddonCategories.sort(Comparator.<String>comparingInt(AddonsPanel2::getCategoryOrderIndex).thenComparing(Comparator.naturalOrder()));
+				for (String category : truckAddonCategories)
+					createTab(category, compatibleTruckAddons.get(category), DataTables.TruckAddonsTableModel::new);
 			}
 		}
 		
+		private static final List<String> CATEGORY_ORDER = Arrays.asList("Trailers", "engine", "gearbox", "suspension", "winch", "awd", "diff_lock", "frame_addons");
+		private static int getCategoryOrderIndex(String category) {
+			//return "frame_addons".equals(category) ? 0 : 1;
+			int pos = CATEGORY_ORDER.indexOf(category);
+			if (pos<0) return CATEGORY_ORDER.size();
+			return pos;
+		}
+		
+		interface TableModelConstructor<ItemType> {
+			VerySimpleTableModel<ItemType> create(Controllers controllers, boolean connectToGlobalData);
+		}
+
+		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, TableModelConstructor<ItemType> constructor) {
+			if (!usableItems.isEmpty()) {
+				Tab tab = new Tab(category, usableItems.size());
+				currentTabs.add(tab);
+				VerySimpleTableModel<ItemType> tableModel = constructor.create(controllers,false);
+				addTab("##", SnowRunner.createSimplifiedTablePanel(tableModel));
+				setTabComponentAt(currentTabs.size()-1, tab.tabComp);
+				tableModel.setLanguage(language);
+				tableModel.setData(usableItems);
+			}
+		}
+		
+		private class Tab {
+			
+			final String category;
+			final int size;
+			final Tables.LabelRendererComponent tabComp;
+			
+			Tab(String category, int size) {
+				this.category = category;
+				this.size = size;
+				this.tabComp = new Tables.LabelRendererComponent();
+				if (CATEGORY_ORDER.contains(this.category))
+					this.tabComp.setFont(this.tabComp.getFont().deriveFont(Font.BOLD));
+				updateTabTitle();
+			}
+			
+			private void updateTabTitle() {
+				String categoryLabel;
+				if (addonCategories!=null)
+					categoryLabel = addonCategories.getCategoryLabel(category, language);
+				
+				else if (!category.equals(TruckAddon.NULL_CATEGORY))
+					categoryLabel = category;
+				
+				else
+					categoryLabel = "<Unknown  Category>";
+				
+				this.tabComp.setText(String.format("%s [%d]", categoryLabel, size));
+			}
+		}
 	}
 
 	private static class AddonsPanel extends JPanel {

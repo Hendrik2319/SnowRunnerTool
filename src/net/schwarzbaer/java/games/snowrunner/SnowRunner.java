@@ -86,7 +86,12 @@ public class SnowRunner {
 		contentPane.addTab("Trailers"    , createSimplifiedTablePanel(new DataTables.TrailersTableModel   (controllers,true)));
 		contentPane.addTab("Truck Addons", createSimplifiedTablePanel(new DataTables.TruckAddonsTableModel(controllers,true)));
 		contentPane.addTab("Engines"     , createSimplifiedTablePanel(new DataTables.EnginesTableModel    (controllers,true)));
+		contentPane.addTab("Gearboxes"   , createSimplifiedTablePanel(new DataTables.GearboxesTableModel  (controllers,true)));
+		contentPane.addTab("Suspensions" , createSimplifiedTablePanel(new DataTables.SuspensionsTableModel(controllers,true)));
+		contentPane.addTab("Winches"     , createSimplifiedTablePanel(new DataTables.WinchesTableModel    (controllers,true)));
+		contentPane.addTab("Addon Categories", createSimplifiedTablePanel(new DataTables.AddonCategoriesTableModel(controllers)));
 		contentPane.addTab("Raw Data", rawDataPanel);
+		
 		
 		JMenuBar menuBar = new JMenuBar();
 		
@@ -227,6 +232,43 @@ public class SnowRunner {
 			settings.putString(AppSettings.ValueKey.Language, langID);
 		else
 			settings.remove(AppSettings.ValueKey.Language);
+		
+		/*
+		// DEBUG
+		if (language!=null) {
+			for (String country : new String[] {"US","RU"}) {
+				System.out.printf("Country: %s%n", country);
+				for (int region=1; region<7; region++) {
+					String regionName_ID = String.format("%s_%02d", country, region);
+					String regionName = language.dictionary.get(regionName_ID);
+					System.out.printf("   Region[%d]:  %s  <%s>%n", region, regionName, regionName_ID);
+					for (int map=1; map<6; map++) {
+						String mapName_ID = String.format("%s_%02d_%02d_NAME", country, region, map);
+						String mapName = language.dictionary.get(mapName_ID);
+						if (mapName==null) {
+							mapName_ID = String.format("LEVEL_%s_%02d_%02d_NAME", country, region, map);
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName==null) {
+							mapName_ID = String.format("%s_%02d_%02d_NEW_NAME", country, region, map);
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName==null) {
+							mapName_ID = String.format("LEVEL_%s_%02d_%02d", country, region, map).toLowerCase();
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName==null) {
+							mapName_ID = String.format("LEVEL_%s_%02d_%02d", country, region, map).toLowerCase()+"_NAME";
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName!=null)
+							System.out.printf("      Map[%d,%d]:  %s  <%s>%n", region, map, mapName, mapName_ID);
+					}
+				}
+			}
+		}
+		// DEBUG
+		*/
 		
 		controllers.languageListeners.setLanguage(language);
 	}

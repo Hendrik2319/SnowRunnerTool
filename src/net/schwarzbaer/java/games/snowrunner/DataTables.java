@@ -19,12 +19,18 @@ import javax.swing.table.TableColumnModel;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.LabelRendererComponent;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
+import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Engine;
+import net.schwarzbaer.java.games.snowrunner.Data.Gearbox;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
+import net.schwarzbaer.java.games.snowrunner.Data.Suspension;
+import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
+import net.schwarzbaer.java.games.snowrunner.Data.SetInstance;
+import net.schwarzbaer.java.games.snowrunner.Data.Winch;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
@@ -32,33 +38,6 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentList
 
 class DataTables {
 	
-	static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements RowTextTableModel {
-		
-		private Runnable textAreaUpdateMethod;
-	
-		ExtendedVerySimpleTableModel(Controllers controllers, ColumnID[] columns) {
-			super(controllers, columns);
-			textAreaUpdateMethod = null;
-		}
-	
-		@Override protected void extraUpdate() {
-			if (textAreaUpdateMethod!=null)
-				textAreaUpdateMethod.run();
-		}
-	
-		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
-			this.textAreaUpdateMethod = textAreaUpdateMethod;
-		}
-		
-		@Override public String getTextForRow(int rowIndex) {
-			RowType row = getRow(rowIndex);
-			if (row==null) return "";
-			return getTextForRow(row);
-		}
-	
-		protected abstract String getTextForRow(RowType row);
-	}
-
 	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, TableCellRenderer, SwingConstants {
 		
 		protected final Controllers controllers;
@@ -216,62 +195,193 @@ class DataTables {
 		void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod);
 	}
 
-	static class EnginesTableModel extends ExtendedVerySimpleTableModel<Data.Engine> {
+	static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements RowTextTableModel {
+		
+		private Runnable textAreaUpdateMethod;
 	
-		EnginesTableModel(Controllers controllers, boolean connectToGlobalData) {
-			super(controllers, new ColumnID[] {
-					new ColumnID("Set ID"               ,  String.class, 160,   null,    null, false, row->((Data.Engine)row).setID),
-					new ColumnID("ID"                   ,  String.class, 190,   null,    null, false, row->((Data.Engine)row).id),
-					new ColumnID("Name"                 ,  String.class, 130,   null,    null,  true, row->((Data.Engine)row).name_StringID),
-					new ColumnID("Description"          ,  String.class, 150,   null,    null,  true, row->((Data.Engine)row).description_StringID),
-					new ColumnID("Price"                , Integer.class,  60,  RIGHT, "%d Cr", false, row->((Data.Engine)row).price),
-					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,    null, false, row->((Data.Engine)row).unlockByExploration),
-					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER,    null, false, row->((Data.Engine)row).unlockByRank),
-					new ColumnID("Torque"               , Integer.class,  70,   null,    null, false, row->((Data.Engine)row).torque),
-					new ColumnID("Fuel Consumption"     ,   Float.class, 100,  RIGHT, "%1.2f", false, row->((Data.Engine)row).fuelConsumption),
-					new ColumnID("Damage Capacity"      , Integer.class, 100,  RIGHT,  "%d R", false, row->((Data.Engine)row).damageCapacity),
-					new ColumnID("Brakes Delay"         ,   Float.class,  70,  RIGHT, "%1.2f", false, row->((Data.Engine)row).brakesDelay),
-					new ColumnID("Responsiveness"       ,   Float.class,  90,  RIGHT, "%1.4f", false, row->((Data.Engine)row).engineResponsiveness),
-			});
-			if (connectToGlobalData)
-				connectToGlobalData(data->{
-					Vector<Engine> values = new Vector<>(data.engines.values());
-					values.sort(Comparator.<Data.Engine,String>comparing(e->e.setID).thenComparing(e->e.id));
-					return values;
-				});
+		ExtendedVerySimpleTableModel(Controllers controllers, ColumnID[] columns) {
+			super(controllers, columns);
+			textAreaUpdateMethod = null;
 		}
 	
-		@Override public String getTextForRow(Data.Engine row) {
-			if (row.description_StringID == null) return "";
-			return String.format("Description: <%s>%n%s", row.description_StringID, SnowRunner.solveStringID(row.description_StringID, language));
+		@Override protected void extraUpdate() {
+			if (textAreaUpdateMethod!=null)
+				textAreaUpdateMethod.run();
+		}
+	
+		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
+			this.textAreaUpdateMethod = textAreaUpdateMethod;
+		}
+		
+		@Override public String getTextForRow(int rowIndex) {
+			RowType row = getRow(rowIndex);
+			if (row==null) return "";
+			return getTextForRow(row);
+		}
+	
+		protected abstract String getTextForRow(RowType row);
+	}
+
+	static class SetInstancesTableModel<RowType extends SetInstance> extends ExtendedVerySimpleTableModel<RowType> {
+	
+		SetInstancesTableModel(Controllers controllers, ColumnID[] columns) {
+			super(controllers, columns);
+			setInitialRowOrder(Comparator.<RowType,String>comparing(e->e.setID).thenComparing(e->e.id));
+		}
+	
+		@Override
+		protected String getTextForRow(RowType row) {
+			StringBuilder sb = new StringBuilder();
+			boolean isFirst = true;
+			
+			String description = SnowRunner.solveStringID(row.description_StringID, language);
+			if (description!=null && !"EMPTY_LINE".equals(description)) {
+				sb.append(String.format("Description: <%s>%n%s", row.description_StringID, description));
+				isFirst = false;
+			}
+			
+			if (!row.usableBy.isEmpty()) {
+				if (!isFirst) sb.append("\r\n\r\n");
+				isFirst = false;
+				sb.append("Usable By:\r\n");
+				sb.append(SnowRunner.toString(row.usableBy,language));
+			}
+			
+			return sb.toString();
 		}
 	}
 
-	static class TrailersTableModel extends ExtendedVerySimpleTableModel<Data.Trailer> {
+	static class AddonCategoriesTableModel extends VerySimpleTableModel<AddonCategories.Category> {
+
+		AddonCategoriesTableModel(Controllers controllers) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("ID"                          ,  String.class, 100, null, null, false, row->((AddonCategories.Category)row).name),
+					new ColumnID("Label"                       ,  String.class, 200, null, null,  true, row->((AddonCategories.Category)row).label_StringID),
+					new ColumnID("Icon"                        ,  String.class, 130, null, null, false, row->((AddonCategories.Category)row).icon),
+					new ColumnID("Requires One Addon Installed", Boolean.class, 160, null, null, false, row->((AddonCategories.Category)row).requiresOneAddonInstalled),
+			});
+			connectToGlobalData(data->data.addonCategories.categories.values());
+			setInitialRowOrder(Comparator.<AddonCategories.Category,String>comparing(cat->cat.name));
+		}
+		
+	}
+
+	static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
+
+		SuspensionsTableModel(Controllers controllers, boolean connectToGlobalData) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("Set ID"               ,  String.class, 130,   null,      null, false, row->((Suspension)row).setID),
+					new ColumnID("Item ID"              ,  String.class, 220,   null,      null, false, row->((Suspension)row).id),
+					new ColumnID("Type"                 ,  String.class, 110,   null,      null,  true, row->((Suspension)row).type_StringID),
+					new ColumnID("Name"                 ,  String.class, 110,   null,      null,  true, row->((Suspension)row).name_StringID),
+					new ColumnID("Description"          ,  String.class, 150,   null,      null,  true, row->((Suspension)row).description_StringID),
+					new ColumnID("Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Suspension)row).price),
+					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Suspension)row).unlockByExploration),
+					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Suspension)row).unlockByRank),
+					new ColumnID("Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, row->((Suspension)row).damageCapacity),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Suspension)row).usableBy, lang)),
+			});
+			if (connectToGlobalData)
+				connectToGlobalData(data->data.suspensions.values());
+		}
+	}
+
+	static class WinchesTableModel extends SetInstancesTableModel<Winch> {
+
+		WinchesTableModel(Controllers controllers, boolean connectToGlobalData) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("Set ID"                  ,  String.class, 140,   null,      null, false, row->((Winch)row).setID),
+					new ColumnID("Item ID"                 ,  String.class, 160,   null,      null, false, row->((Winch)row).id),
+					new ColumnID("Name"                    ,  String.class, 150,   null,      null,  true, row->((Winch)row).name_StringID),
+					new ColumnID("Description"             ,  String.class, 150,   null,      null,  true, row->((Winch)row).description_StringID),
+					new ColumnID("Price"                   , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Winch)row).price),
+					new ColumnID("Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, row->((Winch)row).unlockByExploration),
+					new ColumnID("Unlock By Rank"          , Integer.class,  85, CENTER, "Rank %d", false, row->((Winch)row).unlockByRank),
+					new ColumnID("Requires Engine Ignition", Boolean.class, 130,   null,      null, false, row->((Winch)row).isEngineIgnitionRequired),
+					new ColumnID("Length"                  , Integer.class,  50, CENTER,      null, false, row->((Winch)row).length),
+					new ColumnID("Strength Multi"          ,   Float.class,  80, CENTER,   "%1.2f", false, row->((Winch)row).strengthMult),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Winch)row).usableBy, lang)),
+			});
+			if (connectToGlobalData)
+				connectToGlobalData(data->data.winches.values());
+		}
+	}
+
+	static class GearboxesTableModel extends SetInstancesTableModel<Gearbox> {
+
+		GearboxesTableModel(Controllers controllers, boolean connectToGlobalData) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("Set ID"               ,  String.class, 180,   null,      null, false, row->((Gearbox)row).setID),
+					new ColumnID("Item ID"              ,  String.class, 140,   null,      null, false, row->((Gearbox)row).id),
+					new ColumnID("Name"                 ,  String.class, 110,   null,      null,  true, row->((Gearbox)row).name_StringID),
+					new ColumnID("Description"          ,  String.class, 150,   null,      null,  true, row->((Gearbox)row).description_StringID),
+					new ColumnID("Price"                , Integer.class,  60,   null,   "%d Cr", false, row->((Gearbox)row).price),
+					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Gearbox)row).unlockByExploration),
+					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Gearbox)row).unlockByRank),
+					new ColumnID("(H)"                  , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsHighGear),
+					new ColumnID("(L)"                  , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsLowerGear),
+					new ColumnID("(L+)"                 , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsLowerPlusGear),
+					new ColumnID("(L-)"                 , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsLowerMinusGear),
+					new ColumnID("is Manual Low Gear"   , Boolean.class, 110,   null,      null, false, row->((Gearbox)row).isManualLowGear),
+					new ColumnID("Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, row->((Gearbox)row).damageCapacity),
+					new ColumnID("AWD Consumption Mod." ,   Float.class, 130,   null,   "%1.2f", false, row->((Gearbox)row).awdConsumptionModifier),
+					new ColumnID("Fuel Consumption"     ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).fuelConsumption),
+					new ColumnID("Idle Fuel Modifier"   ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).idleFuelModifier),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Gearbox)row).usableBy, lang)),
+			});
+			if (connectToGlobalData)
+				connectToGlobalData(data->data.gearboxes.values());
+		}
+	}
+
+	static class EnginesTableModel extends SetInstancesTableModel<Engine> {
+	
+		EnginesTableModel(Controllers controllers, boolean connectToGlobalData) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("Set ID"               ,  String.class, 160,   null,      null, false, row->((Engine)row).setID),
+					new ColumnID("Item ID"              ,  String.class, 190,   null,      null, false, row->((Engine)row).id),
+					new ColumnID("Name"                 ,  String.class, 130,   null,      null,  true, row->((Engine)row).name_StringID),
+					new ColumnID("Description"          ,  String.class, 150,   null,      null,  true, row->((Engine)row).description_StringID),
+					new ColumnID("Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Engine)row).price),
+					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Engine)row).unlockByExploration),
+					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Engine)row).unlockByRank),
+					new ColumnID("Torque"               , Integer.class,  70,   null,      null, false, row->((Engine)row).torque),
+					new ColumnID("Fuel Consumption"     ,   Float.class, 100,  RIGHT,   "%1.2f", false, row->((Engine)row).fuelConsumption),
+					new ColumnID("Damage Capacity"      , Integer.class, 100,  RIGHT,    "%d R", false, row->((Engine)row).damageCapacity),
+					new ColumnID("Brakes Delay"         ,   Float.class,  70,  RIGHT,   "%1.2f", false, row->((Engine)row).brakesDelay),
+					new ColumnID("Responsiveness"       ,   Float.class,  90,  RIGHT,   "%1.4f", false, row->((Engine)row).engineResponsiveness),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Engine)row).usableBy, lang)),
+			});
+			if (connectToGlobalData)
+				connectToGlobalData(data->data.engines.values());
+		}
+	}
+
+	static class TrailersTableModel extends ExtendedVerySimpleTableModel<Trailer> {
 		
 		TrailersTableModel(Controllers controllers, boolean connectToGlobalData) {
 			super(controllers, new ColumnID[] {
-					new ColumnID("ID"                   ,  String.class, 230,   null,    null, false, row->((Data.Trailer)row).id),
-					new ColumnID("Name"                 ,  String.class, 200,   null,    null,  true, row->((Data.Trailer)row).name_StringID), 
-					new ColumnID("DLC"                  ,  String.class,  80,   null,    null, false, row->((Data.Trailer)row).dlcName),
-					new ColumnID("Install Socket"       ,  String.class, 130,   null,    null, false, row->((Data.Trailer)row).installSocket),
-					new ColumnID("Cargo Slots"          , Integer.class,  70, CENTER,    null, false, row->((Data.Trailer)row).cargoSlots),
-					new ColumnID("Repairs"              , Integer.class,  50,  RIGHT,  "%d R", false, row->((Data.Trailer)row).repairsCapacity),
-					new ColumnID("Wheel Repairs"        , Integer.class,  85, CENTER, "%d WR", false, row->((Data.Trailer)row).wheelRepairsCapacity),
-					new ColumnID("Fuel"                 , Integer.class,  50,  RIGHT,  "%d L", false, row->((Data.Trailer)row).fuelCapacity),
-					new ColumnID("Is Quest Item"        , Boolean.class,  80,   null,    null, false, row->((Data.Trailer)row).isQuestItem),
-					new ColumnID("Price"                , Integer.class,  50,  RIGHT, "%d Cr", false, row->((Data.Trailer)row).price), 
-					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,    null, false, row->((Data.Trailer)row).unlockByExploration), 
-					new ColumnID("Unlock By Rank"       , Integer.class, 100, CENTER,    null, false, row->((Data.Trailer)row).unlockByRank), 
-					new ColumnID("Attach Type"          ,  String.class,  70,   null,    null, false, row->((Data.Trailer)row).attachType),
-					new ColumnID("Description"          ,  String.class, 200,   null,    null,  true, row->((Data.Trailer)row).description_StringID), 
-					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,    null, false, row->toString(((Data.Trailer)row).excludedCargoTypes)),
-					new ColumnID("Required Addons"      ,  String.class, 150,   null,    null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Data.Trailer)row).requiredAddons)),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,    null, (row,lang)->SnowRunner.toString(((Data.Trailer)row).usableBy, lang)),
+					new ColumnID("ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
+					new ColumnID("Name"                 ,  String.class, 200,   null,      null,  true, row->((Trailer)row).name_StringID), 
+					new ColumnID("DLC"                  ,  String.class,  80,   null,      null, false, row->((Trailer)row).dlcName),
+					new ColumnID("Install Socket"       ,  String.class, 130,   null,      null, false, row->((Trailer)row).installSocket),
+					new ColumnID("Cargo Slots"          , Integer.class,  70, CENTER,      null, false, row->((Trailer)row).cargoSlots),
+					new ColumnID("Repairs"              , Integer.class,  50,  RIGHT,    "%d R", false, row->((Trailer)row).repairsCapacity),
+					new ColumnID("Wheel Repairs"        , Integer.class,  85, CENTER,   "%d WR", false, row->((Trailer)row).wheelRepairsCapacity),
+					new ColumnID("Fuel"                 , Integer.class,  50,  RIGHT,    "%d L", false, row->((Trailer)row).fuelCapacity),
+					new ColumnID("Is Quest Item"        , Boolean.class,  80,   null,      null, false, row->((Trailer)row).isQuestItem),
+					new ColumnID("Price"                , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((Trailer)row).price), 
+					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Trailer)row).unlockByExploration), 
+					new ColumnID("Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, row->((Trailer)row).unlockByRank), 
+					new ColumnID("Attach Type"          ,  String.class,  70,   null,      null, false, row->((Trailer)row).attachType),
+					new ColumnID("Description"          ,  String.class, 200,   null,      null,  true, row->((Trailer)row).description_StringID), 
+					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->toString(((Trailer)row).excludedCargoTypes)),
+					new ColumnID("Required Addons"      ,  String.class, 150,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Trailer)row).requiredAddons)),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Trailer)row).usableBy, lang)),
 			});
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.trailers.values());
-			setInitialRowOrder(Comparator.<Data.Trailer,String>comparing(row->row.id));
+			setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 		}
 	
 		private static String toString(String[] strs) {
@@ -281,7 +391,7 @@ class DataTables {
 			return Arrays.toString(strs);
 		}
 	
-		@Override public String getTextForRow(Data.Trailer row) {
+		@Override public String getTextForRow(Trailer row) {
 			StringBuilder sb = new StringBuilder();
 			boolean isFirst = true;
 			
@@ -317,36 +427,36 @@ class DataTables {
 		}
 	}
 
-	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<Data.TruckAddon> {
+	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
 		
 		TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData) {
 			super(controllers, new ColumnID[] {
-					new ColumnID("ID"                   ,  String.class, 230,   null,    null, false, row->((Data.TruckAddon)row).id),
-					new ColumnID("DLC"                  ,  String.class,  80,   null,    null, false, row->((Data.TruckAddon)row).dlcName),
-					new ColumnID("Category"             ,  String.class, 150,   null,    null, false, row->((Data.TruckAddon)row).category),
-					new ColumnID("Name"                 ,  String.class, 200,   null,    null,  true, obj->{ TruckAddon row = (Data.TruckAddon)obj; return row.name_StringID!=null ? row.name_StringID : row.cargoName_StringID; }), 
-					new ColumnID("Install Socket"       ,  String.class, 130,   null,    null, false, row->((Data.TruckAddon)row).installSocket),
-					new ColumnID("Cargo Slots"          , Integer.class,  70, CENTER,    null, false, row->((Data.TruckAddon)row).cargoSlots),
-					new ColumnID("Repairs"              , Integer.class,  50,  RIGHT,  "%d R", false, row->((Data.TruckAddon)row).repairsCapacity),
-					new ColumnID("Wheel Repairs"        , Integer.class,  85, CENTER, "%d WR", false, row->((Data.TruckAddon)row).wheelRepairsCapacity),
-					new ColumnID("Fuel"                 , Integer.class,  50,  RIGHT,  "%d L", false, row->((Data.TruckAddon)row).fuelCapacity),
-					new ColumnID("Enables AWD"          , Boolean.class,  80,   null,    null, false, row->((Data.TruckAddon)row).enablesAllWheelDrive), 
-					new ColumnID("Enables DiffLock"     , Boolean.class,  90,   null,    null, false, row->((Data.TruckAddon)row).enablesDiffLock), 
-					new ColumnID("Price"                , Integer.class,  50,  RIGHT, "%d Cr", false, row->((Data.TruckAddon)row).price), 
-					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,    null, false, row->((Data.TruckAddon)row).unlockByExploration), 
-					new ColumnID("Unlock By Rank"       , Integer.class, 100, CENTER,    null, false, row->((Data.TruckAddon)row).unlockByRank), 
-					new ColumnID("Description"          ,  String.class, 200,   null,    null,  true, obj->{ TruckAddon row = (Data.TruckAddon)obj; return row.description_StringID!=null ? row.description_StringID : row.cargoDescription_StringID; }), 
-					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,    null, false, row->toString(((Data.TruckAddon)row).excludedCargoTypes)),
-					new ColumnID("Required Addons"      ,  String.class, 200,   null,    null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Data.TruckAddon)row).requiredAddons)),
-					new ColumnID("Is Cargo"             , Boolean.class,  80,   null,    null, false, row->((Data.TruckAddon)row).isCargo),
-					new ColumnID("Cargo Length"         , Integer.class,  80, CENTER,    null, false, row->((Data.TruckAddon)row).cargoLength),
-					new ColumnID("Cargo Type"           ,  String.class, 170,   null,    null, false, row->((Data.TruckAddon)row).cargoType),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,    null, (row,lang)->SnowRunner.toString(((Data.TruckAddon)row).usableBy, lang)),
+					new ColumnID("ID"                   ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
+					new ColumnID("DLC"                  ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).dlcName),
+					new ColumnID("Category"             ,  String.class, 150,   null,      null, false, row->((TruckAddon)row).category),
+					new ColumnID("Name"                 ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.name_StringID!=null ? row.name_StringID : row.cargoName_StringID; }), 
+					new ColumnID("Install Socket"       ,  String.class, 130,   null,      null, false, row->((TruckAddon)row).installSocket),
+					new ColumnID("Cargo Slots"          , Integer.class,  70, CENTER,      null, false, row->((TruckAddon)row).cargoSlots),
+					new ColumnID("Repairs"              , Integer.class,  50,  RIGHT,    "%d R", false, row->((TruckAddon)row).repairsCapacity),
+					new ColumnID("Wheel Repairs"        , Integer.class,  85, CENTER,   "%d WR", false, row->((TruckAddon)row).wheelRepairsCapacity),
+					new ColumnID("Fuel"                 , Integer.class,  50,  RIGHT,    "%d L", false, row->((TruckAddon)row).fuelCapacity),
+					new ColumnID("Enables AWD"          , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).enablesAllWheelDrive), 
+					new ColumnID("Enables DiffLock"     , Boolean.class,  90,   null,      null, false, row->((TruckAddon)row).enablesDiffLock), 
+					new ColumnID("Price"                , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((TruckAddon)row).price), 
+					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((TruckAddon)row).unlockByExploration), 
+					new ColumnID("Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, row->((TruckAddon)row).unlockByRank), 
+					new ColumnID("Description"          ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.description_StringID!=null ? row.description_StringID : row.cargoDescription_StringID; }), 
+					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->toString(((TruckAddon)row).excludedCargoTypes)),
+					new ColumnID("Required Addons"      ,  String.class, 200,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((TruckAddon)row).requiredAddons)),
+					new ColumnID("Is Cargo"             , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).isCargo),
+					new ColumnID("Cargo Length"         , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).cargoLength),
+					new ColumnID("Cargo Type"           ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).cargoType),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((TruckAddon)row).usableBy, lang)),
 			});
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.truckAddons.values());
 			Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
-			setInitialRowOrder(Comparator.<Data.TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
+			setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
 		}
 	
 		private static String toString(String[] strs) {
@@ -356,7 +466,7 @@ class DataTables {
 			return Arrays.toString(strs);
 		}
 	
-		@Override public String getTextForRow(Data.TruckAddon row) {
+		@Override public String getTextForRow(TruckAddon row) {
 			StringBuilder sb = new StringBuilder();
 			boolean isFirst = true;
 			
