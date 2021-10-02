@@ -61,7 +61,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets.Socket;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
-import net.schwarzbaer.java.games.snowrunner.DataTables.VerySimpleTableModel;
+import net.schwarzbaer.java.games.snowrunner.DataTables.ExtendedVerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
@@ -104,7 +104,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		bottomPanel.addTab("Addon Sockets", addonSocketsPanel);
 		bottomPanel.addTab("Addons by Socket", addonsPanel);
 		bottomPanel.addTab("Addons by Category", addonsPanel2);
-		bottomPanel.setSelectedIndex(3);
+		//bottomPanel.setSelectedIndex(3);
 		
 		setTopComponent(truckInfoTextAreaScrollPane);
 		setBottomComponent(bottomPanel);
@@ -184,8 +184,9 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
-	private static class AddonsPanel2 extends JTabbedPane {
+	private static class AddonsPanel2 extends SnowRunner.CombinedTableTabPaneTextAreaPanel {
 		private static final long serialVersionUID = 4098254083170104250L;
+		
 		private final Controllers controllers;
 		private Language language;
 		private Truck truck;
@@ -218,7 +219,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			this.truck = truck;
 			
 			currentTabs.clear();
-			removeAll();
+			removeAllTabs();
 			if (this.truck!=null) {
 				
 				createTab("Trailers"  , this.truck.compatibleTrailers    , DataTables.   TrailersTableModel::new);
@@ -236,21 +237,21 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		}
 		
 		interface TableModelConstructor<ItemType> {
-			VerySimpleTableModel<ItemType> create(Controllers controllers, boolean connectToGlobalData);
+			ExtendedVerySimpleTableModel<ItemType> create(Controllers controllers, boolean connectToGlobalData);
 		}
 
 		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, TableModelConstructor<ItemType> constructor) {
 			if (!usableItems.isEmpty()) {
 				Tab tab = new Tab(category, usableItems.size());
 				currentTabs.add(tab);
-				VerySimpleTableModel<ItemType> tableModel = constructor.create(controllers,false);
-				addTab("##", SnowRunner.createSimplifiedTablePanel(tableModel));
+				ExtendedVerySimpleTableModel<ItemType> tableModel = constructor.create(controllers,false);
+				addTab("##", tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);
 				tableModel.setLanguage(language);
 				tableModel.setData(usableItems);
 			}
 		}
-		
+
 		private class Tab {
 			
 			final String category;

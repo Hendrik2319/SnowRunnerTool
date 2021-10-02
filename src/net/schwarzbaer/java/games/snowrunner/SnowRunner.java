@@ -416,6 +416,7 @@ public class SnowRunner {
 		JTable table = new JTable();
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 		JScrollPane scrollPane = new JScrollPane(table);
+		//scrollPane.setPreferredSize(new Dimension(400,100));
 		
 		table.setModel(tableModel);
 		tableModel.setTable(table);
@@ -462,7 +463,7 @@ public class SnowRunner {
 			if (addTextAreaToPanel) {
 				JScrollPane textAreaScrollPane = new JScrollPane(textArea);
 				//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
-				textAreaScrollPane.setPreferredSize(new Dimension(400,100));
+				//textAreaScrollPane.setPreferredSize(new Dimension(400,100));
 				
 				JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
 				panel.setResizeWeight(1);
@@ -478,7 +479,7 @@ public class SnowRunner {
 		
 	}
 
-	private static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
+	static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
 		private static final long serialVersionUID = -2637203211606881920L;
 		
 		private final JTextArea textArea;
@@ -497,9 +498,12 @@ public class SnowRunner {
 			textArea.setLineWrap(true);
 			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
 			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
-			textAreaScrollPane.setPreferredSize(new Dimension(400,100));
+			textAreaScrollPane.setPreferredSize(new Dimension(400,50));
+			textAreaScrollPane.setMinimumSize(new Dimension(5,5));
 			
 			tabbedPane = new JTabbedPane();
+			tabbedPane.setPreferredSize(new Dimension(400,50));
+			tabbedPane.setMinimumSize(new Dimension(5,40));
 			SingleSelectionModel tabbedPaneSelectionModel = tabbedPane.getModel();
 			tabbedPaneSelectionModel.addChangeListener(e->{
 				int i = tabbedPaneSelectionModel.getSelectedIndex();
@@ -510,6 +514,7 @@ public class SnowRunner {
 			
 			setTopComponent(tabbedPane);
 			setBottomComponent(textAreaScrollPane);
+			setResizeWeight(1);
 		}
 		
 		void removeAllTabs() {
@@ -520,6 +525,11 @@ public class SnowRunner {
 		void setTabTitle(int index, String title) {
 			tabbedPane.setTitleAt(index, title);
 		}
+		
+		void setTabComponentAt(int index, Component component) {
+			tabbedPane.setTabComponentAt(index, component);
+		}
+		
 		
 		<TableModel extends SimplifiedTableModel<?> & DataTables.RowTextTableModel> void addTab(String title, TableModel tableModel) {
 			int tabIndex = tabbedPane.getTabCount();
