@@ -32,6 +32,7 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 	
 	private Data data;
 	private Language language;
+	private boolean isShowingSaveGameDataSorted;
 
 	private final JTabbedPane globalTemplatesPanel;
 	private final JTabbedPane classesPanel;
@@ -39,14 +40,13 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 	private final JTabbedPane saveGameDataPanel;
 	private SaveGameData saveGameData;
 
-	private boolean isShowingSaveGameDataSorted;
-
 	RawDataPanel(Window window, SnowRunner.Controllers controllers) {
 		super();
 		this.window = window;
 		data = null;
 		language = null;
 		saveGameData = null;
+		isShowingSaveGameDataSorted = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.ShowingSaveGameDataSorted, false);
 		
 		globalTemplatesPanel = new JTabbedPane();
 		globalTemplatesPanel.setBorder(BorderFactory.createTitledBorder("Global Templates"));
@@ -70,6 +70,7 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 	
 	void showSaveGameDataSorted(boolean isShowingSaveGameDataSorted) {
 		this.isShowingSaveGameDataSorted = isShowingSaveGameDataSorted;
+		SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.ShowingSaveGameDataSorted, this.isShowingSaveGameDataSorted);
 		rebuildSaveGameDataPanel();
 	}
 

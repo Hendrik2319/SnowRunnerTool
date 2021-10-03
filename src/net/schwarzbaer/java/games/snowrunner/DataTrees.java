@@ -2,6 +2,7 @@ package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -438,10 +439,62 @@ class DataTrees {
 			this.showNamedValuesSorted = showNamedValuesSorted;
 		}
 		
+		@Override boolean hasPath() { return true; }
 		@Override boolean hasName() { return name!=null; }
 		@Override boolean hasValue() { return value!=null; }
-		@Override String getName() { return name; }
-		@Override String getValue() { return getValueString(); }
+		@Override String[] getPath() { return PathElement.toStringArr(getPath(0)); }
+		@Override String   getName() { return name; }
+		@Override String   getValue() { return getValueString(); }
+		
+		private PathElement[] getPath(int length) {
+			PathElement[] path;
+			
+			if (parent instanceof JsonTreeNode) {
+				JsonTreeNode jsonParent = (JsonTreeNode) parent;
+				
+				PathElement pe =
+						name!=null 
+						? new PathElement(name)
+						: new PathElement(jsonParent.getIndexOf(this));
+				
+				path = jsonParent.getPath(length+1);
+				path[path.length-length-1] = pe;
+				
+ 			} else {
+				PathElement pe =
+						name!=null 
+						? new PathElement(name)
+						: new PathElement("<root>");
+				
+ 				path = new PathElement[length+1];
+				path[0] = pe;
+ 			}
+			
+			return path;
+		}
+
+		private int getIndexOf(JsonTreeNode jsonTreeNode) {
+			return children.indexOf(jsonTreeNode);
+		}
+
+		static class PathElement {
+			final Integer index;
+			final String name;
+			PathElement(int index) {
+				this.name = null;
+				this.index = index;
+			}
+			PathElement(String name) {
+				this.name = name;
+				this.index = null;
+			}
+			static String[] toStringArr(PathElement[] path) {
+				return Arrays
+						.stream(path)
+						.<String>map(pe->pe.name!=null ? pe.name : String.format("[%d]", pe.index))
+						.toArray(String[]::new);
+			}
+		}
 		
 		@Override
 		protected Vector<TreeNode> createChildren() {

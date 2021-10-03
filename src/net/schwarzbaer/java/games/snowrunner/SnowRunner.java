@@ -27,6 +27,7 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -51,12 +52,14 @@ import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
+import net.schwarzbaer.system.DateTimeFormatter;
 import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
 
-	private static final AppSettings settings = new AppSettings();
+	static final AppSettings settings = new AppSettings();
 
 	public static void main(String[] args) {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); }
@@ -68,15 +71,22 @@ public class SnowRunner {
 
 	private Data data;
 	private HashMap<String,String> truckToDLCAssignments;
+	private SaveGameData saveGameData;
+	private SaveGame selectedSaveGame;
 	private final StandardMainWindow mainWindow;
 	private final JMenu languageMenu;
 	private final Controllers controllers;
 	private final RawDataPanel rawDataPanel;
 	private final TrucksPanel trucksPanel;
+	private final JMenuItem miSGValuesSorted;
+	private final JMenuItem miSGValuesOriginal;
+	private final JMenu selectedSaveGameMenu;
 	
 	SnowRunner() {
 		data = null;
 		truckToDLCAssignments = null;
+		saveGameData = null;
+		selectedSaveGame = null;
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
@@ -110,34 +120,25 @@ public class SnowRunner {
 			for (AppSettings.ValueKey key:AppSettings.ValueKey.values())
 				settings.remove(key);
 		}));
-		fileMenu.add(createMenuItem("Test XMLTemplateStructure", true, e->{
-			boolean changed = testXMLTemplateStructure();
-			if (changed) updateAfterDataChange();
-		}));
+		//fileMenu.add(createMenuItem("Test XMLTemplateStructure", true, e->{
+		//	boolean changed = testXMLTemplateStructure();
+		//	if (changed) updateAfterDataChange();
+		//}));
 		
 		languageMenu = menuBar.add(new JMenu("Language"));
 		
 		ButtonGroup bg = new ButtonGroup();
-		JMenuItem miSGValuesSorted   = createCheckBoxMenuItem("Show Values Sorted by Name"   ,  rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(true ));
-		JMenuItem miSGValuesOriginal = createCheckBoxMenuItem("Show Values in Original Order", !rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(false));
+		miSGValuesSorted   = createCheckBoxMenuItem("Show Values Sorted by Name"   ,  rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(true ));
+		miSGValuesOriginal = createCheckBoxMenuItem("Show Values in Original Order", !rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(false));
 		
 		JMenu saveGameDataMenu = menuBar.add(new JMenu("SaveGame Data"));
-		saveGameDataMenu.add(createMenuItem("Load SaveGame Data", true, e->{
-			File saveGameFolder = getSaveGameFolder();
-			if (saveGameFolder==null) return;
-			
-			System.out.printf("Read Data from SaveGame Folder \"%s\" ...%n", saveGameFolder.getAbsolutePath());
-			SaveGameData saveGameData = new SaveGameData(saveGameFolder);
-			saveGameData.readData();
-			System.out.printf("... done%n");
-			rawDataPanel.setData(saveGameData);
-			
-			miSGValuesSorted  .setEnabled(true);
-			miSGValuesOriginal.setEnabled(true);
-		}));
+		saveGameDataMenu.add(createMenuItem("Reload SaveGame Data", true, e->reloadSaveGameData()));
+		saveGameDataMenu.addSeparator();
+		saveGameDataMenu.add(selectedSaveGameMenu = new JMenu("Selected SaveGame"));
 		saveGameDataMenu.addSeparator();
 		saveGameDataMenu.add(miSGValuesSorted  );
 		saveGameDataMenu.add(miSGValuesOriginal);
+		selectedSaveGameMenu.setEnabled(false);
 		
 		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
@@ -152,7 +153,7 @@ public class SnowRunner {
 			@Override public void componentMoved  (ComponentEvent e) { settings.setWindowPos ( mainWindow.getLocation() ); }
 		});
 	}
-	
+
 	interface TruckToDLCAssignmentListener {
 		void setTruckToDLCAssignments(HashMap<String, String> assignments);
 		void updateAfterAssignmentsChange();
@@ -162,8 +163,70 @@ public class SnowRunner {
 		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
 		controllers.truckToDLCAssignmentListeners.setTruckToDLCAssignments(truckToDLCAssignments);
 		
-		boolean changed = reloadInitialPAK();
-		if (changed) updateAfterDataChange();
+		if (reloadInitialPAK  ()) updateAfterDataChange();
+		if (reloadSaveGameData()) updateAfterSaveGameChange();
+		
+	}
+
+	private boolean reloadSaveGameData() {
+		File saveGameFolder = getSaveGameFolder();
+		if (saveGameFolder==null) return false;
+		
+		System.out.printf("Read Data from SaveGame Folder \"%s\" ...%n", saveGameFolder.getAbsolutePath());
+		saveGameData = new SaveGameData(saveGameFolder);
+		saveGameData.readData();
+		System.out.printf("... done%n");
+		
+		Vector<String> indexStrs = new Vector<>(saveGameData.saveGames.keySet());
+		indexStrs.sort(null);
+		
+		selectedSaveGame = null;
+		String selectedSaveGameIndexStr = settings.getString(AppSettings.ValueKey.SelectedSaveGame, null);
+		if (selectedSaveGameIndexStr!=null) {
+			selectedSaveGame = saveGameData.saveGames.get(selectedSaveGameIndexStr);
+		}
+		if (selectedSaveGame==null && !saveGameData.saveGames.isEmpty()) {
+			if (indexStrs.size()==1) {
+				selectedSaveGameIndexStr = indexStrs.get(0);
+			} else {
+				String[] values = indexStrs.stream().map(this::getSaveGameLabel).toArray(String[]::new);
+				Object selection = JOptionPane.showInputDialog(mainWindow, "Select a SaveGame: ", "Select SaveGame", JOptionPane.QUESTION_MESSAGE, null, values, values[0]);
+				int index = Arrays.asList(values).indexOf(selection);
+				selectedSaveGameIndexStr = index<0 ? null : indexStrs.get(index);
+			}
+			if (selectedSaveGameIndexStr!=null)
+				selectedSaveGame = saveGameData.saveGames.get(selectedSaveGameIndexStr);
+			if (selectedSaveGame!=null)
+				settings.putString(AppSettings.ValueKey.SelectedSaveGame, selectedSaveGameIndexStr);
+		}
+		
+		ButtonGroup bg = new ButtonGroup();
+		selectedSaveGameMenu.removeAll();
+		selectedSaveGameMenu.setEnabled(true);
+		for (String indexStr : indexStrs) {
+			boolean isSelected = selectedSaveGame!=null && indexStr.equals(selectedSaveGame.indexStr);
+			selectedSaveGameMenu.add(createCheckBoxMenuItem(getSaveGameLabel(indexStr), isSelected, bg, true, e->{
+				selectedSaveGame = saveGameData.saveGames.get(indexStr);
+				if (selectedSaveGame!=null)
+					settings.putString(AppSettings.ValueKey.SelectedSaveGame, indexStr);
+				else
+					settings.remove(AppSettings.ValueKey.SelectedSaveGame);
+				updateAfterSaveGameChange();
+			}));
+		}
+		
+		rawDataPanel.setData(saveGameData);
+		
+		miSGValuesSorted  .setEnabled(true);
+		miSGValuesOriginal.setEnabled(true);
+		return true;
+	}
+
+	private String getSaveGameLabel(String indexStr) {
+		SaveGame saveGame = saveGameData==null || saveGameData.saveGames==null ? null : saveGameData.saveGames.get(indexStr);
+		String mode     = saveGame==null ? "??" : saveGame.isHardMode ? "HardMode" : "NormalMode";
+		String saveTime = saveGame==null ? "??" : new DateTimeFormatter().getTimeStr(saveGame.saveTime, false, true, false, true, false);
+		return String.format("SaveGame %s (%s, %s)", indexStr, mode, saveTime);
 	}
 
 	private boolean reloadInitialPAK() {
@@ -276,7 +339,15 @@ public class SnowRunner {
 		}
 		return initialPAK;
 	}
+
+	interface SaveGameListener {
+		void setSaveGame(SaveGame saveGame);
+	}
 	
+	private void updateAfterSaveGameChange() {
+		controllers.saveGameListeners.setSaveGame(selectedSaveGame);
+	}
+
 	interface DataReceiver {
 		void setData(Data data);
 	}
@@ -820,13 +891,15 @@ public class SnowRunner {
 	static class Controllers {
 		
 		final LanguageListenerController languageListeners;
-		final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
 		final DataReceiverController dataReceivers;
+		final SaveGameListenerController saveGameListeners;
+		final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
 		
 		Controllers() {
 			languageListeners = new LanguageListenerController();
-			truckToDLCAssignmentListeners = new TruckToDLCAssignmentListenerController();
 			dataReceivers = new DataReceiverController();
+			saveGameListeners = new SaveGameListenerController();
+			truckToDLCAssignmentListeners = new TruckToDLCAssignmentListenerController();
 		}
 	
 		static class AbstractController<Listener> {
@@ -835,7 +908,28 @@ public class SnowRunner {
 			void remove(Listener l) { listeners.remove(l); }
 			void    add(Listener l) { listeners.   add(l); }
 		}
-	
+		
+		static class LanguageListenerController extends AbstractController<LanguageListener> implements LanguageListener {
+			@Override public void setLanguage(Language language) {
+				for (LanguageListener l:listeners)
+					l.setLanguage(language);
+			}
+		}
+
+		static class DataReceiverController extends AbstractController<DataReceiver> implements DataReceiver {
+			@Override public void setData(Data data) {
+				for (DataReceiver r:listeners)
+					r.setData(data);
+			}
+		}
+
+		static class SaveGameListenerController extends AbstractController<SaveGameListener> implements SaveGameListener {
+			@Override public void setSaveGame(SaveGame saveGame) {
+				for (SaveGameListener l:listeners)
+					l.setSaveGame(saveGame);
+			}
+		}
+
 		static class TruckToDLCAssignmentListenerController extends AbstractController<TruckToDLCAssignmentListener> implements TruckToDLCAssignmentListener {
 			
 			@Override public void setTruckToDLCAssignments(HashMap<String, String> assignments) {
@@ -847,25 +941,11 @@ public class SnowRunner {
 					l.updateAfterAssignmentsChange();
 			}
 		}
-	
-		static class DataReceiverController extends AbstractController<DataReceiver> implements DataReceiver {
-			@Override public void setData(Data data) {
-				for (DataReceiver r:listeners)
-					r.setData(data);
-			}
-		}
-	
-		static class LanguageListenerController extends AbstractController<LanguageListener> implements LanguageListener {
-			@Override public void setLanguage(Language language) {
-				for (LanguageListener l:listeners)
-					l.setLanguage(language);
-			}
-		}
 	}
 
-	private static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
+	static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		enum ValueKey {
-			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
+			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK, SaveGameFolder, SelectedSaveGame, ShowingSaveGameDataSorted,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

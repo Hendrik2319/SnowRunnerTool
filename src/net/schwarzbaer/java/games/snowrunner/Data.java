@@ -121,39 +121,14 @@ public class Data {
 		
 		
 		
-		engineSets = new HashMap<String,Vector<Engine>>();
-		engines = new HashMap<String,Engine>();
-		SetInstance.parseSet(
-				rawdata, "engines",
-				engineSets, engines,
-				Engine::new,
-				"EngineVariants", "Engine");
-		
-		gearboxSets = new HashMap<String,Vector<Gearbox>>();
-		gearboxes = new HashMap<String,Gearbox>();
-		SetInstance.parseSet(
-				rawdata, "gearboxes",
-				gearboxSets, gearboxes,
-				Gearbox::new,
-				"GearboxVariants", "Gearbox");
-		
-		
-		
-		suspensionSets = new HashMap<String,Vector<Suspension>>();
-		suspensions = new HashMap<String,Suspension>();
-		SetInstance.parseSet(
-				rawdata, "suspensions",
-				suspensionSets, suspensions,
-				Suspension::new,
-				"SuspensionSetVariants", "SuspensionSet");
-		
-		winchSets = new HashMap<String,Vector<Winch>>();
-		winches = new HashMap<String,Winch>();
-		SetInstance.parseSet(
-				rawdata, "winches",
-				winchSets, winches,
-				Winch::new,
-				"WinchVariants", "Winch");
+		    engines = new HashMap<>();     engineSets = new HashMap<>();
+		  gearboxes = new HashMap<>();    gearboxSets = new HashMap<>();
+		suspensions = new HashMap<>(); suspensionSets = new HashMap<>();
+		    winches = new HashMap<>();      winchSets = new HashMap<>();
+		TruckComponent.parseSet( rawdata,     "engines",     engineSets,     engines,     Engine::new,        "EngineVariants",        "Engine");
+		TruckComponent.parseSet( rawdata,   "gearboxes",    gearboxSets,   gearboxes,    Gearbox::new,       "GearboxVariants",       "Gearbox");		
+		TruckComponent.parseSet( rawdata, "suspensions", suspensionSets, suspensions, Suspension::new, "SuspensionSetVariants", "SuspensionSet");
+		TruckComponent.parseSet( rawdata,     "winches",      winchSets,     winches,      Winch::new,         "WinchVariants",         "Winch");
 		
 		
 		
@@ -222,33 +197,20 @@ public class Data {
 			}
 
 		socketIDsUsedByTrailers = new StringMultiMap<>();
-		for (Trailer trailer : trailers.values()) {
-			if (trailer.installSocket == null)
-				System.err.printf("No InstallSocket for trailer <%s>%n", trailer.id);
-			
-			else {
+		for (Trailer trailer : trailers.values())
+			if (trailer.installSocket != null)
 				socketIDsUsedByTrailers.add(trailer.installSocket, trailer);
-				
-				Vector<Truck> trucks = socketIDsUsedByTrucks.get(trailer.installSocket);
-				if (trucks != null)
-					trailer.usableBy.addAll(trucks);
-				//else
-				//	System.err.printf("No Trucks are using SocketID \"%s\" of Trailer <%s>%n", trailer.installSocket, trailer.id);
-			}
-			
-		}
-
+			else
+				System.err.printf("No InstallSocket for trailer <%s>%n", trailer.id);
+		
+		
 		socketIDsUsedByTruckAddons = new StringMultiMap<>();
 		for (TruckAddon truckAddon : truckAddons.values())
-			if (truckAddon.installSocket!=null) {
+			if (truckAddon.installSocket!=null)
 				socketIDsUsedByTruckAddons.add(truckAddon.installSocket, truckAddon);
-				
-				Vector<Truck> trucks = socketIDsUsedByTrucks.get(truckAddon.installSocket);
-				if (trucks != null)
-					truckAddon.usableBy.addAll(trucks);
-				//else
-				//	System.err.printf("No Trucks are using SocketID \"%s\" of TruckAddon <%s>%n", truckAddon.installSocket, truckAddon.id);
-			}
+			//else
+			//	System.err.printf("No InstallSocket for truck addon <%s>%n", truckAddon.id);
+		
 		
 		for (Truck truck : trucks.values()) {
 			truck.compatibleTrailers.clear();
@@ -298,6 +260,13 @@ public class Data {
 				truck.compatibleTrailers.removeAll(trailersToRemove);
 			}
 			truck.compatibleTruckAddons.removeEmptyLists();
+			
+			for (Trailer trailer : truck.compatibleTrailers)
+				trailer.usableBy.add(truck);
+			
+			for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
+				for (TruckAddon addon : list)
+					addon.usableBy.add(truck);
 		}
 		
 		if (!unexpectedValues.isEmpty())
@@ -566,7 +535,7 @@ public class Data {
 	
 	}
 	
-	static class SetInstance {
+	static class TruckComponent {
 		
 		final String setID;
 		final String id;
@@ -578,7 +547,7 @@ public class Data {
 		final Vector<Truck> usableBy;
 		protected final GenericXmlNode gameDataNode;
 		
-		protected SetInstance(String setID, GenericXmlNode node, String instanceNodeName) {
+		protected TruckComponent(String setID, GenericXmlNode node, String instanceNodeName) {
 			this.setID = setID;
 			usableBy = new Vector<>();
 			id = node.attributes.get("Name");
@@ -605,7 +574,7 @@ public class Data {
 			usableBy.add(truck);
 		}
 
-		static <InstanceType extends SetInstance> void parseSet(
+		static <InstanceType extends TruckComponent> void parseSet(
 				XMLTemplateStructure rawdata, String className,
 				HashMap<String,Vector<InstanceType>> setList,
 				HashMap<String,InstanceType> instanceList,
@@ -642,7 +611,7 @@ public class Data {
 		
 	}
 
-	static class Winch extends SetInstance {
+	static class Winch extends TruckComponent {
 
 		final boolean isEngineIgnitionRequired;
 		final Integer length;
@@ -673,7 +642,7 @@ public class Data {
 
 	}
 
-	static class Suspension extends SetInstance {
+	static class Suspension extends TruckComponent {
 
 		final Integer damageCapacity;
 		final String type_StringID;
@@ -698,7 +667,7 @@ public class Data {
 
 	}
 
-	static class Gearbox extends SetInstance {
+	static class Gearbox extends TruckComponent {
 
 		final Integer damageCapacity;
 		final Float fuelConsumption;
@@ -751,7 +720,7 @@ public class Data {
 
 	}
 
-	static class Engine extends SetInstance {
+	static class Engine extends TruckComponent {
 
 		final Integer damageCapacity;
 		final Float fuelConsumption;

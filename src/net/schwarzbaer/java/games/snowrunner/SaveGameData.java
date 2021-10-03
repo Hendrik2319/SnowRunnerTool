@@ -6,6 +6,10 @@ import java.util.HashMap;
 import java.util.List;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Object;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Null;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.TraverseException;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Parser;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Parser.ParseException;
@@ -55,7 +59,12 @@ class SaveGameData {
 				rawJsonData.put(file.getName(), value);
 				String name = file.getName();
 				String indexStr = name.substring(SAVEGAME_PREFIX.length(), name.length()-SAVEGAME_SUFFIX.length());
-				saveGames.put(indexStr, new SaveGameData.SaveGame(value));
+				try {
+					saveGames.put(indexStr, new SaveGameData.SaveGame(indexStr, value));
+				} catch (TraverseException e) {
+					System.err.printf("Can't parse SaveGame \"%s\": %s", indexStr, e.getMessage());
+					//e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -74,8 +83,66 @@ class SaveGameData {
 
 	static class SaveGame {
 	
-		SaveGame(JSON_Data.Value<NV, V> value) {
-			// TODO Auto-generated constructor stub
+		final String indexStr;
+		final JSON_Data.Value<NV, V> data;
+		final HashMap<String, Integer> ownedTrucks;
+		final Long experience;
+		final Long money;
+		final Long rank;
+		final long saveTime;
+		final double gameTime;
+		final boolean isHardMode;
+		final String worldConfiguration;
+
+		SaveGame(String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
+			if (data==null)
+				throw new IllegalArgumentException();
+			
+			this.indexStr = indexStr;
+			this.data = data;
+			
+			JSON_Data.Value<NV, V> sslValue = JSON_Data.getSubNode(this.data, "CompleteSave"+indexStr, "SslValue");
+			
+			String debugOutputPrefixStr = "CompleteSave"+indexStr+".SslValue";
+			JSON_Object<NV, V> sslValueObj = JSON_Data.getObjectValue(sslValue, debugOutputPrefixStr);
+			
+			gameTime           = JSON_Data.getFloatValue (sslValueObj, "gameTime"          , debugOutputPrefixStr);
+			isHardMode         = JSON_Data.getBoolValue  (sslValueObj, "isHardMode"        , debugOutputPrefixStr);
+			worldConfiguration = JSON_Data.getStringValue(sslValueObj, "worldConfiguration", debugOutputPrefixStr);
+			
+			JSON_Object<NV, V> saveTime = JSON_Data.getObjectValue(sslValueObj, "saveTime", debugOutputPrefixStr);
+			String timestampStr = JSON_Data.getStringValue(saveTime, "timestamp", debugOutputPrefixStr+".saveTime");
+			if (!timestampStr.startsWith("0x"))
+				throw new JSON_Data.TraverseException("Unexpected string value in %s: %s", debugOutputPrefixStr+".saveTime.timestamp", timestampStr);
+			
+			this.saveTime = Long.parseUnsignedLong(timestampStr.substring(2), 16);
+			
+			
+			JSON_Object<NV, V> persistentProfileData      = JSON_Data.getObjectValue(sslValueObj, "persistentProfileData", false, true, debugOutputPrefixStr);
+			JSON_Data.Null     persistentProfileData_Null = JSON_Data.getNullValue  (sslValueObj, "persistentProfileData", false, true, debugOutputPrefixStr);
+			if (persistentProfileData==null && persistentProfileData_Null==null)
+				throw new JSON_Data.TraverseException("Unexpected type of <persistentProfileData>");
+			
+			if (persistentProfileData!=null) {
+				String local_debugOutputPrefixStr = debugOutputPrefixStr+".persistentProfileData";
+				
+				experience = JSON_Data.getIntegerValue(persistentProfileData, "experience", local_debugOutputPrefixStr);
+				money      = JSON_Data.getIntegerValue(persistentProfileData, "money"     , local_debugOutputPrefixStr);
+				rank       = JSON_Data.getIntegerValue(persistentProfileData, "rank"      , local_debugOutputPrefixStr);
+				
+				JSON_Object<NV, V> ownedTrucks = JSON_Data.getObjectValue(persistentProfileData, "ownedTrucks", local_debugOutputPrefixStr);
+				this.ownedTrucks = new HashMap<>();
+				for (JSON_Data.NamedValue<NV, V> nv : ownedTrucks) {
+					int amount = (int) JSON_Data.getIntegerValue(nv.value, local_debugOutputPrefixStr+".ownedTrucks."+nv.name);
+					this.ownedTrucks.put(nv.name, amount);
+				}
+				
+			} else {
+				ownedTrucks = null;
+				experience = null;
+				money      = null;
+				rank       = null;
+			}
 		}
 	
 	}

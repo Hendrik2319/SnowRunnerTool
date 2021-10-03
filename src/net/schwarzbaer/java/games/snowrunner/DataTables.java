@@ -29,7 +29,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
-import net.schwarzbaer.java.games.snowrunner.Data.SetInstance;
+import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
@@ -226,7 +226,7 @@ class DataTables {
 		protected abstract String getTextForRow(RowType row);
 	}
 
-	static class SetInstancesTableModel<RowType extends SetInstance> extends ExtendedVerySimpleTableModel<RowType> {
+	static class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModel<RowType> {
 	
 		SetInstancesTableModel(Controllers controllers, ColumnID[] columns) {
 			super(controllers, columns);
