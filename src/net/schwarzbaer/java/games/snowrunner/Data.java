@@ -4,11 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
@@ -20,46 +18,16 @@ import java.util.zip.ZipFile;
 
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets;
+import net.schwarzbaer.java.games.snowrunner.MapTypes.SetMap;
+import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
 
 public class Data {
 
-	private static class HashSetMap<MapKeyType,SetValueType> extends HashMap<MapKeyType,HashSet<SetValueType>> {
-		private static final long serialVersionUID = -6897179951968079373L;
-		private final Comparator<? super MapKeyType> compMapKeyType;
-		private final Comparator<? super SetValueType> compSetValueType;
-		
-		HashSetMap(Comparator<? super MapKeyType> compMapKeyType, Comparator<? super SetValueType> compSetValueType) {
-			this.compMapKeyType = compMapKeyType;
-			this.compSetValueType = compSetValueType;
-		}
-		
-		void add(MapKeyType key, SetValueType value) {
-			if (key==null) new IllegalArgumentException();
-			HashSet<SetValueType> set = get(key);
-			if (set==null) put(key, set = new HashSet<>());
-			set.add(value);
-		}
-		
-		void print(PrintStream out, String label) {
-			out.printf("%s:%n", label);
-			Vector<MapKeyType> keys = new Vector<>(keySet());
-			keys.sort(compMapKeyType);
-			for (MapKeyType key : keys) {
-				out.printf("   %s%n", key);
-				Vector<SetValueType> values = new Vector<>(get(key));
-				values.sort(compSetValueType);
-				for (SetValueType value : values)
-					out.printf("      %s%n", value);
-			}
-		}
-	}
-
-	private static HashSetMap<String,String> unexpectedValues;
+	private static SetMap<String,String> unexpectedValues;
 	
 	final XMLTemplateStructure rawdata;
 	final HashMap<String,Language> languages;
@@ -69,9 +37,9 @@ public class Data {
 	final HashMap<String,Truck> trucks;
 	final HashMap<String,Trailer> trailers;
 	final HashMap<String,TruckAddon> truckAddons;
-	final StringMultiMap<Truck> socketIDsUsedByTrucks;
-	final StringMultiMap<Trailer> socketIDsUsedByTrailers;
-	final StringMultiMap<TruckAddon> socketIDsUsedByTruckAddons;
+	final StringVectorMap<Truck> socketIDsUsedByTrucks;
+	final StringVectorMap<Trailer> socketIDsUsedByTrailers;
+	final StringVectorMap<TruckAddon> socketIDsUsedByTruckAddons;
 	final HashMap<String,Vector<Engine>> engineSets;
 	final HashMap<String,Engine> engines;
 	final HashMap<String,Vector<Gearbox>> gearboxSets;
@@ -85,7 +53,7 @@ public class Data {
 		this.rawdata = rawdata;
 		languages = rawdata.languages;
 		
-		unexpectedValues = new HashSetMap<>(null,null);
+		unexpectedValues = new SetMap<>(null,null);
 		
 		
 		
@@ -187,7 +155,7 @@ public class Data {
 		
 		
 		
-		socketIDsUsedByTrucks = new StringMultiMap<>();
+		socketIDsUsedByTrucks = new StringVectorMap<>();
 		for (Truck truck : trucks.values())
 			for (AddonSockets as : truck.addonSockets) {
 				if (as.defaultAddonName!=null)
@@ -196,7 +164,7 @@ public class Data {
 					socketIDsUsedByTrucks.add(socketID, truck);
 			}
 
-		socketIDsUsedByTrailers = new StringMultiMap<>();
+		socketIDsUsedByTrailers = new StringVectorMap<>();
 		for (Trailer trailer : trailers.values())
 			if (trailer.installSocket != null)
 				socketIDsUsedByTrailers.add(trailer.installSocket, trailer);
@@ -204,7 +172,7 @@ public class Data {
 				System.err.printf("No InstallSocket for trailer <%s>%n", trailer.id);
 		
 		
-		socketIDsUsedByTruckAddons = new StringMultiMap<>();
+		socketIDsUsedByTruckAddons = new StringVectorMap<>();
 		for (TruckAddon truckAddon : truckAddons.values())
 			if (truckAddon.installSocket!=null)
 				socketIDsUsedByTruckAddons.add(truckAddon.installSocket, truckAddon);
@@ -273,7 +241,7 @@ public class Data {
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
 	
-	private static boolean findARequiredAddon(String[][] requiredAddons, StringMultiMap<TruckAddon> compatibleAddons) {
+	private static boolean findARequiredAddon(String[][] requiredAddons, StringVectorMap<TruckAddon> compatibleAddons) {
 		for (int andIndex=0; andIndex<requiredAddons.length; andIndex++) {
 			boolean foundARequiredAddon = false;
 			for (int orIndex=0; orIndex<requiredAddons[andIndex].length; orIndex++) {
@@ -289,7 +257,7 @@ public class Data {
 		return true;
 	}
 
-	private static boolean findARequiredAddon(String requiredAddon, StringMultiMap<TruckAddon> compatibleAddons) {
+	private static boolean findARequiredAddon(String requiredAddon, StringVectorMap<TruckAddon> compatibleAddons) {
 		for (Vector<TruckAddon> list : compatibleAddons.values())
 			for (TruckAddon addon : list)
 				if (requiredAddon.equals(addon.id))
@@ -844,7 +812,7 @@ public class Data {
 		final CompatibleWheel[] compatibleWheels;
 		final AddonSockets[] addonSockets;
 		final HashSet<Trailer> compatibleTrailers;
-		final StringMultiMap<TruckAddon> compatibleTruckAddons;
+		final StringVectorMap<TruckAddon> compatibleTruckAddons;
 		
 		final String   defaultEngine_ItemID;
 		final Engine   defaultEngine;
@@ -955,13 +923,13 @@ public class Data {
 				compatibleWheels[i] = new CompatibleWheel(compatibleWheelsNodes[i], data.wheels::get);
 			
 			compatibleTrailers = new HashSet<>();
-			compatibleTruckAddons = new StringMultiMap<>();
+			compatibleTruckAddons = new StringVectorMap<>();
 		}
 		
 		static class AddonSockets {
 
-			final StringMultiMap<TruckAddon> compatibleTruckAddons;
-			final StringMultiMap<Trailer> compatibleTrailers;
+			final StringVectorMap<TruckAddon> compatibleTruckAddons;
+			final StringVectorMap<Trailer> compatibleTrailers;
 			final String defaultAddonName; // <---> item.id
 			final Socket[] sockets;
 			final HashSet<String> compatibleSocketIDs;
@@ -982,8 +950,8 @@ public class Data {
 				defaultAddonName = node.attributes.get("DefaultAddon");
 				defaultAddonItem = null;
 				
-				compatibleTrailers = new StringMultiMap<>();
-				compatibleTruckAddons = new StringMultiMap<>();
+				compatibleTrailers = new StringVectorMap<>();
+				compatibleTruckAddons = new StringVectorMap<>();
 				compatibleSocketIDs = new HashSet<>();
 				GenericXmlNode[] socketNodes = node.getNodes("AddonSockets","Socket");
 				sockets = new Socket[socketNodes.length];

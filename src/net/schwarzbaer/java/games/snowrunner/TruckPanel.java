@@ -62,11 +62,13 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.DataTables.ExtendedVerySimpleTableModel;
+import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
 
-class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
+class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, ListenerSource {
 	private static final long serialVersionUID = -5138746858742450458L;
 	
 	private final JTextArea truckInfoTextArea;
@@ -76,6 +78,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 	private final AddonsPanel2 addonsPanel2;
 	private Language language;
 	private Truck truck;
+	private SaveGame saveGame;
 	private HashMap<String, String> truckToDLCAssignments;
 
 
@@ -86,6 +89,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		language = null;
 		truck = null;
 		truckToDLCAssignments = null;
+		saveGame = null;
 		
 		truckInfoTextArea = new JTextArea();
 		truckInfoTextArea.setEditable(false);
@@ -109,20 +113,24 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		setTopComponent(truckInfoTextAreaScrollPane);
 		setBottomComponent(bottomPanel);
 		
-		controllers.languageListeners.add(language->{
+		controllers.languageListeners.add(this,language->{
 			this.language = language;
 			compatibleWheelsPanel.setLanguage(language);
 			addonSocketsPanel.setLanguage(language);
 			updateOutput();
 		});
-		controllers.truckToDLCAssignmentListeners.add(this);
+		controllers.truckToDLCAssignmentListeners.add(this,this);
+		controllers.saveGameListeners.add(this,saveGame->{
+			this.saveGame = saveGame;
+			updateOutput();
+		});
 		
 		updateOutput();
 	}
 
 	void setTruck(Truck truck) {
 		this.truck = truck;
-		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels);
+		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : this.truck.name_StringID);
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel2         .setData(truck);
@@ -163,6 +171,14 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				outTop.add(0, "Official DLC", dlc);
 		}
 		
+		if (saveGame!=null) {
+			outTop.add(0, "");
+			
+			Integer owned = saveGame.ownedTrucks==null ? null : saveGame.ownedTrucks.get(truck.id);
+			outTop.add(0, "Owned by Player", owned==null ? 0 : owned);
+		}
+		
+		
 		outTop.add(0, "");
 		
 		String name = null;
@@ -184,7 +200,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
-	private static class AddonsPanel2 extends SnowRunner.CombinedTableTabPaneTextAreaPanel {
+	private static class AddonsPanel2 extends SnowRunner.CombinedTableTabPaneTextAreaPanel implements ListenerSource {
 		private static final long serialVersionUID = 4098254083170104250L;
 		
 		private final Controllers controllers;
@@ -199,11 +215,11 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			addonCategories = null;
 			currentTabs = new Vector<>();
 			language = null;
-			this.controllers.languageListeners.add(language -> {
+			this.controllers.languageListeners.add(this,language -> {
 				this.language = language;
 				updateTabTitles();
 			});
-			this.controllers.dataReceivers.add(data->{
+			this.controllers.dataReceivers.add(this,data->{
 				this.addonCategories = data.addonCategories;
 				updateTabTitles();
 			});
@@ -228,7 +244,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 				createTab("suspension", this.truck.compatibleSuspensions , DataTables.SuspensionsTableModel::new);
 				createTab("winch"     , this.truck.compatibleWinches     , DataTables.    WinchesTableModel::new);
 				
-				StringMultiMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
+				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
@@ -279,7 +295,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		}
 	}
 
-	private static class AddonsPanel extends JPanel {
+	private static class AddonsPanel extends JPanel implements ListenerSource {
 		private static final long serialVersionUID = 5515829836865733889L;
 		
 		private final JLabel socketIndexLabel;
@@ -320,7 +336,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			
 			updatePanel();
 			
-			controllers.languageListeners.add(language -> {
+			controllers.languageListeners.add(this,language -> {
 				this.language = language;
 				updateDefaultAddonLabel();
 			});
@@ -584,6 +600,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		private final StandardMainWindow mainWindow;
 		private Language language;
 		private CompatibleWheel[] compatibleWheels;
+		private String truckName_StringID;
 		
 		CompatibleWheelsPanel(StandardMainWindow mainWindow) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
@@ -593,6 +610,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			selectedWheel = null;
 			language = null;
 			compatibleWheels = null;
+			truckName_StringID = null;
 			
 			
 			table = new JTable(tableModel = new CWTableModel());
@@ -641,7 +659,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			c.weightx = 0;
 			tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data in Diagram", true, e->{
 				if (tableModel.data!=null)
-					new WheelsDiagramDialog(this.mainWindow, tableModel.data, language).showDialog();
+					new WheelsDiagramDialog(this.mainWindow, tableModel.data, truckName_StringID, language).showDialog();
 			}),c);
 			
 			tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data as Text", true, e->{
@@ -673,7 +691,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			
 			updateWheelInfo();
 		}
-	
+
 		private void updateWheelInfo() {
 			textArea.setText("");
 			if (selectedWheel != null) {
@@ -690,8 +708,9 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			updateWheelInfo();
 		}
 	
-		void setData(CompatibleWheel[] compatibleWheels) {
+		void setData(CompatibleWheel[] compatibleWheels, String truckName_StringID) {
 			this.compatibleWheels = compatibleWheels;
+			this.truckName_StringID = truckName_StringID;
 			tableModel.setData(compatibleWheels);
 			updateWheelInfo();
 		}
@@ -894,10 +913,13 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 		private final WheelsDiagram diagramView;
 		private final Language language;
 		
-		WheelsDiagramDialog(Window owner, Vector<CompatibleWheelsPanel.CWTableModel.RowItem> data, Language language) {
+		WheelsDiagramDialog(Window owner, Vector<CompatibleWheelsPanel.CWTableModel.RowItem> data, String truckName_StringID, Language language) {
 			super(owner, ModalityType.APPLICATION_MODAL);
 			this.data = data;
 			this.language = language;
+			
+			String truckName = SnowRunner.solveStringID(truckName_StringID, language, "Truck ???");
+			setTitle("Wheels of "+truckName);
 			
 			horizAxis = AxisValue.Offroad;
 			vertAxis  = AxisValue.Mud;
@@ -929,6 +951,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener {
 			optionsPanel.add(new JLabel(), c);
 			
 			JPanel contentPane = new JPanel(new BorderLayout());
+			contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 			contentPane.add(optionsPanel,BorderLayout.NORTH);
 			contentPane.add(diagramView,BorderLayout.CENTER);
 			

@@ -52,8 +52,12 @@ import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
+import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMap;
+import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMapMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.StringMultiMap;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.system.DateTimeFormatter;
 import net.schwarzbaer.system.Settings;
 
@@ -512,21 +516,50 @@ public class SnowRunner {
 	}
 
 	static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
-		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", list)).iterator();
-		return indent+"  "+String.join(String.format("%n%1$sAND%n%1$s  ", indent), it);
+		return joinRequiredAddonsToString(requiredAddons, null, null, indent);
 	}
 
-	static String joinRequiredAddonsToString_OneLine(String[][] strs) {
-		if (strs==null || strs.length==0) return null;
+	static String joinRequiredAddonsToString(String[][] requiredAddons, HashMap<String, TruckAddon> truckAddons, Language language, String indent) {
+		if (requiredAddons==null || requiredAddons.length==0) return null;
+		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", getTruckAddonNames(list,truckAddons,language))).iterator();
+		String orGroupIndent = "  ";
+		return indent+orGroupIndent+String.join(String.format("%n%1$sAND%n%1$s"+orGroupIndent, indent), it);
+	}
+
+	private static String[] getTruckAddonNames(String[] idList, HashMap<String, TruckAddon> truckAddons, Language language) {
+		if (truckAddons==null)
+			return idList;
 		
-		Iterable<String> it = ()->Arrays.stream(strs).map(list->{
+		String[] namesArr = Arrays.stream(idList).map(id->{
+			TruckAddon truckAddon = truckAddons.get(id);
+			return solveStringID(truckAddon==null ? null : truckAddon.name_StringID, language, String.format("<%s>", id));
+		}).toArray(String[]::new);
+		
+		Vector<String> namesVec = new Vector<>(Arrays.asList(namesArr));
+		for (int i=0; i<namesVec.size(); i++) {
+			String name = namesVec.get(i);
+			int nextEqual = namesVec.indexOf(name, i+1);
+			while (nextEqual>=0) {
+				namesVec.remove(nextEqual);
+				nextEqual = namesVec.indexOf(name, i+1);
+			}
+		}
+		namesVec.sort(null);
+		
+		return namesVec.toArray(new String[namesVec.size()]);
+	}
+
+	static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
+		if (requiredAddons==null || requiredAddons.length==0) return null;
+		
+		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->{
 			String str = String.join(" OR ", Arrays.asList(list));
 			if (list.length==1) return str;
 			return String.format("(%s)", str);
 		}).iterator();
 		
 		String str = String.join(" AND ", it);
-		if (strs.length==1) return str;
+		if (requiredAddons.length==1) return str;
 		return String.format("(%s)", str);
 	}
 	
@@ -685,7 +718,7 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextAreaPanel {
+	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextAreaPanel implements ListenerSource {
 		private static final long serialVersionUID = 7841445317301513175L;
 		
 		private final Controllers controllers;
@@ -699,11 +732,11 @@ public class SnowRunner {
 			this.data = null;
 			this.tabs = new Vector<>();
 			
-			controllers.languageListeners.add(language->{
+			controllers.languageListeners.add(this,language->{
 				this.language = language;
 				updateTabTitles();
 			});
-			controllers.dataReceivers.add(data->{
+			controllers.dataReceivers.add(this,data->{
 				this.data = data;
 				rebuildTabPanels();
 			});
@@ -721,7 +754,7 @@ public class SnowRunner {
 			tabs.clear();
 			if (data==null) return;
 			
-			StringMultiMap<TruckAddon> truckAddons = new StringMultiMap<>();
+			StringVectorMap<TruckAddon> truckAddons = new StringVectorMap<>();
 			for (TruckAddon addon : data.truckAddons.values())
 				truckAddons.add(addon.getCategory(), addon);
 			
@@ -766,7 +799,7 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TrucksPanel extends JSplitPane {
+	private static class TrucksPanel extends JSplitPane implements ListenerSourceParent, ListenerSource {
 		private static final long serialVersionUID = 7004081774916835136L;
 		
 		private final JList<Truck> truckList;
@@ -783,28 +816,30 @@ public class SnowRunner {
 			
 			TruckPanel truckPanel = new TruckPanel(this.mainWindow, this.controllers);
 			truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
+			this.controllers.addChild(this,truckPanel);
 			
 			JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
 			truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
 			truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
-			this.controllers.dataReceivers.add(data -> {
+			this.controllers.dataReceivers.add(this,data -> {
 				Vector<Truck> items = new Vector<>(data.trucks.values());
 				items.sort(Comparator.<Truck,String>comparing(Truck->Truck.id));
 				truckList.setListData(items);
 			});
 			
 			TruckListContextMenu truckListContextMenu = new TruckListContextMenu();
-			this.controllers.languageListeners.add(truckListContextMenu);
+			this.controllers.languageListeners.add(this,truckListContextMenu);
 			
 			TruckListCellRenderer truckListCellRenderer = new TruckListCellRenderer(truckList);
 			truckList.setCellRenderer(truckListCellRenderer);
-			this.controllers.languageListeners.add(truckListCellRenderer);
+			this.controllers.languageListeners.add(this,truckListCellRenderer);
+			this.controllers.saveGameListeners.add(this,truckListCellRenderer);
 			
 			setLeftComponent(truckListScrollPane);
 			setRightComponent(truckPanel);
 			
-			this.controllers.truckToDLCAssignmentListeners.add(new TruckToDLCAssignmentListener() {
+			this.controllers.truckToDLCAssignmentListeners.add(this,new TruckToDLCAssignmentListener() {
 				@Override public void updateAfterAssignmentsChange() {}
 				@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
 					TrucksPanel.this.truckToDLCAssignments = truckToDLCAssignments;
@@ -854,24 +889,32 @@ public class SnowRunner {
 			}
 		}
 	
-		private static class TruckListCellRenderer implements ListCellRenderer<Truck>, LanguageListener {
+		private static class TruckListCellRenderer implements ListCellRenderer<Truck>, LanguageListener, SaveGameListener {
 			
-			private static final Color COLOR_FG_DLCTRUCK = new Color(0x0070FF);
+			private static final Color COLOR_FG_DLCTRUCK   = new Color(0x0070FF);
+			private static final Color COLOR_FG_OWNEDTRUCK = new Color(0x00AB00);
 			private final Tables.LabelRendererComponent rendererComp;
-			private Language language;
 			private final JList<Truck> truckList;
+			private Language language;
+			private SaveGame saveGame;
 		
 			TruckListCellRenderer(JList<Truck> truckList) {
 				this.truckList = truckList;
 				rendererComp = new Tables.LabelRendererComponent();
 				language = null;
+				saveGame = null;
 			}
 			
 			@Override public void setLanguage(Language language) {
 				this.language = language;
 				truckList.repaint();
 			}
-		
+			
+			@Override public void setSaveGame(SaveGame saveGame) {
+				this.saveGame = saveGame;
+				truckList.repaint();
+			}
+
 			@Override
 			public Component getListCellRendererComponent( JList<? extends Truck> list, Truck value, int index, boolean isSelected, boolean cellHasFocus) {
 				rendererComp.configureAsListCellRendererComponent(list, null, getTruckLabel(value, language), index, isSelected, cellHasFocus, null, ()->getForeground(value));
@@ -879,8 +922,12 @@ public class SnowRunner {
 			}
 		
 			private Color getForeground(Truck truck) {
-				if (truck!=null && truck.dlcName!=null)
-					return COLOR_FG_DLCTRUCK;
+				if (truck!=null) {
+					if (saveGame!=null && saveGame.ownedTrucks!=null && saveGame.ownedTrucks.containsKey(truck.id))
+						return COLOR_FG_OWNEDTRUCK;
+					if (truck.dlcName!=null)
+						return COLOR_FG_DLCTRUCK;
+				}
 				return null;
 			}
 		
@@ -890,55 +937,121 @@ public class SnowRunner {
 
 	static class Controllers {
 		
+		interface ListenerSource {}
+		interface ListenerSourceParent {}
+		
 		final LanguageListenerController languageListeners;
 		final DataReceiverController dataReceivers;
 		final SaveGameListenerController saveGameListeners;
 		final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
+		final VectorMap<ListenerSourceParent, ListenerSource> childrenOfSources;
+		final VectorMapMap<ListenerSourceParent, String, ListenerSource> volatileChildrenOfSources;
 		
 		Controllers() {
-			languageListeners = new LanguageListenerController();
-			dataReceivers = new DataReceiverController();
-			saveGameListeners = new SaveGameListenerController();
+			languageListeners             = new LanguageListenerController();
+			dataReceivers                 = new DataReceiverController();
+			saveGameListeners             = new SaveGameListenerController();
 			truckToDLCAssignmentListeners = new TruckToDLCAssignmentListenerController();
+			childrenOfSources = new VectorMap<>();
+			volatileChildrenOfSources = new VectorMapMap<>();
 		}
 	
+		public void addVolatileChild(ListenerSourceParent parent, String listID, ListenerSource child) {
+			if (parent==null) throw new IllegalArgumentException();
+			if (listID==null) throw new IllegalArgumentException();
+			if (child ==null) throw new IllegalArgumentException();
+			volatileChildrenOfSources.add(parent, listID, child);
+		}
+		public void addChild(ListenerSourceParent parent, ListenerSource child) {
+			if (parent==null) throw new IllegalArgumentException();
+			if (child ==null) throw new IllegalArgumentException();
+			childrenOfSources.add(parent, child);
+		}
+		
+		void removeListenersOfVolatileChildrenOfSource(ListenerSourceParent source) {
+			if (source==null) throw new IllegalArgumentException();
+			
+			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.remove(source);
+			if (childrenLists==null) return;
+			
+			childrenLists.values().forEach(this::removeListenersOfSources);
+		}
+		
+		void removeListenersOfVolatileChildrenOfSource(ListenerSourceParent source, String listID) {
+			if (source==null) throw new IllegalArgumentException();
+			if (listID==null) throw new IllegalArgumentException();
+			
+			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.get(source);
+			removeListenersOfSources(childrenLists==null ? null : childrenLists.remove(listID));
+		}
+		
+		void removeListenersOfSource(ListenerSource source) {
+			if (source==null) throw new IllegalArgumentException();
+			
+			languageListeners            .removeListenersOfSource(source);
+			dataReceivers                .removeListenersOfSource(source);
+			saveGameListeners            .removeListenersOfSource(source);
+			truckToDLCAssignmentListeners.removeListenersOfSource(source);
+			
+			if (source instanceof ListenerSourceParent) {
+				ListenerSourceParent sourceParent = (ListenerSourceParent) source;
+				removeListenersOfSources(childrenOfSources.remove(sourceParent));
+				removeListenersOfVolatileChildrenOfSource(sourceParent);
+			}
+		}
+
+		private void removeListenersOfSources(Vector<ListenerSource> sources) {
+			if (sources!=null)
+				for (ListenerSource source : sources)
+					removeListenersOfSource(source);
+		}
+
 		static class AbstractController<Listener> {
 			protected final Vector<Listener> listeners = new Vector<>();
+			final VectorMap<ListenerSource, Listener> listenersOfSource = new VectorMap<>();
 			
-			void remove(Listener l) { listeners.remove(l); }
-			void    add(Listener l) { listeners.   add(l); }
+			void add(ListenerSource source, Listener l) {
+				listenersOfSource.add(source, l);
+				listeners.add(l);
+			}
+			
+			void removeListenersOfSource(ListenerSource source) {
+				Vector<Listener> list = listenersOfSource.remove(source);
+				if (list==null) return;
+				listeners.removeAll(list);
+			}
 		}
 		
 		static class LanguageListenerController extends AbstractController<LanguageListener> implements LanguageListener {
 			@Override public void setLanguage(Language language) {
-				for (LanguageListener l:listeners)
-					l.setLanguage(language);
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).setLanguage(language);
 			}
 		}
 
 		static class DataReceiverController extends AbstractController<DataReceiver> implements DataReceiver {
 			@Override public void setData(Data data) {
-				for (DataReceiver r:listeners)
-					r.setData(data);
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).setData(data);
 			}
 		}
 
 		static class SaveGameListenerController extends AbstractController<SaveGameListener> implements SaveGameListener {
 			@Override public void setSaveGame(SaveGame saveGame) {
-				for (SaveGameListener l:listeners)
-					l.setSaveGame(saveGame);
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).setSaveGame(saveGame);
 			}
 		}
 
 		static class TruckToDLCAssignmentListenerController extends AbstractController<TruckToDLCAssignmentListener> implements TruckToDLCAssignmentListener {
 			
 			@Override public void setTruckToDLCAssignments(HashMap<String, String> assignments) {
-				for (TruckToDLCAssignmentListener l:listeners)
-					l.setTruckToDLCAssignments(assignments);
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).setTruckToDLCAssignments(assignments);
 			}
 			@Override public void updateAfterAssignmentsChange() {
-				for (TruckToDLCAssignmentListener l:listeners)
-					l.updateAfterAssignmentsChange();
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).updateAfterAssignmentsChange();
 			}
 		}
 	}

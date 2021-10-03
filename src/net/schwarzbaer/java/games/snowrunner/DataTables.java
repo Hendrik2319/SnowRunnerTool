@@ -32,13 +32,14 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class DataTables {
 	
-	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, TableCellRenderer, SwingConstants {
+	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, TableCellRenderer, SwingConstants, ListenerSource {
 		
 		protected final Controllers controllers;
 		protected final Vector<RowType> rows;
@@ -52,13 +53,21 @@ class DataTables {
 			this.language = null;
 			this.initialRowOrder = null;
 			rows = new Vector<>();
-			this.controllers.languageListeners.add(this);
+			this.controllers.languageListeners.add(this,this);
 			rendererComp = new Tables.LabelRendererComponent();
 		}
 		
 		void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
+			connectToGlobalData(getData, false);
+		}
+		void connectToGlobalData(Function<Data,Collection<RowType>> getData, boolean forwardNulls) {
 			if (getData!=null)
-				controllers.dataReceivers.add(data -> setData(data==null ? null : getData.apply(data)));
+				controllers.dataReceivers.add(this, data -> {
+					if (!forwardNulls)
+						setData(data==null ? null : getData.apply(data));
+					else
+						setData(getData.apply(data));
+				});
 		}
 	
 		void setInitialRowOrder(Comparator<RowType> initialRowOrder) {
@@ -209,6 +218,10 @@ class DataTables {
 		}
 	
 		@Override protected void extraUpdate() {
+			updateTextArea();
+		}
+
+		void updateTextArea() {
 			if (textAreaUpdateMethod!=null)
 				textAreaUpdateMethod.run();
 		}
@@ -363,6 +376,8 @@ class DataTables {
 
 	static class TrailersTableModel extends ExtendedVerySimpleTableModel<Trailer> {
 		
+		private HashMap<String, TruckAddon> truckAddons;
+
 		TrailersTableModel(Controllers controllers, boolean connectToGlobalData) {
 			super(controllers, new ColumnID[] {
 					new ColumnID("ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
@@ -383,8 +398,19 @@ class DataTables {
 					new ColumnID("Required Addons"      ,  String.class, 150,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Trailer)row).requiredAddons)),
 					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Trailer)row).usableBy, lang)),
 			});
+			
+			truckAddons = null;
 			if (connectToGlobalData)
-				connectToGlobalData(data->data.trailers.values());
+				connectToGlobalData(data->{
+					truckAddons = data==null ? null : data.truckAddons;
+					return data==null ? null : data.trailers.values();
+				}, true);
+			else
+				controllers.dataReceivers.add(this,data->{
+					truckAddons = data==null ? null : data.truckAddons;
+					updateTextArea();
+				});
+			
 			setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 		}
 	
@@ -410,7 +436,14 @@ class DataTables {
 				if (!isFirst) sb.append("\r\n\r\n");
 				isFirst = false;
 				sb.append("Required Addons:\r\n");
-				sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "  "));
+				if (truckAddons==null)
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "    "));
+				else {
+					sb.append("    [IDs]\r\n");
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "        ")+"\r\n");
+					sb.append("    [Names]\r\n");
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, language, "        "));
+				}
 			}
 			
 			if (row.excludedCargoTypes.length>0) {
@@ -433,6 +466,8 @@ class DataTables {
 
 	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
 		
+		private HashMap<String, TruckAddon> truckAddons;
+
 		TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData) {
 			super(controllers, new ColumnID[] {
 					new ColumnID("ID"                   ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
@@ -457,8 +492,20 @@ class DataTables {
 					new ColumnID("Cargo Type"           ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).cargoType),
 					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((TruckAddon)row).usableBy, lang)),
 			});
+			
+			truckAddons = null;
 			if (connectToGlobalData)
-				connectToGlobalData(data->data.truckAddons.values());
+				connectToGlobalData(data->{
+					truckAddons = data==null ? null : data.truckAddons;
+					return truckAddons==null ? null : truckAddons.values();
+				}, true);
+			
+			else
+				controllers.dataReceivers.add(this,data->{
+					truckAddons = data==null ? null : data.truckAddons;
+					updateTextArea();
+				});
+			
 			Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 			setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
 		}
@@ -485,7 +532,14 @@ class DataTables {
 				if (!isFirst) sb.append("\r\n\r\n");
 				isFirst = false;
 				sb.append("Required Addons:\r\n");
-				sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "  "));
+				if (truckAddons==null)
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "    "));
+				else {
+					sb.append("    [IDs]\r\n");
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "        ")+"\r\n");
+					sb.append("    [Names]\r\n");
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, language, "        "));
+				}
 			}
 			
 			if (row.excludedCargoTypes.length>0) {
@@ -661,7 +715,7 @@ class DataTables {
 	
 	}
 
-	static class DLCTableModel extends Tables.SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver {
+	static class DLCTableModel extends Tables.SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver, ListenerSource {
 	
 		private Language language;
 		private final Vector<RowItem> rows;
@@ -674,9 +728,9 @@ class DataTables {
 			truckToDLCAssignments = null;
 			data = null;
 			rows = new Vector<>();
-			controllers.languageListeners.add(this);
-			controllers.truckToDLCAssignmentListeners.add(this);
-			controllers.dataReceivers.add(this);
+			controllers.languageListeners.add(this,this);
+			controllers.truckToDLCAssignmentListeners.add(this,this);
+			controllers.dataReceivers.add(this,this);
 		}
 	
 		@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {

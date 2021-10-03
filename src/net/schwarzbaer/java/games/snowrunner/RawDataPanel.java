@@ -22,12 +22,13 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AbstractTreeNode;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.V;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.system.ClipboardTools;
 
-class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver {
+class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver, ListenerSource {
 	private static final long serialVersionUID = 10671596986103400L;
 	
 	private Data data;
@@ -64,8 +65,8 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 		addTab("SaveGame Data", saveGameDataPanel);
 		
 		updatePanels();
-		controllers.languageListeners.add(this);
-		controllers.dataReceivers.add(this);
+		controllers.languageListeners.add(this,this);
+		controllers.dataReceivers.add(this,this);
 	}
 	
 	void showSaveGameDataSorted(boolean isShowingSaveGameDataSorted) {
