@@ -377,6 +377,7 @@ class DataTables {
 	static class TrailersTableModel extends ExtendedVerySimpleTableModel<Trailer> {
 		
 		private HashMap<String, TruckAddon> truckAddons;
+		private HashMap<String, Trailer> trailers;
 
 		TrailersTableModel(Controllers controllers, boolean connectToGlobalData) {
 			super(controllers, new ColumnID[] {
@@ -400,14 +401,17 @@ class DataTables {
 			});
 			
 			truckAddons = null;
+			trailers    = null;
 			if (connectToGlobalData)
 				connectToGlobalData(data->{
 					truckAddons = data==null ? null : data.truckAddons;
+					trailers    = data==null ? null : data.trailers;
 					return data==null ? null : data.trailers.values();
 				}, true);
 			else
 				controllers.dataReceivers.add(this,data->{
 					truckAddons = data==null ? null : data.truckAddons;
+					trailers    = data==null ? null : data.trailers;
 					updateTextArea();
 				});
 			
@@ -442,7 +446,7 @@ class DataTables {
 					sb.append("    [IDs]\r\n");
 					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "        ")+"\r\n");
 					sb.append("    [Names]\r\n");
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, language, "        "));
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, trailers, language, "        "));
 				}
 			}
 			
@@ -467,6 +471,7 @@ class DataTables {
 	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
 		
 		private HashMap<String, TruckAddon> truckAddons;
+		private HashMap<String, Trailer> trailers;
 
 		TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData) {
 			super(controllers, new ColumnID[] {
@@ -494,15 +499,18 @@ class DataTables {
 			});
 			
 			truckAddons = null;
+			trailers    = null;
 			if (connectToGlobalData)
 				connectToGlobalData(data->{
 					truckAddons = data==null ? null : data.truckAddons;
+					trailers    = data==null ? null : data.trailers;
 					return truckAddons==null ? null : truckAddons.values();
 				}, true);
 			
 			else
 				controllers.dataReceivers.add(this,data->{
 					truckAddons = data==null ? null : data.truckAddons;
+					trailers    = data==null ? null : data.trailers;
 					updateTextArea();
 				});
 			
@@ -538,7 +546,7 @@ class DataTables {
 					sb.append("    [IDs]\r\n");
 					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "        ")+"\r\n");
 					sb.append("    [Names]\r\n");
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, language, "        "));
+					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, trailers, language, "        "));
 				}
 			}
 			

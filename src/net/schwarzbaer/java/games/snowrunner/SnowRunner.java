@@ -50,6 +50,7 @@ import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
+import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
@@ -521,23 +522,22 @@ public class SnowRunner {
 	}
 
 	static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
-		return joinRequiredAddonsToString(requiredAddons, null, null, indent);
+		return joinRequiredAddonsToString(requiredAddons, null, null, null, indent);
 	}
 
-	static String joinRequiredAddonsToString(String[][] requiredAddons, HashMap<String, TruckAddon> truckAddons, Language language, String indent) {
+	static String joinRequiredAddonsToString(String[][] requiredAddons, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, Language language, String indent) {
 		if (requiredAddons==null || requiredAddons.length==0) return null;
-		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", getTruckAddonNames(list,truckAddons,language))).iterator();
+		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", getTruckAddonNames(list,truckAddons,trailers,language))).iterator();
 		String orGroupIndent = "  ";
 		return indent+orGroupIndent+String.join(String.format("%n%1$sAND%n%1$s"+orGroupIndent, indent), it);
 	}
 
-	private static String[] getTruckAddonNames(String[] idList, HashMap<String, TruckAddon> truckAddons, Language language) {
+	private static String[] getTruckAddonNames(String[] idList, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, Language language) {
 		if (truckAddons==null)
 			return idList;
 		
 		String[] namesArr = Arrays.stream(idList).map(id->{
-			TruckAddon truckAddon = truckAddons.get(id);
-			return solveStringID(truckAddon==null ? null : truckAddon.name_StringID, language, String.format("<%s>", id));
+			return getNameFromID(id, truckAddons, trailers, language);
 		}).toArray(String[]::new);
 		
 		Vector<String> namesVec = new Vector<>(Arrays.asList(namesArr));
@@ -552,6 +552,23 @@ public class SnowRunner {
 		namesVec.sort(null);
 		
 		return namesVec.toArray(new String[namesVec.size()]);
+	}
+
+	private static String getNameFromID(String id, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, Language language) {
+		if (id == null)
+			return "<null>";
+		
+		String name_StringID = null;
+		
+		if (truckAddons!=null && name_StringID==null) {
+			TruckAddon truckAddon = truckAddons.get(id);
+			if (truckAddon != null) name_StringID = truckAddon.name_StringID;
+		}
+		if (trailers!=null && name_StringID==null) {
+			Trailer trailer = trailers.get(id);
+			if (trailer != null) name_StringID = trailer.name_StringID;
+		}
+		return solveStringID(name_StringID, language, String.format("<%s>", id));
 	}
 
 	static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
