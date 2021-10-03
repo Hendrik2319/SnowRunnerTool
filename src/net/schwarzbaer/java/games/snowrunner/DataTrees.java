@@ -88,6 +88,9 @@ class DataTrees {
 			this.class_ = class_;
 		}
 
+		@Override boolean hasName() { return class_!=null; }
+		@Override String getName() { return class_.name; }
+
 		@Override
 		protected Vector<TreeNode> createChildren() {
 			Vector<TreeNode> children = new Vector<>();
@@ -133,6 +136,9 @@ class DataTrees {
 				this.list = list;
 			}
 
+			@Override boolean hasName() { return true; }
+			@Override String getName() { return name; }
+
 			@Override public String toString() { return name; }
 
 			@Override
@@ -155,6 +161,9 @@ class DataTrees {
 			super(parent, true, false, TreeIcons.Folder, GlobalColorizer.getColor(item));
 			this.item = item;
 		}
+
+		@Override boolean hasName() { return true; }
+		@Override String getName() { return item.name; }
 
 		@Override
 		public String toString() {
@@ -272,6 +281,11 @@ class DataTrees {
 			return children;
 		}
 	
+		@Override boolean hasName() { return true; }
+		@Override boolean hasValue() { return true; }
+		@Override String getName() { return node.getNodeName(); }
+		@Override String getValue() { return node.getNodeValue(); }
+
 		@Override
 		public String toString() {
 			short nodeType = node.getNodeType();
@@ -319,6 +333,11 @@ class DataTrees {
 			this.node = node;
 		}
 	
+		@Override boolean hasPath() { return true; }
+		@Override boolean hasName() { return true; }
+		@Override String[] getPath() { return node.getPath(); }
+		@Override String getName() { return node.nodeName; }
+		
 		@Override protected Vector<TreeNode> createChildren() {
 			Vector<TreeNode> children = new Vector<>();
 			
@@ -396,6 +415,10 @@ class DataTrees {
 			@Override public String toString() {
 				return String.format("%s = \"%s\"", key, value);
 			}
+			@Override boolean hasName () { return key!=null; }
+			@Override boolean hasValue() { return value!=null; }
+			@Override String getName () { return key; }
+			@Override String getValue() { return value; }
 		}
 	}
 
@@ -414,6 +437,11 @@ class DataTrees {
 			this.value = value;
 			this.showNamedValuesSorted = showNamedValuesSorted;
 		}
+		
+		@Override boolean hasName() { return name!=null; }
+		@Override boolean hasValue() { return value!=null; }
+		@Override String getName() { return name; }
+		@Override String getValue() { return getValueString(); }
 		
 		@Override
 		protected Vector<TreeNode> createChildren() {
@@ -529,6 +557,14 @@ class DataTrees {
 			this.color = color;
 			children = null;
 		}
+		
+		boolean hasPath () { return false; }
+		boolean hasName () { return false; }
+		boolean hasValue() { return false; }
+		
+		String[] getPath () { return null; }
+		String   getName () { return null; }
+		String   getValue() { return null; }
 		
 		Icon getIcon() { return icon==null ? null : icon.getIcon(); }
 		Color getColor() { return color; }

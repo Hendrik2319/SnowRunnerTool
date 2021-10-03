@@ -20,11 +20,8 @@ import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AbstractTreeNode;
-import net.schwarzbaer.java.games.snowrunner.DataTrees.AttributesTreeNode.AttributeTreeNode;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.V;
-import net.schwarzbaer.java.games.snowrunner.DataTrees.GenericXmlNode_TreeNode;
-import net.schwarzbaer.java.games.snowrunner.DataTrees.Item_TreeNode;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
@@ -139,46 +136,21 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 			ContextMenu contextMenu = new ContextMenu();
 			contextMenu.addTo(tree);
 			
-			JMenuItem miCopyItemName = contextMenu.add(SnowRunner.createMenuItem("Copy Item Name", true, e->{
-				if (selectedTreeNode instanceof Item_TreeNode) {
-					Item_TreeNode treeNode = (Item_TreeNode) selectedTreeNode;
-					ClipboardTools.copyStringSelectionToClipBoard(treeNode.item.name);
-				}
+			JMenuItem miCopyPath = contextMenu.add(SnowRunner.createMenuItem("Copy Path", true, e->{
+				ClipboardTools.copyStringSelectionToClipBoard(toString(selectedTreeNode.getPath()));
 			}));
 			
-			JMenuItem miCopyNodeName = contextMenu.add(SnowRunner.createMenuItem("Copy Node Name", true, e->{
-				if (selectedTreeNode instanceof GenericXmlNode_TreeNode) {
-					GenericXmlNode_TreeNode treeNode = (GenericXmlNode_TreeNode) selectedTreeNode;
-					ClipboardTools.copyStringSelectionToClipBoard(treeNode.node.nodeName);
-				}
+			JMenuItem miCopyName = contextMenu.add(SnowRunner.createMenuItem("Copy Name", true, e->{
+				ClipboardTools.copyStringSelectionToClipBoard(selectedTreeNode.getName());
 			}));
 			
-			JMenuItem miCopyNodePath = contextMenu.add(SnowRunner.createMenuItem("Copy Node Path", true, e->{
-				if (selectedTreeNode instanceof GenericXmlNode_TreeNode) {
-					GenericXmlNode_TreeNode treeNode = (GenericXmlNode_TreeNode) selectedTreeNode;
-					ClipboardTools.copyStringSelectionToClipBoard(toString(treeNode.node.getPath()));
-				}
+			JMenuItem miCopyValue = contextMenu.add(SnowRunner.createMenuItem("Copy Value", true, e->{
+				ClipboardTools.copyStringSelectionToClipBoard(selectedTreeNode.getValue());
 			}));
 			
-			JMenuItem miCopyAttributeName = contextMenu.add(SnowRunner.createMenuItem("Copy Attribute Name", true, e->{
-				if (selectedTreeNode instanceof AttributeTreeNode) {
-					AttributeTreeNode treeNode = (AttributeTreeNode) selectedTreeNode;
-					ClipboardTools.copyStringSelectionToClipBoard(treeNode.key);
-				}
-			}));
-			
-			JMenuItem miCopyAttributeValue = contextMenu.add(SnowRunner.createMenuItem("Copy Attribute Value", true, e->{
-				if (selectedTreeNode instanceof AttributeTreeNode) {
-					AttributeTreeNode treeNode = (AttributeTreeNode) selectedTreeNode;
-					ClipboardTools.copyStringSelectionToClipBoard(treeNode.value);
-				}
-			}));
-			
-			JMenuItem miAttributeValue2Text = contextMenu.add(SnowRunner.createMenuItem("Use Attribute Value as StringID -> Show Text", true, e->{
-				if (selectedTreeNode instanceof AttributeTreeNode) {
-					AttributeTreeNode treeNode = (AttributeTreeNode) selectedTreeNode;
-					TextAreaDialog.showText(window, String.format("String ID \"%s\"", treeNode.value), 500, 300, true, SnowRunner.solveStringID(treeNode.value, getLanguage.get()));
-				}
+			JMenuItem miValue2Text = contextMenu.add(SnowRunner.createMenuItem("Use Value as StringID -> Show Text", true, e->{
+				String value = selectedTreeNode.getValue();
+				TextAreaDialog.showText(window, String.format("String ID \"%s\"", value), 500, 300, true, SnowRunner.solveStringID(value, getLanguage.get()));
 			}));
 			
 			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
@@ -189,12 +161,10 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 					selectedNode = selectedPath.getLastPathComponent();
 				if (selectedNode instanceof AbstractTreeNode)
 					selectedTreeNode = (AbstractTreeNode) selectedNode;
-				miCopyItemName       .setEnabled(selectedTreeNode instanceof Item_TreeNode);
-				miCopyNodeName       .setEnabled(selectedTreeNode instanceof GenericXmlNode_TreeNode);
-				miCopyNodePath       .setEnabled(selectedTreeNode instanceof GenericXmlNode_TreeNode);
-				miCopyAttributeName  .setEnabled(selectedTreeNode instanceof AttributeTreeNode);
-				miCopyAttributeValue .setEnabled(selectedTreeNode instanceof AttributeTreeNode);
-				miAttributeValue2Text.setEnabled(selectedTreeNode instanceof AttributeTreeNode);
+				miCopyPath  .setEnabled(selectedTreeNode!=null && selectedTreeNode.hasPath());
+				miCopyName  .setEnabled(selectedTreeNode!=null && selectedTreeNode.hasName());
+				miCopyValue .setEnabled(selectedTreeNode!=null && selectedTreeNode.hasValue());
+				miValue2Text.setEnabled(selectedTreeNode!=null && selectedTreeNode.hasValue());
 			});
 		}
 
