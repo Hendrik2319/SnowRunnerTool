@@ -144,6 +144,11 @@ public class SnowRunner {
 		saveGameDataMenu.add(miSGValuesOriginal);
 		selectedSaveGameMenu.setEnabled(false);
 		
+		JMenu testingMenu = menuBar.add(new JMenu("Testing"));
+		testingMenu.add(createMenuItem("Show Event Listeners", true, e->{
+			controllers.showListeners();
+		}));
+		
 		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
 		
@@ -718,7 +723,9 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextAreaPanel implements ListenerSource {
+	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextAreaPanel implements ListenerSource, ListenerSourceParent {
+		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
+
 		private static final long serialVersionUID = 7841445317301513175L;
 		
 		private final Controllers controllers;
@@ -732,11 +739,11 @@ public class SnowRunner {
 			this.data = null;
 			this.tabs = new Vector<>();
 			
-			controllers.languageListeners.add(this,language->{
+			this.controllers.languageListeners.add(this,language->{
 				this.language = language;
 				updateTabTitles();
 			});
-			controllers.dataReceivers.add(this,data->{
+			this.controllers.dataReceivers.add(this,data->{
 				this.data = data;
 				rebuildTabPanels();
 			});
@@ -752,6 +759,8 @@ public class SnowRunner {
 		private void rebuildTabPanels() {
 			removeAllTabs();
 			tabs.clear();
+			controllers.removeListenersOfVolatileChildren(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS);
+			
 			if (data==null) return;
 			
 			StringVectorMap<TruckAddon> truckAddons = new StringVectorMap<>();
@@ -763,6 +772,7 @@ public class SnowRunner {
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
 			DataTables.TruckAddonsTableModel tableModel = new DataTables.TruckAddonsTableModel(controllers,false);
+			controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
 			tableModel.setData(data.truckAddons.values());
 			
@@ -777,6 +787,7 @@ public class SnowRunner {
 				
 				title = tab.getTabTitle(data.addonCategories, language);
 				tableModel = new DataTables.TruckAddonsTableModel(controllers,false);
+				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
 				tableModel.setData(list);
 			}
@@ -955,33 +966,60 @@ public class SnowRunner {
 			childrenOfSources = new VectorMap<>();
 			volatileChildrenOfSources = new VectorMapMap<>();
 		}
+		
+		void showListeners() {
+			String indent = "    ";
+			
+			System.out.printf("Current State of Listeners:%n");
+			languageListeners            .showListeners(indent, "LanguageListeners"            );
+			dataReceivers                .showListeners(indent, "DataReceivers"                );
+			saveGameListeners            .showListeners(indent, "SaveGameListeners"            );
+			truckToDLCAssignmentListeners.showListeners(indent, "TruckToDLCAssignmentListeners");
+			
+			System.out.printf("%sChild Relations: [%d]%n", indent, childrenOfSources.size());
+			childrenOfSources.forEach((parent,children)->{
+				System.out.printf("%1$s%1$s%2$s: [%3$d]%n", indent, parent, children.size());
+				children.forEach(l->{
+					System.out.printf("%1$s%1$s%1$s%2$s%n", indent, l);
+				});
+			});
+			
+			System.out.printf("%sVolatile Children: [%d]%n", indent, volatileChildrenOfSources.size());
+			volatileChildrenOfSources.forEach((parent,map2)->{
+				System.out.printf("%1$s%1$s%2$s: [%3$d]%n", indent, parent, map2.size());
+				map2.forEach((listID,list)->{
+					System.out.printf("%1$s%1$s%1$s\"%2$s\": [%3$d]%n", indent, listID, list.size());
+					list.forEach(l->{
+						System.out.printf("%1$s%1$s%1$s%1$s%2$s%n", indent, l);
+					});
+				});
+			});
+			
+		}
 	
-		public void addVolatileChild(ListenerSourceParent parent, String listID, ListenerSource child) {
+		void addVolatileChild(ListenerSourceParent parent, String listID, ListenerSource child) {
 			if (parent==null) throw new IllegalArgumentException();
 			if (listID==null) throw new IllegalArgumentException();
 			if (child ==null) throw new IllegalArgumentException();
 			volatileChildrenOfSources.add(parent, listID, child);
 		}
-		public void addChild(ListenerSourceParent parent, ListenerSource child) {
+		void addChild(ListenerSourceParent parent, ListenerSource child) {
 			if (parent==null) throw new IllegalArgumentException();
 			if (child ==null) throw new IllegalArgumentException();
 			childrenOfSources.add(parent, child);
 		}
 		
-		void removeListenersOfVolatileChildrenOfSource(ListenerSourceParent source) {
-			if (source==null) throw new IllegalArgumentException();
-			
-			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.remove(source);
-			if (childrenLists==null) return;
-			
-			childrenLists.values().forEach(this::removeListenersOfSources);
+		void removeListenersOfVolatileChildren(ListenerSourceParent parent) {
+			if (parent==null) throw new IllegalArgumentException();
+			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.remove(parent);
+			if (childrenLists != null)
+				childrenLists.values().forEach(this::removeListenersOfSources);
 		}
 		
-		void removeListenersOfVolatileChildrenOfSource(ListenerSourceParent source, String listID) {
-			if (source==null) throw new IllegalArgumentException();
+		void removeListenersOfVolatileChildren(ListenerSourceParent parent, String listID) {
+			if (parent==null) throw new IllegalArgumentException();
 			if (listID==null) throw new IllegalArgumentException();
-			
-			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.get(source);
+			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.get(parent);
 			removeListenersOfSources(childrenLists==null ? null : childrenLists.remove(listID));
 		}
 		
@@ -994,9 +1032,9 @@ public class SnowRunner {
 			truckToDLCAssignmentListeners.removeListenersOfSource(source);
 			
 			if (source instanceof ListenerSourceParent) {
-				ListenerSourceParent sourceParent = (ListenerSourceParent) source;
-				removeListenersOfSources(childrenOfSources.remove(sourceParent));
-				removeListenersOfVolatileChildrenOfSource(sourceParent);
+				ListenerSourceParent parent = (ListenerSourceParent) source;
+				removeListenersOfSources(childrenOfSources.remove(parent));
+				removeListenersOfVolatileChildren(parent);
 			}
 		}
 
@@ -1019,6 +1057,20 @@ public class SnowRunner {
 				Vector<Listener> list = listenersOfSource.remove(source);
 				if (list==null) return;
 				listeners.removeAll(list);
+			}
+
+			void showListeners(String indent, String label) {
+				
+				System.out.printf("%s%s.Array: [%d]%n", indent, label, listeners.size());
+				for (Listener l : listeners)
+					System.out.printf("%s    %s%n", indent, l);
+				
+				System.out.printf("%s%s.Sources: [%d]%n", indent, label, listenersOfSource.size());
+				listenersOfSource.forEach((source,list)->{
+					System.out.printf("%s    %s: [%d]%n", indent, source, list.size());
+					for (Listener l : list)
+						System.out.printf("%s        %s%n", indent, l);
+				});
 			}
 		}
 		

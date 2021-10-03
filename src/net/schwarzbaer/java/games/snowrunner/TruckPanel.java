@@ -66,9 +66,10 @@ import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
-class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, ListenerSource {
+class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
 	private static final long serialVersionUID = -5138746858742450458L;
 	
 	private final JTextArea truckInfoTextArea;
@@ -102,6 +103,8 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 		addonSocketsPanel = new AddonSocketsPanel();
 		addonsPanel = new AddonsPanel(controllers);
 		addonsPanel2 = new AddonsPanel2(controllers);
+		controllers.addChild(this, addonsPanel);
+		controllers.addChild(this, addonsPanel2);
 		
 		JTabbedPane bottomPanel = new JTabbedPane();
 		bottomPanel.addTab("Compatible Wheels", compatibleWheelsPanel);
@@ -200,8 +203,10 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
-	private static class AddonsPanel2 extends SnowRunner.CombinedTableTabPaneTextAreaPanel implements ListenerSource {
+	private static class AddonsPanel2 extends SnowRunner.CombinedTableTabPaneTextAreaPanel implements ListenerSource, ListenerSourceParent {
 		private static final long serialVersionUID = 4098254083170104250L;
+
+		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
 		
 		private final Controllers controllers;
 		private Language language;
@@ -236,6 +241,8 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 			
 			currentTabs.clear();
 			removeAllTabs();
+			controllers.removeListenersOfVolatileChildren(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS);
+			
 			if (this.truck!=null) {
 				
 				createTab("Trailers"  , this.truck.compatibleTrailers    , DataTables.   TrailersTableModel::new);
@@ -261,6 +268,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 				Tab tab = new Tab(category, usableItems.size());
 				currentTabs.add(tab);
 				ExtendedVerySimpleTableModel<ItemType> tableModel = constructor.create(controllers,false);
+				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab("##", tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);
 				tableModel.setLanguage(language);
