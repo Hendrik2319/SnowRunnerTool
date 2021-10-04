@@ -1,7 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.Component;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -28,8 +27,8 @@ import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
-import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
+import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
@@ -248,23 +247,9 @@ class DataTables {
 	
 		@Override
 		protected String getTextForRow(RowType row) {
-			StringBuilder sb = new StringBuilder();
-			boolean isFirst = true;
-			
-			String description = SnowRunner.solveStringID(row.description_StringID, language);
-			if (description!=null && !"EMPTY_LINE".equals(description)) {
-				sb.append(String.format("Description: <%s>%n%s", row.description_StringID, description));
-				isFirst = false;
-			}
-			
-			if (!row.usableBy.isEmpty()) {
-				if (!isFirst) sb.append("\r\n\r\n");
-				isFirst = false;
-				sb.append("Usable By:\r\n");
-				sb.append(SnowRunner.toString(row.usableBy,language));
-			}
-			
-			return sb.toString();
+			String description_StringID = row.description_StringID;
+			Vector<Truck> usableBy = row.usableBy;
+			return generateText(description_StringID, null, null, usableBy, language, null, null);
 		}
 	}
 
@@ -296,7 +281,7 @@ class DataTables {
 					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Suspension)row).unlockByExploration),
 					new ColumnID("Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Suspension)row).unlockByRank),
 					new ColumnID("Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, row->((Suspension)row).damageCapacity),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Suspension)row).usableBy, lang)),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((Suspension)row).usableBy, lang)),
 			});
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.suspensions.values());
@@ -317,7 +302,7 @@ class DataTables {
 					new ColumnID("Requires Engine Ignition", Boolean.class, 130,   null,      null, false, row->((Winch)row).isEngineIgnitionRequired),
 					new ColumnID("Length"                  , Integer.class,  50, CENTER,      null, false, row->((Winch)row).length),
 					new ColumnID("Strength Multi"          ,   Float.class,  80, CENTER,   "%1.2f", false, row->((Winch)row).strengthMult),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Winch)row).usableBy, lang)),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((Winch)row).usableBy, lang)),
 			});
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.winches.values());
@@ -344,7 +329,7 @@ class DataTables {
 					new ColumnID("AWD Consumption Mod." ,   Float.class, 130,   null,   "%1.2f", false, row->((Gearbox)row).awdConsumptionModifier),
 					new ColumnID("Fuel Consumption"     ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).fuelConsumption),
 					new ColumnID("Idle Fuel Modifier"   ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).idleFuelModifier),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Gearbox)row).usableBy, lang)),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((Gearbox)row).usableBy, lang)),
 			});
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.gearboxes.values());
@@ -367,7 +352,7 @@ class DataTables {
 					new ColumnID("Damage Capacity"      , Integer.class, 100,  RIGHT,    "%d R", false, row->((Engine)row).damageCapacity),
 					new ColumnID("Brakes Delay"         ,   Float.class,  70,  RIGHT,   "%1.2f", false, row->((Engine)row).brakesDelay),
 					new ColumnID("Responsiveness"       ,   Float.class,  90,  RIGHT,   "%1.4f", false, row->((Engine)row).engineResponsiveness),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Engine)row).usableBy, lang)),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((Engine)row).usableBy, lang)),
 			});
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.engines.values());
@@ -395,9 +380,9 @@ class DataTables {
 					new ColumnID("Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, row->((Trailer)row).unlockByRank), 
 					new ColumnID("Attach Type"          ,  String.class,  70,   null,      null, false, row->((Trailer)row).attachType),
 					new ColumnID("Description"          ,  String.class, 200,   null,      null,  true, row->((Trailer)row).description_StringID), 
-					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->toString(((Trailer)row).excludedCargoTypes)),
+					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((Trailer)row).excludedCargoTypes)),
 					new ColumnID("Required Addons"      ,  String.class, 150,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Trailer)row).requiredAddons)),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((Trailer)row).usableBy, lang)),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((Trailer)row).usableBy, lang)),
 			});
 			
 			truckAddons = null;
@@ -418,54 +403,61 @@ class DataTables {
 			setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 		}
 	
-		private static String toString(String[] strs) {
-			if (strs==null) return "<null>";
-			if (strs.length==0) return "[]";
-			if (strs.length==1) return strs[0];
-			return Arrays.toString(strs);
-		}
-	
 		@Override public String getTextForRow(Trailer row) {
-			StringBuilder sb = new StringBuilder();
-			boolean isFirst = true;
-			
-			
-			String description = SnowRunner.solveStringID(row.description_StringID, language);
-			if (description!=null && !"EMPTY_LINE".equals(description)) {
-				sb.append(String.format("Description: <%s>%n%s", row.description_StringID, description));
-				isFirst = false;
-			}
-			
-			if (row.requiredAddons.length>0) {
-				if (!isFirst) sb.append("\r\n\r\n");
-				isFirst = false;
-				sb.append("Required Addons:\r\n");
-				if (truckAddons==null)
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "    "));
-				else {
-					sb.append("    [IDs]\r\n");
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "        ")+"\r\n");
-					sb.append("    [Names]\r\n");
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, trailers, language, "        "));
-				}
-			}
-			
-			if (row.excludedCargoTypes.length>0) {
-				if (!isFirst) sb.append("\r\n\r\n");
-				isFirst = false;
-				sb.append("Excluded Cargo Types:\r\n");
-				sb.append(toString(row.excludedCargoTypes));
-			}
-			
-			if (!row.usableBy.isEmpty()) {
-				if (!isFirst) sb.append("\r\n\r\n");
-				isFirst = false;
-				sb.append("Usable By:\r\n");
-				sb.append(SnowRunner.toString(row.usableBy,language));
-			}
-			
-			return sb.toString();
+			String description_StringID = row.description_StringID;
+			String[][] requiredAddons = row.requiredAddons;
+			String[] excludedCargoTypes = row.excludedCargoTypes;
+			Vector<Truck> usableBy = row.usableBy;
+			return generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
 		}
+	}
+
+	static String generateText(
+			String description_StringID,
+			String[][] requiredAddons,
+			String[] excludedCargoTypes,
+			Vector<Truck> usableBy,
+			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
+		
+		StringBuilder sb = new StringBuilder();
+		boolean isFirst = true;
+		
+		
+		String description = SnowRunner.solveStringID(description_StringID, language);
+		if (description!=null && !"EMPTY_LINE".equals(description)) {
+			sb.append(String.format("Description: <%s>%n%s", description_StringID, description));
+			isFirst = false;
+		}
+		
+		if (requiredAddons!=null && requiredAddons.length>0) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Required Addons:\r\n");
+			if (truckAddons==null && trailers==null)
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "    "));
+			else {
+				sb.append("    [IDs]\r\n");
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "        ")+"\r\n");
+				sb.append("    [Names]\r\n");
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, SnowRunner.createGetNameFunction(truckAddons, trailers), language, "        "));
+			}
+		}
+		
+		if (excludedCargoTypes!=null && excludedCargoTypes.length>0) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Excluded Cargo Types:\r\n");
+			sb.append(SnowRunner.joinAddonIDs(excludedCargoTypes));
+		}
+		
+		if (usableBy!=null && !usableBy.isEmpty()) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Usable By:\r\n");
+			sb.append(SnowRunner.joinTruckNames(usableBy,language));
+		}
+		
+		return sb.toString();
 	}
 
 	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
@@ -490,12 +482,12 @@ class DataTables {
 					new ColumnID("Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((TruckAddon)row).unlockByExploration), 
 					new ColumnID("Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, row->((TruckAddon)row).unlockByRank), 
 					new ColumnID("Description"          ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.description_StringID!=null ? row.description_StringID : row.cargoDescription_StringID; }), 
-					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->toString(((TruckAddon)row).excludedCargoTypes)),
+					new ColumnID("Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((TruckAddon)row).excludedCargoTypes)),
 					new ColumnID("Required Addons"      ,  String.class, 200,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((TruckAddon)row).requiredAddons)),
 					new ColumnID("Is Cargo"             , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).isCargo),
 					new ColumnID("Cargo Length"         , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).cargoLength),
 					new ColumnID("Cargo Type"           ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).cargoType),
-					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.toString(((TruckAddon)row).usableBy, lang)),
+					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((TruckAddon)row).usableBy, lang)),
 			});
 			
 			truckAddons = null;
@@ -518,53 +510,12 @@ class DataTables {
 			setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
 		}
 	
-		private static String toString(String[] strs) {
-			if (strs==null) return "<null>";
-			if (strs.length==0) return "[]";
-			if (strs.length==1) return strs[0];
-			return Arrays.toString(strs);
-		}
-	
 		@Override public String getTextForRow(TruckAddon row) {
-			StringBuilder sb = new StringBuilder();
-			boolean isFirst = true;
-			
 			String description_StringID = SnowRunner.selectNonNull( row.description_StringID, row.cargoDescription_StringID );
-			String description = SnowRunner.solveStringID(description_StringID, language);
-			if (description!=null && !"EMPTY_LINE".equals(description)) {
-				sb.append(String.format("Description: <%s>%n%s", description_StringID, description));
-				isFirst = false;
-			}
-			
-			if (row.requiredAddons.length>0) {
-				if (!isFirst) sb.append("\r\n\r\n");
-				isFirst = false;
-				sb.append("Required Addons:\r\n");
-				if (truckAddons==null)
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "    "));
-				else {
-					sb.append("    [IDs]\r\n");
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, "        ")+"\r\n");
-					sb.append("    [Names]\r\n");
-					sb.append(SnowRunner.joinRequiredAddonsToString(row.requiredAddons, truckAddons, trailers, language, "        "));
-				}
-			}
-			
-			if (row.excludedCargoTypes.length>0) {
-				if (!isFirst) sb.append("\r\n\r\n");
-				isFirst = false;
-				sb.append("Excluded Cargo Types:\r\n");
-				sb.append(toString(row.excludedCargoTypes));
-			}
-			
-			if (!row.usableBy.isEmpty()) {
-				if (!isFirst) sb.append("\r\n\r\n");
-				isFirst = false;
-				sb.append("Usable By:\r\n");
-				sb.append(SnowRunner.toString(row.usableBy,language));
-			}
-			
-			return sb.toString();
+			String[][] requiredAddons = row.requiredAddons;
+			String[] excludedCargoTypes = row.excludedCargoTypes;
+			Vector<Truck> usableBy = row.usableBy;
+			return generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
 		}
 	}
 

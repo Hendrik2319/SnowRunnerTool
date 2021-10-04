@@ -448,6 +448,24 @@ public class SnowRunner {
 		return str;
 	}
 	
+	static void removeRedundantStrs(Vector<String> strs, boolean sort) {
+		for (int i=0; i<strs.size(); i++) {
+			String name = strs.get(i);
+			int nextEqual = strs.indexOf(name, i+1);
+			while (nextEqual>=0) {
+				strs.remove(nextEqual);
+				nextEqual = strs.indexOf(name, i+1);
+			}
+		}
+		if (sort) strs.sort(null);
+	}
+
+	static String[] removeRedundantStrs(String[] strs, boolean sort) {
+		Vector<String> vec = new Vector<>(Arrays.asList(strs));
+		removeRedundantStrs(vec, sort);
+		return vec.toArray(new String[vec.size()]);
+	}
+
 	static String selectNonNull(String... strings) {
 		for (String str : strings)
 			if (str!=null)
@@ -517,58 +535,58 @@ public class SnowRunner {
 		return truckName;
 	}
 
-	static String toString(Vector<Truck> list, Language language) {
+	static String[] getTruckAddonNames(String[] idList, Function<String,String> getName_StringID, Language language) {
+		if (getName_StringID==null)
+			return idList;
+		
+		String[] namesArr = Arrays.stream(idList).map(id->getNameFromID(id, getName_StringID, language)).toArray(String[]::new);
+		return removeRedundantStrs(namesArr, true);
+	}
+
+	static Function<String,String> createGetNameFunction(HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
+		if (truckAddons==null && trailers==null)
+			return null;
+		
+		return id -> {
+			if (id == null)
+				return "<null>";
+			
+			String name_StringID = null;
+			
+			if (truckAddons!=null && name_StringID==null) {
+				TruckAddon truckAddon = truckAddons.get(id);
+				if (truckAddon != null) name_StringID = truckAddon.name_StringID;
+			}
+			if (trailers!=null && name_StringID==null) {
+				Trailer trailer = trailers.get(id);
+				if (trailer != null) name_StringID = trailer.name_StringID;
+			}
+			
+			return name_StringID;
+		};
+	}
+
+	static String getNameFromID(String id, Function<String,String> getName_StringID, Language language) {
+		if (getName_StringID==null)
+			throw new IllegalArgumentException();
+		if (id == null) return "<null>";
+		String name_StringID = getName_StringID.apply(id);
+		return solveStringID(name_StringID, language, String.format("<%s>", id));
+	}
+
+	static String joinTruckNames(Vector<Truck> list, Language language) {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(truck->SnowRunner.solveStringID(truck.name_StringID, language, "<"+truck.id+">")).sorted().iterator());
 	}
 
 	static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
-		return joinRequiredAddonsToString(requiredAddons, null, null, null, indent);
+		return joinRequiredAddonsToString(requiredAddons, null, null, indent);
 	}
 
-	static String joinRequiredAddonsToString(String[][] requiredAddons, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, Language language, String indent) {
+	static String joinRequiredAddonsToString(String[][] requiredAddons, Function<String,String> getName_StringID, Language language, String indent) {
 		if (requiredAddons==null || requiredAddons.length==0) return null;
-		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", getTruckAddonNames(list,truckAddons,trailers,language))).iterator();
+		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", getTruckAddonNames(list,getName_StringID,language))).iterator();
 		String orGroupIndent = "  ";
 		return indent+orGroupIndent+String.join(String.format("%n%1$sAND%n%1$s"+orGroupIndent, indent), it);
-	}
-
-	private static String[] getTruckAddonNames(String[] idList, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, Language language) {
-		if (truckAddons==null)
-			return idList;
-		
-		String[] namesArr = Arrays.stream(idList).map(id->{
-			return getNameFromID(id, truckAddons, trailers, language);
-		}).toArray(String[]::new);
-		
-		Vector<String> namesVec = new Vector<>(Arrays.asList(namesArr));
-		for (int i=0; i<namesVec.size(); i++) {
-			String name = namesVec.get(i);
-			int nextEqual = namesVec.indexOf(name, i+1);
-			while (nextEqual>=0) {
-				namesVec.remove(nextEqual);
-				nextEqual = namesVec.indexOf(name, i+1);
-			}
-		}
-		namesVec.sort(null);
-		
-		return namesVec.toArray(new String[namesVec.size()]);
-	}
-
-	private static String getNameFromID(String id, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, Language language) {
-		if (id == null)
-			return "<null>";
-		
-		String name_StringID = null;
-		
-		if (truckAddons!=null && name_StringID==null) {
-			TruckAddon truckAddon = truckAddons.get(id);
-			if (truckAddon != null) name_StringID = truckAddon.name_StringID;
-		}
-		if (trailers!=null && name_StringID==null) {
-			Trailer trailer = trailers.get(id);
-			if (trailer != null) name_StringID = trailer.name_StringID;
-		}
-		return solveStringID(name_StringID, language, String.format("<%s>", id));
 	}
 
 	static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
@@ -585,6 +603,14 @@ public class SnowRunner {
 		return String.format("(%s)", str);
 	}
 	
+	public static String joinAddonIDs(String[] strs) {
+		if (strs==null) return "<null>";
+		if (strs.length==0) return "[]";
+		if (strs.length==1) return strs[0];
+		return Arrays.toString(strs);
+	}
+
+
 	static final Comparator<String> CATEGORY_ORDER = Comparator.<String>comparingInt(SnowRunner::getCategoryOrderIndex).thenComparing(Comparator.naturalOrder());
 	static final List<String> CATEGORY_ORDER_LIST = Arrays.asList("Trailers", "engine", "gearbox", "suspension", "winch", "awd", "diff_lock", "frame_addons");
 	static int getCategoryOrderIndex(String category) {
