@@ -811,9 +811,18 @@ public class Data {
 
 	static class Truck extends ItemBased {
 		
-		enum DiffLockType { None, Always, Installed, Uninstalled }
-		enum Country { RU, US }
-		enum TruckType { HEAVY, HEAVY_DUTY, HIGHWAY, OFFROAD, SCOUT }
+		enum DiffLockType {
+			None, Always, Installed, Uninstalled;
+			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
+		}
+		enum Country {
+			RU, US;
+			static String toString(Country country) { return country==null ? null : country.toString(); }
+		}
+		enum TruckType {
+			HEAVY, HEAVY_DUTY, HIGHWAY, OFFROAD, SCOUT;
+			static String toString(TruckType truckType) { return truckType==null ? null : truckType.toString(); }
+		}
 		
 		final TruckType type;
 		final Country country;

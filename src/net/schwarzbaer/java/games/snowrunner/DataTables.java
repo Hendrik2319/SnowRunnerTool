@@ -529,6 +529,54 @@ class DataTables {
 		protected abstract String getTextForRow(RowType row);
 	}
 
+	static String generateText(
+			String description_StringID,
+			String[][] requiredAddons,
+			String[] excludedCargoTypes,
+			Vector<Truck> usableBy,
+			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
+		
+		StringBuilder sb = new StringBuilder();
+		boolean isFirst = true;
+		
+		
+		String description = SnowRunner.solveStringID(description_StringID, language);
+		if (description!=null && !"EMPTY_LINE".equals(description)) {
+			sb.append(String.format("Description: <%s>%n%s", description_StringID, description));
+			isFirst = false;
+		}
+		
+		if (requiredAddons!=null && requiredAddons.length>0) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Required Addons:\r\n");
+			if (truckAddons==null && trailers==null)
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "    "));
+			else {
+				sb.append("    [IDs]\r\n");
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "        ")+"\r\n");
+				sb.append("    [Names]\r\n");
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, SnowRunner.createGetNameFunction(truckAddons, trailers), language, "        "));
+			}
+		}
+		
+		if (excludedCargoTypes!=null && excludedCargoTypes.length>0) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Excluded Cargo Types:\r\n");
+			sb.append(SnowRunner.joinAddonIDs(excludedCargoTypes));
+		}
+		
+		if (usableBy!=null && !usableBy.isEmpty()) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Usable By:\r\n");
+			sb.append(SnowRunner.joinTruckNames(usableBy,language));
+		}
+		
+		return sb.toString();
+	}
+
 	static class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModel<RowType> {
 	
 		SetInstancesTableModel(Controllers controllers, ColumnID[] columns) {
@@ -703,54 +751,6 @@ class DataTables {
 		}
 	}
 
-	static String generateText(
-			String description_StringID,
-			String[][] requiredAddons,
-			String[] excludedCargoTypes,
-			Vector<Truck> usableBy,
-			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
-		
-		StringBuilder sb = new StringBuilder();
-		boolean isFirst = true;
-		
-		
-		String description = SnowRunner.solveStringID(description_StringID, language);
-		if (description!=null && !"EMPTY_LINE".equals(description)) {
-			sb.append(String.format("Description: <%s>%n%s", description_StringID, description));
-			isFirst = false;
-		}
-		
-		if (requiredAddons!=null && requiredAddons.length>0) {
-			if (!isFirst) sb.append("\r\n\r\n");
-			isFirst = false;
-			sb.append("Required Addons:\r\n");
-			if (truckAddons==null && trailers==null)
-				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "    "));
-			else {
-				sb.append("    [IDs]\r\n");
-				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "        ")+"\r\n");
-				sb.append("    [Names]\r\n");
-				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, SnowRunner.createGetNameFunction(truckAddons, trailers), language, "        "));
-			}
-		}
-		
-		if (excludedCargoTypes!=null && excludedCargoTypes.length>0) {
-			if (!isFirst) sb.append("\r\n\r\n");
-			isFirst = false;
-			sb.append("Excluded Cargo Types:\r\n");
-			sb.append(SnowRunner.joinAddonIDs(excludedCargoTypes));
-		}
-		
-		if (usableBy!=null && !usableBy.isEmpty()) {
-			if (!isFirst) sb.append("\r\n\r\n");
-			isFirst = false;
-			sb.append("Usable By:\r\n");
-			sb.append(SnowRunner.joinTruckNames(usableBy,language));
-		}
-		
-		return sb.toString();
-	}
-
 	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
 		
 		private HashMap<String, TruckAddon> truckAddons;
@@ -814,22 +814,33 @@ class DataTables {
 
 		TruckTableModel(Controllers controllers) {
 			super(controllers, new ColumnID[] {
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).dlcName),
-					new ColumnID("ID"     , String .class, 300,   null,    null,  true, row -> ((Truck)row).name_StringID),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
-					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"                   ,              String.class, 160,   null,      null, false, row -> ((Truck)row).id),
+					new ColumnID("DLC"                  ,              String.class,  80,   null,      null, false, row -> ((Truck)row).dlcName),
+					new ColumnID("Name"                 ,              String.class, 160,   null,      null,  true, row -> ((Truck)row).name_StringID),
+					new ColumnID("Country"              ,     Truck.  Country.class,  50,   null,      null, false, row -> ((Truck)row).country),
+					new ColumnID("Type"                 ,     Truck.TruckType.class,  80,   null,      null, false, row -> ((Truck)row).type),
+					new ColumnID("Price"                ,             Integer.class,  60,   null,   "%d Cr", false, row -> ((Truck)row).price), 
+					new ColumnID("Unlock By Exploration",             Boolean.class, 120,   null,      null, false, row -> ((Truck)row).unlockByExploration), 
+					new ColumnID("Unlock By Rank"       ,             Integer.class, 100, CENTER, "Rank %d", false, row -> ((Truck)row).unlockByRank), 
+					new ColumnID("Description"          ,              String.class, 200,   null,      null,  true, row -> ((Truck)row).description_StringID), 
+					new ColumnID("Image"                ,              String.class, 130,   null,    null, false, row -> ((Truck)row).image),
+					new ColumnID("DiffLock"             ,  Truck.DiffLockType.class,  70,   null,      null, false, row -> ((Truck)row).diffLockType),
+					new ColumnID("Fuel Capacity"        ,             Integer.class,  80,   null,  "%d L", false, row -> ((Truck)row).fuelCapacity),
+					new ColumnID("Default Engine"       ,              String.class, 110,   null,    null, (row,lang) -> toString(((Truck)row).defaultEngine    , ((Truck)row).defaultEngine_ItemID    , lang)),
+					new ColumnID("Default Gearbox"      ,              String.class, 110,   null,    null, (row,lang) -> toString(((Truck)row).defaultGearbox   , ((Truck)row).defaultGearbox_ItemID   , lang)),
+					new ColumnID("Default Suspension"   ,              String.class, 110,   null,    null, (row,lang) -> toString(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
+					new ColumnID("Default Winch"        ,              String.class, 130,   null,    null, (row,lang) -> toString(((Truck)row).defaultWinch     , ((Truck)row).defaultWinch_ItemID     , lang)),
+					new ColumnID("Upgradable Winch"     ,             Boolean.class, 110,   null,    null, false, row -> ((Truck)row).isWinchUpgradable),
+					new ColumnID("Max. WheelRadius Without Suspension",String.class, 200,   null,    null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
 					
 			});
 			connectToGlobalData(data->data.trucks.values());
+			setInitialRowOrder(Comparator.<Truck,String>comparing(truck->truck.id));
+		}
+
+		private static String toString(TruckComponent comp, String itemID, Language language) {
+			if (comp==null && itemID==null) return null;
+			return SnowRunner.solveStringID(comp==null ? null : comp.name_StringID, language, String.format("<%s>", itemID));
 		}
 		
 	}
