@@ -702,7 +702,7 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TrucksPanel2 extends JSplitPane implements ListenerSourceParent, ListenerSource {
+	private static class TrucksPanel2 extends JSplitPane implements ListenerSourceParent/*, ListenerSource*/ {
 		private static final long serialVersionUID = 6564351588107715699L;
 		
 		private final StandardMainWindow mainWindow;
@@ -720,36 +720,12 @@ public class SnowRunner {
 			JTabbedPane truckPanelTabbedPane = truckPanel.createTabbedPane();
 			truckPanelTabbedPane.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
-			TruckTableModel truckTableModel = new DataTables.TruckTableModel(controllers);
+			TruckTableModel truckTableModel = new DataTables.TruckTableModel(this.controllers);
+			this.controllers.addChild(this,truckTableModel);
 			JComponent truckTableScrollPane = DataTables.SimplifiedTablePanel.create( truckTableModel, rowIndex -> truckPanel.setTruck(truckTableModel.getRow(rowIndex)) );
 			
 			setTopComponent(truckTableScrollPane);
 			setBottomComponent(truckPanelTabbedPane);
-			
-			
-//			JTable table = new JTable();
-//			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-//			JScrollPane scrollPane = new JScrollPane(table);
-//			//scrollPane.setPreferredSize(new Dimension(400,100));
-//			
-//			table.setModel(tableModel);
-//			tableModel.setTable(table);
-//			tableModel.setColumnWidths(table);
-//			
-//			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
-//			table.setRowSorter(rowSorter);
-//			
-//			ContextMenu contextMenu = new ContextMenu();
-//			contextMenu.addTo(table);
-//			contextMenu.add(createMenuItem("Reset Row Order",true,e->{
-//				rowSorter.resetSortOrder();
-//				table.repaint();
-//			}));
-//			contextMenu.add(createMenuItem("Show Column Widths", true, e->{
-//				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
-//			}));
-//			
-//			setTopComponent(comp);
 		}
 		
 	}

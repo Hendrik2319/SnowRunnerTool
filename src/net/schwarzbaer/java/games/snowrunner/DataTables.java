@@ -93,6 +93,8 @@ class DataTables {
 		final ContextMenu tableContextMenu;
 	
 		SimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
+			if (tableModel==null)
+				throw new IllegalArgumentException();
 			this.tableModel = tableModel;
 			
 			table = new JTable();
@@ -118,6 +120,8 @@ class DataTables {
 		}
 
 		static JComponent create(SimplifiedTableModel<?> tableModel) {
+			if (tableModel==null)
+				throw new IllegalArgumentException();
 			
 			if (tableModel instanceof TextAreaOutputSource)
 				return create(tableModel, (JTextArea)null, null);
@@ -128,15 +132,14 @@ class DataTables {
 			return new SimplifiedTablePanel(tableModel).tableScrollPane;
 		}
 
-		static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea textArea, Function<Runnable,Runnable> modifyUpdateMethod) {
+		static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+			if (tableModel==null)
+				throw new IllegalArgumentException();
 			
 			if (tableModel instanceof TextAreaOutputSource) {
-				TextAreaOutputSource textAreaOutputSource = (TextAreaOutputSource) tableModel;
 				return create(
-						tableModel,
-						textAreaOutputSource,
-						modifyUpdateMethod,
-						textArea,
+						tableModel, (TextAreaOutputSource) tableModel,
+						modifyUpdateMethod, outputObj,
 						()->{
 							JTextArea outObj = new JTextArea();
 							outObj.setEditable(false);
@@ -146,18 +149,20 @@ class DataTables {
 						});
 			}
 			
+			if (outputObj!=null)
+				System.err.printf("SimplifiedTablePanel.create: JTextArea!=null but no TextAreaOutputSource implementing TableModel given: %s%n", tableModel.getClass());
+			
 			return new SimplifiedTablePanel(tableModel).tableScrollPane;
 		}
 
-		static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane textPane, Function<Runnable,Runnable> modifyUpdateMethod) {
+		static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+			if (tableModel==null)
+				throw new IllegalArgumentException();
 			
 			if (tableModel instanceof TextPaneOutputSource) {
-				TextPaneOutputSource textPaneOutputSource = (TextPaneOutputSource) tableModel;
 				return create(
-						tableModel,
-						textPaneOutputSource,
-						modifyUpdateMethod,
-						textPane,
+						tableModel, (TextPaneOutputSource) tableModel,
+						modifyUpdateMethod, outputObj,
 						()->{
 							JTextPane outObj = new JTextPane();
 							outObj.setEditable(false);
@@ -165,10 +170,13 @@ class DataTables {
 						});
 			}
 			
+			if (outputObj!=null)
+				System.err.printf("SimplifiedTablePanel.create: JTextPane!=null but no TextPaneOutputSource implementing TableModel given: %s%n", tableModel.getClass());
+			
 			return new SimplifiedTablePanel(tableModel).tableScrollPane;
 		}
 
-		static JComponent create( SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
+		static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
 			return create(
 					tableModel,
 					arbitraryOutputSource,
@@ -185,6 +193,11 @@ class DataTables {
 				OutputObject output,
 				Supplier<OutputObject> createOutputObject) {
 			
+			if (tableModel==null)
+				throw new IllegalArgumentException();
+			if (outputSource==null)
+				throw new IllegalArgumentException();
+			
 			SimplifiedTablePanel simplifiedTablePanel = new SimplifiedTablePanel(tableModel);
 			
 			
@@ -193,6 +206,9 @@ class DataTables {
 				result = simplifiedTablePanel.tableScrollPane;
 			
 			else {
+				if (createOutputObject==null)
+					throw new IllegalArgumentException();
+				
 				output = createOutputObject.get();
 				
 				JScrollPane outputScrollPane = new JScrollPane(output);
