@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Vector;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -85,14 +86,14 @@ class DataTables {
 		void setContentForRow(StyledDocument doc, int rowIndex);
 	}
 
-	static class SimplifiedTablePanel {
+	static class TableSimplifier {
 		
 		final SimplifiedTableModel<?> tableModel;
 		final JTable table;
 		final JScrollPane tableScrollPane;
 		final ContextMenu tableContextMenu;
 	
-		SimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
+		TableSimplifier(SimplifiedTableModel<?> tableModel) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			this.tableModel = tableModel;
@@ -120,26 +121,34 @@ class DataTables {
 		}
 
 		static JComponent create(SimplifiedTableModel<?> tableModel) {
+			return create(tableModel, (Consumer<ContextMenu>)null);
+		}
+		static JComponent create(SimplifiedTableModel<?> tableModel, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
 			if (tableModel instanceof TextAreaOutputSource)
-				return create(tableModel, (JTextArea)null, null);
+				return create(tableModel, (JTextArea)null, null, modifyContextMenu);
 			
 			if (tableModel instanceof TextPaneOutputSource)
-				return create(tableModel, (JTextPane)null, null);
+				return create(tableModel, (JTextPane)null, null, modifyContextMenu);
 			
-			return new SimplifiedTablePanel(tableModel).tableScrollPane;
+			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
+			if (modifyContextMenu!=null) modifyContextMenu.accept(tableSimplifier.tableContextMenu);
+			return tableSimplifier.tableScrollPane;
 		}
 
 		static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return create(tableModel, outputObj, modifyUpdateMethod, null);
+		}
+		static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
 			if (tableModel instanceof TextAreaOutputSource) {
 				return create(
 						tableModel, (TextAreaOutputSource) tableModel,
-						modifyUpdateMethod, outputObj,
+						modifyUpdateMethod, modifyContextMenu, outputObj,
 						()->{
 							JTextArea outObj = new JTextArea();
 							outObj.setEditable(false);
@@ -152,17 +161,22 @@ class DataTables {
 			if (outputObj!=null)
 				System.err.printf("SimplifiedTablePanel.create: JTextArea!=null but no TextAreaOutputSource implementing TableModel given: %s%n", tableModel.getClass());
 			
-			return new SimplifiedTablePanel(tableModel).tableScrollPane;
+			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
+			if (modifyContextMenu!=null) modifyContextMenu.accept(tableSimplifier.tableContextMenu);
+			return tableSimplifier.tableScrollPane;
 		}
 
 		static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return create(tableModel, outputObj, modifyUpdateMethod, null);
+		}
+		static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
 			if (tableModel instanceof TextPaneOutputSource) {
 				return create(
 						tableModel, (TextPaneOutputSource) tableModel,
-						modifyUpdateMethod, outputObj,
+						modifyUpdateMethod, null, outputObj,
 						()->{
 							JTextPane outObj = new JTextPane();
 							outObj.setEditable(false);
@@ -173,14 +187,20 @@ class DataTables {
 			if (outputObj!=null)
 				System.err.printf("SimplifiedTablePanel.create: JTextPane!=null but no TextPaneOutputSource implementing TableModel given: %s%n", tableModel.getClass());
 			
-			return new SimplifiedTablePanel(tableModel).tableScrollPane;
+			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
+			if (modifyContextMenu!=null) modifyContextMenu.accept(tableSimplifier.tableContextMenu);
+			return tableSimplifier.tableScrollPane;
 		}
 
 		static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
+			return create(tableModel, arbitraryOutputSource, null);
+		}
+		static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource, Consumer<ContextMenu> modifyContextMenu) {
 			return create(
 					tableModel,
 					arbitraryOutputSource,
 					arbitraryOutputSource::modifyUpdateMethod,
+					modifyContextMenu,
 					new JLabel(), // dummy
 					null // is not needed, because JLabel was given as existing but never used OutputObject
 			); 
@@ -190,6 +210,7 @@ class DataTables {
 				SimplifiedTableModel<?> tableModel,
 				OutputSource<OutputObject> outputSource,
 				Function<Runnable,Runnable> modifyUpdateMethod,
+				Consumer<ContextMenu> modifyContextMenu,
 				OutputObject output,
 				Supplier<OutputObject> createOutputObject) {
 			
@@ -198,12 +219,14 @@ class DataTables {
 			if (outputSource==null)
 				throw new IllegalArgumentException();
 			
-			SimplifiedTablePanel simplifiedTablePanel = new SimplifiedTablePanel(tableModel);
+			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
+			if (modifyContextMenu!=null)
+				modifyContextMenu.accept(tableSimplifier.tableContextMenu);
 			
 			
 			JComponent result;
 			if (output != null)
-				result = simplifiedTablePanel.tableScrollPane;
+				result = tableSimplifier.tableScrollPane;
 			
 			else {
 				if (createOutputObject==null)
@@ -217,7 +240,7 @@ class DataTables {
 				
 				JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
 				panel.setResizeWeight(1);
-				panel.setTopComponent(simplifiedTablePanel.tableScrollPane);
+				panel.setTopComponent(tableSimplifier.tableScrollPane);
 				panel.setBottomComponent(outputScrollPane);
 				result = panel;
 			}
@@ -226,9 +249,9 @@ class DataTables {
 			OutputObject output_final = output;
 			Runnable outputUpdateMethod = ()->{
 				int selectedRow = -1;
-				int rowV = simplifiedTablePanel.table.getSelectedRow();
+				int rowV = tableSimplifier.table.getSelectedRow();
 				if (rowV>=0) {
-					int rowM = simplifiedTablePanel.table.convertRowIndexToModel(rowV);
+					int rowM = tableSimplifier.table.convertRowIndexToModel(rowV);
 					selectedRow = rowM<0 ? -1 : rowM;
 				}
 				outputSource.setContentForRow(output_final, selectedRow);
@@ -239,8 +262,8 @@ class DataTables {
 			outputSource.setOutputUpdateMethod(outputUpdateMethod);
 			
 			Runnable outputUpdateMethod_final = outputUpdateMethod;
-			simplifiedTablePanel.table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			simplifiedTablePanel.table.getSelectionModel().addListSelectionListener(e->outputUpdateMethod_final.run());
+			tableSimplifier.table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			tableSimplifier.table.getSelectionModel().addListSelectionListener(e->outputUpdateMethod_final.run());
 			
 			return result;
 		}
@@ -300,7 +323,7 @@ class DataTables {
 		
 		<TableModel extends SimplifiedTableModel<?> & DataTables.TextAreaOutputSource> void addTab(String title, TableModel tableModel) {
 			int tabIndex = tabbedPane.getTabCount();
-			JComponent panel = SimplifiedTablePanel.create(tableModel, textArea, updateMethod->{
+			JComponent panel = TableSimplifier.create(tableModel, textArea, updateMethod->{
 				Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
 				if (tabbedPane.getTabCount()!=updateMethods.size())
 					throw new IllegalStateException();

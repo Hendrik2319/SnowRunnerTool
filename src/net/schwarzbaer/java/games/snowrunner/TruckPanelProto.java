@@ -70,7 +70,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSour
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
-class TruckPanel implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
+class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
 	private final JTextArea truckInfoTextArea;
 	private final JScrollPane truckInfoTextAreaScrollPane;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
@@ -83,7 +83,7 @@ class TruckPanel implements TruckToDLCAssignmentListener, ListenerSource, Listen
 	private HashMap<String, String> truckToDLCAssignments;
 
 
-	TruckPanel(StandardMainWindow mainWindow, Controllers controllers) {
+	TruckPanelProto(StandardMainWindow mainWindow, Controllers controllers) {
 		language = null;
 		truck = null;
 		truckToDLCAssignments = null;
@@ -337,8 +337,8 @@ class TruckPanel implements TruckToDLCAssignmentListener, ListenerSource, Listen
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", DataTables.SimplifiedTablePanel.create(   trailersTableModel = new DataTables.   TrailersTableModel(controllers,false)));
-			tablePanels.addTab("Addons"  , DataTables.SimplifiedTablePanel.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers,false)));
+			tablePanels.addTab("Trailers", DataTables.TableSimplifier.create(   trailersTableModel = new DataTables.   TrailersTableModel(controllers,false)));
+			tablePanels.addTab("Addons"  , DataTables.TableSimplifier.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers,false)));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;

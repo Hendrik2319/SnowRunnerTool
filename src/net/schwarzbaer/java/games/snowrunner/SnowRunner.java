@@ -31,6 +31,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
@@ -95,17 +96,17 @@ public class SnowRunner {
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"          , new TrucksPanel(mainWindow,controllers));
-		contentPane.addTab("Trucks II"       , new TrucksPanel2(mainWindow, controllers));
-		contentPane.addTab("Wheels"          , DataTables.SimplifiedTablePanel.create(new DataTables.WheelsTableModel     (controllers)));
-		contentPane.addTab("DLCs"            , DataTables.SimplifiedTablePanel.create(new DataTables.DLCTableModel        (controllers)));
-		contentPane.addTab("Trailers"        , DataTables.SimplifiedTablePanel.create(new DataTables.TrailersTableModel   (controllers,true)));
+		contentPane.addTab("Trucks"          , new TrucksListPanel(mainWindow, controllers));
+		contentPane.addTab("Trucks II"       , new TrucksTablePanel(mainWindow, controllers));
+		contentPane.addTab("Wheels"          , DataTables.TableSimplifier.create(new DataTables.WheelsTableModel     (controllers)));
+		contentPane.addTab("DLCs"            , DataTables.TableSimplifier.create(new DataTables.DLCTableModel        (controllers)));
+		contentPane.addTab("Trailers"        , DataTables.TableSimplifier.create(new DataTables.TrailersTableModel   (controllers,true)));
 		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(controllers));
-		contentPane.addTab("Engines"         , DataTables.SimplifiedTablePanel.create(new DataTables.EnginesTableModel    (controllers,true)));
-		contentPane.addTab("Gearboxes"       , DataTables.SimplifiedTablePanel.create(new DataTables.GearboxesTableModel  (controllers,true)));
-		contentPane.addTab("Suspensions"     , DataTables.SimplifiedTablePanel.create(new DataTables.SuspensionsTableModel(controllers,true)));
-		contentPane.addTab("Winches"         , DataTables.SimplifiedTablePanel.create(new DataTables.WinchesTableModel    (controllers,true)));
-		contentPane.addTab("Addon Categories", DataTables.SimplifiedTablePanel.create(new DataTables.AddonCategoriesTableModel(controllers)));
+		contentPane.addTab("Engines"         , DataTables.TableSimplifier.create(new DataTables.EnginesTableModel    (controllers,true)));
+		contentPane.addTab("Gearboxes"       , DataTables.TableSimplifier.create(new DataTables.GearboxesTableModel  (controllers,true)));
+		contentPane.addTab("Suspensions"     , DataTables.TableSimplifier.create(new DataTables.SuspensionsTableModel(controllers,true)));
+		contentPane.addTab("Winches"         , DataTables.TableSimplifier.create(new DataTables.WinchesTableModel    (controllers,true)));
+		contentPane.addTab("Addon Categories", DataTables.TableSimplifier.create(new DataTables.AddonCategoriesTableModel(controllers)));
 		contentPane.addTab("Raw Data", rawDataPanel);
 		
 		
@@ -702,35 +703,92 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TrucksPanel2 extends JSplitPane implements ListenerSourceParent/*, ListenerSource*/ {
+	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent/*, ListenerSource*/ {
 		private static final long serialVersionUID = 6564351588107715699L;
 		
 		private final StandardMainWindow mainWindow;
 		private final Controllers controllers;
+		private final TruckTableModel truckTableModel;
 
-		TrucksPanel2(StandardMainWindow mainWindow, Controllers controllers) {
+		TrucksTablePanel(StandardMainWindow mainWindow, Controllers controllers) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			
 			this.mainWindow = mainWindow;
 			this.controllers = controllers;
 			
-			TruckPanel truckPanel = new TruckPanel(this.mainWindow, this.controllers);
-			this.controllers.addChild(this,truckPanel);
-			JTabbedPane truckPanelTabbedPane = truckPanel.createTabbedPane();
-			truckPanelTabbedPane.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
+			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, this.controllers);
+			this.controllers.addChild(this,truckPanelProto);
+			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
+			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
-			TruckTableModel truckTableModel = new DataTables.TruckTableModel(this.controllers);
+			truckTableModel = new DataTables.TruckTableModel(this.controllers);
 			this.controllers.addChild(this,truckTableModel);
-			JComponent truckTableScrollPane = DataTables.SimplifiedTablePanel.create( truckTableModel, rowIndex -> truckPanel.setTruck(truckTableModel.getRow(rowIndex)) );
+			JComponent truckTableScrollPane = DataTables.TableSimplifier.create(
+					truckTableModel,
+					rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex)),
+					contextMenu -> {
+						TruckTableContextMenuModifier tlcmm = new TruckTableContextMenuModifier(contextMenu);
+						this.controllers.addChild(this,tlcmm);
+					});
 			
 			setTopComponent(truckTableScrollPane);
-			setBottomComponent(truckPanelTabbedPane);
+			setBottomComponent(tabbedPaneFromTruckPanel);
 		}
 		
+		
+		private class TruckTableContextMenuModifier implements ListenerSource, LanguageListener, TruckToDLCAssignmentListener {
+			
+			private int clickedIndex;
+			private Truck clickedItem;
+			private Language language;
+			private HashMap<String, String> truckToDLCAssignments;
+		
+			TruckTableContextMenuModifier(ContextMenu contextMenu) {
+				clickedIndex = -1;
+				clickedItem = null;
+				language = null;
+				truckToDLCAssignments = null;
+				
+				JMenuItem miAssignToDLC = contextMenu.add(createMenuItem("Assign truck to an official DLC", true, e->{
+					if (clickedItem==null || truckToDLCAssignments==null) return;
+					TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
+					boolean assignmentsChanged = dlg.showDialog();
+					if (assignmentsChanged)
+						controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
+				}));
+				
+				contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
+					JTable table = (JTable)comp;
+					int rowV = table.rowAtPoint(new Point(x,y));
+					clickedIndex = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
+					clickedItem = clickedIndex<0 ? null : truckTableModel.getRow(clickedIndex);
+					
+					miAssignToDLC.setEnabled(clickedItem!=null && truckToDLCAssignments!=null);
+					
+					miAssignToDLC.setText(
+						clickedItem==null
+						? "Assign truck to an official DLC"
+						: String.format("Assign \"%s\" to an official DLC", getTruckLabel(clickedItem,language))
+					);
+				});
+				
+				controllers.truckToDLCAssignmentListeners.add(this, this);
+				controllers.languageListeners.add(this, this);
+			}
+			
+			@Override public void setLanguage(Language language) {
+				this.language = language;
+			}
+
+			@Override public void updateAfterAssignmentsChange() {}
+			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+				this.truckToDLCAssignments = truckToDLCAssignments;
+			}
+		}
 	}
 
-	private static class TrucksPanel extends JSplitPane implements ListenerSourceParent, ListenerSource {
+	private static class TrucksListPanel extends JSplitPane implements ListenerSourceParent, ListenerSource {
 		private static final long serialVersionUID = 7004081774916835136L;
 		
 		private final JList<Truck> truckList;
@@ -738,22 +796,22 @@ public class SnowRunner {
 		private final StandardMainWindow mainWindow;
 		private HashMap<String, String> truckToDLCAssignments;
 		
-		TrucksPanel(StandardMainWindow mainWindow, Controllers controllers) {
+		TrucksListPanel(StandardMainWindow mainWindow, Controllers controllers) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
 			this.controllers = controllers;
 			this.truckToDLCAssignments = null;
 			setResizeWeight(0);
 			
-			TruckPanel truckPanel = new TruckPanel(this.mainWindow, this.controllers);
-			this.controllers.addChild(this,truckPanel);
-			JSplitPane truckPanelSplitPane = truckPanel.createSplitPane();
-			truckPanelSplitPane.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
+			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, this.controllers);
+			this.controllers.addChild(this,truckPanelProto);
+			JSplitPane splitPaneFromTruckPanel = truckPanelProto.createSplitPane();
+			splitPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 			
 			JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
 			truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
 			truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			truckList.addListSelectionListener(e->truckPanel.setTruck(truckList.getSelectedValue()));
+			truckList.addListSelectionListener(e->truckPanelProto.setTruck(truckList.getSelectedValue()));
 			this.controllers.dataReceivers.add(this,data -> {
 				Vector<Truck> items = new Vector<>(data.trucks.values());
 				items.sort(Comparator.<Truck,String>comparing(Truck->Truck.id));
@@ -769,12 +827,12 @@ public class SnowRunner {
 			this.controllers.saveGameListeners.add(this,truckListCellRenderer);
 			
 			setLeftComponent(truckListScrollPane);
-			setRightComponent(truckPanelSplitPane);
+			setRightComponent(splitPaneFromTruckPanel);
 			
 			this.controllers.truckToDLCAssignmentListeners.add(this,new TruckToDLCAssignmentListener() {
 				@Override public void updateAfterAssignmentsChange() {}
 				@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-					TrucksPanel.this.truckToDLCAssignments = truckToDLCAssignments;
+					TrucksListPanel.this.truckToDLCAssignments = truckToDLCAssignments;
 				}
 			});
 		}
