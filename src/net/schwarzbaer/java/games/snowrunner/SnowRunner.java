@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Vector;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -32,11 +31,8 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
-import javax.swing.JTable;
-import javax.swing.JTextArea;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
-import javax.swing.SingleSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
@@ -46,13 +42,13 @@ import net.schwarzbaer.gui.Disabler;
 import net.schwarzbaer.gui.ProgressDialog;
 import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.Tables;
-import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
-import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.DataTables.CombinedTableTabPaneTextAreaPanel;
+import net.schwarzbaer.java.games.snowrunner.DataTables.TruckTableModel;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMapMap;
@@ -82,7 +78,6 @@ public class SnowRunner {
 	private final JMenu languageMenu;
 	private final Controllers controllers;
 	private final RawDataPanel rawDataPanel;
-	private final TrucksPanel trucksPanel;
 	private final JMenuItem miSGValuesSorted;
 	private final JMenuItem miSGValuesOriginal;
 	private final JMenu selectedSaveGameMenu;
@@ -97,20 +92,20 @@ public class SnowRunner {
 		controllers = new Controllers();
 		
 		rawDataPanel = new RawDataPanel(mainWindow, controllers);
-		trucksPanel = new TrucksPanel(mainWindow,controllers);
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"      , trucksPanel);
-		contentPane.addTab("Wheels"      , createSimplifiedTablePanel(new DataTables.WheelsTableModel     (controllers)));
-		contentPane.addTab("DLCs"        , createSimplifiedTablePanel(new DataTables.DLCTableModel        (controllers)));
-		contentPane.addTab("Trailers"    , createSimplifiedTablePanel(new DataTables.TrailersTableModel   (controllers,true)));
-		contentPane.addTab("Truck Addons", new TruckAddonsTablePanel(controllers));
-		contentPane.addTab("Engines"     , createSimplifiedTablePanel(new DataTables.EnginesTableModel    (controllers,true)));
-		contentPane.addTab("Gearboxes"   , createSimplifiedTablePanel(new DataTables.GearboxesTableModel  (controllers,true)));
-		contentPane.addTab("Suspensions" , createSimplifiedTablePanel(new DataTables.SuspensionsTableModel(controllers,true)));
-		contentPane.addTab("Winches"     , createSimplifiedTablePanel(new DataTables.WinchesTableModel    (controllers,true)));
-		contentPane.addTab("Addon Categories", createSimplifiedTablePanel(new DataTables.AddonCategoriesTableModel(controllers)));
+		contentPane.addTab("Trucks"          , new TrucksPanel(mainWindow,controllers));
+		contentPane.addTab("Trucks II"       , new TrucksPanel2(mainWindow, controllers));
+		contentPane.addTab("Wheels"          , DataTables.SimplifiedTablePanel.create(new DataTables.WheelsTableModel     (controllers)));
+		contentPane.addTab("DLCs"            , DataTables.SimplifiedTablePanel.create(new DataTables.DLCTableModel        (controllers)));
+		contentPane.addTab("Trailers"        , DataTables.SimplifiedTablePanel.create(new DataTables.TrailersTableModel   (controllers,true)));
+		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(controllers));
+		contentPane.addTab("Engines"         , DataTables.SimplifiedTablePanel.create(new DataTables.EnginesTableModel    (controllers,true)));
+		contentPane.addTab("Gearboxes"       , DataTables.SimplifiedTablePanel.create(new DataTables.GearboxesTableModel  (controllers,true)));
+		contentPane.addTab("Suspensions"     , DataTables.SimplifiedTablePanel.create(new DataTables.SuspensionsTableModel(controllers,true)));
+		contentPane.addTab("Winches"         , DataTables.SimplifiedTablePanel.create(new DataTables.WinchesTableModel    (controllers,true)));
+		contentPane.addTab("Addon Categories", DataTables.SimplifiedTablePanel.create(new DataTables.AddonCategoriesTableModel(controllers)));
 		contentPane.addTab("Raw Data", rawDataPanel);
 		
 		
@@ -620,152 +615,6 @@ public class SnowRunner {
 		return pos;
 	}
 
-	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
-		return createSimplifiedTablePanel(tableModel, ()-> {
-			JTextArea textArea = new JTextArea();
-			textArea.setEditable(false);
-			textArea.setWrapStyleWord(true);
-			textArea.setLineWrap(true);
-			return textArea;
-		}, true, null);
-	}
-
-	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel, JTextArea textArea, Function<Runnable,Runnable> registerTextAreaUpdateMethod) {
-		return createSimplifiedTablePanel(tableModel, ()->textArea, false, registerTextAreaUpdateMethod);
-	}
-	
-	static JComponent createSimplifiedTablePanel(SimplifiedTableModel<?> tableModel, Supplier<JTextArea> createTextArea, boolean addTextAreaToPanel, Function<Runnable,Runnable> registerTextAreaUpdateMethod) {
-		JTable table = new JTable();
-		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		JScrollPane scrollPane = new JScrollPane(table);
-		//scrollPane.setPreferredSize(new Dimension(400,100));
-		
-		table.setModel(tableModel);
-		tableModel.setTable(table);
-		tableModel.setColumnWidths(table);
-		
-		SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
-		table.setRowSorter(rowSorter);
-		
-		ContextMenu contextMenu = new ContextMenu();
-		contextMenu.addTo(table);
-		contextMenu.add(createMenuItem("Reset Row Order",true,e->{
-			rowSorter.resetSortOrder();
-			table.repaint();
-		}));
-		contextMenu.add(createMenuItem("Show Column Widths", true, e->{
-			System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
-		}));
-		
-		if (tableModel instanceof DataTables.RowTextTableModel) {
-			DataTables.RowTextTableModel rowTextTableModel = (DataTables.RowTextTableModel) tableModel;
-			
-			JTextArea textArea = createTextArea.get();
-			
-			Runnable textAreaUpdateMethod = ()->{
-				Integer selectedRow = null;
-				int rowV = table.getSelectedRow();
-				if (rowV>=0) {
-					int rowM = table.convertRowIndexToModel(rowV);
-					selectedRow = rowM>=0 ? rowM : null;
-				}
-				if (selectedRow != null)
-					textArea.setText(rowTextTableModel.getTextForRow(selectedRow));
-				else
-					textArea.setText("");
-			};
-			if (registerTextAreaUpdateMethod!=null)
-				textAreaUpdateMethod = registerTextAreaUpdateMethod.apply(textAreaUpdateMethod);
-			rowTextTableModel.setTextAreaUpdateMethod(textAreaUpdateMethod);
-			
-			Runnable textAreaUpdateMethod_ = textAreaUpdateMethod;
-			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			table.getSelectionModel().addListSelectionListener(e->textAreaUpdateMethod_.run());
-			
-			if (addTextAreaToPanel) {
-				JScrollPane textAreaScrollPane = new JScrollPane(textArea);
-				//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
-				//textAreaScrollPane.setPreferredSize(new Dimension(400,100));
-				
-				JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
-				panel.setResizeWeight(1);
-				panel.setTopComponent(scrollPane);
-				panel.setBottomComponent(textAreaScrollPane);
-				return panel;
-			} else
-				return scrollPane;
-			
-		} else {
-			return scrollPane;
-		}
-		
-	}
-
-	static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
-		private static final long serialVersionUID = -2637203211606881920L;
-		
-		private final JTextArea textArea;
-		private final JTabbedPane tabbedPane;
-		private int selectedTab;
-		private final Vector<Runnable> updateMethods;
-
-		CombinedTableTabPaneTextAreaPanel() {
-			super(JSplitPane.VERTICAL_SPLIT, true);
-			selectedTab = 0;
-			updateMethods = new Vector<Runnable>();
-			
-			textArea = new JTextArea();
-			textArea.setEditable(false);
-			textArea.setWrapStyleWord(true);
-			textArea.setLineWrap(true);
-			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
-			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
-			textAreaScrollPane.setPreferredSize(new Dimension(400,50));
-			textAreaScrollPane.setMinimumSize(new Dimension(5,5));
-			
-			tabbedPane = new JTabbedPane();
-			tabbedPane.setPreferredSize(new Dimension(400,50));
-			tabbedPane.setMinimumSize(new Dimension(5,40));
-			SingleSelectionModel tabbedPaneSelectionModel = tabbedPane.getModel();
-			tabbedPaneSelectionModel.addChangeListener(e->{
-				int i = tabbedPaneSelectionModel.getSelectedIndex();
-				selectedTab = i;
-				if (i<0 || i>=updateMethods.size()) return;
-				updateMethods.get(i).run();
-			});
-			
-			setTopComponent(tabbedPane);
-			setBottomComponent(textAreaScrollPane);
-			setResizeWeight(1);
-		}
-		
-		void removeAllTabs() {
-			tabbedPane.removeAll();
-			updateMethods.clear();
-		}
-		
-		void setTabTitle(int index, String title) {
-			tabbedPane.setTitleAt(index, title);
-		}
-		
-		void setTabComponentAt(int index, Component component) {
-			tabbedPane.setTabComponentAt(index, component);
-		}
-		
-		
-		<TableModel extends SimplifiedTableModel<?> & DataTables.RowTextTableModel> void addTab(String title, TableModel tableModel) {
-			int tabIndex = tabbedPane.getTabCount();
-			JComponent panel = createSimplifiedTablePanel(tableModel, textArea, updateMethod->{
-				Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
-				if (tabbedPane.getTabCount()!=updateMethods.size())
-					throw new IllegalStateException();
-				updateMethods.add(modifiedUpdateMethod);
-				return modifiedUpdateMethod;
-			});
-			tabbedPane.addTab(title, panel);
-		}
-	}
-
 	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextAreaPanel implements ListenerSource, ListenerSourceParent {
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
 
@@ -853,6 +702,58 @@ public class SnowRunner {
 		}
 	}
 
+	private static class TrucksPanel2 extends JSplitPane implements ListenerSourceParent, ListenerSource {
+		private static final long serialVersionUID = 6564351588107715699L;
+		
+		private final StandardMainWindow mainWindow;
+		private final Controllers controllers;
+
+		TrucksPanel2(StandardMainWindow mainWindow, Controllers controllers) {
+			super(JSplitPane.VERTICAL_SPLIT, true);
+			setResizeWeight(1);
+			
+			this.mainWindow = mainWindow;
+			this.controllers = controllers;
+			
+			TruckPanel truckPanel = new TruckPanel(this.mainWindow, this.controllers);
+			this.controllers.addChild(this,truckPanel);
+			JTabbedPane truckPanelTabbedPane = truckPanel.createTabbedPane();
+			truckPanelTabbedPane.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
+
+			TruckTableModel truckTableModel = new DataTables.TruckTableModel(controllers);
+			JComponent truckTableScrollPane = DataTables.SimplifiedTablePanel.create( truckTableModel, rowIndex -> truckPanel.setTruck(truckTableModel.getRow(rowIndex)) );
+			
+			setTopComponent(truckTableScrollPane);
+			setBottomComponent(truckPanelTabbedPane);
+			
+			
+//			JTable table = new JTable();
+//			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+//			JScrollPane scrollPane = new JScrollPane(table);
+//			//scrollPane.setPreferredSize(new Dimension(400,100));
+//			
+//			table.setModel(tableModel);
+//			tableModel.setTable(table);
+//			tableModel.setColumnWidths(table);
+//			
+//			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
+//			table.setRowSorter(rowSorter);
+//			
+//			ContextMenu contextMenu = new ContextMenu();
+//			contextMenu.addTo(table);
+//			contextMenu.add(createMenuItem("Reset Row Order",true,e->{
+//				rowSorter.resetSortOrder();
+//				table.repaint();
+//			}));
+//			contextMenu.add(createMenuItem("Show Column Widths", true, e->{
+//				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
+//			}));
+//			
+//			setTopComponent(comp);
+		}
+		
+	}
+
 	private static class TrucksPanel extends JSplitPane implements ListenerSourceParent, ListenerSource {
 		private static final long serialVersionUID = 7004081774916835136L;
 		
@@ -869,8 +770,9 @@ public class SnowRunner {
 			setResizeWeight(0);
 			
 			TruckPanel truckPanel = new TruckPanel(this.mainWindow, this.controllers);
-			truckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 			this.controllers.addChild(this,truckPanel);
+			JSplitPane truckPanelSplitPane = truckPanel.createSplitPane();
+			truckPanelSplitPane.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 			
 			JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
 			truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
@@ -891,7 +793,7 @@ public class SnowRunner {
 			this.controllers.saveGameListeners.add(this,truckListCellRenderer);
 			
 			setLeftComponent(truckListScrollPane);
-			setRightComponent(truckPanel);
+			setRightComponent(truckPanelSplitPane);
 			
 			this.controllers.truckToDLCAssignmentListeners.add(this,new TruckToDLCAssignmentListener() {
 				@Override public void updateAfterAssignmentsChange() {}

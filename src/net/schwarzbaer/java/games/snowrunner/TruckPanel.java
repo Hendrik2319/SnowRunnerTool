@@ -61,6 +61,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets.Socket;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
+import net.schwarzbaer.java.games.snowrunner.DataTables.CombinedTableTabPaneTextAreaPanel;
 import net.schwarzbaer.java.games.snowrunner.DataTables.ExtendedVerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
@@ -69,10 +70,9 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSour
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
-class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
-	private static final long serialVersionUID = -5138746858742450458L;
-	
+class TruckPanel implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
 	private final JTextArea truckInfoTextArea;
+	private final JScrollPane truckInfoTextAreaScrollPane;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
 	private final AddonSocketsPanel addonSocketsPanel;
 	private final AddonsPanel addonsPanel;
@@ -84,9 +84,6 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 
 
 	TruckPanel(StandardMainWindow mainWindow, Controllers controllers) {
-		super(JSplitPane.VERTICAL_SPLIT, true);
-		setResizeWeight(0);
-
 		language = null;
 		truck = null;
 		truckToDLCAssignments = null;
@@ -96,7 +93,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 		truckInfoTextArea.setEditable(false);
 		truckInfoTextArea.setWrapStyleWord(true);
 		truckInfoTextArea.setLineWrap(true);
-		JScrollPane truckInfoTextAreaScrollPane = new JScrollPane(truckInfoTextArea);
+		truckInfoTextAreaScrollPane = new JScrollPane(truckInfoTextArea);
 		truckInfoTextAreaScrollPane.setPreferredSize(new Dimension(300,300));
 		
 		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow);
@@ -105,16 +102,6 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 		addonsPanel2 = new AddonsPanel2(controllers);
 		controllers.addChild(this, addonsPanel);
 		controllers.addChild(this, addonsPanel2);
-		
-		JTabbedPane bottomPanel = new JTabbedPane();
-		bottomPanel.addTab("Compatible Wheels", compatibleWheelsPanel);
-		bottomPanel.addTab("Addon Sockets", addonSocketsPanel);
-		bottomPanel.addTab("Addons by Socket", addonsPanel);
-		bottomPanel.addTab("Addons by Category", addonsPanel2);
-		//bottomPanel.setSelectedIndex(3);
-		
-		setTopComponent(truckInfoTextAreaScrollPane);
-		setBottomComponent(bottomPanel);
 		
 		controllers.languageListeners.add(this,language->{
 			this.language = language;
@@ -129,6 +116,33 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 		});
 		
 		updateOutput();
+	}
+	
+	JTabbedPane createTabbedPane() {
+		
+		JTabbedPane tabbedPanel = new JTabbedPane();
+		tabbedPanel.addTab("General Infos", truckInfoTextAreaScrollPane);
+		addStandardTabsTo(tabbedPanel);
+		
+		return tabbedPanel;
+	}
+	
+	JSplitPane createSplitPane() {
+		JTabbedPane tabbedPanel = new JTabbedPane();
+		addStandardTabsTo(tabbedPanel);
+		
+		JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
+		splitPane.setResizeWeight(0);
+		splitPane.setTopComponent(truckInfoTextAreaScrollPane);
+		splitPane.setBottomComponent(tabbedPanel);
+		return splitPane;
+	}
+
+	private void addStandardTabsTo(JTabbedPane tabbedPanel) {
+		tabbedPanel.addTab("Compatible Wheels", compatibleWheelsPanel);
+		tabbedPanel.addTab("Addon Sockets", addonSocketsPanel);
+		tabbedPanel.addTab("Addons by Socket", addonsPanel);
+		tabbedPanel.addTab("Addons by Category", addonsPanel2);
 	}
 
 	void setTruck(Truck truck) {
@@ -158,9 +172,9 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 		ValueListOutput outTop = new ValueListOutput();
 		
 		outTop.add(0, "ID"     , truck.id);
-		outTop.add(0, "Country", truck.country);
+		outTop.add(0, "Country", truck.country==null ? null : truck.country.toString());
 		outTop.add(0, "Price"  , truck.price);
-		outTop.add(0, "Type"   , truck.type);
+		outTop.add(0, "Type"   , truck.type==null ? null : truck.type.toString());
 		outTop.add(0, "Unlock By Exploration", truck.unlockByExploration);
 		outTop.add(0, "Unlock By Rank"       , truck.unlockByRank);
 		outTop.add(0, "XML file"             , truck.xmlName);
@@ -203,7 +217,7 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
-	private static class AddonsPanel2 extends SnowRunner.CombinedTableTabPaneTextAreaPanel implements ListenerSource, ListenerSourceParent {
+	private static class AddonsPanel2 extends CombinedTableTabPaneTextAreaPanel implements ListenerSource, ListenerSourceParent {
 		private static final long serialVersionUID = 4098254083170104250L;
 
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
@@ -323,8 +337,8 @@ class TruckPanel extends JSplitPane implements TruckToDLCAssignmentListener, Lis
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", SnowRunner.createSimplifiedTablePanel(   trailersTableModel = new DataTables.   TrailersTableModel(controllers,false)));
-			tablePanels.addTab("Addons"  , SnowRunner.createSimplifiedTablePanel(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers,false)));
+			tablePanels.addTab("Trailers", DataTables.SimplifiedTablePanel.create(   trailersTableModel = new DataTables.   TrailersTableModel(controllers,false)));
+			tablePanels.addTab("Addons"  , DataTables.SimplifiedTablePanel.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers,false)));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;

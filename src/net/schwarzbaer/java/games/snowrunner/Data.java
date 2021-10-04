@@ -799,16 +799,36 @@ public class Data {
 		}
 	
 	}
+	
+	static <E extends Enum<E>> E parseEnum(String str, String enumLabel, E[] values) {
+		if (str==null) return null;
+		for (E e : values)
+			if (e.toString().equals(str))
+				return e;
+		unexpectedValues.add(String.format("New Value for Enum <%s>", enumLabel), str);
+		return null;
+	}
 
 	static class Truck extends ItemBased {
 		
-		final String type;
-		final String country;
+		enum DiffLockType { None, Always, Installed, Uninstalled }
+		enum Country { RU, US }
+		enum TruckType { HEAVY, HEAVY_DUTY, HIGHWAY, OFFROAD, SCOUT }
+		
+		final TruckType type;
+		final Country country;
 		final Integer price;
 		final Boolean unlockByExploration;
 		final Integer unlockByRank;
 		final String description_StringID;
 		final String name_StringID;
+		
+		final String image;
+		final Integer fuelCapacity;
+		final DiffLockType diffLockType;
+		final Boolean  isWinchUpgradable;
+		final String   maxWheelRadiusWithoutSuspension;
+		
 		final CompatibleWheel[] compatibleWheels;
 		final AddonSockets[] addonSockets;
 		final HashSet<Trailer> compatibleTrailers;
@@ -834,19 +854,39 @@ public class Data {
 		final String[] compatibleWinches_SetIDs;
 		final Collection<Winch> compatibleWinches;
 		
-		final Boolean  isWinchUpgradable;
-		final String   maxWheelRadiusWithoutSuspension;
-		
 		Truck(Item item, Data data) {
 			super(item);
 			if (!item.className.equals("trucks"))
 				throw new IllegalStateException();
 			
 			GenericXmlNode truckDataNode = item.content.getNode("Truck", "TruckData");
-			type = truckDataNode.attributes.get("TruckType");
+			//truckDataNode.attributes.forEach((key,value)->{
+			//	unexpectedValues.add("Class[trucks] <Truck> <TruckData ####=\"...\">", key);
+			//});
+			//   Class[trucks] <Truck> <TruckData ####="...">
+			//      BackSteerSpeed
+			//      DiffLockType
+			//      EngineIconMesh
+			//      EngineIconScale
+			//      EngineMarkerOffset
+			//      EngineStartDelay
+			//      ExhaustStartTime
+			//      FuelCapacity
+			//      FueltankMarkerOffset
+			//      Responsiveness
+			//      SteerSpeed
+			//      SuspensionMarkerOffset
+			//      TruckImage
+			//      TruckType
+			//      WheelToPack
+			type         = parseEnum( truckDataNode.attributes.get("TruckType"), "TruckType", TruckType.values());
+			image        =            truckDataNode.attributes.get("TruckImage");
+			fuelCapacity = parseInt ( truckDataNode.attributes.get("FuelCapacity") );
+			diffLockType = parseEnum( truckDataNode.attributes.get("DiffLockType"), "DiffLockType", DiffLockType.values() );
+			
 			
 			GenericXmlNode gameDataNode = item.content.getNode("Truck", "GameData");
-			country             =           gameDataNode.attributes.get("Country");
+			country             = parseEnum(gameDataNode.attributes.get("Country"), "Country", Country.values());
 			price               = parseInt (gameDataNode.attributes.get("Price") );
 			unlockByExploration = parseBool(gameDataNode.attributes.get("UnlockByExploration") );
 			unlockByRank        = parseInt (gameDataNode.attributes.get("UnlockByRank") );

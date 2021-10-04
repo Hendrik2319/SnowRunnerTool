@@ -1,6 +1,7 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.Component;
+import java.awt.Dimension;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -8,16 +9,31 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Vector;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextPane;
+import javax.swing.ListSelectionModel;
+import javax.swing.SingleSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
+import javax.swing.text.DefaultStyledDocument;
+import javax.swing.text.StyledDocument;
 
+import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.LabelRendererComponent;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
+import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
+import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Engine;
 import net.schwarzbaer.java.games.snowrunner.Data.Gearbox;
@@ -37,6 +53,247 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class DataTables {
+
+	interface OutputSource<OutputObject extends Component> {
+		void setOutputUpdateMethod(Runnable outputUpdateMethod);
+		void setContentForRow(OutputObject outputObject, int rowIndex);
+	}
+	
+	interface ArbitraryOutputSource extends OutputSource<Component>{
+		@Override default void setOutputUpdateMethod(Runnable outputUpdateMethod) {}
+		@Override default void setContentForRow(Component dummy, int rowIndex) { setContentForRow(rowIndex); }
+		void setContentForRow(int rowIndex);
+		default Runnable modifyUpdateMethod(Runnable updateMethod) { return updateMethod; }
+	}
+
+	interface TextAreaOutputSource extends OutputSource<JTextArea> {
+		@Override default void setContentForRow(JTextArea textArea, int rowIndex) {
+			if (rowIndex<0)
+				textArea.setText("");
+			else
+				textArea.setText(getTextForRow(rowIndex));
+		}
+		String getTextForRow(int rowIndex);
+	}
+
+	interface TextPaneOutputSource extends OutputSource<JTextPane> {
+		@Override default void setContentForRow(JTextPane textPane, int rowIndex) {
+			DefaultStyledDocument doc = new DefaultStyledDocument();
+			if (rowIndex>=0) setContentForRow(doc, rowIndex);
+			textPane.setStyledDocument(doc);
+		}
+		void setContentForRow(StyledDocument doc, int rowIndex);
+	}
+
+	static class SimplifiedTablePanel {
+		
+		final SimplifiedTableModel<?> tableModel;
+		final JTable table;
+		final JScrollPane tableScrollPane;
+		final ContextMenu tableContextMenu;
+	
+		SimplifiedTablePanel(SimplifiedTableModel<?> tableModel) {
+			this.tableModel = tableModel;
+			
+			table = new JTable();
+			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			tableScrollPane = new JScrollPane(table);
+			
+			table.setModel(this.tableModel);
+			this.tableModel.setTable(table);
+			this.tableModel.setColumnWidths(table);
+			
+			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
+			table.setRowSorter(rowSorter);
+			
+			tableContextMenu = new ContextMenu();
+			tableContextMenu.addTo(table);
+			tableContextMenu.add(SnowRunner.createMenuItem("Reset Row Order",true,e->{
+				rowSorter.resetSortOrder();
+				table.repaint();
+			}));
+			tableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
+				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
+			}));
+		}
+
+		static JComponent create(SimplifiedTableModel<?> tableModel) {
+			
+			if (tableModel instanceof TextAreaOutputSource)
+				return create(tableModel, (JTextArea)null, null);
+			
+			if (tableModel instanceof TextPaneOutputSource)
+				return create(tableModel, (JTextPane)null, null);
+			
+			return new SimplifiedTablePanel(tableModel).tableScrollPane;
+		}
+
+		static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea textArea, Function<Runnable,Runnable> modifyUpdateMethod) {
+			
+			if (tableModel instanceof TextAreaOutputSource) {
+				TextAreaOutputSource textAreaOutputSource = (TextAreaOutputSource) tableModel;
+				return create(
+						tableModel,
+						textAreaOutputSource,
+						modifyUpdateMethod,
+						textArea,
+						()->{
+							JTextArea outObj = new JTextArea();
+							outObj.setEditable(false);
+							outObj.setWrapStyleWord(true);
+							outObj.setLineWrap(true);
+							return outObj;
+						});
+			}
+			
+			return new SimplifiedTablePanel(tableModel).tableScrollPane;
+		}
+
+		static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane textPane, Function<Runnable,Runnable> modifyUpdateMethod) {
+			
+			if (tableModel instanceof TextPaneOutputSource) {
+				TextPaneOutputSource textPaneOutputSource = (TextPaneOutputSource) tableModel;
+				return create(
+						tableModel,
+						textPaneOutputSource,
+						modifyUpdateMethod,
+						textPane,
+						()->{
+							JTextPane outObj = new JTextPane();
+							outObj.setEditable(false);
+							return outObj;
+						});
+			}
+			
+			return new SimplifiedTablePanel(tableModel).tableScrollPane;
+		}
+
+		static JComponent create( SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
+			return create(
+					tableModel,
+					arbitraryOutputSource,
+					arbitraryOutputSource::modifyUpdateMethod,
+					new JLabel(), // dummy
+					null // is not needed, because JLabel was given as existing but never used OutputObject
+			); 
+		}
+
+		static <OutputObject extends Component> JComponent create(
+				SimplifiedTableModel<?> tableModel,
+				OutputSource<OutputObject> outputSource,
+				Function<Runnable,Runnable> modifyUpdateMethod,
+				OutputObject output,
+				Supplier<OutputObject> createOutputObject) {
+			
+			SimplifiedTablePanel simplifiedTablePanel = new SimplifiedTablePanel(tableModel);
+			
+			
+			JComponent result;
+			if (output != null)
+				result = simplifiedTablePanel.tableScrollPane;
+			
+			else {
+				output = createOutputObject.get();
+				
+				JScrollPane outputScrollPane = new JScrollPane(output);
+				//outputScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
+				outputScrollPane.setPreferredSize(new Dimension(400,50));
+				
+				JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
+				panel.setResizeWeight(1);
+				panel.setTopComponent(simplifiedTablePanel.tableScrollPane);
+				panel.setBottomComponent(outputScrollPane);
+				result = panel;
+			}
+			
+			
+			OutputObject output_final = output;
+			Runnable outputUpdateMethod = ()->{
+				int selectedRow = -1;
+				int rowV = simplifiedTablePanel.table.getSelectedRow();
+				if (rowV>=0) {
+					int rowM = simplifiedTablePanel.table.convertRowIndexToModel(rowV);
+					selectedRow = rowM<0 ? -1 : rowM;
+				}
+				outputSource.setContentForRow(output_final, selectedRow);
+				//textArea_.setText(rowTextTableModel.getTextForRow(selectedRow));
+			};
+			if (modifyUpdateMethod!=null)
+				outputUpdateMethod = modifyUpdateMethod.apply(outputUpdateMethod);
+			outputSource.setOutputUpdateMethod(outputUpdateMethod);
+			
+			Runnable outputUpdateMethod_final = outputUpdateMethod;
+			simplifiedTablePanel.table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			simplifiedTablePanel.table.getSelectionModel().addListSelectionListener(e->outputUpdateMethod_final.run());
+			
+			return result;
+		}
+	}
+
+	static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
+		private static final long serialVersionUID = -2637203211606881920L;
+		
+		private final JTextArea textArea;
+		private final JTabbedPane tabbedPane;
+		private int selectedTab;
+		private final Vector<Runnable> updateMethods;
+
+		CombinedTableTabPaneTextAreaPanel() {
+			super(JSplitPane.VERTICAL_SPLIT, true);
+			selectedTab = 0;
+			updateMethods = new Vector<Runnable>();
+			
+			textArea = new JTextArea();
+			textArea.setEditable(false);
+			textArea.setWrapStyleWord(true);
+			textArea.setLineWrap(true);
+			JScrollPane textAreaScrollPane = new JScrollPane(textArea);
+			//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
+			textAreaScrollPane.setPreferredSize(new Dimension(400,50));
+			textAreaScrollPane.setMinimumSize(new Dimension(5,5));
+			
+			tabbedPane = new JTabbedPane();
+			tabbedPane.setPreferredSize(new Dimension(400,50));
+			tabbedPane.setMinimumSize(new Dimension(5,40));
+			SingleSelectionModel tabbedPaneSelectionModel = tabbedPane.getModel();
+			tabbedPaneSelectionModel.addChangeListener(e->{
+				int i = tabbedPaneSelectionModel.getSelectedIndex();
+				selectedTab = i;
+				if (i<0 || i>=updateMethods.size()) return;
+				updateMethods.get(i).run();
+			});
+			
+			setTopComponent(tabbedPane);
+			setBottomComponent(textAreaScrollPane);
+			setResizeWeight(1);
+		}
+		
+		void removeAllTabs() {
+			tabbedPane.removeAll();
+			updateMethods.clear();
+		}
+		
+		void setTabTitle(int index, String title) {
+			tabbedPane.setTitleAt(index, title);
+		}
+		
+		void setTabComponentAt(int index, Component component) {
+			tabbedPane.setTabComponentAt(index, component);
+		}
+		
+		
+		<TableModel extends SimplifiedTableModel<?> & DataTables.TextAreaOutputSource> void addTab(String title, TableModel tableModel) {
+			int tabIndex = tabbedPane.getTabCount();
+			JComponent panel = SimplifiedTablePanel.create(tableModel, textArea, updateMethod->{
+				Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
+				if (tabbedPane.getTabCount()!=updateMethods.size())
+					throw new IllegalStateException();
+				updateMethods.add(modifiedUpdateMethod);
+				return modifiedUpdateMethod;
+			});
+			tabbedPane.addTab(title, panel);
+		}
+	}
 	
 	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, TableCellRenderer, SwingConstants, ListenerSource {
 		
@@ -202,12 +459,7 @@ class DataTables {
 		}
 	}
 
-	interface RowTextTableModel {
-		String getTextForRow(int rowIndex);
-		void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod);
-	}
-
-	static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements RowTextTableModel {
+	static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements TextAreaOutputSource {
 		
 		private Runnable textAreaUpdateMethod;
 	
@@ -225,7 +477,7 @@ class DataTables {
 				textAreaUpdateMethod.run();
 		}
 	
-		@Override public void setTextAreaUpdateMethod(Runnable textAreaUpdateMethod) {
+		@Override public void setOutputUpdateMethod(Runnable textAreaUpdateMethod) {
 			this.textAreaUpdateMethod = textAreaUpdateMethod;
 		}
 		
@@ -517,6 +769,30 @@ class DataTables {
 			Vector<Truck> usableBy = row.usableBy;
 			return generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
 		}
+	}
+	
+	static class TruckTableModel extends VerySimpleTableModel<Truck> {
+
+		TruckTableModel(Controllers controllers) {
+			super(controllers, new ColumnID[] {
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).dlcName),
+					new ColumnID("ID"     , String .class, 300,   null,    null,  true, row -> ((Truck)row).name_StringID),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					new ColumnID("ID"     , String .class, 300,   null,    null, false, row -> ((Truck)row).id),
+					
+			});
+			connectToGlobalData(data->data.trucks.values());
+		}
+		
 	}
 
 	static class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
