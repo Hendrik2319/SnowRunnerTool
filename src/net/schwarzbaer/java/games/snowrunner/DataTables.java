@@ -1,5 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.util.Collection;
@@ -31,7 +32,6 @@ import javax.swing.text.StyledDocument;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Tables;
-import net.schwarzbaer.gui.Tables.LabelRendererComponent;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
@@ -47,10 +47,12 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SaveGameListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class DataTables {
@@ -334,13 +336,13 @@ class DataTables {
 		}
 	}
 	
-	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, TableCellRenderer, SwingConstants, ListenerSource {
+	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, ListenerSource {
 		
 		protected final Controllers controllers;
 		protected final Vector<RowType> rows;
 		protected Language language;
-		private final LabelRendererComponent rendererComp;
-		private Comparator<RowType> initialRowOrder;
+		private   Comparator<RowType> initialRowOrder;
+		private   Colorizer<RowType> colorizer;
 	
 		VerySimpleTableModel(Controllers controllers, ColumnID[] columns) {
 			super(columns);
@@ -349,7 +351,7 @@ class DataTables {
 			this.initialRowOrder = null;
 			rows = new Vector<>();
 			this.controllers.languageListeners.add(this,this);
-			rendererComp = new Tables.LabelRendererComponent();
+			this.colorizer = null;
 		}
 		
 		void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
@@ -392,47 +394,96 @@ class DataTables {
 			fireTableUpdate();
 		}
 		
-		@Override
-		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
-			String valueStr = value==null ? null : value.toString();
+		void setColorizer(Colorizer<RowType> colorizer) {
+			this.colorizer = colorizer;
+		}
+		
+		interface Colorizer<RowType> {
+			Color getColor(RowType row);
+		}
+		
+		private class GeneralPurposeTCR implements TableCellRenderer {
+			private final Tables.LabelRendererComponent    label;
+			private final Tables.CheckBoxRendererComponent checkBox;
 			
-			int columnM = table.convertColumnIndexToModel(columnV);
-			ColumnID columnID = getColumnID(columnM);
-			
-			if (columnID!=null) {
-				
-				if (columnID.format!=null && value!=null)
-					valueStr = String.format(Locale.ENGLISH, columnID.format, value);
-				
-				if (columnID.horizontalAlignment!=null)
-					rendererComp.setHorizontalAlignment(columnID.horizontalAlignment);
-				
-				else if (Number.class.isAssignableFrom(columnID.config.columnClass))
-					rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-				
-				else
-					rendererComp.setHorizontalAlignment(SwingConstants.LEFT);
+			GeneralPurposeTCR() {
+				label = new Tables.LabelRendererComponent();
+				checkBox = new Tables.CheckBoxRendererComponent();
+				checkBox.setHorizontalAlignment(SwingConstants.CENTER);
 			}
 			
-			rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
-			return rendererComp;
+			@Override
+			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
+				String valueStr = value==null ? null : value.toString();
+				
+				int columnM = table.convertColumnIndexToModel(columnV);
+				ColumnID columnID = getColumnID(columnM);
+				
+				boolean isChecked = false;
+				boolean useCheckBox = false;
+				Supplier<Color> getCustomForeground = null;
+				if (colorizer!=null)
+					getCustomForeground = ()->{
+						int rowM = table.convertRowIndexToModel(rowV);
+						RowType row = getRow(rowM);
+						return colorizer.getColor(row);
+					};
+					
+				if (columnID!=null) {
+					
+					if (columnID.format!=null && value!=null)
+						valueStr = String.format(Locale.ENGLISH, columnID.format, value);
+					
+					if (columnID.horizontalAlignment!=null)
+						label.setHorizontalAlignment(columnID.horizontalAlignment);
+					
+					else if (Number.class.isAssignableFrom(columnID.config.columnClass))
+						label.setHorizontalAlignment(SwingConstants.RIGHT);
+					
+					else
+						label.setHorizontalAlignment(SwingConstants.LEFT);
+					
+					if (columnID.config.columnClass == Boolean.class) {
+						if (value instanceof Boolean) {
+							Boolean b = (Boolean) value;
+							isChecked = b.booleanValue();
+							useCheckBox = true;
+							
+						} else {
+							valueStr = "";
+							useCheckBox = false;
+							// -> empty JLabel -> No CheckBox
+						}
+					}
+				}
+				
+				if (useCheckBox) {
+					checkBox.configureAsTableCellRendererComponent(table, isChecked, null, isSelected, hasFocus, getCustomForeground, null);
+					return checkBox;
+				}
+				label .configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus, null, getCustomForeground);
+				return label;
+			}
 		}
 		
 		@Override public void setTable(JTable table) {
 			super.setTable(table);
-			
-			TableColumnModel columnModel = table.getColumnModel();
+			setCellRenderers();
+		}
+
+		private void setCellRenderers() {
+			GeneralPurposeTCR tcr = new GeneralPurposeTCR();
+			TableColumnModel columnModel = this.table.getColumnModel();
 			if (columnModel!=null) {
 				for (int i=0; i<columns.length; i++) {
 					ColumnID columnID = columns[i];
-					if (columnID.horizontalAlignment==null && columnID.format==null)
+					if (colorizer==null && columnID.horizontalAlignment==null && columnID.format==null)
 						continue;
 					
-					int colV = table.convertColumnIndexToView(i);
+					int colV = this.table.convertColumnIndexToView(i);
 					TableColumn column = columnModel.getColumn(colV);
 					if (column!=null)
-						column.setCellRenderer(this);
-					
+						column.setCellRenderer(tcr);
 				}
 			}
 		}
@@ -810,7 +861,11 @@ class DataTables {
 		}
 	}
 	
-	static class TruckTableModel extends VerySimpleTableModel<Truck> {
+	static class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener {
+
+		private static final Color COLOR_FG_DLCTRUCK   = new Color(0x0070FF);
+		private static final Color COLOR_FG_OWNEDTRUCK = new Color(0x00AB00);
+		private SaveGame saveGame;
 
 		TruckTableModel(Controllers controllers) {
 			super(controllers, new ColumnID[] {
@@ -834,8 +889,27 @@ class DataTables {
 					new ColumnID("Max. WheelRadius Without Suspension",String.class, 200,   null,    null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
 					
 			});
+			saveGame = null;
 			connectToGlobalData(data->data.trucks.values());
 			setInitialRowOrder(Comparator.<Truck,String>comparing(truck->truck.id));
+			setColorizer(truck->{
+				if (truck==null)
+					return null;
+				
+				if (saveGame!=null && saveGame.ownedTrucks!=null && saveGame.ownedTrucks.containsKey(truck.id))
+					return COLOR_FG_OWNEDTRUCK;
+				
+				if (truck.dlcName!=null)
+					return COLOR_FG_DLCTRUCK;
+				
+				return null;
+			});
+			controllers.saveGameListeners.add(this, this);
+			
+		}
+
+		@Override public void setSaveGame(SaveGame saveGame) {
+			this.saveGame = saveGame;
 		}
 
 		private static String toString(TruckComponent comp, String itemID, Language language) {
