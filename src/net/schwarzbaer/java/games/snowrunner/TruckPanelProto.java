@@ -69,7 +69,7 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddOns;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
@@ -83,9 +83,10 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 	private Truck truck;
 	private SaveGame saveGame;
 	private HashMap<String, String> truckToDLCAssignments;
+	private AddonCategories addonCategories; // TODO
 
 
-	TruckPanelProto(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
+	TruckPanelProto(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 		language = null;
 		truck = null;
 		truckToDLCAssignments = null;
@@ -111,9 +112,13 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			addonSocketsPanel.setLanguage(language);
 			updateOutput();
 		});
-		controllers.truckToDLCAssignmentListeners.add(this,this);
 		controllers.saveGameListeners.add(this,saveGame->{
 			this.saveGame = saveGame;
+			updateOutput();
+		});
+		controllers.truckToDLCAssignmentListeners.add(this,this);
+		controllers.dataReceivers.add(this, data->{
+			addonCategories = data==null ? null : data.addonCategories;
 			updateOutput();
 		});
 		
@@ -216,6 +221,11 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		if (description != null)
 			outTop.add(0, null, description);
 		
+		if (!truck.defaultAddons.isEmpty()) {
+			outTop.add(0, "");
+			outTop.add(0, "DefaultAddons", "%s", SnowRunner.joinTruckAddonNames(truck.defaultAddons, addonCategories, language));
+		}
+		
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
@@ -229,9 +239,9 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private Truck truck;
 		private final Vector<Tab> currentTabs;
 		private AddonCategories addonCategories;
-		private final SpecialTruckAddOns specialTruckAddOns;
+		private final SpecialTruckAddons specialTruckAddOns;
 
-		AddonsPanel2(Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
+		AddonsPanel2(Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			this.controllers = controllers;
 			this.specialTruckAddOns = specialTruckAddOns;
 			this.truck = null;
@@ -306,12 +316,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			}
 			
 			private void updateTabTitle() {
-				String categoryLabel;
-				if (addonCategories!=null)
-					categoryLabel = addonCategories.getCategoryLabel(category, language);
-				else
-					categoryLabel = AddonCategories.getCategoryLabel(category);
-				
+				String categoryLabel = AddonCategories.getCategoryLabel(category, addonCategories, language);
 				this.tabComp.setText(String.format("%s [%d]", categoryLabel, size));
 			}
 		}
@@ -329,7 +334,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private int currentSocketIndex;
 		private Language language;
 
-		AddonsPanel(Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
+		AddonsPanel(Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(new GridBagLayout());
 			
 			addonSockets = null;
@@ -417,13 +422,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				AddonSockets socket = addonSockets[currentSocketIndex];
 				
 				String defaultAddon = "-- None --";
-				if (socket.defaultAddonName!=null) {
-					defaultAddon = String.format("<%s>", socket.defaultAddonName);
-					if (socket.defaultAddonItem!=null) {
-						String name = SnowRunner.solveStringID(socket.defaultAddonItem.name_StringID, language);
-						if (name!=null) defaultAddon = name;
-					}
-				}
+				if (socket.defaultAddonID!=null)
+					defaultAddon = SnowRunner.solveStringID(socket.defaultAddonItem, socket.defaultAddonID, language);
 				defaultAddonLabel.setText(String.format(" Default: %s", defaultAddon));
 				
 			}
@@ -578,7 +578,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				
 				switch (columnID) {
 				case IndexAS          : return row.indexAS;
-				case DefaultAddon     : return row.as.defaultAddonName;
+				case DefaultAddon     : return row.as.defaultAddonID;
 				case IndexSocket      : return row.indexSocket;
 				case InCockpit        : return row.socket.isInCockpit;
 				case SocketID         : return toString( row.socket.socketIDs );

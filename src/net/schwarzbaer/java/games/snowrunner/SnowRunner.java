@@ -10,10 +10,12 @@ import java.awt.event.ComponentListener;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Vector;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import javax.swing.BorderFactory;
@@ -82,28 +84,28 @@ public class SnowRunner {
 	private final JMenuItem miSGValuesSorted;
 	private final JMenuItem miSGValuesOriginal;
 	private final JMenu selectedSaveGameMenu;
-	private final SpecialTruckAddOns specialTruckAddOns;
+	private final SpecialTruckAddons specialTruckAddons;
 	
 	SnowRunner() {
 		data = null;
 		truckToDLCAssignments = null;
 		saveGameData = null;
 		selectedSaveGame = null;
-		specialTruckAddOns = new SpecialTruckAddOns();
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
+		specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
 		
 		rawDataPanel = new RawDataPanel(mainWindow, controllers);
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"          , new TrucksListPanel(mainWindow, controllers, specialTruckAddOns));
-		contentPane.addTab("Trucks II"       , new TrucksTablePanel(mainWindow, controllers, specialTruckAddOns));
+		contentPane.addTab("Trucks"          , new TrucksListPanel(mainWindow, controllers, specialTruckAddons));
+		contentPane.addTab("Trucks II"       , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons));
 		contentPane.addTab("Wheels"          , DataTables.TableSimplifier.create(new DataTables.WheelsTableModel     (controllers)));
 		contentPane.addTab("DLCs"            , DataTables.TableSimplifier.create(new DataTables.DLCTableModel        (controllers)));
 		contentPane.addTab("Trailers"        , DataTables.TableSimplifier.create(new DataTables.TrailersTableModel   (controllers,true)));
-		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(controllers, specialTruckAddOns));
+		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(controllers, specialTruckAddons));
 		contentPane.addTab("Engines"         , DataTables.TableSimplifier.create(new DataTables.EnginesTableModel    (controllers,true)));
 		contentPane.addTab("Gearboxes"       , DataTables.TableSimplifier.create(new DataTables.GearboxesTableModel  (controllers,true)));
 		contentPane.addTab("Suspensions"     , DataTables.TableSimplifier.create(new DataTables.SuspensionsTableModel(controllers,true)));
@@ -374,18 +376,17 @@ public class SnowRunner {
 		
 		setLanguage(currentLangID);
 		
-		int mdCount = specialTruckAddOns.metalDetectors.findIn(data.truckAddons);
-		int svCount = specialTruckAddOns.seismicVibrators.findIn(data.truckAddons);
-		String missingObjects =
-				mdCount==0 && svCount==0
-				? "special TruckAddons like metal detectors or seismic vibrators"
-				: mdCount==0
-				? "metal detectors"
-				: svCount==0
-				? "seismic vibrators"
-				: null;
-		if (missingObjects!=null) {
-			String message = wrapWords(65, "Their are no "+ missingObjects + " defined or found in loaded data. Please select these via context menu in any TruckAddon table.");
+		EnumSet<SpecialTruckAddons.List> emptyLists = EnumSet.noneOf(SpecialTruckAddons.List.class);
+		specialTruckAddons.foreachList((listID,list)->{
+			int count = list.findIn(data.truckAddons);
+			if (count==0)
+				emptyLists.add(listID);
+		});
+		
+		if (!emptyLists.isEmpty()) {
+			Iterable<String> it = ()->emptyLists.stream().<String>map(listID->listID.label.toLowerCase()+"s").sorted().iterator();
+			String missingObjects = String.join(" or ", it);
+			String message = wrapWords(65, "Their are no special TruckAddons like " + missingObjects + " defined or found in loaded data. Please select these via context menu in any TruckAddon table.");
 			JOptionPane.showMessageDialog(mainWindow, message, "Please define special TruckAddons", JOptionPane.INFORMATION_MESSAGE);
 		}
 	}
@@ -619,6 +620,15 @@ public class SnowRunner {
 		return solveStringID(name_StringID, language, String.format("<%s>", id));
 	}
 
+	static String joinTruckAddonNames(Vector<TruckAddon> list, AddonCategories addonCategories, Language language) {
+		Function<TruckAddon, String> mapper = addon->{
+			String name = SnowRunner.solveStringID(addon, language);
+			String categoryLabel = AddonCategories.getCategoryLabel(addon.category,addonCategories,language);
+			return String.format("[%s] \"%s\"", categoryLabel, name);
+		};
+		return String.join(", ", (Iterable<String>)()->list.stream().map(mapper).sorted().iterator());
+	}
+
 	static String joinTruckNames(Vector<Truck> list, Language language) {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(truck->SnowRunner.solveStringID(truck, language)).sorted().iterator());
 	}
@@ -665,18 +675,66 @@ public class SnowRunner {
 		return pos;
 	}
 	
-	static class SpecialTruckAddOns {
+	static class SpecialTruckAddons {
+
+		interface Listener {
+			void specialTruckAddOnsHaveChanged(List list, Change change);
+		}
+
+		enum Change { Added, Removed, None }
+		enum List {
+			MetalDetectors  ("Metal Detector"),
+			SeismicVibrators("Seismic Vibrator"),
+			LogLifts        ("Log Lift"),
+			MiniCranes      ("Mini Crane"),
+			BigCranes       ("Big Crane");
+			final String label;
+			List(String label) {
+				this.label = label;
+			}
+		}
+
+		private final Listener listenersController;
+		final SpecialTruckAddonList metalDetectors;
+		final SpecialTruckAddonList seismicVibrators;
+		final SpecialTruckAddonList logLifts;
+		final SpecialTruckAddonList miniCranes;
+		final SpecialTruckAddonList bigCranes;
 		
-		final SpecialTruckAddOnList metalDetectors   = new SpecialTruckAddOnList(AppSettings.ValueKey.MetalDetectorAddons);
-		final SpecialTruckAddOnList seismicVibrators = new SpecialTruckAddOnList(AppSettings.ValueKey.SeismicVibratorAddons);
+		public SpecialTruckAddons(Listener listenersController) {
+			this.listenersController = listenersController;
+			metalDetectors   = new SpecialTruckAddonList(AppSettings.ValueKey.MetalDetectorAddons  , List.MetalDetectors  );
+			seismicVibrators = new SpecialTruckAddonList(AppSettings.ValueKey.SeismicVibratorAddons, List.SeismicVibrators);
+			logLifts         = new SpecialTruckAddonList(AppSettings.ValueKey.LogLiftAddons        , List.LogLifts        );
+			miniCranes       = new SpecialTruckAddonList(AppSettings.ValueKey.MiniCraneAddons      , List.MiniCranes      );
+			bigCranes        = new SpecialTruckAddonList(AppSettings.ValueKey.BigCraneAddons       , List.BigCranes       );
+		}
 		
-		static class SpecialTruckAddOnList {
+		void foreachList(BiConsumer<List,SpecialTruckAddonList> action) {
+			for (List list : List.values())
+				action.accept(list, getList(list));
+		}
+
+		SpecialTruckAddonList getList(List list) {
+			switch (list) {
+			case BigCranes       : return bigCranes;
+			case LogLifts        : return logLifts;
+			case MetalDetectors  : return metalDetectors;
+			case MiniCranes      : return miniCranes;
+			case SeismicVibrators: return seismicVibrators;
+			}
+			return null;
+		}
+
+		class SpecialTruckAddonList {
 			
 			private final AppSettings.ValueKey settingsKey;
 			private final HashSet<String> idList;
+			private final List list;
 
-			SpecialTruckAddOnList(AppSettings.ValueKey settingsKey) {
+			SpecialTruckAddonList(AppSettings.ValueKey settingsKey, List list) {
 				this.settingsKey = settingsKey;
+				this.list = list;
 				idList = new HashSet<>();
 				String[] idListArr = settings.getStrings(settingsKey, " : ");
 				if (idListArr!=null) idList.addAll(Arrays.asList(idListArr));
@@ -695,19 +753,21 @@ public class SnowRunner {
 				settings.putStrings(settingsKey, " : ", idList.toArray(new String[idList.size()]));
 			}
 
-			boolean is(TruckAddon addon) {
+			boolean contains(TruckAddon addon) {
 				return addon!=null && idList.contains(addon.id);
 			}
 
 			void remove(TruckAddon addon) {
 				if (addon==null) return;
 				idList.remove(addon.id);
+				listenersController.specialTruckAddOnsHaveChanged(list, Change.Removed);
 				update();
 			}
 
 			void add(TruckAddon addon) {
 				if (addon==null) return;
 				idList.add(addon.id);
+				listenersController.specialTruckAddOnsHaveChanged(list, Change.Added);
 				update();
 			}
 		}
@@ -723,9 +783,9 @@ public class SnowRunner {
 		private final Vector<Tab> tabs;
 		private Data data;
 		private Language language;
-		private final SpecialTruckAddOns specialTruckAddOns;
+		private final SpecialTruckAddons specialTruckAddOns;
 
-		TruckAddonsTablePanel(Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
+		TruckAddonsTablePanel(Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			this.controllers = controllers;
 			this.specialTruckAddOns = specialTruckAddOns;
 			this.language = null;
@@ -797,7 +857,7 @@ public class SnowRunner {
 			}
 			
 			String getTabTitle(AddonCategories addonCategories, Language language) {
-				String categoryLabel = category==null ? "All" : addonCategories==null ? AddonCategories.getCategoryLabel(category) : addonCategories.getCategoryLabel(category, language);
+				String categoryLabel = category==null ? "All" : AddonCategories.getCategoryLabel(category, addonCategories, language);
 				return String.format("%s [%d]", categoryLabel, size);
 			}
 		}
@@ -806,7 +866,7 @@ public class SnowRunner {
 	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent/*, ListenerSource*/ {
 		private static final long serialVersionUID = 6564351588107715699L;
 
-		TrucksTablePanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
+		TrucksTablePanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			
@@ -815,7 +875,7 @@ public class SnowRunner {
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
 			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
-			TruckTableModel truckTableModel = new DataTables.TruckTableModel(mainWindow, controllers);
+			TruckTableModel truckTableModel = new DataTables.TruckTableModel(mainWindow, controllers, specialTruckAddOns);
 			controllers.addChild(this,truckTableModel);
 			JComponent truckTableScrollPane = DataTables.TableSimplifier.create(
 					truckTableModel,
@@ -834,7 +894,7 @@ public class SnowRunner {
 		private final StandardMainWindow mainWindow;
 		private HashMap<String, String> truckToDLCAssignments;
 		
-		TrucksListPanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
+		TrucksListPanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
 			this.controllers = controllers;
@@ -972,6 +1032,8 @@ public class SnowRunner {
 		final DataReceiverController dataReceivers;
 		final SaveGameListenerController saveGameListeners;
 		final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
+		final SpecialTruckAddOnsController specialTruckAddonsListeners;
+		
 		final VectorMap<ListenerSourceParent, ListenerSource> childrenOfSources;
 		final VectorMapMap<ListenerSourceParent, String, ListenerSource> volatileChildrenOfSources;
 		
@@ -980,6 +1042,7 @@ public class SnowRunner {
 			dataReceivers                 = new DataReceiverController();
 			saveGameListeners             = new SaveGameListenerController();
 			truckToDLCAssignmentListeners = new TruckToDLCAssignmentListenerController();
+			specialTruckAddonsListeners   = new SpecialTruckAddOnsController();
 			childrenOfSources = new VectorMap<>();
 			volatileChildrenOfSources = new VectorMapMap<>();
 		}
@@ -992,6 +1055,7 @@ public class SnowRunner {
 			dataReceivers                .showListeners(indent, "DataReceivers"                );
 			saveGameListeners            .showListeners(indent, "SaveGameListeners"            );
 			truckToDLCAssignmentListeners.showListeners(indent, "TruckToDLCAssignmentListeners");
+			specialTruckAddonsListeners  .showListeners(indent, "SpecialTruckAddOnsListeners"  );
 			
 			System.out.printf("%sChild Relations: [%d]%n", indent, childrenOfSources.size());
 			childrenOfSources.forEach((parent,children)->{
@@ -1047,6 +1111,7 @@ public class SnowRunner {
 			dataReceivers                .removeListenersOfSource(source);
 			saveGameListeners            .removeListenersOfSource(source);
 			truckToDLCAssignmentListeners.removeListenersOfSource(source);
+			specialTruckAddonsListeners  .removeListenersOfSource(source);
 			
 			if (source instanceof ListenerSourceParent) {
 				ListenerSourceParent parent = (ListenerSourceParent) source;
@@ -1112,6 +1177,13 @@ public class SnowRunner {
 			}
 		}
 
+		static class SpecialTruckAddOnsController extends AbstractController<SpecialTruckAddons.Listener> implements SpecialTruckAddons.Listener {
+			@Override public void specialTruckAddOnsHaveChanged(SpecialTruckAddons.List list, SpecialTruckAddons.Change change) {
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).specialTruckAddOnsHaveChanged(list, change);
+			}
+		}
+
 		static class TruckToDLCAssignmentListenerController extends AbstractController<TruckToDLCAssignmentListener> implements TruckToDLCAssignmentListener {
 			
 			@Override public void setTruckToDLCAssignments(HashMap<String, String> assignments) {
@@ -1127,7 +1199,7 @@ public class SnowRunner {
 
 	static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		enum ValueKey {
-			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK, SaveGameFolder, SelectedSaveGame, ShowingSaveGameDataSorted, MetalDetectorAddons, SeismicVibratorAddons,
+			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK, SaveGameFolder, SelectedSaveGame, ShowingSaveGameDataSorted, MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

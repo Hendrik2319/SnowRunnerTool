@@ -144,7 +144,7 @@ public class Data {
 					break;
 					
 				case "TruckAddon":
-					truckAddons.put(name, new TruckAddon(item, addonCategories, cargoTypes));
+					truckAddons.put(name, new TruckAddon(item, cargoTypes));
 					break;
 					
 				default:
@@ -156,13 +156,21 @@ public class Data {
 		
 		
 		socketIDsUsedByTrucks = new StringVectorMap<>();
-		for (Truck truck : trucks.values())
+		for (Truck truck : trucks.values()) {
+			
+			truck.defaultAddons.clear();
+			for (String id : truck.defaultAddonIDs) {
+				TruckAddon addon = truckAddons.get(id);
+				if (addon!=null) truck.defaultAddons.add(addon);
+			}
+			
 			for (AddonSockets as : truck.addonSockets) {
-				if (as.defaultAddonName!=null)
-					as.defaultAddonItem = truckAddons.get(as.defaultAddonName);
+				if (as.defaultAddonID!=null)
+					as.defaultAddonItem = truckAddons.get(as.defaultAddonID);
 				for (String socketID : as.compatibleSocketIDs)
 					socketIDsUsedByTrucks.add(socketID, truck);
 			}
+		}
 
 		socketIDsUsedByTrailers = new StringVectorMap<>();
 		for (Trailer trailer : trailers.values())
@@ -232,9 +240,16 @@ public class Data {
 			for (Trailer trailer : truck.compatibleTrailers)
 				trailer.usableBy.add(truck);
 			
+			truck.hasCompatibleAWD = false;
+			truck.hasCompatibleDiffLock = false;
 			for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
-				for (TruckAddon addon : list)
+				for (TruckAddon addon : list) {
 					addon.usableBy.add(truck);
+					if (addon.enablesAllWheelDrive!=null && addon.enablesAllWheelDrive.booleanValue())
+						truck.hasCompatibleAWD = true;
+					if (addon.enablesDiffLock!=null && addon.enablesDiffLock.booleanValue())
+						truck.hasCompatibleDiffLock = true;
+				}
 		}
 		
 		if (!unexpectedValues.isEmpty())
@@ -479,6 +494,12 @@ public class Data {
 				return "Cargo";
 			
 			return category;
+		}
+
+		static String getCategoryLabel(String category, AddonCategories addonCategories, Language language) {
+			if (addonCategories!=null)
+				return addonCategories.getCategoryLabel(category, language);
+			return AddonCategories.getCategoryLabel(category);
 		}
 
 		static class Category implements HasNameAndID {
@@ -820,7 +841,7 @@ public class Data {
 	}
 
 	static class Truck extends ItemBased implements HasNameAndID {
-		
+
 		enum DiffLockType {
 			None, Always, Installed, Uninstalled;
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
@@ -873,10 +894,20 @@ public class Data {
 		final String[] compatibleWinches_SetIDs;
 		final Collection<Winch> compatibleWinches;
 		
+		final HashSet<String> defaultAddonIDs;
+		final Vector<TruckAddon> defaultAddons;
+
+		boolean hasCompatibleAWD;
+		boolean hasCompatibleDiffLock;
+		final boolean hasCompatibleAutomaticWinch;
+		
 		Truck(Item item, Data data) {
 			super(item);
 			if (!item.className.equals("trucks"))
 				throw new IllegalStateException();
+			
+			hasCompatibleDiffLock = false;
+			hasCompatibleAWD = false;
 			
 			GenericXmlNode truckDataNode = item.content.getNode("Truck", "TruckData");
 			//truckDataNode.attributes.forEach((key,value)->{
@@ -970,11 +1001,22 @@ public class Data {
 			compatibleWinches_SetIDs = splitColonSeparatedIDList( getAttribute(winchUpgradeSocketNode, "Type") );
 			compatibleWinches        = getItemsFromSets(data.winchSets, compatibleWinches_SetIDs, item_->item_.usableBy.add(this));
 			isWinchUpgradable    = parseBool( getAttribute(winchUpgradeSocketNode, "IsUpgradable") );
+			boolean automaticWinch = false;
+			for (Winch winch : compatibleWinches)
+				if (!winch.isEngineIgnitionRequired)
+					automaticWinch = true;
+			hasCompatibleAutomaticWinch = automaticWinch;
+			
+			defaultAddonIDs = new HashSet<>();
+			defaultAddons = new Vector<>();
 			
 			GenericXmlNode[] addonSocketsNodes = gameDataNode.getNodes("GameData","AddonSockets");
 			addonSockets = new AddonSockets[addonSocketsNodes.length];
-			for (int i=0; i<addonSockets.length; i++)
+			for (int i=0; i<addonSockets.length; i++) {
 				addonSockets[i] = new AddonSockets(addonSocketsNodes[i]);
+				if (addonSockets[i].defaultAddonID!=null)
+					defaultAddonIDs.add(addonSockets[i].defaultAddonID);
+			}
 			
 			GenericXmlNode[] compatibleWheelsNodes = truckDataNode.getNodes("TruckData", "CompatibleWheels");
 			compatibleWheels = new CompatibleWheel[compatibleWheelsNodes.length];
@@ -992,7 +1034,7 @@ public class Data {
 
 			final StringVectorMap<TruckAddon> compatibleTruckAddons;
 			final StringVectorMap<Trailer> compatibleTrailers;
-			final String defaultAddonName; // <---> item.id
+			final String defaultAddonID;
 			final Socket[] sockets;
 			final HashSet<String> compatibleSocketIDs;
 			TruckAddon defaultAddonItem;
@@ -1009,7 +1051,7 @@ public class Data {
 				//      ParentFrame
 				//      RequiredAddonIfNoConflicts
 				
-				defaultAddonName = node.attributes.get("DefaultAddon");
+				defaultAddonID = node.attributes.get("DefaultAddon");
 				defaultAddonItem = null;
 				
 				compatibleTrailers = new StringVectorMap<>();
@@ -1193,7 +1235,7 @@ public class Data {
 		final Boolean enablesDiffLock;
 		final Vector<Truck> usableBy;
 
-		public TruckAddon(Item item, AddonCategories addonCategories, HashMap<String, CargoType> cargoTypes) {
+		public TruckAddon(Item item, HashMap<String, CargoType> cargoTypes) {
 			super(item);
 			if (!item.content.nodeName.equals("TruckAddon"))
 				throw new IllegalStateException();

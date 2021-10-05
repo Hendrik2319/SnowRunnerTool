@@ -5,8 +5,10 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Window;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -15,8 +17,10 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -58,7 +62,9 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSour
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SaveGameListener;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddOns;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.List;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class DataTables {
@@ -349,13 +355,17 @@ class DataTables {
 		}
 	}
 	
-	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, ListenerSource {
+	static class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, ListenerSource, TableContextMenuModifier {
 		
 		protected final Controllers controllers;
 		protected final Vector<RowType> rows;
 		protected Language language;
 		private   Comparator<RowType> initialRowOrder;
-		private   Colorizer<RowType> colorizer;
+		private   final Vector<RowColorizer<RowType>> foregroundRowColorizers;
+		private   final Vector<RowColorizer<RowType>> backgroundRowColorizers;
+		private   final HashSet<Integer> columnsWithSpecialColoring;
+		private ColumnID clickedColumn;
+		private int clickedColumnIndex;
 	
 		VerySimpleTableModel(Controllers controllers, ColumnID[] columns) {
 			super(columns);
@@ -364,7 +374,11 @@ class DataTables {
 			this.initialRowOrder = null;
 			rows = new Vector<>();
 			this.controllers.languageListeners.add(this,this);
-			this.colorizer = null;
+			this.foregroundRowColorizers = new Vector<>();
+			this.backgroundRowColorizers = new Vector<>();
+			clickedColumn = null;
+			clickedColumnIndex = -1;
+			columnsWithSpecialColoring = new HashSet<>();
 		}
 		
 		void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
@@ -407,11 +421,26 @@ class DataTables {
 			fireTableUpdate();
 		}
 		
-		void setColorizer(Colorizer<RowType> colorizer) {
-			this.colorizer = colorizer;
+		void addForegroundRowColorizer(RowColorizer<RowType> colorizer) {
+			if (colorizer==null) throw new IllegalArgumentException();
+			foregroundRowColorizers.add(colorizer);
 		}
 		
-		interface Colorizer<RowType> {
+		void addBackgroundRowColorizer(RowColorizer<RowType> colorizer) {
+			if (colorizer==null) throw new IllegalArgumentException();
+			backgroundRowColorizers.add(colorizer);
+		}
+		
+		private Color getRowColor(Vector<RowColorizer<RowType>> colorizers, RowType row) {
+			for (int i=colorizers.size()-1; i>=0; i--) {
+				Color color = colorizers.get(i).getColor(row);
+				if (color!=null)
+					return color;
+			}
+			return null;
+		}
+
+		interface RowColorizer<RowType> {
 			Color getColor(RowType row);
 		}
 		
@@ -434,13 +463,18 @@ class DataTables {
 				
 				boolean isChecked = false;
 				boolean useCheckBox = false;
-				Supplier<Color> getCustomForeground = null;
-				if (colorizer!=null)
-					getCustomForeground = ()->{
-						int rowM = table.convertRowIndexToModel(rowV);
-						RowType row = getRow(rowM);
-						return colorizer.getColor(row);
-					};
+				Supplier<Color> getCustomRowForeground = null;
+				Supplier<Color> getCustomRowBackground = null;
+				Supplier<Color> getCustomColBackground = null;
+				
+				if (!foregroundRowColorizers.isEmpty() || !backgroundRowColorizers.isEmpty()) {
+					int rowM = table.convertRowIndexToModel(rowV);
+					RowType row = getRow(rowM);
+					if (!foregroundRowColorizers.isEmpty())
+						getCustomRowForeground = ()->getRowColor(foregroundRowColorizers,row);
+					if (!backgroundRowColorizers.isEmpty())
+						getCustomRowBackground = ()->getRowColor(backgroundRowColorizers,row);
+				}
 					
 				if (columnID!=null) {
 					
@@ -468,17 +502,38 @@ class DataTables {
 							// -> empty JLabel -> No CheckBox
 						}
 					}
+					
+					if (columnsWithSpecialColoring.contains(columnV)) {
+						if (columnID.config.columnClass == Boolean.class) {
+							Boolean b = value instanceof Boolean ? (Boolean) value : null;
+							getCustomColBackground = b==null ? null : () -> b.booleanValue() ? new Color(0x99FF33) : new Color(0xFF6600);
+						}
+					}
 				}
 				
+				Supplier<Color> getCustomBackground = null;
+				if (getCustomRowBackground!=null && getCustomColBackground!=null) {
+					Supplier<Color> getCustomRowBackground_ = getCustomRowBackground;
+					Supplier<Color> getCustomColBackground_ = getCustomColBackground;
+					getCustomBackground = () -> {
+						Color rowBG = getCustomRowBackground_.get();
+						return rowBG!=null ? rowBG : getCustomColBackground_.get();
+					};
+				} else if (getCustomRowBackground!=null)
+					getCustomBackground = getCustomRowBackground;
+				else if (getCustomColBackground!=null)
+					getCustomBackground = getCustomColBackground;
+					
+				
 				if (useCheckBox) {
-					checkBox.configureAsTableCellRendererComponent(table, isChecked, null, isSelected, hasFocus, getCustomForeground, null);
+					checkBox.configureAsTableCellRendererComponent(table, isChecked, null, isSelected, hasFocus, getCustomRowForeground, getCustomBackground);
 					return checkBox;
 				}
-				label .configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus, null, getCustomForeground);
+				label.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus, getCustomBackground, getCustomRowForeground);
 				return label;
 			}
 		}
-		
+
 		@Override public void setTable(JTable table) {
 			super.setTable(table);
 			setCellRenderers();
@@ -489,9 +544,9 @@ class DataTables {
 			TableColumnModel columnModel = this.table.getColumnModel();
 			if (columnModel!=null) {
 				for (int i=0; i<columns.length; i++) {
-					ColumnID columnID = columns[i];
-					if (colorizer==null && columnID.horizontalAlignment==null && columnID.format==null)
-						continue;
+					//ColumnID columnID = columns[i];
+					//if (foregroundColorizers.isEmpty() && backgroundColorizers.isEmpty() && columnID.horizontalAlignment==null && columnID.format==null)
+					//	continue;
 					
 					int colV = this.table.convertColumnIndexToView(i);
 					TableColumn column = columnModel.getColumn(colV);
@@ -501,6 +556,35 @@ class DataTables {
 			}
 		}
 		
+		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
+			
+			contextMenu.addSeparator();
+			
+			JMenuItem miActivateSpecialColoring = contextMenu.add(SnowRunner.createMenuItem("Activate special coloring for this column", true, e->{
+				if (columnsWithSpecialColoring.contains(clickedColumnIndex))
+					columnsWithSpecialColoring.remove(clickedColumnIndex);
+				else
+					columnsWithSpecialColoring.add(clickedColumnIndex);
+				table.repaint();
+			}));
+			
+			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
+				int colV = table.columnAtPoint(new Point(x,y));
+				clickedColumnIndex = colV<0 ? -1 : table.convertColumnIndexToModel(colV);
+				clickedColumn = clickedColumnIndex<0 ? null : columns[clickedColumnIndex];
+				
+				miActivateSpecialColoring.setEnabled(clickedColumn!=null && clickedColumn.config.columnClass==Boolean.class);
+				
+				miActivateSpecialColoring.setText(
+					clickedColumn==null
+					? "Activate special coloring for this column"
+					: columnsWithSpecialColoring.contains(clickedColumnIndex)
+					? String.format("Deactivate special coloring for column \"%s\"", clickedColumn.config.name)
+					: String.format(  "Activate special coloring for column \"%s\"", clickedColumn.config.name)
+				);
+			});
+		}
+
 		@Override public int getRowCount() {
 			return rows.size();
 		}
@@ -815,14 +899,15 @@ class DataTables {
 		}
 	}
 
-	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> implements TableContextMenuModifier {
+	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
 		
+		private static final Color COLOR_SPECIALTRUCKADDON = new Color(0xFFF3AD);
 		private HashMap<String, TruckAddon> truckAddons;
 		private HashMap<String, Trailer> trailers;
 		private TruckAddon clickedItem;
-		private final SpecialTruckAddOns specialTruckAddOns;
+		private final SpecialTruckAddons specialTruckAddons;
 
-		TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData, SpecialTruckAddOns specialTruckAddOns) {
+		TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons) {
 			super(controllers, new ColumnID[] {
 					new ColumnID("ID"                   ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
 					new ColumnID("DLC"                  ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).dlcName),
@@ -846,7 +931,7 @@ class DataTables {
 					new ColumnID("Cargo Type"           ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).cargoType),
 					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((TruckAddon)row).usableBy, lang)),
 			});
-			this.specialTruckAddOns = specialTruckAddOns;
+			this.specialTruckAddons = specialTruckAddons;
 			
 			clickedItem = null;
 			truckAddons = null;
@@ -865,55 +950,68 @@ class DataTables {
 					updateTextArea();
 				});
 			
+			addBackgroundRowColorizer(addon->{
+				for (List listID : SpecialTruckAddons.List.values()) {
+					SpecialTruckAddonList list = this.specialTruckAddons.getList(listID);
+					if (list.contains(addon)) return COLOR_SPECIALTRUCKADDON;
+				}
+				return null;
+			});
+			controllers.specialTruckAddonsListeners.add(this, (list, change) -> {
+				table.repaint();
+			});
+			
 			Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 			setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
 		}
 
 		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
+			super.modifyTableContextMenu(table, contextMenu);
 			
 			contextMenu.addSeparator();
 			
-			JMenuItem miAssignAsMetalDetector = contextMenu.add(SnowRunner.createMenuItem("Add Addon \"####\" to List of known MetalDetector Addons", true, e->{
-				if (clickedItem==null) return;
-				if (specialTruckAddOns.metalDetectors.is(clickedItem))
-					specialTruckAddOns.metalDetectors.remove(clickedItem);
-				else
-					specialTruckAddOns.metalDetectors.add(clickedItem);
-			}));
+			JMenu specialAddonsMenu = new JMenu("Add Addon to List of known special Addons");
+			contextMenu.add(specialAddonsMenu);
 			
-			JMenuItem miAssignAsSeismicVibrator = contextMenu.add(SnowRunner.createMenuItem("Add Addon \"####\" to List of known SeismicVibrator Addons", true, e->{
-				if (clickedItem==null) return;
-				if (specialTruckAddOns.seismicVibrators.is(clickedItem))
-					specialTruckAddOns.seismicVibrators.remove(clickedItem);
-				else
-					specialTruckAddOns.seismicVibrators.add(clickedItem);
-			}));
+			EnumMap<SpecialTruckAddons.List, JCheckBoxMenuItem> menuItems = new EnumMap<>(SpecialTruckAddons.List.class);
+			for (SpecialTruckAddons.List list : SpecialTruckAddons.List.values()) {
+				String listLabel = "";
+				switch (list) {
+				case BigCranes       : listLabel = "Big Crane for howling trucks"; break;
+				case MiniCranes      : listLabel = "MiniCrane for loading cargo"; break;
+				case LogLifts        : listLabel = "Log Lift for loading logs"; break;
+				case MetalDetectors  : listLabel = "Metal Detector for special missions"; break;
+				case SeismicVibrators: listLabel = "Seismic Vibrator for special missions"; break;
+				}
+				
+				JCheckBoxMenuItem  mi = SnowRunner.createCheckBoxMenuItem(listLabel, false, null, true, e->{
+					if (clickedItem==null) return;
+					SpecialTruckAddonList addonList = specialTruckAddons.getList(list);
+					if (addonList.contains(clickedItem))
+						addonList.remove(clickedItem);
+					else
+						addonList.add(clickedItem);
+				});
+				specialAddonsMenu.add(mi);
+				menuItems.put(list, mi);
+			}
 			
 			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
 				int rowV = table.rowAtPoint(new Point(x,y));
 				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
 				clickedItem = rowM<0 ? null : getRow(rowM);
 				
-				miAssignAsMetalDetector  .setEnabled(clickedItem!=null);
-				miAssignAsSeismicVibrator.setEnabled(clickedItem!=null);
+				if (clickedItem!=null)
+					menuItems.forEach((list,mi)->{
+						SpecialTruckAddonList addonList = specialTruckAddons.getList(list);
+						mi.setSelected(addonList.contains(clickedItem));
+					});
 				
-				String listLabel;
-				listLabel = "List of known MetalDetector Addons";
-				miAssignAsMetalDetector.setText(
+				specialAddonsMenu.setEnabled(clickedItem!=null);
+				specialAddonsMenu.setText(
 					clickedItem==null
-					? String.format("Add Addon to %s", listLabel)
-					: specialTruckAddOns.metalDetectors.is(clickedItem)
-					? String.format("Remove Addon \"%s\" from %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
-					: String.format("Add Addon \"%s\" to %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
-				);
-				
-				listLabel = "List of known SeismicVibrator Addons";
-				miAssignAsSeismicVibrator.setText(
-					clickedItem==null
-					? String.format("Add Addon to %s", listLabel)
-					: specialTruckAddOns.seismicVibrators.is(clickedItem)
-					? String.format("Remove Addon \"%s\" from %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
-					: String.format("Add Addon \"%s\" to %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
+					? "Add Addon to a list of known special Addons"
+					: String.format("Add Addon \"%s\" to a list of known special Addons", SnowRunner.solveStringID(clickedItem, language))
 				);
 			});
 		}
@@ -927,43 +1025,53 @@ class DataTables {
 		}
 	}
 	
-	static class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TableContextMenuModifier, TruckToDLCAssignmentListener {
+	static class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TruckToDLCAssignmentListener {
 
 		private static final Color COLOR_FG_DLCTRUCK   = new Color(0x0070FF);
 		private static final Color COLOR_FG_OWNEDTRUCK = new Color(0x00AB00);
+		private enum Marker { BigCrane, MiniCrane, LogLift, MetalD, Seismic, }
 		
 		private SaveGame saveGame;
 		private Truck clickedItem;
 		private HashMap<String, String> truckToDLCAssignments;
 		private final Window mainWindow;
 
-		TruckTableModel(Window mainWindow, Controllers controllers) {
+		TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons) {
 			super(controllers, new ColumnID[] {
-					new ColumnID("ID"                   ,              String.class, 160,   null,      null, false, row -> ((Truck)row).id),
-					new ColumnID("DLC"                  ,              String.class,  80,   null,      null, false, row -> ((Truck)row).dlcName),
-					new ColumnID("Name"                 ,              String.class, 160,   null,      null,  true, row -> ((Truck)row).name_StringID),
-					new ColumnID("Country"              ,     Truck.  Country.class,  50,   null,      null, false, row -> ((Truck)row).country),
-					new ColumnID("Type"                 ,     Truck.TruckType.class,  80,   null,      null, false, row -> ((Truck)row).type),
-					new ColumnID("Price"                ,             Integer.class,  60,   null,   "%d Cr", false, row -> ((Truck)row).price), 
-					new ColumnID("Unlock By Exploration",             Boolean.class, 120,   null,      null, false, row -> ((Truck)row).unlockByExploration), 
-					new ColumnID("Unlock By Rank"       ,             Integer.class, 100, CENTER, "Rank %d", false, row -> ((Truck)row).unlockByRank), 
-					new ColumnID("Description"          ,              String.class, 200,   null,      null,  true, row -> ((Truck)row).description_StringID), 
-					new ColumnID("Image"                ,              String.class, 130,   null,    null, false, row -> ((Truck)row).image),
-					new ColumnID("DiffLock"             ,  Truck.DiffLockType.class,  70,   null,      null, false, row -> ((Truck)row).diffLockType),
-					new ColumnID("Fuel Capacity"        ,             Integer.class,  80,   null,  "%d L", false, row -> ((Truck)row).fuelCapacity),
-					new ColumnID("Default Engine"       ,              String.class, 110,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultEngine, ((Truck)row).defaultEngine_ItemID, lang)),
-					new ColumnID("Default Gearbox"      ,              String.class, 110,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultGearbox, ((Truck)row).defaultGearbox_ItemID, lang)),
-					new ColumnID("Default Suspension"   ,              String.class, 110,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
-					new ColumnID("Default Winch"        ,              String.class, 130,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultWinch, ((Truck)row).defaultWinch_ItemID, lang)),
-					new ColumnID("Upgradable Winch"     ,             Boolean.class, 110,   null,    null, false, row -> ((Truck)row).isWinchUpgradable),
-					new ColumnID("Max. WheelRadius Without Suspension",String.class, 200,   null,    null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
-					
+					new ColumnID( null            , "ID"                   ,              String.class, 160,   null,      null, false, row -> ((Truck)row).id),
+					new ColumnID( null            , "DLC"                  ,              String.class,  80,   null,      null, false, row -> ((Truck)row).dlcName),
+					new ColumnID( null            , "Name"                 ,              String.class, 160,   null,      null,  true, row -> ((Truck)row).name_StringID),
+					new ColumnID( null            , "Country"              ,     Truck.  Country.class,  50,   null,      null, false, row -> ((Truck)row).country),
+					new ColumnID( null            , "Type"                 ,     Truck.TruckType.class,  80,   null,      null, false, row -> ((Truck)row).type),
+					new ColumnID( null            , "Price"                ,             Integer.class,  60,   null,   "%d Cr", false, row -> ((Truck)row).price), 
+					new ColumnID( null            , "Unlock By Exploration",             Boolean.class, 120,   null,      null, false, row -> ((Truck)row).unlockByExploration), 
+					new ColumnID( null            , "Unlock By Rank"       ,             Integer.class, 100, CENTER, "Rank %d", false, row -> ((Truck)row).unlockByRank), 
+					new ColumnID( null            , "Description"          ,              String.class, 200,   null,      null,  true, row -> ((Truck)row).description_StringID), 
+					new ColumnID( null            , "Image"                ,              String.class, 130,   null,      null, false, row -> ((Truck)row).image),
+					new ColumnID( null            , "DiffLock (??)"        ,  Truck.DiffLockType.class,  70,   null,      null, false, row -> ((Truck)row).diffLockType),
+					new ColumnID( null            , "DiffLock Installable" ,             Boolean.class, 105,   null,      null, false, row -> ((Truck)row).hasCompatibleDiffLock),
+					new ColumnID( null            , "AWD"                  ,              String.class,  70, CENTER,      null, false, row -> "??? t.b.d."),
+					new ColumnID( null            , "AWD Installable"      ,             Boolean.class,  90,   null,      null, false, row -> ((Truck)row).hasCompatibleAWD),
+					new ColumnID( null            , "AutomaticWinch"       ,             Boolean.class,  90,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
+					new ColumnID( Marker.MetalD   , "Metal Detector"       ,             Boolean.class,  90,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.metalDetectors   )),
+					new ColumnID( Marker.Seismic  , "Seismic Vibrator"     ,             Boolean.class,  90,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.seismicVibrators )),
+					new ColumnID( Marker.BigCrane , "Big Crane"            ,             Boolean.class,  60,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.bigCranes        )),
+					new ColumnID( Marker.MiniCrane, "Mini Crane"           ,             Boolean.class,  60,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.miniCranes       )),
+					new ColumnID( Marker.LogLift  , "Log Lift"             ,             Boolean.class,  50,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.logLifts         )),
+					new ColumnID( null            , "Fuel Capacity"        ,             Integer.class,  80,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
+					new ColumnID( null            , "Wheel Sizes"          ,              String.class,  80,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
+					new ColumnID( null            , "Default Engine"       ,              String.class, 110,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultEngine, ((Truck)row).defaultEngine_ItemID, lang)),
+					new ColumnID( null            , "Default Gearbox"      ,              String.class, 110,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultGearbox, ((Truck)row).defaultGearbox_ItemID, lang)),
+					new ColumnID( null            , "Default Suspension"   ,              String.class, 110,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
+					new ColumnID( null            , "Default Winch"        ,              String.class, 130,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultWinch, ((Truck)row).defaultWinch_ItemID, lang)),
+					new ColumnID( null            , "Upgradable Winch"     ,             Boolean.class, 110,   null,      null, false, row -> ((Truck)row).isWinchUpgradable),
+			//		new ColumnID( null            , "Max. WheelRadius Without Suspension",String.class, 200,   null,      null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
 			});
 			this.mainWindow = mainWindow;
 			saveGame = null;
 			connectToGlobalData(data->data.trucks.values());
 			setInitialRowOrder(Comparator.<Truck,String>comparing(truck->truck.id));
-			setColorizer(truck->{
+			addForegroundRowColorizer(truck->{
 				if (truck==null)
 					return null;
 				
@@ -975,11 +1083,68 @@ class DataTables {
 				
 				return null;
 			});
+			
 			controllers.saveGameListeners.add(this, this);
+			controllers.specialTruckAddonsListeners.add(this, (list,change)->{
+				Marker marker = null;
+				switch (list) {
+				case MetalDetectors  : marker = Marker.MetalD; break;
+				case SeismicVibrators: marker = Marker.Seismic; break;
+				case BigCranes       : marker = Marker.BigCrane; break;
+				case LogLifts        : marker = Marker.MiniCrane; break;
+				case MiniCranes      : marker = Marker.LogLift; break;
+				}
+				if (marker!=null)
+					fireTableColumnUpdate(findColumnByMarker(marker));
+			});
+			
+		}
+		
+		private static String joinWheelSizes(CompatibleWheel[] compatibleWheels) {
+			HashSet<String> set = Arrays
+					.stream(compatibleWheels)
+					.<String>map(cw->String.format("%d\"", cw.getSize()))
+					.collect(HashSet<String>::new, HashSet<String>::add, HashSet<String>::addAll);
+			Vector<String> vector = new Vector<>(set);
+			vector.sort(null);
+			return String.join(", ", vector);
+		}
+
+		private int findColumnByMarker(Marker marker) {
+			for (int i=0; i<columns.length; i++) {
+				ColumnID col = (ColumnID)columns[i];
+				if (col.marker==marker)
+					return i;
+			}
+			return -1;
+		}
+
+		private static class ColumnID extends VerySimpleTableModel.ColumnID {
+
+			private final Marker marker;
+
+			private <ColumnType> ColumnID(Marker marker, String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object, ColumnType> getValue) {
+				super(name, columnClass, prefWidth, horizontalAlignment, format, useValueAsStringID, getValue);
+				this.marker = marker;
+			}
+
+			private ColumnID(Marker marker, String name, Class<String> columnClass, int prefWidth, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
+				super(name, columnClass, prefWidth, horizontalAlignment, format, getValue);
+				this.marker = marker;
+			}
 			
 		}
 
+		private static boolean hasCompatibleSpecialAddon(Truck truck, SpecialTruckAddonList addonList) {
+			for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
+				for (TruckAddon addon : list)
+					if (addonList.contains(addon))
+						return true;
+			return false;
+		}
+
 		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
+			super.modifyTableContextMenu(table, contextMenu);
 			
 			contextMenu.addSeparator();
 			
@@ -1015,6 +1180,7 @@ class DataTables {
 
 		@Override public void setSaveGame(SaveGame saveGame) {
 			this.saveGame = saveGame;
+			table.repaint();
 		}
 		
 	}
