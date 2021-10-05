@@ -397,6 +397,11 @@ public class Data {
 			}
 		return allItems;
 	}
+	
+	interface HasNameAndID {
+		String getName_StringID();
+		String getID();
+	}
 
 	static class ItemBased {
 		final String id;
@@ -409,7 +414,7 @@ public class Data {
 		}
 	}
 
-	static class CargoType extends ItemBased {
+	static class CargoType extends ItemBased implements HasNameAndID {
 	
 		final String description_StringID;
 		final String name_StringID;
@@ -436,7 +441,9 @@ public class Data {
 			//		unexpectedValues.add("Class[addons_category] <CargoType> <UiDesc ####=\"...\">", key);
 			//	});
 		}
-	
+
+		@Override public String getName_StringID() { return name_StringID; }
+		@Override public String getID() { return id; }
 	}
 
 	static class AddonCategories extends ItemBased {
@@ -462,10 +469,7 @@ public class Data {
 			if (category.equals(CARGO_CATEGORY))
 				return "Cargo";
 			
-			Category cat = categories.get(category);
-			String stringID = cat==null ? null : cat.label_StringID;
-			
-			return SnowRunner.solveStringID(stringID, language, String.format("<%s>", category));
+			return SnowRunner.solveStringID(categories.get(category), category, language);
 		}
 		
 		static String getCategoryLabel(String category) {
@@ -477,7 +481,7 @@ public class Data {
 			return category;
 		}
 
-		static class Category {
+		static class Category implements HasNameAndID {
 
 			final String name;
 			final boolean requiresOneAddonInstalled;
@@ -499,11 +503,14 @@ public class Data {
 				icon                      =             node.attributes.get("UiIcon");
 				label_StringID            =             node.attributes.get("UiName");
 			}
+
+			@Override public String getName_StringID() { return label_StringID; }
+			@Override public String getID() { return name; }
 		}
 	
 	}
 	
-	static class TruckComponent {
+	static class TruckComponent implements HasNameAndID {
 		
 		final String setID;
 		final String id;
@@ -537,6 +544,9 @@ public class Data {
 			//		unexpectedValues.add("[VariantSetInstance] <[InstanceNode]> <GameData> <UiDesc ####=\"...\">", key);
 			//	});
 		}
+
+		@Override public String getName_StringID() { return name_StringID; }
+		@Override public String getID() { return id; }
 
 		void addUsingTruck(Truck truck) {
 			usableBy.add(truck);
@@ -809,7 +819,7 @@ public class Data {
 		return null;
 	}
 
-	static class Truck extends ItemBased {
+	static class Truck extends ItemBased implements HasNameAndID {
 		
 		enum DiffLockType {
 			None, Always, Installed, Uninstalled;
@@ -974,6 +984,9 @@ public class Data {
 			compatibleTrailers = new HashSet<>();
 			compatibleTruckAddons = new StringVectorMap<>();
 		}
+
+		@Override public String getName_StringID() { return name_StringID; }
+		@Override public String getID() { return id; }
 		
 		static class AddonSockets {
 
@@ -1077,7 +1090,7 @@ public class Data {
 
 	}
 	
-	static class Trailer extends ItemBased {
+	static class Trailer extends ItemBased implements HasNameAndID {
 
 		final String attachType;
 		final Integer price;
@@ -1150,10 +1163,12 @@ public class Data {
 				requiredAddons[i] = splitColonSeparatedIDList( getAttribute(requiredAddonNode, "Types") );
 			}
 		}
-	
+
+		@Override public String getName_StringID() { return name_StringID; }
+		@Override public String getID() { return id; }
 	}
 
-	static class TruckAddon extends ItemBased {
+	static class TruckAddon extends ItemBased implements HasNameAndID {
 
 		final String category;
 		final Integer price;
@@ -1264,6 +1279,9 @@ public class Data {
 			//	});
 			
 		}
+
+		@Override public String getName_StringID() { return name_StringID!=null ? name_StringID : cargoName_StringID; }
+		@Override public String getID() { return id; }
 
 		String getCategory() {
 			if (isCargo) return AddonCategories.CARGO_CATEGORY;

@@ -3,6 +3,8 @@ package net.schwarzbaer.java.games.snowrunner;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.Window;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -15,6 +17,7 @@ import java.util.function.Supplier;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
@@ -47,46 +50,18 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
+import net.schwarzbaer.java.games.snowrunner.DataTables.TableSimplifier.TableContextMenuModifier;
+import net.schwarzbaer.java.games.snowrunner.DataTables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SaveGameListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddOns;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class DataTables {
-
-	interface OutputSource<OutputObject extends Component> {
-		void setOutputUpdateMethod(Runnable outputUpdateMethod);
-		void setContentForRow(OutputObject outputObject, int rowIndex);
-	}
-	
-	interface ArbitraryOutputSource extends OutputSource<Component>{
-		@Override default void setOutputUpdateMethod(Runnable outputUpdateMethod) {}
-		@Override default void setContentForRow(Component dummy, int rowIndex) { setContentForRow(rowIndex); }
-		void setContentForRow(int rowIndex);
-		default Runnable modifyUpdateMethod(Runnable updateMethod) { return updateMethod; }
-	}
-
-	interface TextAreaOutputSource extends OutputSource<JTextArea> {
-		@Override default void setContentForRow(JTextArea textArea, int rowIndex) {
-			if (rowIndex<0)
-				textArea.setText("");
-			else
-				textArea.setText(getTextForRow(rowIndex));
-		}
-		String getTextForRow(int rowIndex);
-	}
-
-	interface TextPaneOutputSource extends OutputSource<JTextPane> {
-		@Override default void setContentForRow(JTextPane textPane, int rowIndex) {
-			DefaultStyledDocument doc = new DefaultStyledDocument();
-			if (rowIndex>=0) setContentForRow(doc, rowIndex);
-			textPane.setStyledDocument(doc);
-		}
-		void setContentForRow(StyledDocument doc, int rowIndex);
-	}
 
 	static class TableSimplifier {
 		
@@ -108,7 +83,7 @@ class DataTables {
 			this.tableModel.setTable(table);
 			this.tableModel.setColumnWidths(table);
 			
-			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
+			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(this.tableModel);
 			table.setRowSorter(rowSorter);
 			
 			tableContextMenu = new ContextMenu();
@@ -120,6 +95,9 @@ class DataTables {
 			tableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
 				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
 			}));
+			
+			if (this.tableModel instanceof TableContextMenuModifier)
+				((TableContextMenuModifier)this.tableModel).modifyTableContextMenu(table,tableContextMenu);
 		}
 
 		static JComponent create(SimplifiedTableModel<?> tableModel) {
@@ -269,6 +247,41 @@ class DataTables {
 			
 			return result;
 		}
+
+		interface TableContextMenuModifier {
+			void modifyTableContextMenu(JTable table, ContextMenu tableContextMenu);
+		}
+
+		interface OutputSource<OutputObject extends Component> {
+			void setOutputUpdateMethod(Runnable outputUpdateMethod);
+			void setContentForRow(OutputObject outputObject, int rowIndex);
+		}
+
+		interface ArbitraryOutputSource extends OutputSource<Component>{
+			@Override default void setOutputUpdateMethod(Runnable outputUpdateMethod) {}
+			@Override default void setContentForRow(Component dummy, int rowIndex) { setContentForRow(rowIndex); }
+			void setContentForRow(int rowIndex);
+			default Runnable modifyUpdateMethod(Runnable updateMethod) { return updateMethod; }
+		}
+
+		interface TextAreaOutputSource extends OutputSource<JTextArea> {
+			@Override default void setContentForRow(JTextArea textArea, int rowIndex) {
+				if (rowIndex<0)
+					textArea.setText("");
+				else
+					textArea.setText(getTextForRow(rowIndex));
+			}
+			String getTextForRow(int rowIndex);
+		}
+
+		interface TextPaneOutputSource extends OutputSource<JTextPane> {
+			@Override default void setContentForRow(JTextPane textPane, int rowIndex) {
+				DefaultStyledDocument doc = new DefaultStyledDocument();
+				if (rowIndex>=0) setContentForRow(doc, rowIndex);
+				textPane.setStyledDocument(doc);
+			}
+			void setContentForRow(StyledDocument doc, int rowIndex);
+		}
 	}
 
 	static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
@@ -323,7 +336,7 @@ class DataTables {
 		}
 		
 		
-		<TableModel extends SimplifiedTableModel<?> & DataTables.TextAreaOutputSource> void addTab(String title, TableModel tableModel) {
+		<TableModel extends SimplifiedTableModel<?> & TextAreaOutputSource> void addTab(String title, TableModel tableModel) {
 			int tabIndex = tabbedPane.getTabCount();
 			JComponent panel = TableSimplifier.create(tableModel, textArea, updateMethod->{
 				Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
@@ -781,7 +794,7 @@ class DataTables {
 				connectToGlobalData(data->{
 					truckAddons = data==null ? null : data.truckAddons;
 					trailers    = data==null ? null : data.trailers;
-					return data==null ? null : data.trailers.values();
+					return trailers==null ? null : trailers.values();
 				}, true);
 			else
 				controllers.dataReceivers.add(this,data->{
@@ -802,12 +815,14 @@ class DataTables {
 		}
 	}
 
-	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
+	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> implements TableContextMenuModifier {
 		
 		private HashMap<String, TruckAddon> truckAddons;
 		private HashMap<String, Trailer> trailers;
+		private TruckAddon clickedItem;
+		private final SpecialTruckAddOns specialTruckAddOns;
 
-		TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData) {
+		TruckAddonsTableModel(Controllers controllers, boolean connectToGlobalData, SpecialTruckAddOns specialTruckAddOns) {
 			super(controllers, new ColumnID[] {
 					new ColumnID("ID"                   ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
 					new ColumnID("DLC"                  ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).dlcName),
@@ -831,7 +846,9 @@ class DataTables {
 					new ColumnID("Cargo Type"           ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).cargoType),
 					new ColumnID("Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((TruckAddon)row).usableBy, lang)),
 			});
+			this.specialTruckAddOns = specialTruckAddOns;
 			
+			clickedItem = null;
 			truckAddons = null;
 			trailers    = null;
 			if (connectToGlobalData)
@@ -851,7 +868,56 @@ class DataTables {
 			Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 			setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
 		}
-	
+
+		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
+			
+			contextMenu.addSeparator();
+			
+			JMenuItem miAssignAsMetalDetector = contextMenu.add(SnowRunner.createMenuItem("Add Addon \"####\" to List of known MetalDetector Addons", true, e->{
+				if (clickedItem==null) return;
+				if (specialTruckAddOns.metalDetectors.is(clickedItem))
+					specialTruckAddOns.metalDetectors.remove(clickedItem);
+				else
+					specialTruckAddOns.metalDetectors.add(clickedItem);
+			}));
+			
+			JMenuItem miAssignAsSeismicVibrator = contextMenu.add(SnowRunner.createMenuItem("Add Addon \"####\" to List of known SeismicVibrator Addons", true, e->{
+				if (clickedItem==null) return;
+				if (specialTruckAddOns.seismicVibrators.is(clickedItem))
+					specialTruckAddOns.seismicVibrators.remove(clickedItem);
+				else
+					specialTruckAddOns.seismicVibrators.add(clickedItem);
+			}));
+			
+			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
+				int rowV = table.rowAtPoint(new Point(x,y));
+				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
+				clickedItem = rowM<0 ? null : getRow(rowM);
+				
+				miAssignAsMetalDetector  .setEnabled(clickedItem!=null);
+				miAssignAsSeismicVibrator.setEnabled(clickedItem!=null);
+				
+				String listLabel;
+				listLabel = "List of known MetalDetector Addons";
+				miAssignAsMetalDetector.setText(
+					clickedItem==null
+					? String.format("Add Addon to %s", listLabel)
+					: specialTruckAddOns.metalDetectors.is(clickedItem)
+					? String.format("Remove Addon \"%s\" from %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
+					: String.format("Add Addon \"%s\" to %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
+				);
+				
+				listLabel = "List of known SeismicVibrator Addons";
+				miAssignAsSeismicVibrator.setText(
+					clickedItem==null
+					? String.format("Add Addon to %s", listLabel)
+					: specialTruckAddOns.seismicVibrators.is(clickedItem)
+					? String.format("Remove Addon \"%s\" from %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
+					: String.format("Add Addon \"%s\" to %s", SnowRunner.solveStringID(clickedItem, language), listLabel)
+				);
+			});
+		}
+
 		@Override public String getTextForRow(TruckAddon row) {
 			String description_StringID = SnowRunner.selectNonNull( row.description_StringID, row.cargoDescription_StringID );
 			String[][] requiredAddons = row.requiredAddons;
@@ -861,13 +927,17 @@ class DataTables {
 		}
 	}
 	
-	static class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener {
+	static class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TableContextMenuModifier, TruckToDLCAssignmentListener {
 
 		private static final Color COLOR_FG_DLCTRUCK   = new Color(0x0070FF);
 		private static final Color COLOR_FG_OWNEDTRUCK = new Color(0x00AB00);
+		
 		private SaveGame saveGame;
+		private Truck clickedItem;
+		private HashMap<String, String> truckToDLCAssignments;
+		private final Window mainWindow;
 
-		TruckTableModel(Controllers controllers) {
+		TruckTableModel(Window mainWindow, Controllers controllers) {
 			super(controllers, new ColumnID[] {
 					new ColumnID("ID"                   ,              String.class, 160,   null,      null, false, row -> ((Truck)row).id),
 					new ColumnID("DLC"                  ,              String.class,  80,   null,      null, false, row -> ((Truck)row).dlcName),
@@ -881,14 +951,15 @@ class DataTables {
 					new ColumnID("Image"                ,              String.class, 130,   null,    null, false, row -> ((Truck)row).image),
 					new ColumnID("DiffLock"             ,  Truck.DiffLockType.class,  70,   null,      null, false, row -> ((Truck)row).diffLockType),
 					new ColumnID("Fuel Capacity"        ,             Integer.class,  80,   null,  "%d L", false, row -> ((Truck)row).fuelCapacity),
-					new ColumnID("Default Engine"       ,              String.class, 110,   null,    null, (row,lang) -> toString(((Truck)row).defaultEngine    , ((Truck)row).defaultEngine_ItemID    , lang)),
-					new ColumnID("Default Gearbox"      ,              String.class, 110,   null,    null, (row,lang) -> toString(((Truck)row).defaultGearbox   , ((Truck)row).defaultGearbox_ItemID   , lang)),
-					new ColumnID("Default Suspension"   ,              String.class, 110,   null,    null, (row,lang) -> toString(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
-					new ColumnID("Default Winch"        ,              String.class, 130,   null,    null, (row,lang) -> toString(((Truck)row).defaultWinch     , ((Truck)row).defaultWinch_ItemID     , lang)),
+					new ColumnID("Default Engine"       ,              String.class, 110,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultEngine, ((Truck)row).defaultEngine_ItemID, lang)),
+					new ColumnID("Default Gearbox"      ,              String.class, 110,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultGearbox, ((Truck)row).defaultGearbox_ItemID, lang)),
+					new ColumnID("Default Suspension"   ,              String.class, 110,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
+					new ColumnID("Default Winch"        ,              String.class, 130,   null,    null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultWinch, ((Truck)row).defaultWinch_ItemID, lang)),
 					new ColumnID("Upgradable Winch"     ,             Boolean.class, 110,   null,    null, false, row -> ((Truck)row).isWinchUpgradable),
 					new ColumnID("Max. WheelRadius Without Suspension",String.class, 200,   null,    null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
 					
 			});
+			this.mainWindow = mainWindow;
 			saveGame = null;
 			connectToGlobalData(data->data.trucks.values());
 			setInitialRowOrder(Comparator.<Truck,String>comparing(truck->truck.id));
@@ -908,13 +979,42 @@ class DataTables {
 			
 		}
 
-		@Override public void setSaveGame(SaveGame saveGame) {
-			this.saveGame = saveGame;
+		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
+			
+			contextMenu.addSeparator();
+			
+			JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign truck to an official DLC", true, e->{
+				if (clickedItem==null || truckToDLCAssignments==null) return;
+				TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
+				boolean assignmentsChanged = dlg.showDialog();
+				if (assignmentsChanged)
+					controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
+			}));
+			
+			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
+				int rowV = table.rowAtPoint(new Point(x,y));
+				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
+				clickedItem = rowM<0 ? null : getRow(rowM);
+				
+				miAssignToDLC.setEnabled(clickedItem!=null && truckToDLCAssignments!=null);
+				
+				miAssignToDLC.setText(
+					clickedItem==null
+					? "Assign truck to an official DLC"
+					: String.format("Assign \"%s\" to an official DLC", SnowRunner.getTruckLabel(clickedItem,language))
+				);
+			});
+			
+			controllers.truckToDLCAssignmentListeners.add(this, this);
 		}
 
-		private static String toString(TruckComponent comp, String itemID, Language language) {
-			if (comp==null && itemID==null) return null;
-			return SnowRunner.solveStringID(comp==null ? null : comp.name_StringID, language, String.format("<%s>", itemID));
+		@Override public void updateAfterAssignmentsChange() {}
+		@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+			this.truckToDLCAssignments = truckToDLCAssignments;
+		}
+
+		@Override public void setSaveGame(SaveGame saveGame) {
+			this.saveGame = saveGame;
 		}
 		
 	}

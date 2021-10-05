@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Vector;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -68,6 +69,7 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddOns;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
@@ -83,7 +85,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 	private HashMap<String, String> truckToDLCAssignments;
 
 
-	TruckPanelProto(StandardMainWindow mainWindow, Controllers controllers) {
+	TruckPanelProto(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
 		language = null;
 		truck = null;
 		truckToDLCAssignments = null;
@@ -98,8 +100,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		
 		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow);
 		addonSocketsPanel = new AddonSocketsPanel();
-		addonsPanel = new AddonsPanel(controllers);
-		addonsPanel2 = new AddonsPanel2(controllers);
+		addonsPanel = new AddonsPanel(controllers, specialTruckAddOns);
+		addonsPanel2 = new AddonsPanel2(controllers, specialTruckAddOns);
 		controllers.addChild(this, addonsPanel);
 		controllers.addChild(this, addonsPanel2);
 		
@@ -227,9 +229,11 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private Truck truck;
 		private final Vector<Tab> currentTabs;
 		private AddonCategories addonCategories;
+		private final SpecialTruckAddOns specialTruckAddOns;
 
-		AddonsPanel2(Controllers controllers) {
+		AddonsPanel2(Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
 			this.controllers = controllers;
+			this.specialTruckAddOns = specialTruckAddOns;
 			this.truck = null;
 			addonCategories = null;
 			currentTabs = new Vector<>();
@@ -259,29 +263,25 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , DataTables.   TrailersTableModel::new);
-				createTab("engine"    , this.truck.compatibleEngines     , DataTables.    EnginesTableModel::new);
-				createTab("gearbox"   , this.truck.compatibleGearboxes   , DataTables.  GearboxesTableModel::new);
-				createTab("suspension", this.truck.compatibleSuspensions , DataTables.SuspensionsTableModel::new);
-				createTab("winch"     , this.truck.compatibleWinches     , DataTables.    WinchesTableModel::new);
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new DataTables.   TrailersTableModel(controllers, false));
+				createTab("engine"    , this.truck.compatibleEngines     , () -> new DataTables.    EnginesTableModel(controllers, false));
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new DataTables.  GearboxesTableModel(controllers, false));
+				createTab("suspension", this.truck.compatibleSuspensions , () -> new DataTables.SuspensionsTableModel(controllers, false));
+				createTab("winch"     , this.truck.compatibleWinches     , () -> new DataTables.    WinchesTableModel(controllers, false));
 				
 				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
-					createTab(category, compatibleTruckAddons.get(category), DataTables.TruckAddonsTableModel::new);
+					createTab(category, compatibleTruckAddons.get(category), () -> new DataTables.TruckAddonsTableModel(controllers, false, specialTruckAddOns));
 			}
 		}
-		
-		interface TableModelConstructor<ItemType> {
-			ExtendedVerySimpleTableModel<ItemType> create(Controllers controllers, boolean connectToGlobalData);
-		}
 
-		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, TableModelConstructor<ItemType> constructor) {
+		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, Supplier<ExtendedVerySimpleTableModel<ItemType>> constructor) {
 			if (!usableItems.isEmpty()) {
 				Tab tab = new Tab(category, usableItems.size());
 				currentTabs.add(tab);
-				ExtendedVerySimpleTableModel<ItemType> tableModel = constructor.create(controllers,false);
+				ExtendedVerySimpleTableModel<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems 
 				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab("##", tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);
@@ -329,7 +329,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private int currentSocketIndex;
 		private Language language;
 
-		AddonsPanel(Controllers controllers) {
+		AddonsPanel(Controllers controllers, SpecialTruckAddOns specialTruckAddOns) {
 			super(new GridBagLayout());
 			
 			addonSockets = null;
@@ -337,8 +337,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", DataTables.TableSimplifier.create(   trailersTableModel = new DataTables.   TrailersTableModel(controllers,false)));
-			tablePanels.addTab("Addons"  , DataTables.TableSimplifier.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers,false)));
+			tablePanels.addTab("Trailers", DataTables.TableSimplifier.create(   trailersTableModel = new DataTables.   TrailersTableModel(controllers, false)));
+			tablePanels.addTab("Addons"  , DataTables.TableSimplifier.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers, false, specialTruckAddOns)));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;
@@ -420,7 +420,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				if (socket.defaultAddonName!=null) {
 					defaultAddon = String.format("<%s>", socket.defaultAddonName);
 					if (socket.defaultAddonItem!=null) {
-						String name = SnowRunner.solveStringID(socket.defaultAddonItem.name_StringID, language, null);
+						String name = SnowRunner.solveStringID(socket.defaultAddonItem.name_StringID, language);
 						if (name!=null) defaultAddon = name;
 					}
 				}
@@ -698,7 +698,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 					}
 					text = outFull.generateOutput();
 				}
-				TextAreaDialog.showText(mainWindow, "Compatible Wheels", 600, 400, true, text);
+				TextAreaDialog.showText(this.mainWindow, "Compatible Wheels", 600, 400, true, text);
 			}),c);
 			
 			c.weightx = 1;
