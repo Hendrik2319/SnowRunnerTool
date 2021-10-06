@@ -12,6 +12,10 @@ name = GMC Brigadier
 truck = gmc_8000
 
 [DLC]
+name = High Roller Pack
+truck = khan_39_marshall
+
+[DLC]
 name = Jeep Dual Pack
 truck = jeep_cj7_renegade
 truck = jeep_wrangler

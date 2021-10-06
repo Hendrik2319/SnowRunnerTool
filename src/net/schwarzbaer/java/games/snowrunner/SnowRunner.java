@@ -50,6 +50,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.DataTables.CombinedTableTabPaneTextAreaPanel;
 import net.schwarzbaer.java.games.snowrunner.DataTables.TruckTableModel;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
@@ -63,6 +64,9 @@ import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
 
+	static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
+	static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
+	
 	static final AppSettings settings = new AppSettings();
 
 	public static void main(String[] args) {
@@ -74,6 +78,7 @@ public class SnowRunner {
 
 
 	private Data data;
+	private final UserDefinedValues userDefinedValues;
 	private HashMap<String,String> truckToDLCAssignments;
 	private SaveGameData saveGameData;
 	private SaveGame selectedSaveGame;
@@ -91,6 +96,7 @@ public class SnowRunner {
 		truckToDLCAssignments = null;
 		saveGameData = null;
 		selectedSaveGame = null;
+		userDefinedValues = new UserDefinedValues();
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
@@ -101,7 +107,7 @@ public class SnowRunner {
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 		contentPane.addTab("Trucks"          , new TrucksListPanel(mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Trucks II"       , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons));
+		contentPane.addTab("Trucks II"       , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons, userDefinedValues));
 		contentPane.addTab("Wheels"          , DataTables.TableSimplifier.create(new DataTables.WheelsTableModel     (controllers)));
 		contentPane.addTab("DLCs"            , DataTables.TableSimplifier.create(new DataTables.DLCTableModel        (controllers)));
 		contentPane.addTab("Trailers"        , DataTables.TableSimplifier.create(new DataTables.TrailersTableModel   (controllers,true)));
@@ -170,6 +176,7 @@ public class SnowRunner {
 	}
 	
 	private void initialize() {
+		userDefinedValues.read();
 		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
 		controllers.truckToDLCAssignmentListeners.setTruckToDLCAssignments(truckToDLCAssignments);
 		
@@ -519,6 +526,12 @@ public class SnowRunner {
 		return null;
 	}
 
+	static <V> Vector<V> addNull(V[] array) {
+		Vector<V> values = new Vector<>(Arrays.asList(array));
+		values.insertElementAt(null, 0);
+		return values;
+	}
+
 	static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, ActionListener al) {
 		JCheckBoxMenuItem comp = new JCheckBoxMenuItem(title,isSelected);
 		comp.setEnabled(isEnabled);
@@ -866,7 +879,7 @@ public class SnowRunner {
 	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent/*, ListenerSource*/ {
 		private static final long serialVersionUID = 6564351588107715699L;
 
-		TrucksTablePanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+		TrucksTablePanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, UserDefinedValues userDefinedValues) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			
@@ -875,7 +888,7 @@ public class SnowRunner {
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
 			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
-			TruckTableModel truckTableModel = new DataTables.TruckTableModel(mainWindow, controllers, specialTruckAddOns);
+			TruckTableModel truckTableModel = new DataTables.TruckTableModel(mainWindow, controllers, specialTruckAddOns, userDefinedValues);
 			controllers.addChild(this,truckTableModel);
 			JComponent truckTableScrollPane = DataTables.TableSimplifier.create(
 					truckTableModel,

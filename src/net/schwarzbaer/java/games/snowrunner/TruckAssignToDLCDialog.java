@@ -37,7 +37,6 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 
 class TruckAssignToDLCDialog extends JDialog {
 	private static final long serialVersionUID = 5851218628292882974L;
-	private static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
 
 	private Boolean useKnownDLC;
 	private String selectedKnownDLC;
@@ -174,7 +173,7 @@ class TruckAssignToDLCDialog extends JDialog {
 	}
 
 	static void saveData(HashMap<String, String> assignments) {
-		File file = new File(TruckToDLCAssignmentsFile);
+		File file = new File(SnowRunner.TruckToDLCAssignmentsFile);
 		System.out.printf("Write TruckToDLCAssignments to file ...%n   \"%s\"%n", file.getAbsolutePath());
 		
 		HashMap<String,Vector<String>> reversedMap = new HashMap<>();
@@ -208,7 +207,7 @@ class TruckAssignToDLCDialog extends JDialog {
 	}
 
 	static HashMap<String, String> loadStoredData() {
-		File file = new File(TruckToDLCAssignmentsFile);
+		File file = new File(SnowRunner.TruckToDLCAssignmentsFile);
 		System.out.printf("Read TruckToDLCAssignments from file ...%n   \"%s\"%n", file.getAbsolutePath());
 		
 		HashMap<String, String> storedData = new HashMap<>();

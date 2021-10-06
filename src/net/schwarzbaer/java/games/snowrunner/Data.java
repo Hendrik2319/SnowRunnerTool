@@ -1,9 +1,14 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
@@ -256,6 +261,96 @@ public class Data {
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
 	
+	static class UserDefinedValues {
+		final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
+
+		void read() {
+			System.out.printf("Read UserDefinedValues from file ...%n");
+			truckValues.clear();
+			
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
+				
+				Truck.UDV truckValues = null;
+				String line, valueStr;
+				while ( (line=in.readLine())!=null ) {
+					
+					if (line.equals(""))
+						truckValues = null;
+					if (line.equals("[Truck]"))
+						truckValues = new Truck.UDV();
+					
+					if ( (valueStr=getValue(line,"id="))!=null && truckValues!=null) {
+						String id = valueStr;
+						this.truckValues.put(id, truckValues);
+					}
+					
+					if ( (valueStr=getValue(line,"AWD="))!=null && truckValues!=null)
+						truckValues.realAWD = Truck.UDV.ItemState.parse(valueStr);
+					
+					if ( (valueStr=getValue(line,"DiffLock="))!=null && truckValues!=null)
+						truckValues.realDiffLock = Truck.UDV.ItemState.parse(valueStr);
+					
+				}
+				
+			} catch (FileNotFoundException e) {
+				//e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			//showValues();
+			System.out.printf("... done%n");
+		}
+		
+		void write() {
+			System.out.printf("Write UserDefinedValues to file ...%n");
+			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
+				
+				Vector<String> keys = new Vector<>(truckValues.keySet());
+				keys.sort(null);
+				for (String key : keys) {
+					Truck.UDV values = truckValues.get(key);
+					if (!values.isEmpty()) {
+						out.printf("[Truck]%n");
+						out.printf("id=%s%n", key);
+						if (values.realAWD     !=null) out.printf("AWD="     +"%s%n", values.realAWD     .name());
+						if (values.realDiffLock!=null) out.printf("DiffLock="+"%s%n", values.realDiffLock.name());
+						out.printf("%n");
+					}
+				}
+				
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+			System.out.printf("... done%n");
+		}
+
+		@SuppressWarnings("unused")
+		private void showValues() {
+			System.out.printf("   TruckValues: [%d]%n", truckValues.size());
+			Vector<String> keys = new Vector<>(truckValues.keySet());
+			keys.sort(null);
+			for (String key : keys)
+				System.out.printf("      <%s>: %s%n", key, truckValues.get(key).toString());
+		}
+
+		public Truck.UDV getOrCreateTruckValues(String id) {
+			Truck.UDV values = truckValues.get(id);
+			if (values==null) truckValues.put(id, values = new Truck.UDV());
+			return values;
+		}
+
+		public Truck.UDV getTruckValues(String id) {
+			Truck.UDV values = truckValues.get(id);
+			if (values==null) values = new Truck.UDV();
+			return values ;
+		}
+	}
+	
+	private static String getValue(String line, String prefix) {
+		if (!line.startsWith(prefix)) return null;
+		return line.substring(prefix.length());
+	}
+
 	private static boolean findARequiredAddon(String[][] requiredAddons, StringVectorMap<TruckAddon> compatibleAddons) {
 		for (int andIndex=0; andIndex<requiredAddons.length; andIndex++) {
 			boolean foundARequiredAddon = false;
@@ -862,8 +957,8 @@ public class Data {
 		final Integer unlockByRank;
 		final String description_StringID;
 		final String name_StringID;
-		
 		final String image;
+		
 		final Integer fuelCapacity;
 		final DiffLockType diffLockType;
 		final Boolean  isWinchUpgradable;
@@ -1029,6 +1124,57 @@ public class Data {
 
 		@Override public String getName_StringID() { return name_StringID; }
 		@Override public String getID() { return id; }
+		
+		static class UDV {
+			
+			enum ItemState {
+				None, Able, Installed, Permanent;
+				final String label;
+				
+				ItemState() { this(null); }
+				ItemState(String label) { this.label = label;}
+				
+				@Override public String toString() { return label==null ? name() : label; }
+				
+				static ItemState parse(String valueStr) {
+					try { return valueOf(valueStr); }
+					catch (Exception e) { return null; }
+				}
+			}
+			
+			ItemState realDiffLock;
+			ItemState realAWD;
+			
+			UDV() {
+				realDiffLock = null;
+				realAWD = null;
+			}
+			
+			boolean isEmpty() {
+				return
+					realDiffLock == null &&
+					realAWD == null;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder builder = new StringBuilder();
+				boolean isFirst = true;
+				if (realDiffLock != null) {
+					if (!isFirst) builder.append(", ");
+					builder.append("DiffLock=");
+					builder.append(realDiffLock);
+					isFirst = false;
+				}
+				if (realAWD != null) {
+					if (!isFirst) builder.append(", ");
+					builder.append("AWD=");
+					builder.append(realAWD);
+					isFirst = false;
+				}
+				return builder.toString();
+			}
+		}
 		
 		static class AddonSockets {
 
