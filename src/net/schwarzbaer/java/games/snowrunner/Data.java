@@ -170,8 +170,15 @@ public class Data {
 			}
 			
 			for (AddonSockets as : truck.addonSockets) {
-				if (as.defaultAddonID!=null)
+				if (as.defaultAddonID!=null) {
 					as.defaultAddonItem = truckAddons.get(as.defaultAddonID);
+					if (as.defaultAddonItem!=null) {
+						if ("awd".equals(as.defaultAddonItem.category))
+							truck.defaultAWD = as.defaultAddonItem;
+						if ("diff_lock".equals(as.defaultAddonItem.category))
+							truck.defaultDiffLock = as.defaultAddonItem;
+					}
+				}
 				for (String socketID : as.compatibleSocketIDs)
 					socketIDsUsedByTrucks.add(socketID, truck);
 			}
@@ -937,16 +944,16 @@ public class Data {
 
 	static class Truck extends ItemBased implements HasNameAndID {
 
-		enum DiffLockType {
-			None, Always, Installed, Uninstalled;
+		enum DiffLockType implements Comparable<DiffLockType> {
+			None, Uninstalled, Installed, Always;
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
 		}
-		enum Country {
-			RU, US;
+		enum Country implements Comparable<Country> {
+			US, RU;
 			static String toString(Country country) { return country==null ? null : country.toString(); }
 		}
-		enum TruckType {
-			HEAVY, HEAVY_DUTY, HIGHWAY, OFFROAD, SCOUT;
+		enum TruckType implements Comparable<TruckType> {
+			HEAVY, OFFROAD, HEAVY_DUTY, HIGHWAY, SCOUT;
 			static String toString(TruckType truckType) { return truckType==null ? null : truckType.toString(); }
 		}
 		
@@ -995,6 +1002,9 @@ public class Data {
 		boolean hasCompatibleAWD;
 		boolean hasCompatibleDiffLock;
 		final boolean hasCompatibleAutomaticWinch;
+
+		TruckAddon defaultAWD;
+		TruckAddon defaultDiffLock;
 		
 		Truck(Item item, Data data) {
 			super(item);
@@ -1003,6 +1013,8 @@ public class Data {
 			
 			hasCompatibleDiffLock = false;
 			hasCompatibleAWD = false;
+			defaultDiffLock = null;
+			defaultAWD = null;
 			
 			GenericXmlNode truckDataNode = item.content.getNode("Truck", "TruckData");
 			//truckDataNode.attributes.forEach((key,value)->{
@@ -1358,6 +1370,8 @@ public class Data {
 
 	static class TruckAddon extends ItemBased implements HasNameAndID {
 
+		enum InstState { NotInstallable, Installable, Installed }
+		
 		final String category;
 		final Integer price;
 		final Boolean unlockByExploration;

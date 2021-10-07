@@ -30,6 +30,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SingleSelectionModel;
+import javax.swing.SortOrder;
 import javax.swing.SwingConstants;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
@@ -69,6 +70,33 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.Speci
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
 class DataTables {
+	
+	static class TableSimplifierRowSorter extends Tables.SimplifiedRowSorter {
+
+		public TableSimplifierRowSorter(SimplifiedTableModel<?> model) {
+			super(model);
+		}
+
+		@Override
+		protected boolean isNewClass(Class<?> columnClass) {
+			return
+				(columnClass == Truck.Country       .class) ||
+				(columnClass == Truck.TruckType     .class) ||
+				(columnClass == Truck.DiffLockType  .class) ||
+				(columnClass == Truck.UDV.ItemState .class) ||
+				(columnClass == TruckAddon.InstState.class);
+		}
+
+		@Override
+		protected Comparator<Integer> addComparatorForNewClass(Comparator<Integer> comparator, SortOrder sortOrder, Class<?> columnClass, Function<Integer,Object> getValueAtRow) {
+			if      (columnClass == Truck.Country       .class) comparator = addComparator(comparator, sortOrder, row->(Truck.Country       )getValueAtRow.apply(row));
+			else if (columnClass == Truck.TruckType     .class) comparator = addComparator(comparator, sortOrder, row->(Truck.TruckType     )getValueAtRow.apply(row));
+			else if (columnClass == Truck.DiffLockType  .class) comparator = addComparator(comparator, sortOrder, row->(Truck.DiffLockType  )getValueAtRow.apply(row));
+			else if (columnClass == Truck.UDV.ItemState .class) comparator = addComparator(comparator, sortOrder, row->(Truck.UDV.ItemState )getValueAtRow.apply(row));
+			else if (columnClass == TruckAddon.InstState.class) comparator = addComparator(comparator, sortOrder, row->(TruckAddon.InstState)getValueAtRow.apply(row));
+			return comparator;
+		}
+	}
 
 	static class TableSimplifier {
 		
@@ -90,7 +118,7 @@ class DataTables {
 			this.tableModel.setTable(table);
 			this.tableModel.setColumnWidths(table);
 			
-			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(this.tableModel);
+			SimplifiedRowSorter rowSorter = new TableSimplifierRowSorter(this.tableModel);
 			table.setRowSorter(rowSorter);
 			
 			tableContextMenu = new ContextMenu();
@@ -360,6 +388,7 @@ class DataTables {
 		
 		static final Color COLOR_BG_FALSE = new Color(0xFF6600);
 		static final Color COLOR_BG_TRUE = new Color(0x99FF33);
+		static final Color COLOR_BG_EDITABLECELL = new Color(0xFFFAE7);
 		
 		protected final Controllers controllers;
 		protected final Vector<RowType> rows;
@@ -377,7 +406,7 @@ class DataTables {
 			rows = new Vector<>();
 			clickedColumn = null;
 			clickedColumnIndex = -1;
-			coloring = new Coloring<>();
+			coloring = new Coloring<>(this);
 			
 			this.controllers.languageListeners.add(this,this);
 			
@@ -396,6 +425,12 @@ class DataTables {
 			private final HashMap<Class<?>,Function<Object,Color>> classColorizersBGspecial = new HashMap<>();
 			
 			private final HashSet<Integer> columnsWithActiveSpecialColoring = new HashSet<>();
+			
+			private final VerySimpleTableModel<RowType> tablemodel;
+			
+			Coloring(VerySimpleTableModel<RowType> tablemodel) {
+				this.tablemodel = tablemodel;
+			}
 			
 			
 			boolean containsSpecialColorizer(int clickedColumnIndex, Class<?> columnClass) {
@@ -481,6 +516,10 @@ class DataTables {
 				if (color==null && colorizerFG!=null)
 					color = colorizerFG.apply(value);
 				
+				if (!isForeground && color==null && tablemodel.isCellEditable(rowM, columnM, columnID)) {
+					color = COLOR_BG_EDITABLECELL;
+				}
+				
 				return color;
 			}
 		}
@@ -565,13 +604,28 @@ class DataTables {
 						label.setHorizontalAlignment(SwingConstants.LEFT);
 					
 					if (columnID.config.columnClass == Boolean.class) {
+						valueStr = null;
 						if (value instanceof Boolean) {
 							Boolean b = (Boolean) value;
 							isChecked = b.booleanValue();
 							useCheckBox = true;
 							
 						} else {
-							valueStr = "";
+							useCheckBox = false;
+							// -> empty JLabel -> No CheckBox
+						}
+					}
+					
+					if (columnID.config.columnClass == TruckAddon.InstState.class) {
+						valueStr = null;
+						if (value instanceof TruckAddon.InstState) {
+							TruckAddon.InstState state = (TruckAddon.InstState) value;
+							isChecked = state!=TruckAddon.InstState.NotInstallable;
+							if (state==TruckAddon.InstState.Installed)
+								valueStr = " (installed)";
+							useCheckBox = true;
+							
+						} else {
 							useCheckBox = false;
 							// -> empty JLabel -> No CheckBox
 						}
@@ -579,7 +633,7 @@ class DataTables {
 				}
 				
 				if (useCheckBox) {
-					checkBox.configureAsTableCellRendererComponent(table, isChecked, null, isSelected, hasFocus, getCustomForeground, getCustomBackground);
+					checkBox.configureAsTableCellRendererComponent(table, isChecked, valueStr, isSelected, hasFocus, getCustomForeground, getCustomBackground);
 					return checkBox;
 				}
 				label.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus, getCustomBackground, getCustomForeground);
@@ -1104,7 +1158,6 @@ class DataTables {
 
 		private static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 		private static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
-		private static final Color COLOR_BG_USERDEFINED = new Color(0xFFFAE7);
 		private enum Marker { BigCrane, MiniCrane, LogLift, MetalD, Seismic, }
 		private enum Edit { UD_DiffLock, UD_AWD }
 		
@@ -1116,36 +1169,38 @@ class DataTables {
 
 		TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
 			super(controllers, new ColumnID[] {
-					new ColumnID( null            , "ID"                   ,              String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
-					new ColumnID( null            , "DLC"                  ,              String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
-					new ColumnID( null            , "Country"              ,     Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).country),
-					new ColumnID( null            , "Type"                 ,     Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
-					new ColumnID( null            , "Name"                 ,              String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).name_StringID),
-					new ColumnID( null            , "DiffLock (??)"        ,  Truck.DiffLockType.class,  70,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
-					new ColumnID( null            , "DiffLock (User)"      , Truck.UDV.ItemState.class,  85, Edit.UD_DiffLock, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realDiffLock),
-					new ColumnID( null            , "DiffLock Installable" ,             Boolean.class, 105,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleDiffLock),
-					new ColumnID( null            , "AWD"                  ,              String.class,  70,             null, CENTER,      null, false, row -> "??? t.b.d."),
-					new ColumnID( null            , "AWD (User)"           , Truck.UDV.ItemState.class,  70,      Edit.UD_AWD, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realAWD),
-					new ColumnID( null            , "AWD Installable"      ,             Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAWD),
-					new ColumnID( null            , "AutomaticWinch"       ,             Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
-					new ColumnID( Marker.MetalD   , "Metal Detector"       ,             Boolean.class,  90,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.metalDetectors   )),
-					new ColumnID( Marker.Seismic  , "Seismic Vibrator"     ,             Boolean.class,  90,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.seismicVibrators )),
-					new ColumnID( Marker.BigCrane , "Big Crane"            ,             Boolean.class,  60,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.bigCranes        )),
-					new ColumnID( Marker.MiniCrane, "Mini Crane"           ,             Boolean.class,  60,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.miniCranes       )),
-					new ColumnID( Marker.LogLift  , "Log Lift"             ,             Boolean.class,  50,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.logLifts         )),
-					new ColumnID( null            , "Fuel Capacity"        ,             Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
-					new ColumnID( null            , "Wheel Sizes"          ,              String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
-					new ColumnID( null            , "Price"                ,             Integer.class,  60,             null,   null,   "%d Cr", false, row -> ((Truck)row).price), 
-					new ColumnID( null            , "Unlock By Exploration",             Boolean.class, 120,             null,   null,      null, false, row -> ((Truck)row).unlockByExploration), 
-					new ColumnID( null            , "Unlock By Rank"       ,             Integer.class, 100,             null, CENTER, "Rank %d", false, row -> ((Truck)row).unlockByRank), 
-					new ColumnID( null            , "Description"          ,              String.class, 200,             null,   null,      null,  true, row -> ((Truck)row).description_StringID), 
-					new ColumnID( null            , "Default Engine"       ,              String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultEngine, ((Truck)row).defaultEngine_ItemID, lang)),
-					new ColumnID( null            , "Default Gearbox"      ,              String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultGearbox, ((Truck)row).defaultGearbox_ItemID, lang)),
-					new ColumnID( null            , "Default Suspension"   ,              String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
-					new ColumnID( null            , "Default Winch"        ,              String.class, 130,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultWinch, ((Truck)row).defaultWinch_ItemID, lang)),
-					new ColumnID( null            , "Upgradable Winch"     ,             Boolean.class, 110,             null,   null,      null, false, row -> ((Truck)row).isWinchUpgradable),
-			//		new ColumnID( null            , "Max. WheelRadius Without Suspension",String.class, 200,             null,   null,      null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
-					new ColumnID( null            , "Image"                ,              String.class, 130,             null,   null,      null, false, row -> ((Truck)row).image),
+					new ColumnID( null            , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
+					new ColumnID( null            , "DLC"                  ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
+					new ColumnID( null            , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).country),
+					new ColumnID( null            , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
+					new ColumnID( null            , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).name_StringID),
+					new ColumnID( null            , "DiffLock (from Data)" ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
+					new ColumnID( null            , "DiffLock (by User)"   ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realDiffLock),
+					new ColumnID( null            , "DiffLock (by Tool)"   ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
+					new ColumnID( null            , "AWD (from Data)"      ,               String.class,  95,             null, CENTER,      null, false, row -> "??? t.b.d."),
+					new ColumnID( null            , "AWD (by User)"        ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realAWD),
+					new ColumnID( null            , "AWD (by Tool)"        ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
+					new ColumnID( null            , "AutomaticWinch"       ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
+					new ColumnID( Marker.MetalD   , "Metal Detector"       ,              Boolean.class,  90,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.metalDetectors   )),
+					new ColumnID( Marker.Seismic  , "Seismic Vibrator"     ,              Boolean.class,  90,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.seismicVibrators )),
+					new ColumnID( Marker.BigCrane , "Big Crane"            ,              Boolean.class,  60,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.bigCranes        )),
+					new ColumnID( Marker.MiniCrane, "Mini Crane"           ,              Boolean.class,  60,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.miniCranes       )),
+					new ColumnID( Marker.LogLift  , "Log Lift"             ,              Boolean.class,  50,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.logLifts         )),
+					new ColumnID( null            , "Fuel Capacity"        ,              Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
+					new ColumnID( null            , "Wheel Sizes"          ,               String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
+					new ColumnID( null            , "Price"                ,              Integer.class,  60,             null,   null,   "%d Cr", false, row -> ((Truck)row).price), 
+					new ColumnID( null            , "Unlock By Exploration",              Boolean.class, 120,             null,   null,      null, false, row -> ((Truck)row).unlockByExploration), 
+					new ColumnID( null            , "Unlock By Rank"       ,              Integer.class, 100,             null, CENTER, "Rank %d", false, row -> ((Truck)row).unlockByRank), 
+					new ColumnID( null            , "Description"          ,               String.class, 200,             null,   null,      null,  true, row -> ((Truck)row).description_StringID), 
+					new ColumnID( null            , "Default Engine"       ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultEngine, ((Truck)row).defaultEngine_ItemID, lang)),
+					new ColumnID( null            , "Default Gearbox"      ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultGearbox, ((Truck)row).defaultGearbox_ItemID, lang)),
+					new ColumnID( null            , "Default Suspension"   ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
+					new ColumnID( null            , "Default Winch"        ,               String.class, 130,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultWinch, ((Truck)row).defaultWinch_ItemID, lang)),
+					new ColumnID( null            , "Default DiffLock"     ,               String.class,  95,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultDiffLock, lang)),
+					new ColumnID( null            , "Default AWD"          ,               String.class,  90,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultAWD, lang)),
+					new ColumnID( null            , "Upgradable Winch"     ,              Boolean.class, 110,             null,   null,      null, false, row -> ((Truck)row).isWinchUpgradable),
+			//		new ColumnID( null            , "Max. WheelRadius Without Suspension", String.class, 200,             null,   null,      null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
+					new ColumnID( null            , "Image"                ,               String.class, 130,             null,   null,      null, false, row -> ((Truck)row).image),
 			});
 			this.mainWindow = mainWindow;
 			this.userDefinedValues = udv;
@@ -1195,6 +1250,26 @@ class DataTables {
 			
 		}
 		
+		private static Truck.UDV.ItemState getInstState(
+				Truck truck,
+				Function<Truck,Boolean> isAddonCategoryInstallable,
+				Function<Truck,TruckAddon> getDefaultAddon,
+				Function<TruckAddon,Boolean> addonEnablesFeature
+		) {
+			if (truck==null) return null;
+			
+			Boolean bIsAddonInstallable = isAddonCategoryInstallable.apply(truck);
+			if (bIsAddonInstallable==null || !bIsAddonInstallable.booleanValue())
+				return null; // None || Permanent 
+			
+			TruckAddon defaultAddon = getDefaultAddon.apply(truck);
+			Boolean bAddonEnablesFeature = defaultAddon==null ? false : addonEnablesFeature.apply(defaultAddon);
+			if (bAddonEnablesFeature==null || !bAddonEnablesFeature.booleanValue())
+				return Truck.UDV.ItemState.Able;
+				
+			return Truck.UDV.ItemState.Installed;
+		}
+
 		private static String joinWheelSizes(CompatibleWheel[] compatibleWheels) {
 			HashSet<String> set = Arrays
 					.stream(compatibleWheels)
@@ -1228,13 +1303,13 @@ class DataTables {
 			final Edit editMarker;
 
 			private <ColumnType> ColumnID(Marker marker, String name, Class<ColumnType> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object, ColumnType> getValue) {
-				super(name, columnClass, prefWidth, null, editMarker==null ? null : COLOR_BG_USERDEFINED, horizontalAlignment, format, useValueAsStringID, getValue);
+				super(name, columnClass, prefWidth, horizontalAlignment, format, useValueAsStringID, getValue);
 				this.columnMarker = marker;
 				this.editMarker = editMarker;
 			}
 
 			private ColumnID(Marker marker, String name, Class<String> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
-				super(name, columnClass, prefWidth, null, editMarker==null ? null : COLOR_BG_USERDEFINED, horizontalAlignment, format, getValue);
+				super(name, columnClass, prefWidth, horizontalAlignment, format, getValue);
 				this.columnMarker = marker;
 				this.editMarker = editMarker;
 			}
