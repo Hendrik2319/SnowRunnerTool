@@ -106,8 +106,8 @@ public class SnowRunner {
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"          , new TrucksListPanel(mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Trucks II"       , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons, userDefinedValues));
+		contentPane.addTab("Trucks"          , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons, userDefinedValues));
+		contentPane.addTab("Trucks (old)"    , new TrucksListPanel(mainWindow, controllers, specialTruckAddons));
 		contentPane.addTab("Wheels"          , DataTables.TableSimplifier.create(new DataTables.WheelsTableModel     (controllers)));
 		contentPane.addTab("DLCs"            , DataTables.TableSimplifier.create(new DataTables.DLCTableModel        (controllers)));
 		contentPane.addTab("Trailers"        , DataTables.TableSimplifier.create(new DataTables.TrailersTableModel   (controllers,true)));

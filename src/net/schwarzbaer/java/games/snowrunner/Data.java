@@ -872,6 +872,18 @@ public class Data {
 	}
 
 	static class TruckTire {
+		
+		static int getTypeOrder(String tireType_StringID) {
+			if (tireType_StringID==null) return 0;
+			switch (tireType_StringID) {
+			case "UI_TIRE_TYPE_HIGHWAY_NAME"   : return 1;
+			case "UI_TIRE_TYPE_ALLTERRAIN_NAME": return 2;
+			case "UI_TIRE_TYPE_OFFROAD_NAME"   : return 3;
+			case "UI_TIRE_TYPE_MUDTIRES_NAME"  : return 4;
+			case "UI_TIRE_TYPE_CHAINS_NAME"    : return 5;
+			}
+			return 0;
+		}
 	
 		final String wheelsDefID;
 		final int indexInDef;
@@ -944,15 +956,15 @@ public class Data {
 
 	static class Truck extends ItemBased implements HasNameAndID {
 
-		enum DiffLockType implements Comparable<DiffLockType> {
+		enum DiffLockType {
 			None, Uninstalled, Installed, Always;
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
 		}
-		enum Country implements Comparable<Country> {
+		enum Country {
 			US, RU;
 			static String toString(Country country) { return country==null ? null : country.toString(); }
 		}
-		enum TruckType implements Comparable<TruckType> {
+		enum TruckType {
 			HEAVY, OFFROAD, HEAVY_DUTY, HIGHWAY, SCOUT;
 			static String toString(TruckType truckType) { return truckType==null ? null : truckType.toString(); }
 		}
@@ -1370,7 +1382,7 @@ public class Data {
 
 	static class TruckAddon extends ItemBased implements HasNameAndID {
 
-		enum InstState { NotInstallable, Installable, Installed }
+		//enum InstState { NotInstallable, Installable, Installed }
 		
 		final String category;
 		final Integer price;

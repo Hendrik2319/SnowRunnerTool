@@ -841,7 +841,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 					}
 					Comparator<Float >  floatNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 					Comparator<String> stringNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
-					Comparator<String> typeComparator = Comparator.nullsLast(Comparator.<String,Integer>comparing(this::getTypeOrder).thenComparing(Comparator.naturalOrder()));
+					Comparator<String> typeComparator = Comparator.nullsLast(Comparator.<String,Integer>comparing(TruckTire::getTypeOrder).thenComparing(Comparator.naturalOrder()));
 					Comparator<RowItem> comparator = Comparator
 							.<RowItem,String>comparing(cw->cw.tire.tireType_StringID,typeComparator)
 							.thenComparing(cw->cw.scale,floatNullsLast)
@@ -850,18 +850,6 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				}
 				
 				fireTableUpdate();
-			}
-			
-			private int getTypeOrder(String type_StringID) {
-				if (type_StringID==null) return 0;
-				switch (type_StringID) {
-				case "UI_TIRE_TYPE_HIGHWAY_NAME"   : return 1;
-				case "UI_TIRE_TYPE_ALLTERRAIN_NAME": return 2;
-				case "UI_TIRE_TYPE_OFFROAD_NAME"   : return 3;
-				case "UI_TIRE_TYPE_MUDTIRES_NAME"  : return 4;
-				case "UI_TIRE_TYPE_CHAINS_NAME"    : return 5;
-				}
-				return 0;
 			}
 
 			public RowItem getRow(int rowIndex) {

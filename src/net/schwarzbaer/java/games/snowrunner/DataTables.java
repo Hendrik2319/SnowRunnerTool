@@ -83,8 +83,8 @@ class DataTables {
 				(columnClass == Truck.Country       .class) ||
 				(columnClass == Truck.TruckType     .class) ||
 				(columnClass == Truck.DiffLockType  .class) ||
-				(columnClass == Truck.UDV.ItemState .class) ||
-				(columnClass == TruckAddon.InstState.class);
+				//(columnClass == TruckAddon.InstState.class) ||
+				(columnClass == Truck.UDV.ItemState .class);
 		}
 
 		@Override
@@ -92,8 +92,8 @@ class DataTables {
 			if      (columnClass == Truck.Country       .class) comparator = addComparator(comparator, sortOrder, row->(Truck.Country       )getValueAtRow.apply(row));
 			else if (columnClass == Truck.TruckType     .class) comparator = addComparator(comparator, sortOrder, row->(Truck.TruckType     )getValueAtRow.apply(row));
 			else if (columnClass == Truck.DiffLockType  .class) comparator = addComparator(comparator, sortOrder, row->(Truck.DiffLockType  )getValueAtRow.apply(row));
+			//else if (columnClass == TruckAddon.InstState.class) comparator = addComparator(comparator, sortOrder, row->(TruckAddon.InstState)getValueAtRow.apply(row));
 			else if (columnClass == Truck.UDV.ItemState .class) comparator = addComparator(comparator, sortOrder, row->(Truck.UDV.ItemState )getValueAtRow.apply(row));
-			else if (columnClass == TruckAddon.InstState.class) comparator = addComparator(comparator, sortOrder, row->(TruckAddon.InstState)getValueAtRow.apply(row));
 			return comparator;
 		}
 	}
@@ -616,7 +616,7 @@ class DataTables {
 						}
 					}
 					
-					if (columnID.config.columnClass == TruckAddon.InstState.class) {
+					/*if (columnID.config.columnClass == TruckAddon.InstState.class) {
 						valueStr = null;
 						if (value instanceof TruckAddon.InstState) {
 							TruckAddon.InstState state = (TruckAddon.InstState) value;
@@ -629,7 +629,7 @@ class DataTables {
 							useCheckBox = false;
 							// -> empty JLabel -> No CheckBox
 						}
-					}
+					}*/
 				}
 				
 				if (useCheckBox) {
@@ -680,6 +680,16 @@ class DataTables {
 				table.repaint();
 			}));
 			
+			contextMenu.addSeparator();
+			
+			contextMenu.add(SnowRunner.createMenuItem("Hide/Unhide Columns ...", false, e->{
+				// TODO
+			}));
+			
+			contextMenu.add(SnowRunner.createMenuItem("Filter Rows ...", false, e->{
+				// TODO
+			}));
+			
 			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
 				int colV = table.columnAtPoint(new Point(x,y));
 				clickedColumnIndex = colV<0 ? -1 : table.convertColumnIndexToModel(colV);
@@ -727,12 +737,19 @@ class DataTables {
 			if (columnID.getValueL!=null) {
 				return columnID.getValueL.getValue(row,language);
 			}
+			if (columnID.getValueT!=null) {
+				return columnID.getValueT.getValue(row,this);
+			}
 			
 			return null;
 			
 		}
 		
 		static class ColumnID implements Tables.SimplifiedColumnIDInterface {
+			
+			interface TableModelBasedBuilder<ValueType> {
+				ValueType getValue(Object value, VerySimpleTableModel<?> tableModel);
+			}
 			
 			interface LanguageBasedStringBuilder {
 				String getValue(Object value, Language language);
@@ -741,6 +758,7 @@ class DataTables {
 			final SimplifiedColumnConfig config;
 			final Function<Object, ?> getValue;
 			final LanguageBasedStringBuilder getValueL;
+			final TableModelBasedBuilder<?> getValueT;
 			final boolean useValueAsStringID;
 			final Integer horizontalAlignment;
 			final Color foreground;
@@ -748,23 +766,30 @@ class DataTables {
 			final String format;
 			
 			ColumnID(String name, Class<String> columnClass, int prefWidth, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
-				this(name, columnClass, prefWidth, null, null, horizontalAlignment, format, false, null, getValue);
+				this(name, columnClass, prefWidth, null, null, horizontalAlignment, format, false, null, getValue, null);
 			}
 			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
-				this(name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, getValue, null);
+				this(name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, getValue, null, null);
+			}
+			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
+				this(name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, null, null, getValue);
 			}
 			ColumnID(String name, Class<String> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
-				this(name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false, null, getValue);
+				this(name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false, null, getValue, null);
 			}
 			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
-				this(name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null);
+				this(name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null, null);
 			}
-			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue, LanguageBasedStringBuilder getValueL) {
+			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
+				this(name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue);
+			}
+			<ColumnType> ColumnID(String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue, LanguageBasedStringBuilder getValueL, TableModelBasedBuilder<ColumnType> getValueT) {
 				this.horizontalAlignment = horizontalAlignment;
 				this.format = format;
 				this.useValueAsStringID = useValueAsStringID;
 				this.getValue = getValue;
 				this.getValueL = getValueL;
+				this.getValueT = getValueT;
 				this.foreground = foreground;
 				this.background = background;
 				this.config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
@@ -1174,6 +1199,7 @@ class DataTables {
 					new ColumnID( null            , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).country),
 					new ColumnID( null            , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 					new ColumnID( null            , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).name_StringID),
+					new ColumnID( null            , "Owned"                ,              Integer.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount((Truck)row,(TruckTableModel)model)), 
 					new ColumnID( null            , "DiffLock (from Data)" ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
 					new ColumnID( null            , "DiffLock (by User)"   ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realDiffLock),
 					new ColumnID( null            , "DiffLock (by Tool)"   ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
@@ -1188,6 +1214,10 @@ class DataTables {
 					new ColumnID( Marker.LogLift  , "Log Lift"             ,              Boolean.class,  50,             null,   null,      null, false, row -> hasCompatibleSpecialAddon( (Truck)row, specialTruckAddons.logLifts         )),
 					new ColumnID( null            , "Fuel Capacity"        ,              Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
 					new ColumnID( null            , "Wheel Sizes"          ,               String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
+					new ColumnID( null            , "Wheel Types"          ,               String.class, 280,             null,   null,      null, (row,lang) -> getWheelCategories((Truck)row,lang)),
+					new ColumnID( null            , "[W] Highway"          ,                Float.class,  75,             null,   null,   "%1.2f", false, row -> getMaxWheelValue((Truck)row, tire->tire.frictionHighway)),
+					new ColumnID( null            , "[W] Offroad"          ,                Float.class,  75,             null,   null,   "%1.2f", false, row -> getMaxWheelValue((Truck)row, tire->tire.frictionOffroad)),
+					new ColumnID( null            , "[W] Mud"              ,                Float.class,  75,             null,   null,   "%1.2f", false, row -> getMaxWheelValue((Truck)row, tire->tire.frictionMud)),
 					new ColumnID( null            , "Price"                ,              Integer.class,  60,             null,   null,   "%d Cr", false, row -> ((Truck)row).price), 
 					new ColumnID( null            , "Unlock By Exploration",              Boolean.class, 120,             null,   null,      null, false, row -> ((Truck)row).unlockByExploration), 
 					new ColumnID( null            , "Unlock By Rank"       ,              Integer.class, 100,             null, CENTER, "Rank %d", false, row -> ((Truck)row).unlockByRank), 
@@ -1250,6 +1280,38 @@ class DataTables {
 			
 		}
 		
+		private static Integer getOwnedCount(Truck truck, TruckTableModel model) {
+			if (truck==null) return null;
+			if (model==null) return null;
+			if (model.saveGame==null) return null;
+			if (model.saveGame.ownedTrucks==null) return null;
+			return model.saveGame.ownedTrucks.get(truck.id);
+		}
+
+		private static Float getMaxWheelValue(Truck truck, Function<TruckTire,Float> getTireValue) {
+			Float max = null;
+			for (CompatibleWheel cw : truck.compatibleWheels)
+				if (cw.wheelsDef!=null)
+					for (TruckTire tire : cw.wheelsDef.truckTires) {
+						Float value = getTireValue.apply(tire);
+						max = max==null ? value : value==null ? max : Math.max(max,value);
+					}
+			return max;
+		}
+		
+		private static String getWheelCategories(Truck truck, Language language) {
+			HashSet<String> tireTypes_StringID = new HashSet<>();
+			for (CompatibleWheel cw : truck.compatibleWheels)
+				if (cw.wheelsDef!=null)
+					for (TruckTire tire : cw.wheelsDef.truckTires)
+						if (tire.tireType_StringID!=null)
+							tireTypes_StringID.add(tire.tireType_StringID);
+			Vector<String> vec = new Vector<>(tireTypes_StringID);
+			vec.sort(Comparator.comparing(TruckTire::getTypeOrder).thenComparing(Comparator.naturalOrder()));
+			Iterable<String> it = () -> vec.stream().map(stringID->SnowRunner.solveStringID(stringID, language)).iterator();
+			return String.join(", ", it);
+		}
+
 		private static Truck.UDV.ItemState getInstState(
 				Truck truck,
 				Function<Truck,Boolean> isAddonCategoryInstallable,
@@ -1303,6 +1365,12 @@ class DataTables {
 			final Edit editMarker;
 
 			private <ColumnType> ColumnID(Marker marker, String name, Class<ColumnType> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object, ColumnType> getValue) {
+				super(name, columnClass, prefWidth, horizontalAlignment, format, useValueAsStringID, getValue);
+				this.columnMarker = marker;
+				this.editMarker = editMarker;
+			}
+
+			private <ColumnType> ColumnID(Marker marker, String name, Class<ColumnType> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
 				super(name, columnClass, prefWidth, horizontalAlignment, format, useValueAsStringID, getValue);
 				this.columnMarker = marker;
 				this.editMarker = editMarker;
