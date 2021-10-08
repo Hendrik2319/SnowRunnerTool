@@ -286,15 +286,15 @@ public class Data {
 					if (line.equals("[Truck]"))
 						truckValues = new Truck.UDV();
 					
-					if ( (valueStr=getValue(line,"id="))!=null && truckValues!=null) {
+					if ( (valueStr=getLineValue(line,"id="))!=null && truckValues!=null) {
 						String id = valueStr;
 						this.truckValues.put(id, truckValues);
 					}
 					
-					if ( (valueStr=getValue(line,"AWD="))!=null && truckValues!=null)
+					if ( (valueStr=getLineValue(line,"AWD="))!=null && truckValues!=null)
 						truckValues.realAWD = Truck.UDV.ItemState.parse(valueStr);
 					
-					if ( (valueStr=getValue(line,"DiffLock="))!=null && truckValues!=null)
+					if ( (valueStr=getLineValue(line,"DiffLock="))!=null && truckValues!=null)
 						truckValues.realDiffLock = Truck.UDV.ItemState.parse(valueStr);
 					
 				}
@@ -353,7 +353,7 @@ public class Data {
 		}
 	}
 	
-	private static String getValue(String line, String prefix) {
+	static String getLineValue(String line, String prefix) {
 		if (!line.startsWith(prefix)) return null;
 		return line.substring(prefix.length());
 	}

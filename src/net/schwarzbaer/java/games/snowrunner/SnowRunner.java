@@ -3,7 +3,9 @@ package net.schwarzbaer.java.games.snowrunner;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Insets;
 import java.awt.Point;
+import java.awt.Window;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -16,11 +18,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Vector;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
@@ -66,6 +70,7 @@ public class SnowRunner {
 
 	static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
 	static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
+	static final String ColumnHidePresetsFile = "SnowRunner - ColumnHidePresets.dat";
 	
 	static final AppSettings settings = new AppSettings();
 
@@ -107,16 +112,16 @@ public class SnowRunner {
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 		contentPane.addTab("Trucks"          , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons, userDefinedValues));
-		contentPane.addTab("Trucks (old)"    , new TrucksListPanel(mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Wheels"          , DataTables.TableSimplifier.create(new DataTables.WheelsTableModel     (controllers)));
-		contentPane.addTab("DLCs"            , DataTables.TableSimplifier.create(new DataTables.DLCTableModel        (controllers)));
-		contentPane.addTab("Trailers"        , DataTables.TableSimplifier.create(new DataTables.TrailersTableModel   (controllers,true)));
-		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(controllers, specialTruckAddons));
-		contentPane.addTab("Engines"         , DataTables.TableSimplifier.create(new DataTables.EnginesTableModel    (controllers,true)));
-		contentPane.addTab("Gearboxes"       , DataTables.TableSimplifier.create(new DataTables.GearboxesTableModel  (controllers,true)));
-		contentPane.addTab("Suspensions"     , DataTables.TableSimplifier.create(new DataTables.SuspensionsTableModel(controllers,true)));
-		contentPane.addTab("Winches"         , DataTables.TableSimplifier.create(new DataTables.WinchesTableModel    (controllers,true)));
-		contentPane.addTab("Addon Categories", DataTables.TableSimplifier.create(new DataTables.AddonCategoriesTableModel(controllers)));
+		contentPane.addTab("Trucks (old)"    , new TrucksListPanel (mainWindow, controllers, specialTruckAddons));
+		contentPane.addTab("Wheels"          , DataTables.TableSimplifier.create(new DataTables.WheelsTableModel     (mainWindow, controllers)));
+		contentPane.addTab("DLCs"            , DataTables.TableSimplifier.create(new DataTables.DLCTableModel        (            controllers)));
+		contentPane.addTab("Trailers"        , DataTables.TableSimplifier.create(new DataTables.TrailersTableModel   (mainWindow, controllers,true)));
+		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(mainWindow, controllers, specialTruckAddons));
+		contentPane.addTab("Engines"         , DataTables.TableSimplifier.create(new DataTables.EnginesTableModel    (mainWindow, controllers,true)));
+		contentPane.addTab("Gearboxes"       , DataTables.TableSimplifier.create(new DataTables.GearboxesTableModel  (mainWindow, controllers,true)));
+		contentPane.addTab("Suspensions"     , DataTables.TableSimplifier.create(new DataTables.SuspensionsTableModel(mainWindow, controllers,true)));
+		contentPane.addTab("Winches"         , DataTables.TableSimplifier.create(new DataTables.WinchesTableModel    (mainWindow, controllers,true)));
+		contentPane.addTab("Addon Categories", DataTables.TableSimplifier.create(new DataTables.AddonCategoriesTableModel(mainWindow, controllers)));
 		contentPane.addTab("Raw Data", rawDataPanel);
 		
 		
@@ -547,9 +552,25 @@ public class SnowRunner {
 		return comp;
 	}
 	
+	static JCheckBox createCheckBox(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Consumer<Boolean> setValue) {
+		JCheckBox comp = new JCheckBox(title);
+		if (bg!=null) bg.add(comp);
+		comp.setEnabled(isEnabled);
+		comp.setSelected(isSelected);
+		if (setValue!=null) comp.addActionListener(e->{
+			setValue.accept(comp.isSelected());			
+		});
+		return comp;
+	}
+	
 	static JButton createButton(String title, boolean isEnabled, ActionListener al) {
+		return createButton(title, isEnabled, null, al);
+	}
+	
+	static JButton createButton(String title, boolean isEnabled, Insets margin, ActionListener al) {
 		JButton comp = new JButton(title);
 		comp.setEnabled(isEnabled);
+		if (margin!=null) comp.setMargin(margin);
 		if (al!=null) comp.addActionListener(al);
 		return comp;
 	}
@@ -792,13 +813,15 @@ public class SnowRunner {
 
 		private static final long serialVersionUID = 7841445317301513175L;
 		
+		private final Window mainWindow;
 		private final Controllers controllers;
 		private final Vector<Tab> tabs;
 		private Data data;
 		private Language language;
 		private final SpecialTruckAddons specialTruckAddOns;
 
-		TruckAddonsTablePanel(Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+		TruckAddonsTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+			this.mainWindow = mainWindow;
 			this.controllers = controllers;
 			this.specialTruckAddOns = specialTruckAddOns;
 			this.language = null;
@@ -837,7 +860,7 @@ public class SnowRunner {
 			tabs.add(allTab);
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
-			DataTables.TruckAddonsTableModel tableModel = new DataTables.TruckAddonsTableModel(controllers, false, specialTruckAddOns);
+			DataTables.TruckAddonsTableModel tableModel = new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
 			controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
 			tableModel.setData(data.truckAddons.values());
@@ -852,7 +875,7 @@ public class SnowRunner {
 				tabs.add(tab);
 				
 				title = tab.getTabTitle(data.addonCategories, language);
-				tableModel = new DataTables.TruckAddonsTableModel(controllers, false, specialTruckAddOns);
+				tableModel = new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
 				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
 				tableModel.setData(list);
@@ -879,7 +902,7 @@ public class SnowRunner {
 	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent/*, ListenerSource*/ {
 		private static final long serialVersionUID = 6564351588107715699L;
 
-		TrucksTablePanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, UserDefinedValues userDefinedValues) {
+		TrucksTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, UserDefinedValues userDefinedValues) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			

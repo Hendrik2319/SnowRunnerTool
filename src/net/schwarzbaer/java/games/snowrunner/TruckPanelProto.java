@@ -44,7 +44,6 @@ import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
-import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnIDInterface;
@@ -86,7 +85,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 	private AddonCategories addonCategories; // TODO
 
 
-	TruckPanelProto(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+	TruckPanelProto(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 		language = null;
 		truck = null;
 		truckToDLCAssignments = null;
@@ -101,8 +100,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		
 		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow);
 		addonSocketsPanel = new AddonSocketsPanel();
-		addonsPanel = new AddonsPanel(controllers, specialTruckAddOns);
-		addonsPanel2 = new AddonsPanel2(controllers, specialTruckAddOns);
+		addonsPanel  = new AddonsPanel (mainWindow, controllers, specialTruckAddOns);
+		addonsPanel2 = new AddonsPanel2(mainWindow, controllers, specialTruckAddOns);
 		controllers.addChild(this, addonsPanel);
 		controllers.addChild(this, addonsPanel2);
 		
@@ -234,6 +233,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
 		
+		private final Window mainWindow;
 		private final Controllers controllers;
 		private Language language;
 		private Truck truck;
@@ -241,7 +241,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private AddonCategories addonCategories;
 		private final SpecialTruckAddons specialTruckAddOns;
 
-		AddonsPanel2(Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+		AddonsPanel2(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+			this.mainWindow = mainWindow;
 			this.controllers = controllers;
 			this.specialTruckAddOns = specialTruckAddOns;
 			this.truck = null;
@@ -273,17 +274,17 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new DataTables.   TrailersTableModel(controllers, false));
-				createTab("engine"    , this.truck.compatibleEngines     , () -> new DataTables.    EnginesTableModel(controllers, false));
-				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new DataTables.  GearboxesTableModel(controllers, false));
-				createTab("suspension", this.truck.compatibleSuspensions , () -> new DataTables.SuspensionsTableModel(controllers, false));
-				createTab("winch"     , this.truck.compatibleWinches     , () -> new DataTables.    WinchesTableModel(controllers, false));
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new DataTables.   TrailersTableModel(mainWindow, controllers, false));
+				createTab("engine"    , this.truck.compatibleEngines     , () -> new DataTables.    EnginesTableModel(mainWindow, controllers, false));
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new DataTables.  GearboxesTableModel(mainWindow, controllers, false));
+				createTab("suspension", this.truck.compatibleSuspensions , () -> new DataTables.SuspensionsTableModel(mainWindow, controllers, false));
+				createTab("winch"     , this.truck.compatibleWinches     , () -> new DataTables.    WinchesTableModel(mainWindow, controllers, false));
 				
 				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
-					createTab(category, compatibleTruckAddons.get(category), () -> new DataTables.TruckAddonsTableModel(controllers, false, specialTruckAddOns));
+					createTab(category, compatibleTruckAddons.get(category), () -> new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns));
 			}
 		}
 
@@ -334,7 +335,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private int currentSocketIndex;
 		private Language language;
 
-		AddonsPanel(Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+		AddonsPanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(new GridBagLayout());
 			
 			addonSockets = null;
@@ -342,8 +343,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", DataTables.TableSimplifier.create(   trailersTableModel = new DataTables.   TrailersTableModel(controllers, false)));
-			tablePanels.addTab("Addons"  , DataTables.TableSimplifier.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(controllers, false, specialTruckAddOns)));
+			tablePanels.addTab("Trailers", DataTables.TableSimplifier.create(   trailersTableModel = new DataTables.   TrailersTableModel(mainWindow, controllers, false)));
+			tablePanels.addTab("Addons"  , DataTables.TableSimplifier.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns)));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;
@@ -619,12 +620,12 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private final JTable table;
 		private final CWTableModel tableModel;
 		private CWTableModel.RowItem selectedWheel;
-		private final StandardMainWindow mainWindow;
+		private final Window mainWindow;
 		private Language language;
 		private CompatibleWheel[] compatibleWheels;
 		private String truckName_StringID;
 		
-		CompatibleWheelsPanel(StandardMainWindow mainWindow) {
+		CompatibleWheelsPanel(Window mainWindow) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			this.mainWindow = mainWindow;

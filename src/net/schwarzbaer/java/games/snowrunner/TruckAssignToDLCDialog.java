@@ -220,10 +220,10 @@ class TruckAssignToDLCDialog extends JDialog {
 				if (line.equals("[DLC]"))
 					lastDLC = null;
 				
-				if ( (value=getLineValue(line, "name = "))!=null )
+				if ( (value = Data.getLineValue(line, "name = "))!=null )
 					lastDLC = value;
 				
-				if ( (value=getLineValue(line, "truck = "))!=null && lastDLC!=null)
+				if ( (value = Data.getLineValue(line, "truck = "))!=null && lastDLC!=null)
 					storedData.put(value, lastDLC);
 			}
 			
@@ -237,10 +237,5 @@ class TruckAssignToDLCDialog extends JDialog {
 		
 		System.out.printf("... done%n");
 		return storedData;
-	}
-	
-	private static String getLineValue(String line, String prefix) {
-		if (!line.startsWith(prefix)) return null;
-		return line.substring(prefix.length());
 	}
 }
