@@ -10,14 +10,10 @@ import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Window;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -820,12 +816,15 @@ class DataTables {
 			}
 
 			private void read() {
-				byte[] bytes;
-				try { bytes = Files.readAllBytes(new File(SnowRunner.ColumnHidePresetsFile).toPath()); }
-				catch (IOException e) { bytes = new byte[0]; }
-				String text = new String(bytes, StandardCharsets.UTF_8);
+				//byte[] bytes;
+				//try { bytes = Files.readAllBytes(new File(SnowRunner.ColumnHidePresetsFile).toPath()); }
+				//catch (IOException e) { bytes = new byte[0]; }
+				//String text = new String(bytes, StandardCharsets.UTF_8);
 				
 				presets.clear();
+				String text = SnowRunner.settings.getString(SnowRunner.AppSettings.ValueKey.ColumnHidePresets, null);
+				if (text==null) return;
+				
 				try (BufferedReader in = new BufferedReader(new StringReader(text))) {
 					
 					HashMap<String, HashSet<String>> modelPresets = null;
@@ -884,11 +883,13 @@ class DataTables {
 				}
 				
 				String text = stringWriter.toString();
-				byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-				try { Files.write(new File(SnowRunner.ColumnHidePresetsFile).toPath(), bytes, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING); }
-				catch (IOException e) {
-					e.printStackTrace();
-				}
+				SnowRunner.settings.putString(SnowRunner.AppSettings.ValueKey.ColumnHidePresets, text);
+				
+				//byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+				//try { Files.write(new File(SnowRunner.ColumnHidePresetsFile).toPath(), bytes, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING); }
+				//catch (IOException e) {
+				//	e.printStackTrace();
+				//}
 			}
 			
 		}

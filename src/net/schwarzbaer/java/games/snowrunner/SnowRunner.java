@@ -1235,7 +1235,11 @@ public class SnowRunner {
 
 	static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		enum ValueKey {
-			WindowX, WindowY, WindowWidth, WindowHeight, SteamLibraryFolder, Language, InitialPAK, SaveGameFolder, SelectedSaveGame, ShowingSaveGameDataSorted, MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
+			WindowX, WindowY, WindowWidth, WindowHeight,
+			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
+			SelectedSaveGame, ShowingSaveGameDataSorted,
+			MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
+			ColumnHidePresets,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {
