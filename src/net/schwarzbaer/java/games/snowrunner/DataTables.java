@@ -411,12 +411,13 @@ class DataTables {
 		static final Color COLOR_BG_TRUE = new Color(0x99FF33);
 		static final Color COLOR_BG_EDITABLECELL = new Color(0xFFFAE7);
 		
-		private   final ColumnID[] originalColumns;
 		@SuppressWarnings("unused")
 		private   final Float columns; // to hide super.columns
+		private   final ColumnID[] originalColumns;
+		protected final Vector<RowType> rows;
+		private   final Vector<RowType> originalRows;
 		protected final Window mainWindow;
 		protected final Controllers controllers;
-		protected final Vector<RowType> rows;
 		protected final Coloring<RowType> coloring;
 		protected Language language;
 		private   Comparator<RowType> initialRowOrder;
@@ -432,6 +433,7 @@ class DataTables {
 			language = null;
 			initialRowOrder = null;
 			rows = new Vector<>();
+			originalRows = new Vector<>();
 			clickedColumn = null;
 			clickedColumnIndex = -1;
 			coloring = new Coloring<>(this);
@@ -589,12 +591,14 @@ class DataTables {
 			}
 		}
 	
-		void setData(Collection<RowType> rows) {
+		final void setData(Collection<RowType> rows) {
 			this.rows.clear();
+			originalRows.clear();
 			if (rows!=null) {
-				this.rows.addAll(rows);
+				originalRows.addAll(rows);
 				if (initialRowOrder != null)
-					this.rows.sort(initialRowOrder);
+					originalRows.sort(initialRowOrder);
+				this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns));
 			}
 			extraUpdate();
 			fireTableUpdate();
@@ -732,8 +736,15 @@ class DataTables {
 				}
 			}));
 			
-			contextMenu.add(SnowRunner.createMenuItem("Filter Rows ...", false, e->{
-				// TODO
+			contextMenu.add(SnowRunner.createMenuItem("Filter Rows ...", true, e->{
+				FilterRowsDialog dlg = new FilterRowsDialog(mainWindow,originalColumns,getClass().getName());
+				boolean changed = dlg.showDialog();
+				if (changed) {
+					rows.clear();
+					this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns));
+					fireTableStructureUpdate();
+					reconfigureAfterTableStructureUpdate();
+				}
 			}));
 			
 			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
@@ -799,6 +810,105 @@ class DataTables {
 			return -1;
 		}
 		
+		private static class FilterRowsDialog extends ModelConfigureDialog<FilterRowsDialog.FilterGuiElement,HashMap<String,FilterRowsDialog.Filter>> {
+			private static final long serialVersionUID = 6171301101675843952L;
+		
+			FilterRowsDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
+				super(owner, "Filter Rows", "Define filters", originalColumns, getModelPresets(tableModelIDstr), FilterGuiElement[]::new, HashMap<String,FilterRowsDialog.Filter>::new);
+			}
+
+			@Override protected boolean resetValuesFinal() {
+				boolean hasChanged = false;
+				for (ColumnID columnID : this.originalColumns) {
+					if (columnID.filter!=null) {
+						columnID.filter = null;
+						hasChanged = true;
+					}
+				}
+				return hasChanged;
+			}
+
+			@Override protected boolean setValuesFinal() {
+				boolean hasChanged = false;
+				for (ColumnID columnID : this.originalColumns) {
+					Filter filter = currentPreset.get(columnID.id);
+					
+					if (filter==null && columnID.filter!=null) {
+						columnID.filter = null;
+						hasChanged = true;
+						
+					} else if (filter!=null && !filter.equals(columnID.filter)) {
+						columnID.filter = filter;
+						hasChanged = true;
+					}
+				}
+				return hasChanged;
+			}
+
+			@Override protected FilterGuiElement createColumnElement(ColumnID columnID) {
+				return new FilterGuiElement(columnID);
+			}
+
+			private static HashMap<String, HashMap<String, Filter>> getModelPresets(String tableModelID) {
+				// TODO
+				return new HashMap<>();
+			}
+
+			@Override protected void writeAllPresets() {
+				// TODO Auto-generated method stub
+			}
+
+			@Override protected void setPresetInGui(HashMap<String, Filter> preset) {
+				// TODO Auto-generated method stub
+			}
+
+			@Override protected HashMap<String, Filter> getCopyOfCurrentPreset() {
+				// TODO Auto-generated method stub
+				return new HashMap<>();
+			}
+
+			static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, ColumnID[] originalColumns) {
+				// TODO Auto-generated method stub
+				return originalRows;
+			}
+
+			static class Filter {
+
+				@Override
+				public boolean equals(Object other) {
+					if (!(other instanceof Filter)) return false;
+					return equals((Filter) other);
+				}
+				
+				public boolean equals(Filter other) {
+					// TODO Auto-generated method stub
+					return super.equals(other);
+				}
+				
+			}
+			
+			static class FilterGuiElement extends JPanel {
+				private static final long serialVersionUID = 3133267500197644609L;
+
+				FilterGuiElement(ColumnID columnID) {
+					super(new GridBagLayout());
+					GridBagConstraints c = new GridBagConstraints();
+					c.fill = GridBagConstraints.BOTH;
+					
+					c.weightx = 0;
+					add(SnowRunner.createCheckBox(columnID.config.name, columnID.filter!=null, null, true, b->{
+						// TODO
+					}), c);
+					
+					// TODO Auto-generated constructor stub
+					
+					c.weightx = 1;
+					add(new JLabel(), c);
+				}
+			}
+		
+		}
+
 		private static class ColumnHidePresets {
 			
 			final HashMap<String,HashMap<String,HashSet<String>>> presets;
@@ -807,14 +917,14 @@ class DataTables {
 				presets = new HashMap<>();
 				read();
 			}
-
+		
 			HashMap<String, HashSet<String>> getModelPresets(String tableModelID) {
 				HashMap<String, HashSet<String>> modelPresets = presets.get(tableModelID);
 				if (modelPresets==null)
 					presets.put(tableModelID, modelPresets = new HashMap<>());
 				return modelPresets;
 			}
-
+		
 			private void read() {
 				//byte[] bytes;
 				//try { bytes = Files.readAllBytes(new File(SnowRunner.ColumnHidePresetsFile).toPath()); }
@@ -858,7 +968,7 @@ class DataTables {
 				}
 				
 			}
-
+		
 			private void write() {
 				StringWriter stringWriter = new StringWriter();
 				try (PrintWriter out = new PrintWriter(stringWriter)) {
@@ -893,38 +1003,93 @@ class DataTables {
 			}
 			
 		}
-		
-		private static class ColumnHideDialog extends JDialog {
+
+		private static class ColumnHideDialog extends ModelConfigureDialog<JCheckBox,HashSet<String>> {
+			private static final long serialVersionUID = 4240161527743718020L;
+
+			ColumnHideDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
+				super(owner, "Visible Columns", "Define visible columns", originalColumns, columnHidePresets.getModelPresets(tableModelIDstr), JCheckBox[]::new, HashSet<String>::new);
+			}
+
+			@Override protected HashSet<String> getCopyOfCurrentPreset() {
+				return new HashSet<>(currentPreset);
+			}
+
+			@Override protected void writeAllPresets() {
+				columnHidePresets.write();
+			}
+			
+			@Override protected void setPresetInGui(HashSet<String> preset) {
+				currentPreset.clear();
+				currentPreset.addAll(preset);
+				for (int i=0; i<this.originalColumns.length; i++) {
+					ColumnID column = this.originalColumns[i];
+					boolean isVisible = preset.contains(column.id);
+					columnElements[i].setSelected(isVisible);
+				}
+			}
+
+			@Override protected JCheckBox createColumnElement(ColumnID columnID) {
+				if (columnID.isVisible) currentPreset.add(columnID.id);
+				JCheckBox checkBox = SnowRunner.createCheckBox(columnID.config.name, columnID.isVisible, null, true, b->{
+					if (b) currentPreset.add(columnID.id);
+					else   currentPreset.remove(columnID.id);
+				});
+				return checkBox;
+			}
+
+			@Override protected boolean resetValuesFinal() {
+				boolean hasChanged = false;
+				for (ColumnID columnID : this.originalColumns) {
+					if (!columnID.isVisible) {
+						columnID.isVisible = true;
+						hasChanged = true;
+					}
+				}
+				return hasChanged;
+			}
+
+			@Override protected boolean setValuesFinal() {
+				boolean hasChanged = false;
+				for (ColumnID columnID : originalColumns) {
+					boolean isVisible = currentPreset.contains(columnID.id);
+					if (columnID.isVisible != isVisible) {
+						columnID.isVisible = isVisible;
+						hasChanged = true;
+					}
+				}
+				return hasChanged;
+			}
+			
+			static ColumnID[] removeHiddenColumns(ColumnID[] originalColumns) {
+				return Arrays.stream(originalColumns).filter(column->column.isVisible).toArray(ColumnID[]::new);
+			}
+		}
+
+		private static abstract class ModelConfigureDialog<ColumnElement extends Component, Preset> extends JDialog {
 			private static final long serialVersionUID = 8159900024537014376L;
 			
 			private boolean hasChanged;
 			private boolean ignorePresetComboBoxEvent;
-			private final HashMap<String, HashSet<String>> modelPresets;
-			private final HashSet<String> currentPreset;
-			private final ColumnID[] originalColumns;
-			private final JCheckBox[] checkBoxes;
+			private final HashMap<String, Preset> modelPresets;
+			protected final ColumnID[] originalColumns;
+			protected final ColumnElement[] columnElements;
+			protected final Preset currentPreset;
 			private final Vector<String> presetNames;
 			private final JComboBox<String> presetComboBox;
-		
-			ColumnHideDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
-				super(owner, "Visible Columns", ModalityType.APPLICATION_MODAL);
+			
+			ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, ColumnID[] originalColumns, HashMap<String, Preset> modelPresets, Function<Integer,ColumnElement[]> createColumnElementArray, Supplier<Preset> createEmptyPreset) {
+				super(owner, title, ModalityType.APPLICATION_MODAL);
 				this.originalColumns = originalColumns;
-				hasChanged = false;
-				currentPreset = new HashSet<>();
-				modelPresets = columnHidePresets.getModelPresets(tableModelIDstr);
-				System.out.printf("ColumnHideDialog: %s%n", tableModelIDstr);
+				this.modelPresets = modelPresets;
+				this.currentPreset = createEmptyPreset.get();
+				this.hasChanged = false;
+				GridBagConstraints c;
 				
 				JPanel columnPanel = new JPanel(new GridLayout(0,1));
-				checkBoxes = new JCheckBox[this.originalColumns.length];
-				for (int i=0; i<this.originalColumns.length; i++) {
-					ColumnID columnID = this.originalColumns[i];
-					if (columnID.isVisible) currentPreset.add(columnID.id);
-					checkBoxes[i] = SnowRunner.createCheckBox(columnID.config.name, columnID.isVisible, null, true, b->{
-						if (b) currentPreset.add(columnID.id);
-						else   currentPreset.remove(columnID.id);
-					});
-					columnPanel.add(checkBoxes[i]);
-				}
+				columnElements = createColumnElementArray.apply(this.originalColumns.length);
+				for (int i=0; i<this.originalColumns.length; i++)
+					columnPanel.add(columnElements[i] = createColumnElement(this.originalColumns[i]));
 				
 				JScrollPane columnScrollPane = new JScrollPane(columnPanel);
 				columnScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -934,10 +1099,11 @@ class DataTables {
 				presetNames = new Vector<>(modelPresets.keySet());
 				presetNames.sort(null);
 				presetComboBox = new JComboBox<>(new Vector<>(presetNames));
+				presetComboBox.setPreferredSize(new Dimension(100,20));
 				
 				JButton btnOverwrite, btnRemove;
 				JPanel presetPanel = new JPanel(new GridBagLayout());
-				GridBagConstraints c = new GridBagConstraints();
+				c = new GridBagConstraints();
 				c.fill = GridBagConstraints.BOTH;
 				c.weightx=0;
 				presetPanel.add(new JLabel("Presets: "),c);
@@ -958,6 +1124,7 @@ class DataTables {
 					btnRemove.setEnabled(index>=0);
 				});
 				
+				
 				JPanel dlgButtonPanel = new JPanel(new GridBagLayout());
 				dlgButtonPanel.setBorder(BorderFactory.createEmptyBorder(5,0,0,0));
 				c = new GridBagConstraints();
@@ -965,14 +1132,12 @@ class DataTables {
 				c.weightx = 1;
 				dlgButtonPanel.add(new JLabel(),c);
 				c.weightx = 0;
+				dlgButtonPanel.add(SnowRunner.createButton("Reset", true, e->{
+					hasChanged = resetValuesFinal();
+					setVisible(false);
+				}),c);
 				dlgButtonPanel.add(SnowRunner.createButton("Set", true, e->{
-					for (ColumnID columnID : this.originalColumns) {
-						boolean isVisible = currentPreset.contains(columnID.id);
-						if (columnID.isVisible != isVisible) {
-							columnID.isVisible = isVisible;
-							hasChanged = true;
-						}
-					}
+					hasChanged = setValuesFinal();
 					setVisible(false);
 				}),c);
 				dlgButtonPanel.add(SnowRunner.createButton("Cancel", true, e->{
@@ -987,7 +1152,7 @@ class DataTables {
 				c.gridwidth = GridBagConstraints.REMAINDER;
 				c.weightx = 1;
 				c.weighty = 0;
-				contentPane.add(new JLabel("Define visible columns:"), c);
+				contentPane.add(new JLabel(columnPanelHeadline+":"), c);
 				c.weighty = 1;
 				contentPane.add(columnScrollPane, c);
 				c.weighty = 0;
@@ -999,6 +1164,13 @@ class DataTables {
 				setLocationRelativeTo(owner);
 				
 			}
+
+			protected abstract boolean resetValuesFinal();
+			protected abstract boolean setValuesFinal();
+			protected abstract ColumnElement createColumnElement(ColumnID columnID);
+			protected abstract void writeAllPresets();
+			protected abstract void setPresetInGui(Preset preset);
+			protected abstract Preset getCopyOfCurrentPreset();
 
 			private void addPreset() {
 				String presetName = JOptionPane.showInputDialog(this, "Enter preset name:", "Preset Name", JOptionPane.QUESTION_MESSAGE);
@@ -1017,8 +1189,8 @@ class DataTables {
 					presetNames.sort(null);
 					updatePresetComboBoxModel(presetName);
 				}
-				modelPresets.put(presetName, new HashSet<>(currentPreset));
-				columnHidePresets.write();
+				modelPresets.put(presetName, getCopyOfCurrentPreset());
+				writeAllPresets();
 			}
 
 			private void removePreset() {
@@ -1029,7 +1201,7 @@ class DataTables {
 					if (JOptionPane.showConfirmDialog(this, message, "Are you sure?", JOptionPane.YES_NO_CANCEL_OPTION)!=JOptionPane.YES_OPTION)
 						return;
 					modelPresets.remove(presetName);
-					columnHidePresets.write();
+					writeAllPresets();
 					presetNames.remove(presetName);
 					updatePresetComboBoxModel(null);
 				}
@@ -1046,22 +1218,16 @@ class DataTables {
 				int index = presetComboBox.getSelectedIndex();
 				String presetName = getPresetName(index);
 				if (presetName!=null) {
-					modelPresets.put(presetName, new HashSet<>(currentPreset));
-					columnHidePresets.write();
+					modelPresets.put(presetName, getCopyOfCurrentPreset());
+					writeAllPresets();
 				}
 			}
 
 			private void setSelectedPresetInGui(int index) {
 				String presetName = getPresetName(index);
 				if (presetName!=null) {
-					HashSet<String> preset = modelPresets.get(presetName);
-					currentPreset.clear();
-					currentPreset.addAll(preset);
-					for (int i=0; i<this.originalColumns.length; i++) {
-						ColumnID column = this.originalColumns[i];
-						boolean isVisible = preset.contains(column.id);
-						checkBoxes[i].setSelected(isVisible);
-					}
+					Preset preset = modelPresets.get(presetName);
+					setPresetInGui(preset);
 				}
 			}
 
@@ -1072,10 +1238,6 @@ class DataTables {
 			boolean showDialog() {
 				setVisible(true);
 				return hasChanged;
-			}
-		
-			static ColumnID[] removeHiddenColumns(ColumnID[] originalColumns) {
-				return Arrays.stream(originalColumns).filter(column->column.isVisible).toArray(ColumnID[]::new);
 			}
 		
 		}
@@ -1100,7 +1262,8 @@ class DataTables {
 			final Color foreground;
 			final Color background;
 			final String format;
-			private boolean isVisible; 
+			private boolean isVisible;
+			private FilterRowsDialog.Filter filter;
 			
 			ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
 				this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, false, null, getValue, null);
@@ -1122,6 +1285,7 @@ class DataTables {
 			}
 			<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue, LanguageBasedStringBuilder getValueL, TableModelBasedBuilder<ColumnType> getValueT) {
 				this.isVisible = true;
+				this.filter = null;
 				this.id = ID;
 				this.horizontalAlignment = horizontalAlignment;
 				this.format = format;
