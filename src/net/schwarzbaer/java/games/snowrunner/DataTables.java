@@ -818,7 +818,7 @@ class DataTables {
 						originalColumns, getModelPresets(tableModelIDstr),
 						FilterGuiElement[]::new,
 						HashMap<String,FilterRowsDialog.Filter>::new,
-						new JPanel(new GridBagLayout()));
+						FilterGuiElement.createEmptyColumnPanel());
 			}
 
 			@Override protected boolean resetValuesFinal() {
@@ -854,16 +854,7 @@ class DataTables {
 			}
 
 			@Override protected void addColumnElementToPanel(JPanel columnPanel, FilterGuiElement columnElement) {
-				GridBagConstraints c = new GridBagConstraints();
-				c.fill = GridBagConstraints.BOTH;
-				
-				c.weightx = 0;
-				c.gridwidth = 1;
-				columnPanel.add(columnElement.baseCheckBox, c);
-				
-				c.weightx = 1;
-				c.gridwidth = GridBagConstraints.REMAINDER;
-				columnPanel.add(columnElement, c);
+				columnElement.addToPanel(columnPanel);
 			}
 
 			private static HashMap<String, HashMap<String, Filter>> getModelPresets(String tableModelID) {
@@ -923,6 +914,24 @@ class DataTables {
 					
 					c.weightx = 1;
 					add(new JLabel("No Filter for current Column Type"), c);
+				}
+
+				static JPanel createEmptyColumnPanel() {
+					return new JPanel(new GridBagLayout());
+				}
+
+				void addToPanel(JPanel columnPanel) {
+					
+					GridBagConstraints c = new GridBagConstraints();
+					c.fill = GridBagConstraints.BOTH;
+					
+					c.weightx = 0;
+					c.gridwidth = 1;
+					columnPanel.add(baseCheckBox, c);
+					
+					c.weightx = 1;
+					c.gridwidth = GridBagConstraints.REMAINDER;
+					columnPanel.add(this, c);
 				}
 			}
 		
