@@ -814,7 +814,11 @@ class DataTables {
 			private static final long serialVersionUID = 6171301101675843952L;
 		
 			FilterRowsDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
-				super(owner, "Filter Rows", "Define filters", originalColumns, getModelPresets(tableModelIDstr), FilterGuiElement[]::new, HashMap<String,FilterRowsDialog.Filter>::new);
+				super(owner, "Filter Rows", "Define filters",
+						originalColumns, getModelPresets(tableModelIDstr),
+						FilterGuiElement[]::new,
+						HashMap<String,FilterRowsDialog.Filter>::new,
+						new JPanel(new GridBagLayout()));
 			}
 
 			@Override protected boolean resetValuesFinal() {
@@ -847,6 +851,19 @@ class DataTables {
 
 			@Override protected FilterGuiElement createColumnElement(ColumnID columnID) {
 				return new FilterGuiElement(columnID);
+			}
+
+			@Override protected void addColumnElementToPanel(JPanel columnPanel, FilterGuiElement columnElement) {
+				GridBagConstraints c = new GridBagConstraints();
+				c.fill = GridBagConstraints.BOTH;
+				
+				c.weightx = 0;
+				c.gridwidth = 1;
+				columnPanel.add(columnElement.baseCheckBox, c);
+				
+				c.weightx = 1;
+				c.gridwidth = GridBagConstraints.REMAINDER;
+				columnPanel.add(columnElement, c);
 			}
 
 			private static HashMap<String, HashMap<String, Filter>> getModelPresets(String tableModelID) {
@@ -889,21 +906,23 @@ class DataTables {
 			
 			static class FilterGuiElement extends JPanel {
 				private static final long serialVersionUID = 3133267500197644609L;
+				private final String name;
+				private final JCheckBox baseCheckBox;
 
 				FilterGuiElement(ColumnID columnID) {
 					super(new GridBagLayout());
+					name = columnID.config.name;
+					baseCheckBox = SnowRunner.createCheckBox(name, columnID.filter!=null, null, true, b->{
+						// TODO
+					});
+					
 					GridBagConstraints c = new GridBagConstraints();
 					c.fill = GridBagConstraints.BOTH;
-					
-					c.weightx = 0;
-					add(SnowRunner.createCheckBox(columnID.config.name, columnID.filter!=null, null, true, b->{
-						// TODO
-					}), c);
 					
 					// TODO Auto-generated constructor stub
 					
 					c.weightx = 1;
-					add(new JLabel(), c);
+					add(new JLabel("No Filter for current Column Type"), c);
 				}
 			}
 		
@@ -1008,7 +1027,11 @@ class DataTables {
 			private static final long serialVersionUID = 4240161527743718020L;
 
 			ColumnHideDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
-				super(owner, "Visible Columns", "Define visible columns", originalColumns, columnHidePresets.getModelPresets(tableModelIDstr), JCheckBox[]::new, HashSet<String>::new);
+				super(owner, "Visible Columns", "Define visible columns",
+						originalColumns, columnHidePresets.getModelPresets(tableModelIDstr),
+						JCheckBox[]::new,
+						HashSet<String>::new,
+						new JPanel(new GridLayout(0,1)));
 			}
 
 			@Override protected HashSet<String> getCopyOfCurrentPreset() {
@@ -1036,6 +1059,10 @@ class DataTables {
 					else   currentPreset.remove(columnID.id);
 				});
 				return checkBox;
+			}
+
+			@Override protected void addColumnElementToPanel(JPanel columnPanel, JCheckBox columnElement) {
+				columnPanel.add(columnElement);
 			}
 
 			@Override protected boolean resetValuesFinal() {
@@ -1078,7 +1105,7 @@ class DataTables {
 			private final Vector<String> presetNames;
 			private final JComboBox<String> presetComboBox;
 			
-			ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, ColumnID[] originalColumns, HashMap<String, Preset> modelPresets, Function<Integer,ColumnElement[]> createColumnElementArray, Supplier<Preset> createEmptyPreset) {
+			ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, ColumnID[] originalColumns, HashMap<String, Preset> modelPresets, Function<Integer,ColumnElement[]> createColumnElementArray, Supplier<Preset> createEmptyPreset, JPanel emptyColumnPanel) {
 				super(owner, title, ModalityType.APPLICATION_MODAL);
 				this.originalColumns = originalColumns;
 				this.modelPresets = modelPresets;
@@ -1086,23 +1113,28 @@ class DataTables {
 				this.hasChanged = false;
 				GridBagConstraints c;
 				
-				JPanel columnPanel = new JPanel(new GridLayout(0,1));
+				//JPanel emptyColumnPanel = new JPanel(new GridLayout(0,1));
+				JPanel columnPanel = emptyColumnPanel;
 				columnElements = createColumnElementArray.apply(this.originalColumns.length);
-				for (int i=0; i<this.originalColumns.length; i++)
-					columnPanel.add(columnElements[i] = createColumnElement(this.originalColumns[i]));
+				for (int i=0; i<this.originalColumns.length; i++) {
+					ColumnElement columnElement = createColumnElement(this.originalColumns[i]);
+					columnElements[i] = columnElement;
+					addColumnElementToPanel(columnPanel, columnElement);
+				}
 				
 				JScrollPane columnScrollPane = new JScrollPane(columnPanel);
 				columnScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-				columnScrollPane.setPreferredSize(new Dimension(200,400));
+				columnScrollPane.setPreferredSize(new Dimension(300,400));
 				columnScrollPane.getVerticalScrollBar().setUnitIncrement(10);
 				
 				presetNames = new Vector<>(modelPresets.keySet());
 				presetNames.sort(null);
 				presetComboBox = new JComboBox<>(new Vector<>(presetNames));
-				presetComboBox.setPreferredSize(new Dimension(100,20));
+				//presetComboBox.setMinimumSize(new Dimension(100,20));
 				
 				JButton btnOverwrite, btnRemove;
 				JPanel presetPanel = new JPanel(new GridBagLayout());
+				//presetPanel.setPreferredSize(new Dimension(200,20));
 				c = new GridBagConstraints();
 				c.fill = GridBagConstraints.BOTH;
 				c.weightx=0;
@@ -1168,6 +1200,7 @@ class DataTables {
 			protected abstract boolean resetValuesFinal();
 			protected abstract boolean setValuesFinal();
 			protected abstract ColumnElement createColumnElement(ColumnID columnID);
+			protected abstract void addColumnElementToPanel(JPanel columnPanel, ColumnElement columnElement);
 			protected abstract void writeAllPresets();
 			protected abstract void setPresetInGui(Preset preset);
 			protected abstract Preset getCopyOfCurrentPreset();
