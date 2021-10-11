@@ -88,7 +88,7 @@ class XMLTemplateStructure {
 				System.err.printf("   [%d] %s%n", i+1, ignoredFiles.get(i));
 		}
 		
-		testingGround.writeToFile("TestingGround.results.txt");
+		//testingGround.writeToFile("TestingGround.results.txt");
 	}
 
 	private HashMap<String,Templates> readGlobalTemplates(ZipFile zipFile, HashMap<String,ZipEntryTreeNode> templates) throws EntryStructureException, IOException, ParseException {

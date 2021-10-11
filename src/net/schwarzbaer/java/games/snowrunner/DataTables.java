@@ -9,6 +9,8 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Window;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -22,10 +24,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.Vector;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -45,6 +50,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -63,7 +69,6 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.text.DefaultStyledDocument;
 import javax.swing.text.StyledDocument;
 
-import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
@@ -149,8 +154,20 @@ class DataTables {
 			SimplifiedRowSorter rowSorter = new TableSimplifierRowSorter(this.tableModel);
 			table.setRowSorter(rowSorter);
 			
+//			table.addMouseListener(new MouseAdapter() {
+//				@Override public void mousePressed(MouseEvent e) {
+//					System.out.printf("table.mousePressed(btn:%d, x:%d, y:%d)%n", e.getButton(), e.getX(), e.getY());
+//				}
+//			});
+//			
+//			tableScrollPane.addMouseListener(new MouseAdapter() {
+//				@Override public void mousePressed(MouseEvent e) {
+//					System.out.printf("tableScrollPane.mousePressed(btn:%d, x:%d, y:%d)%n", e.getButton(), e.getX(), e.getY());
+//				}
+//			});
+			
 			tableContextMenu = new ContextMenu();
-			tableContextMenu.addTo(table);
+			tableContextMenu.addTo(table, tableScrollPane);
 			tableContextMenu.add(SnowRunner.createMenuItem("Reset Row Order",true,e->{
 				rowSorter.resetSortOrder();
 				table.repaint();
@@ -161,6 +178,44 @@ class DataTables {
 			
 			if (this.tableModel instanceof TableContextMenuModifier)
 				((TableContextMenuModifier)this.tableModel).modifyTableContextMenu(table,tableContextMenu);
+		}
+		
+		static class ContextMenu extends JPopupMenu {
+			private static final long serialVersionUID = 2403688936186717306L;
+			
+			private Vector<ContextMenuInvokeListener> listeners = new Vector<>();
+			
+			public void addTo(JTable table, JScrollPane scrollPane) {
+				table.addMouseListener(new MouseAdapter() {
+					@Override public void mouseClicked(MouseEvent e) {
+						if (e.getButton()==MouseEvent.BUTTON3) {
+							notifyListeners(table, e.getX(), e.getY());
+							show(table, e.getX(), e.getY());
+						}
+					}
+
+				});
+				scrollPane.addMouseListener(new MouseAdapter() {
+					@Override public void mouseClicked(MouseEvent e) {
+						if (e.getButton()==MouseEvent.BUTTON3) {
+							notifyListeners(table, null, null);
+							show(scrollPane, e.getX(), e.getY());
+						}
+					}
+				});
+			}
+			
+			private void notifyListeners(JTable table, Integer x, Integer y) {
+				for (ContextMenuInvokeListener listener:listeners)
+					listener.contextMenuWillBeInvoked(table, x, y);
+			}
+			
+			public void    addContextMenuInvokeListener( ContextMenuInvokeListener listener ) { listeners.   add(listener); } 
+			public void removeContextMenuInvokeListener( ContextMenuInvokeListener listener ) { listeners.remove(listener); }
+			
+			public interface ContextMenuInvokeListener {
+				public void contextMenuWillBeInvoked(JTable table, Integer x, Integer y);
+			}
 		}
 
 		static JComponent create(SimplifiedTableModel<?> tableModel) {
@@ -608,7 +663,7 @@ class DataTables {
 				originalRows.addAll(rows);
 				if (initialRowOrder != null)
 					originalRows.sort(initialRowOrder);
-				this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns));
+				this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns, this::getValue));
 			}
 			extraUpdate();
 			fireTableUpdate();
@@ -717,7 +772,7 @@ class DataTables {
 			}
 		}
 		
-		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
+		@Override public void modifyTableContextMenu(JTable table, TableSimplifier.ContextMenu contextMenu) {
 			
 			contextMenu.addSeparator();
 			
@@ -751,15 +806,15 @@ class DataTables {
 				boolean changed = dlg.showDialog();
 				if (changed) {
 					rows.clear();
-					this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns));
+					this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns, this::getValue));
 					fireTableStructureUpdate();
 					reconfigureAfterTableStructureUpdate();
 				}
 			}));
 			
-			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
-				int colV = table.columnAtPoint(new Point(x,y));
-				clickedColumnIndex = colV<0 ? -1 : table.convertColumnIndexToModel(colV);
+			contextMenu.addContextMenuInvokeListener((table_, x, y) -> {
+				int colV = x==null || y==null ? -1 : table_.columnAtPoint(new Point(x,y));
+				clickedColumnIndex = colV<0 ? -1 : table_.convertColumnIndexToModel(colV);
 				clickedColumn = clickedColumnIndex<0 ? null : super.columns[clickedColumnIndex];
 				
 				miDeactivateAllSpecialColorings.setEnabled(
@@ -794,6 +849,11 @@ class DataTables {
 			RowType row = getRow(rowIndex);
 			if (row==null) return null;
 			
+			return getValue(columnID, row);
+			
+		}
+		
+		Object getValue(ColumnID columnID, RowType row) {
 			if (columnID.getValue!=null) {
 				if (columnID.useValueAsStringID) {
 					String stringID = (String) columnID.getValue.apply(row);
@@ -809,7 +869,6 @@ class DataTables {
 			}
 			
 			return null;
-			
 		}
 
 		protected int findColumnByID(String id) {
@@ -886,15 +945,38 @@ class DataTables {
 				return preset;
 			}
 
-			static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, ColumnID[] originalColumns) {
+			static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, ColumnID[] originalColumns, BiFunction<ColumnID,RowType,Object> getValue) {
+				Vector<RowType> filteredRows = new Vector<>();
+				for (RowType row : originalRows) {
+					boolean meetsFilter = true;
+					for (ColumnID columnID : originalColumns) {
+						if (columnID.filter==null || !columnID.filter.active)
+							continue;
+						
+						Object value = getValue.apply(columnID, row);
+						if (!columnID.filter.valueMeetsFilter(value)) {
+							meetsFilter = false;
+							break;
+						}
+					}
+					if (meetsFilter)
+						filteredRows.add(row);
+				}
+				
 				// TODO Auto-generated method stub
-				return originalRows;
+				return filteredRows;
 			}
 
 			static abstract class Filter {
 				
 				boolean active = false;
 				boolean allowUnset = false;
+
+				boolean valueMeetsFilter(Object value) {
+					if (allowUnset && value==null)
+						return true;
+					return valueMeetsFilter_SubType(value);
+				}
 
 				public static Filter parse(String str) {
 					int pos;
@@ -931,6 +1013,7 @@ class DataTables {
 					switch (simpleClassName) {
 					case "NumberFilter": filter = NumberFilter.parseNumberFilter(str); break;
 					case "BoolFilter"  : filter = BoolFilter.parseBoolFilter(str); break;
+					case "EnumFilter"  : filter = EnumFilter.parseEnumFilter(str); break;
 					}
 					
 					if (filter != null) {
@@ -941,8 +1024,8 @@ class DataTables {
 					return filter;
 				}
 
-				final public String toParsableString() {
-					return String.format("%s:%s:%s:%s", active, allowUnset, getClass().getSimpleName(), toParsableStringOfSubTypeValues());
+				final String toParsableString() {
+					return String.format("%s:%s:%s:%s", active, allowUnset, getClass().getSimpleName(), toParsableString_SubType());
 				}
 
 				@Override final public boolean equals(Object obj) {
@@ -950,32 +1033,135 @@ class DataTables {
 					Filter other = (Filter) obj;
 					if (this.active    !=other.active    ) return false;
 					if (this.allowUnset!=other.allowUnset) return false;
-					return equalsSubType(other);
+					return equals_SubType(other);
 				}
 				
 				@Override final protected Filter clone() {
-					Filter filter = cloneSubType();
+					Filter filter = clone_SubType();
 					filter.active     = active    ;
 					filter.allowUnset = allowUnset;
 					return filter;
 				}
 
-				protected abstract String toParsableStringOfSubTypeValues();
-				protected abstract boolean equalsSubType(Filter other);
-				protected abstract Filter cloneSubType();
+				protected abstract boolean valueMeetsFilter_SubType(Object value);
+				protected abstract String toParsableString_SubType();
+				protected abstract boolean equals_SubType(Filter other);
+				protected abstract Filter clone_SubType();
 				
 				
+				static class EnumFilter<E extends Enum<E>> extends Filter {
+					private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
+					private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
+					static {
+						registerEnumFilter("DiffLockType", Truck.DiffLockType .class, Truck.DiffLockType ::valueOf);
+						registerEnumFilter("Country"     , Truck.Country      .class, Truck.Country      ::valueOf);
+						registerEnumFilter("TruckType"   , Truck.TruckType    .class, Truck.TruckType    ::valueOf);
+						registerEnumFilter("ItemStat"    , Truck.UDV.ItemState.class, Truck.UDV.ItemState::valueOf);
+					}
+
+					private static <E extends Enum<E>> void registerEnumFilter(String filterID, Class<E> valueClass, Function<String, E> parseValue) {
+						KnownFilterIDs.put(valueClass,filterID);
+						KnownTypes.put(filterID, values -> parseEnumFilter(valueClass, filterID, values, parseValue));
+					}
+
+					static String getFilterID(Class<?> valueClass) {
+						String filterID = KnownFilterIDs.get(valueClass);
+						if (filterID==null) throw new IllegalStateException(String.format("EnumFilter: Can't find filter id for value class \"%s\"", valueClass.getCanonicalName()));
+						return filterID;
+					}
+
+					private final String filterID;
+					private final Class<E> valueClass;
+					private final EnumSet<E> allowedValues;
+
+					EnumFilter(String filterID, Class<E> valueClass) {
+						this.filterID = filterID;
+						if (valueClass==null) throw new IllegalArgumentException();
+						this.valueClass = valueClass;
+						this.allowedValues = EnumSet.noneOf(valueClass);
+						EnumSet.allOf(valueClass);
+					}
+
+					@Override protected boolean valueMeetsFilter_SubType(Object value) {
+						if (valueClass.isInstance(value)) {
+							E e = valueClass.cast(value);
+							return allowedValues.contains(e);
+						} 
+						return false;
+					}
+
+					@Override protected boolean equals_SubType(Filter other) {
+						if (other instanceof EnumFilter) {
+							EnumFilter<?> otherEnumFilter = (EnumFilter<?>) other;
+							if (valueClass != otherEnumFilter.valueClass) return false;
+							if (!areAllValuesContainedIn(otherEnumFilter.allowedValues)) return false;
+							if (!otherEnumFilter.areAllValuesContainedIn(allowedValues)) return false;
+							return true;
+						}
+						return false;
+					}
+					
+					private boolean areAllValuesContainedIn(Set<?> values) {
+						for (E e : allowedValues) {
+							if (!values.contains(e))
+								return false;
+						}
+						return true;
+					}
+
+					@Override protected Filter clone_SubType() {
+						EnumFilter<E> enumFilter = new EnumFilter<>(filterID,valueClass);
+						enumFilter.allowedValues.addAll(allowedValues);
+						return enumFilter;
+					}
+
+					public static Filter parseEnumFilter(String str) {
+						int pos = str.indexOf(':');
+						if (pos<0) return null;
+						String filterID = str.substring(0, pos);
+						String namesStr = str.substring(pos+1);
+						String[] names = namesStr.split(",");
+						
+						Function<String[], EnumFilter<?>> parseFilter = KnownTypes.get(filterID);
+						if (parseFilter==null) {
+							System.err.printf("Can't parse EnumFilter: Unknown filter ID \"%s\" in \"%s\"%n", filterID, str);
+							return null;
+						}
+						
+						return parseFilter.apply(names);
+					}
+
+					private static <E extends Enum<E>> EnumFilter<E> parseEnumFilter(Class<E> valueClass, String filterID, String[] names, Function<String, E> parseEnumValue) {
+						EnumFilter<E> filter = new EnumFilter<>(filterID,valueClass);
+						for (String name : names)
+							try {
+								filter.allowedValues.add(parseEnumValue.apply(name));
+							} catch (Exception ex) {
+								System.err.printf("EnumFilter[%s]: Can't parse value \"%s\" for enum \"%s\"%n", filterID, name, valueClass.getCanonicalName());
+							}
+						return filter;
+					}
+
+					@Override protected String toParsableString_SubType() {
+						String[] names = allowedValues.stream().map(e->e.name()).toArray(String[]::new);
+						return String.format("%s:%s", filterID, String.join(",", names));
+					}
+					
+				}
+
+
 				static class NumberFilter<V extends Number> extends Filter {
+					
 					V min,max;
 					private final Class<V> valueClass;
-					private final Supplier<NumberFilter<V>> createNew;
 					private final Function<V, String> toParsableString;
+					private final BiFunction<V, V, Integer> compare;
 					
-					NumberFilter(Class<V> valueClass, Supplier<NumberFilter<V>> createNew, V min, V max, Function<V,String> toParsableString) {
+					NumberFilter(Class<V> valueClass, V min, V max, BiFunction<V,V,Integer> compare, Function<V,String> toParsableString) {
 						this.valueClass = valueClass;
-						this.createNew = createNew;
 						this.min = min;
 						this.max = max;
+						this.compare = compare;
 						this.toParsableString = toParsableString;
 						if (this.valueClass==null) throw new IllegalArgumentException();
 						if (this.toParsableString==null) throw new IllegalArgumentException();
@@ -983,7 +1169,19 @@ class DataTables {
 						if (this.max==null) throw new IllegalArgumentException();
 					}
 
-					@Override protected boolean equalsSubType(Filter other) {
+					@Override protected boolean valueMeetsFilter_SubType(Object value) {
+						if (valueClass.isInstance(value)) {
+							V v = valueClass.cast(value);
+							if (compare.apply(min, max)<=0)
+								// ---- min #### max ---- 
+								return compare.apply(min, v)<=0 && compare.apply(v, max)<=0;
+							// #### max ---- min #### 
+							return compare.apply(min, v)<=0 || compare.apply(v, max)<=0;
+						} 
+						return false;
+					}
+
+					@Override protected boolean equals_SubType(Filter other) {
 						if (other instanceof NumberFilter) {
 							NumberFilter<?> numberFilter = (NumberFilter<?>) other;
 							if (valueClass!=numberFilter.valueClass) return false;
@@ -995,11 +1193,8 @@ class DataTables {
 					}
 
 					@Override
-					protected Filter cloneSubType() {
-						NumberFilter<V> numberFilter = createNew.get();
-						numberFilter.min = min;
-						numberFilter.max = max;
-						return numberFilter;
+					protected Filter clone_SubType() {
+						return new NumberFilter<>(valueClass, min, max, compare, toParsableString);
 					}
 					
 					public static Filter parseNumberFilter(String str) {
@@ -1050,17 +1245,18 @@ class DataTables {
 						return null;
 					}
 
-					@Override protected String toParsableStringOfSubTypeValues() {
+					@Override protected String toParsableString_SubType() {
 						String minStr = toParsableString.apply(min);
 						String maxStr = toParsableString.apply(max);
 						String simpleName = valueClass.getSimpleName();
 						return String.format("%s:%s:%s", simpleName, minStr, maxStr);
 					}
 
-					static NumberFilter<Integer> createIntFilter   () { return new NumberFilter<Integer>(Integer.class, NumberFilter::createIntFilter   , 0 , 0 , v->Integer.toString(v)); }
-					static NumberFilter<Long   > createLongFilter  () { return new NumberFilter<Long   >(Long   .class, NumberFilter::createLongFilter  , 0L, 0L, v->Long.toString(v)); }
-					static NumberFilter<Float  > createFloatFilter () { return new NumberFilter<Float  >(Float  .class, NumberFilter::createFloatFilter , 0f, 0f, v->String.format("%08X", Float.floatToIntBits(v))); }
-					static NumberFilter<Double > createDoubleFilter() { return new NumberFilter<Double >(Double .class, NumberFilter::createDoubleFilter, 0d, 0d, v->String.format("%016X", Double.doubleToLongBits(v))); }
+					static NumberFilter<Integer> createIntFilter   () { return new NumberFilter<Integer>(Integer.class, 0 , 0 , Integer::compare, v->Integer.toString(v)); }
+					static NumberFilter<Long   > createLongFilter  () { return new NumberFilter<Long   >(Long   .class, 0L, 0L, Long   ::compare, v->Long.toString(v)); }
+					static NumberFilter<Float  > createFloatFilter () { return new NumberFilter<Float  >(Float  .class, 0f, 0f, Float  ::compare, v->String.format("%08X", Float.floatToIntBits(v))); }
+					static NumberFilter<Double > createDoubleFilter() { return new NumberFilter<Double >(Double .class, 0d, 0d, Double ::compare, v->String.format("%016X", Double.doubleToLongBits(v))); }
+					
 				}
 				
 				
@@ -1068,7 +1264,15 @@ class DataTables {
 				
 					boolean allowTrues = true;
 
-					@Override protected boolean equalsSubType(Filter other) {
+					@Override protected boolean valueMeetsFilter_SubType(Object value) {
+						if (value instanceof Boolean) {
+							Boolean v = (Boolean) value;
+							return allowTrues == v.booleanValue();
+						}
+						return false;
+					}
+
+					@Override protected boolean equals_SubType(Filter other) {
 						if (other instanceof BoolFilter) {
 							BoolFilter boolFilter = (BoolFilter) other;
 							return this.allowTrues == boolFilter.allowTrues;
@@ -1076,7 +1280,7 @@ class DataTables {
 						return false;
 					}
 				
-					@Override protected BoolFilter cloneSubType() {
+					@Override protected BoolFilter clone_SubType() {
 						BoolFilter boolFilter = new BoolFilter();
 						boolFilter.allowTrues = allowTrues;
 						return boolFilter;
@@ -1092,7 +1296,7 @@ class DataTables {
 						return boolFilter;
 					}
 
-					@Override protected String toParsableStringOfSubTypeValues() {
+					@Override protected String toParsableString_SubType() {
 						return Boolean.toString(allowTrues);
 					}
 					
@@ -1103,6 +1307,18 @@ class DataTables {
 			}
 			
 			static class FilterGuiElement {
+				private static final HashMap<Class<?>,Supplier<OptionsPanel>> RegisteredOptionsPanels = new HashMap<>();
+				static {
+					RegisteredOptionsPanels.put(Boolean.class, ()->new OptionsPanel.BoolOptions(new Filter.BoolFilter()));
+					RegisteredOptionsPanels.put(Integer.class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null             ));
+					RegisteredOptionsPanels.put(Long   .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null             ));
+					RegisteredOptionsPanels.put(Float  .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite ));
+					RegisteredOptionsPanels.put(Double .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite ));
+					RegisteredOptionsPanels.put(Truck.Country      .class, ()->OptionsPanel.EnumOptions.create(Truck.Country      .class, Truck.Country      .values()));
+					RegisteredOptionsPanels.put(Truck.DiffLockType .class, ()->OptionsPanel.EnumOptions.create(Truck.DiffLockType .class, Truck.DiffLockType .values()));
+					RegisteredOptionsPanels.put(Truck.TruckType    .class, ()->OptionsPanel.EnumOptions.create(Truck.TruckType    .class, Truck.TruckType    .values()));
+					RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, ()->OptionsPanel.EnumOptions.create(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values()));
+				}
 				
 				private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
 				final ColumnID columnID;
@@ -1113,56 +1329,9 @@ class DataTables {
 				FilterGuiElement(ColumnID columnID) {
 					this.columnID = columnID;
 					
-					if (this.columnID.config.columnClass==Boolean.class) {
-						optionsPanel = new OptionsPanel.BoolOptions(new Filter.BoolFilter());
-						
-					} else if (this.columnID.config.columnClass==Integer.class) {
-						optionsPanel = new OptionsPanel.NumberOptions<Integer>(
-							Filter.NumberFilter.createIntFilter(),
-							v -> v==null ? "<null>" : Integer.toString(v),
-							str -> {
-								try { return Integer.parseInt(str);
-								} catch (NumberFormatException e) { return null; }
-							},
-							null
-						);
-						
-					} else if (this.columnID.config.columnClass==Long.class) {
-						optionsPanel = new OptionsPanel.NumberOptions<Long>(
-							Filter.NumberFilter.createLongFilter(),
-							v -> v==null ? "<null>" : Long.toString(v),
-							str -> {
-								try { return Long.parseLong(str);
-								} catch (NumberFormatException e) { return null; }
-							},
-							null
-						);
-						
-					} else if (this.columnID.config.columnClass==Float.class) {
-						optionsPanel = new OptionsPanel.NumberOptions<Float>(
-							Filter.NumberFilter.createFloatFilter(),
-							v -> v==null ? "<null>" : Float.toString(v),
-							str -> {
-								try { return Float.parseFloat(str);
-								} catch (NumberFormatException e) { return null; }
-							},
-							Float::isFinite
-						);
-						
-					} else if (this.columnID.config.columnClass==Double.class) {
-						optionsPanel = new OptionsPanel.NumberOptions<Double>(
-							Filter.NumberFilter.createDoubleFilter(),
-							v -> v==null ? "<null>" : Double.toString(v),
-							str -> {
-								try { return Double.parseDouble(str);
-								} catch (NumberFormatException e) { return null; }
-							},
-							Double::isFinite
-						);
-						
-					} else {
-						optionsPanel = new OptionsPanel.DummyOptions(this.columnID.config.columnClass);
-					}
+					Supplier<OptionsPanel> creator = RegisteredOptionsPanels.get(this.columnID.config.columnClass);
+					if (creator==null) optionsPanel = new OptionsPanel.DummyOptions(this.columnID.config.columnClass);
+					else               optionsPanel = creator.get();
 					
 					optionsPanel.setValues(this.columnID.filter);
 					if (optionsPanel.filter!=null)
@@ -1268,22 +1437,85 @@ class DataTables {
 					}
 
 
+					static class EnumOptions<E extends Enum<E>> extends OptionsPanel {
+						private static final long serialVersionUID = -458324264563153126L;
+						
+						private final Filter.EnumFilter<E> filter;
+						private final JCheckBox[] checkBoxes;
+						private final E[] values;
+
+						EnumOptions(Filter.EnumFilter<E> filter, E[] values) {
+							super(filter);
+							if (filter==null) throw new IllegalArgumentException();
+							if (values==null) throw new IllegalArgumentException();
+							
+							this.filter = filter;
+							this.values = values;
+							
+							checkBoxes = new JCheckBox[this.values.length];
+							c.weightx = 0;
+							for (int i=0; i<this.values.length; i++) {
+								E e = this.values[i];
+								boolean isSelected = this.filter.allowedValues.contains(e);
+								checkBoxes[i] = SnowRunner.createCheckBox(e.toString(), isSelected, null, true, b->{
+									if (b) this.filter.allowedValues.add(e);
+									else   this.filter.allowedValues.remove(e);
+								});
+								add(checkBoxes[i], c);
+							}
+							c.weightx = 1;
+							add(new JLabel(), c);
+						}
+
+						@Override void setEnableOptions(boolean isEnabled) {
+							super.setEnableOptions(isEnabled);
+							for (int i=0; i<checkBoxes.length; i++)
+								checkBoxes[i].setEnabled(isEnabled);
+						}
+
+						@Override void setValues(Filter filter) {
+							super.setValues(filter);
+							if (filter instanceof Filter.EnumFilter) {
+								Filter.EnumFilter<?> enumFilter = (Filter.EnumFilter<?>) filter;
+								
+								if (this.filter.valueClass!=enumFilter.valueClass)
+									throw new IllegalStateException();
+								
+								this.filter.allowedValues.clear();
+								for (int i=0; i<values.length; i++) {
+									E e = values[i];
+									if (enumFilter.allowedValues.contains(e)) {
+										this.filter.allowedValues.add(e);
+										checkBoxes[i].setSelected(true);										
+									} else
+										checkBoxes[i].setSelected(false);										
+								}
+							}
+						}
+
+						static <E extends Enum<E>> EnumOptions<E> create( Class<E> valueClass, E[] values) {
+							return new OptionsPanel.EnumOptions<>(new Filter.EnumFilter<>(Filter.EnumFilter.getFilterID(valueClass), valueClass), values);
+						}
+					}
+
+
 					static class NumberOptions<V extends Number> extends OptionsPanel {
 						private static final long serialVersionUID = -436186682804402478L;
 						
 						private final Filter.NumberFilter<V> filter;
 						private final JLabel labMin, labMax;
-						private JTextField fldMin, fldMax;
-
+						private final JTextField fldMin, fldMax;
 						private final Function<V, String> toString;
 
 						NumberOptions(Filter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
 							super(filter);
 							this.filter = filter;
 							this.toString = toString;
+							
 							if (filter==null) throw new IllegalArgumentException();
 							if (toString==null) throw new IllegalArgumentException();
 							if (convert==null) throw new IllegalArgumentException();
+							
 							c.weightx = 0;
 							add(labMin = new JLabel("   min: "), c);
 							add(fldMin = SnowRunner.createTextField(10, this.toString.apply(this.filter.min), convert, isOK, v->this.filter.min = v), c);
@@ -1291,6 +1523,17 @@ class DataTables {
 							add(fldMax = SnowRunner.createTextField(10, this.toString.apply(this.filter.max), convert, isOK, v->this.filter.max = v), c);
 							c.weightx = 1;
 							add(new JLabel(), c);
+						}
+						
+						static <V extends Number> NumberOptions<V> create(Filter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
+							return new NumberOptions<V>( filter,
+									v -> v==null ? "<null>" : toString.apply(v),
+									str -> {
+										try { return convert.apply(str);
+										} catch (NumberFormatException e) { return null; }
+									},
+									isOK
+								);
 						}
 
 						@Override void setEnableOptions(boolean isEnabled) {
@@ -1467,6 +1710,7 @@ class DataTables {
 				presetNames = new Vector<>(modelPresets.keySet());
 				presetNames.sort(null);
 				presetComboBox = new JComboBox<>(new Vector<>(presetNames));
+				presetComboBox.setSelectedItem(null);
 				//presetComboBox.setMinimumSize(new Dimension(100,20));
 				
 				JButton btnOverwrite, btnRemove;
@@ -1611,7 +1855,7 @@ class DataTables {
 		private static class FilterRowsPresets extends PresetMaps<HashMap<String,FilterRowsDialog.Filter>> {
 
 			FilterRowsPresets() {
-				super(SnowRunner.AppSettings.ValueKey.FilterRowsPresets, SnowRunner.PresetsTestOutputFile, HashMap<String,FilterRowsDialog.Filter>::new);
+				super(SnowRunner.AppSettings.ValueKey.FilterRowsPresets, /*SnowRunner.PresetsTestOutputFile,*/ HashMap<String,FilterRowsDialog.Filter>::new);
 			}
 
 			@Override protected void parseLine(String line, HashMap<String, FilterRowsDialog.Filter> preset) {
@@ -1644,7 +1888,7 @@ class DataTables {
 		private static class ColumnHidePresets extends PresetMaps<HashSet<String>> {
 		
 			ColumnHidePresets() {
-				super(SnowRunner.AppSettings.ValueKey.ColumnHidePresets, HashSet<String>::new);
+				super(SnowRunner.AppSettings.ValueKey.ColumnHidePresets, /*SnowRunner.PresetsTestOutputFile,*/ HashSet<String>::new);
 			}
 			
 			@Override protected void parseLine(String line, HashSet<String> preset) {
@@ -2169,8 +2413,8 @@ class DataTables {
 			setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
 		}
 
-		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
-			super.modifyTableContextMenu(table, contextMenu);
+		@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
+			super.modifyTableContextMenu(table_, contextMenu);
 			
 			contextMenu.addSeparator();
 			
@@ -2200,8 +2444,8 @@ class DataTables {
 				menuItems.put(list, mi);
 			}
 			
-			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
-				int rowV = table.rowAtPoint(new Point(x,y));
+			contextMenu.addContextMenuInvokeListener((table, x, y) -> {
+				int rowV = x==null || y==null ? -1 : table.rowAtPoint(new Point(x,y));
 				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
 				clickedItem = rowM<0 ? null : getRow(rowM);
 				
@@ -2452,8 +2696,8 @@ class DataTables {
 			userDefinedValues.write();
 		}
 
-		@Override public void modifyTableContextMenu(JTable table, ContextMenu contextMenu) {
-			super.modifyTableContextMenu(table, contextMenu);
+		@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
+			super.modifyTableContextMenu(table_, contextMenu);
 			
 			contextMenu.addSeparator();
 			
@@ -2465,8 +2709,8 @@ class DataTables {
 					controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
 			}));
 			
-			contextMenu.addContextMenuInvokeListener((comp, x, y) -> {
-				int rowV = table.rowAtPoint(new Point(x,y));
+			contextMenu.addContextMenuInvokeListener((table, x, y) -> {
+				int rowV = x==null || y==null ? -1 : table.rowAtPoint(new Point(x,y));
 				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
 				clickedItem = rowM<0 ? null : getRow(rowM);
 				
