@@ -9,6 +9,8 @@ import java.awt.Window;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -20,6 +22,7 @@ import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -38,6 +41,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
@@ -70,7 +74,7 @@ public class SnowRunner {
 
 	static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
 	static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
-	static final String ColumnHidePresetsFile = "SnowRunner - ColumnHidePresets.dat";
+	static final String PresetsTestOutputFile = "SnowRunner - PresetsTestOutput.dat";
 	
 	static final AppSettings settings = new AppSettings();
 
@@ -597,6 +601,68 @@ public class SnowRunner {
 	static <AC> JLabel createLabel(String text, Disabler<AC> disabler, AC ac) {
 		JLabel comp = new JLabel(text);
 		if (disabler!=null) disabler.add(ac, comp);
+		return comp;
+	}
+	
+	static JTextField createIntTextField(int columns, String text, Predicate<Integer> isOK, Consumer<Integer> setValue) {
+		return createTextField(columns, text, str->{
+			try { return Integer.parseInt(str); }
+			catch (NumberFormatException e) { return null; }
+		}, isOK, setValue);
+	}
+	
+	static JTextField createLongTextField(int columns, String text, Predicate<Long> isOK, Consumer<Long> setValue) {
+		return createTextField(columns, text, str->{
+			try { return Long.parseLong(str); }
+			catch (NumberFormatException e) { return null; }
+		}, isOK, setValue);
+	}
+	
+	static JTextField createFloatTextField(int columns, String text, Predicate<Float> isOK, Consumer<Float> setValue) {
+		return createTextField(columns, text, str->{
+			try { return Float.parseFloat(str); }
+			catch (NumberFormatException e) { return null; }
+		}, isOK, setValue);
+	}
+	
+	static JTextField createDoubleTextField(int columns, String text, Predicate<Double> isOK, Consumer<Double> setValue) {
+		return createTextField(columns, text, str->{
+			try { return Double.parseDouble(str); }
+			catch (NumberFormatException e) { return null; }
+		}, isOK, setValue);
+	}
+	
+	static JTextField createStringTextField(int columns, String text, Consumer<String> setValue) {
+		return createTextField(columns, text, str->str, null, setValue);
+	}
+	
+	static <V> JTextField createTextField(int columns, String text, Function<String,V> convert, Predicate<V> isOK, Consumer<V> setValue) {
+		JTextField comp = new JTextField(text,columns);
+		Color defaultBG = comp.getBackground();
+		if (setValue!=null && convert!=null) {
+			Runnable action = ()->{
+				String str = comp.getText();
+				V value = convert.apply(str);
+				if (value==null) {
+					comp.setBackground(Color.RED);
+					comp.setToolTipText("Can't convert entered text to value.");
+					return;
+				}
+				if (isOK!=null && !isOK.test(value)) {
+					comp.setBackground(Color.RED);
+					comp.setToolTipText("Entered value doesn't meets required criteria.");
+					return;
+				}
+				comp.setBackground(defaultBG);
+				setValue.accept(value);
+			};
+			comp.addActionListener(e->action.run());
+			comp.addFocusListener(new FocusListener() {
+				@Override public void focusGained(FocusEvent e) {}
+				@Override public void focusLost(FocusEvent e) { action.run(); }
+			});
+		} else
+			throw new IllegalArgumentException();
 		return comp;
 	}
 
@@ -1239,7 +1305,7 @@ public class SnowRunner {
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted,
 			MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
-			ColumnHidePresets,
+			ColumnHidePresets, FilterRowsPresets,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {
