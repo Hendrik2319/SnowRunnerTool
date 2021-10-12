@@ -1,4 +1,4 @@
-package net.schwarzbaer.java.games.snowrunner;
+package net.schwarzbaer.java.games.snowrunner.tables;
 
 import java.awt.Color;
 import java.awt.Component;
@@ -73,6 +73,7 @@ import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
+import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Engine;
 import net.schwarzbaer.java.games.snowrunner.Data.Gearbox;
@@ -86,20 +87,21 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
-import net.schwarzbaer.java.games.snowrunner.DataTables.TableSimplifier.TableContextMenuModifier;
-import net.schwarzbaer.java.games.snowrunner.DataTables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SaveGameListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.List;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables.TableSimplifier.TableContextMenuModifier;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables.TableSimplifier.TextAreaOutputSource;
 
-class DataTables {
+public class DataTables {
 	
 	static class TableSimplifierRowSorter extends Tables.SimplifiedRowSorter {
 
@@ -128,14 +130,14 @@ class DataTables {
 		}
 	}
 
-	static class TableSimplifier {
+	public static class TableSimplifier {
 		
 		final SimplifiedTableModel<?> tableModel;
 		final JTable table;
 		final JScrollPane tableScrollPane;
 		final ContextMenu tableContextMenu;
 	
-		TableSimplifier(SimplifiedTableModel<?> tableModel) {
+		private TableSimplifier(SimplifiedTableModel<?> tableModel) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			this.tableModel = tableModel;
@@ -218,10 +220,10 @@ class DataTables {
 			}
 		}
 
-		static JComponent create(SimplifiedTableModel<?> tableModel) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel) {
 			return create(tableModel, (Consumer<ContextMenu>)null);
 		}
-		static JComponent create(SimplifiedTableModel<?> tableModel, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
@@ -236,10 +238,10 @@ class DataTables {
 			return tableSimplifier.tableScrollPane;
 		}
 
-		static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
 			return create(tableModel, outputObj, modifyUpdateMethod, null);
 		}
-		static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
@@ -264,10 +266,10 @@ class DataTables {
 			return tableSimplifier.tableScrollPane;
 		}
 
-		static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
 			return create(tableModel, outputObj, modifyUpdateMethod, null);
 		}
-		static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
@@ -290,10 +292,10 @@ class DataTables {
 			return tableSimplifier.tableScrollPane;
 		}
 
-		static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
 			return create(tableModel, arbitraryOutputSource, null);
 		}
-		static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource, Consumer<ContextMenu> modifyContextMenu) {
 			return create(
 					tableModel,
 					arbitraryOutputSource,
@@ -304,7 +306,7 @@ class DataTables {
 			); 
 		}
 
-		static <OutputObject extends Component> JComponent create(
+		public static <OutputObject extends Component> JComponent create(
 				SimplifiedTableModel<?> tableModel,
 				OutputSource<OutputObject> outputSource,
 				Function<Runnable,Runnable> modifyUpdateMethod,
@@ -375,7 +377,7 @@ class DataTables {
 			void setContentForRow(OutputObject outputObject, int rowIndex);
 		}
 
-		interface ArbitraryOutputSource extends OutputSource<Component>{
+		public interface ArbitraryOutputSource extends OutputSource<Component>{
 			@Override default void setOutputUpdateMethod(Runnable outputUpdateMethod) {}
 			@Override default void setContentForRow(Component dummy, int rowIndex) { setContentForRow(rowIndex); }
 			void setContentForRow(int rowIndex);
@@ -402,7 +404,7 @@ class DataTables {
 		}
 	}
 
-	static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
+	public static class CombinedTableTabPaneTextAreaPanel extends JSplitPane {
 		private static final long serialVersionUID = -2637203211606881920L;
 		
 		private final JTextArea textArea;
@@ -410,7 +412,7 @@ class DataTables {
 		private int selectedTab;
 		private final Vector<Runnable> updateMethods;
 
-		CombinedTableTabPaneTextAreaPanel() {
+		protected CombinedTableTabPaneTextAreaPanel() {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			selectedTab = 0;
 			updateMethods = new Vector<Runnable>();
@@ -440,21 +442,21 @@ class DataTables {
 			setResizeWeight(1);
 		}
 		
-		void removeAllTabs() {
+		protected void removeAllTabs() {
 			tabbedPane.removeAll();
 			updateMethods.clear();
 		}
 		
-		void setTabTitle(int index, String title) {
+		protected void setTabTitle(int index, String title) {
 			tabbedPane.setTitleAt(index, title);
 		}
 		
-		void setTabComponentAt(int index, Component component) {
+		protected void setTabComponentAt(int index, Component component) {
 			tabbedPane.setTabComponentAt(index, component);
 		}
 		
 		
-		<TableModel extends VerySimpleTableModel<?> & TextAreaOutputSource> void addTab(String title, TableModel tableModel) {
+		protected <TableModel extends VerySimpleTableModel<?> & TextAreaOutputSource> void addTab(String title, TableModel tableModel) {
 			int tabIndex = tabbedPane.getTabCount();
 			JComponent panel = TableSimplifier.create(tableModel, textArea, updateMethod->{
 				Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
@@ -489,7 +491,7 @@ class DataTables {
 		private   ColumnID clickedColumn;
 		private   int clickedColumnIndex;
 	
-		VerySimpleTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
+		protected VerySimpleTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 			super(columns);
 			this.mainWindow = mainWindow;
 			this.controllers = controllers;
@@ -627,10 +629,10 @@ class DataTables {
 			}
 		}
 		
-		void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
+		protected void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
 			connectToGlobalData(getData, false);
 		}
-		void connectToGlobalData(Function<Data,Collection<RowType>> getData, boolean forwardNulls) {
+		protected void connectToGlobalData(Function<Data,Collection<RowType>> getData, boolean forwardNulls) {
 			if (getData!=null)
 				controllers.dataReceivers.add(this, data -> {
 					if (!forwardNulls)
@@ -656,7 +658,7 @@ class DataTables {
 			}
 		}
 	
-		final void setData(Collection<RowType> rows) {
+		public final void setData(Collection<RowType> rows) {
 			this.rows.clear();
 			originalRows.clear();
 			if (rows!=null) {
@@ -840,7 +842,7 @@ class DataTables {
 			return rows.size();
 		}
 	
-		RowType getRow(int rowIndex) {
+		public RowType getRow(int rowIndex) {
 			if (rowIndex<0 || rowIndex>=rows.size()) return null;
 			return rows.get(rowIndex);
 		}
@@ -2094,7 +2096,7 @@ class DataTables {
 		}
 	}
 
-	static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements TextAreaOutputSource {
+	public static abstract class ExtendedVerySimpleTableModel<RowType> extends VerySimpleTableModel<RowType> implements TextAreaOutputSource {
 		
 		private Runnable textAreaUpdateMethod;
 	
@@ -2188,9 +2190,9 @@ class DataTables {
 		}
 	}
 
-	static class AddonCategoriesTableModel extends VerySimpleTableModel<AddonCategories.Category> {
+	public static class AddonCategoriesTableModel extends VerySimpleTableModel<AddonCategories.Category> {
 
-		AddonCategoriesTableModel(Window mainWindow, Controllers controllers) {
+		public AddonCategoriesTableModel(Window mainWindow, Controllers controllers) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("ID"         ,"ID"                          ,  String.class, 100, null, null, false, row->((AddonCategories.Category)row).name),
 					new ColumnID("Label"      ,"Label"                       ,  String.class, 200, null, null,  true, row->((AddonCategories.Category)row).label_StringID),
@@ -2203,9 +2205,9 @@ class DataTables {
 		
 	}
 
-	static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
+	public static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
 
-		SuspensionsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
+		public SuspensionsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 130,   null,      null, false, row->((Suspension)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 220,   null,      null, false, row->((Suspension)row).id),
@@ -2223,9 +2225,9 @@ class DataTables {
 		}
 	}
 
-	static class WinchesTableModel extends SetInstancesTableModel<Winch> {
+	public static class WinchesTableModel extends SetInstancesTableModel<Winch> {
 
-		WinchesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
+		public WinchesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"                  ,  String.class, 140,   null,      null, false, row->((Winch)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"                 ,  String.class, 160,   null,      null, false, row->((Winch)row).id),
@@ -2244,9 +2246,9 @@ class DataTables {
 		}
 	}
 
-	static class GearboxesTableModel extends SetInstancesTableModel<Gearbox> {
+	public static class GearboxesTableModel extends SetInstancesTableModel<Gearbox> {
 
-		GearboxesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
+		public GearboxesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 180,   null,      null, false, row->((Gearbox)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 140,   null,      null, false, row->((Gearbox)row).id),
@@ -2271,9 +2273,9 @@ class DataTables {
 		}
 	}
 
-	static class EnginesTableModel extends SetInstancesTableModel<Engine> {
+	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {
 	
-		EnginesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
+		public EnginesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 160,   null,      null, false, row->((Engine)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 190,   null,      null, false, row->((Engine)row).id),
@@ -2294,12 +2296,12 @@ class DataTables {
 		}
 	}
 
-	static class TrailersTableModel extends ExtendedVerySimpleTableModel<Trailer> {
+	public static class TrailersTableModel extends ExtendedVerySimpleTableModel<Trailer> {
 		
 		private HashMap<String, TruckAddon> truckAddons;
 		private HashMap<String, Trailer> trailers;
 
-		TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
+		public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 200,   null,      null,  true, row->((Trailer)row).name_StringID), 
@@ -2347,7 +2349,7 @@ class DataTables {
 		}
 	}
 
-	static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
+	public static class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
 		
 		private static final Color COLOR_SPECIALTRUCKADDON = new Color(0xFFF3AD);
 		private HashMap<String, TruckAddon> truckAddons;
@@ -2355,7 +2357,7 @@ class DataTables {
 		private TruckAddon clickedItem;
 		private final SpecialTruckAddons specialTruckAddons;
 
-		TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons) {
+		public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
 					new ColumnID("DLC"      ,"DLC"                  ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).dlcName),
@@ -2399,7 +2401,7 @@ class DataTables {
 				});
 			
 			coloring.addBackgroundRowColorizer(addon->{
-				for (List listID : SpecialTruckAddons.List.values()) {
+				for (SpecialTruckAddons.List listID : SpecialTruckAddons.List.values()) {
 					SpecialTruckAddonList list = this.specialTruckAddons.getList(listID);
 					if (list.contains(addon)) return COLOR_SPECIALTRUCKADDON;
 				}
@@ -2473,7 +2475,7 @@ class DataTables {
 		}
 	}
 	
-	static class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TruckToDLCAssignmentListener {
+	public static class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TruckToDLCAssignmentListener {
 
 		private static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 		private static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
@@ -2484,7 +2486,7 @@ class DataTables {
 		private HashMap<String, String> truckToDLCAssignments;
 		private final UserDefinedValues userDefinedValues;
 
-		TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
+		public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID( "ID"       , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 					new ColumnID( "DLC"      , "DLC"                  ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
@@ -2738,9 +2740,9 @@ class DataTables {
 		
 	}
 
-	static class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
+	public static class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
 	
-		WheelsTableModel(Window mainWindow, Controllers controllers) {
+		public WheelsTableModel(Window mainWindow, Controllers controllers) {
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("ID"     , "ID"     , String .class, 300,   null,    null, false, row -> ((RowItem)row).label),
 					new ColumnID("Names"  , "Names"  , String .class, 130,   null,    null, (row,lang) -> getNameList ( ((RowItem)row).names_StringID, lang)),
@@ -2893,14 +2895,14 @@ class DataTables {
 	
 	}
 
-	static class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver, ListenerSource {
+	public static class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver, ListenerSource {
 	
 		private Language language;
 		private final Vector<RowItem> rows;
 		private HashMap<String, String> truckToDLCAssignments;
 		private Data data;
 	
-		DLCTableModel(Controllers controllers) {
+		public DLCTableModel(Controllers controllers) {
 			super(ColumnID.values());
 			language = null;
 			truckToDLCAssignments = null;

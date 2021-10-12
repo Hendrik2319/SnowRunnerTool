@@ -61,13 +61,14 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets.Socket;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
-import net.schwarzbaer.java.games.snowrunner.DataTables.CombinedTableTabPaneTextAreaPanel;
-import net.schwarzbaer.java.games.snowrunner.DataTables.ExtendedVerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables.CombinedTableTabPaneTextAreaPanel;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables.ExtendedVerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 

@@ -59,24 +59,25 @@ import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
-import net.schwarzbaer.java.games.snowrunner.DataTables.CombinedTableTabPaneTextAreaPanel;
-import net.schwarzbaer.java.games.snowrunner.DataTables.TruckTableModel;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMapMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables.CombinedTableTabPaneTextAreaPanel;
+import net.schwarzbaer.java.games.snowrunner.tables.DataTables.TruckTableModel;
 import net.schwarzbaer.system.DateTimeFormatter;
 import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
 
-	static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
-	static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
-	static final String PresetsTestOutputFile = "SnowRunner - PresetsTestOutput.dat";
+	public static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
+	public static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
+	public static final String PresetsTestOutputFile = "SnowRunner - PresetsTestOutput.dat";
 	
-	static final AppSettings settings = new AppSettings();
+	public static final AppSettings settings = new AppSettings();
 
 	public static void main(String[] args) {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); }
@@ -179,7 +180,7 @@ public class SnowRunner {
 		});
 	}
 
-	interface TruckToDLCAssignmentListener {
+	public interface TruckToDLCAssignmentListener {
 		void setTruckToDLCAssignments(HashMap<String, String> assignments);
 		void updateAfterAssignmentsChange();
 	}
@@ -366,7 +367,7 @@ public class SnowRunner {
 		return initialPAK;
 	}
 
-	interface SaveGameListener {
+	public interface SaveGameListener {
 		void setSaveGame(SaveGame saveGame);
 	}
 	
@@ -374,7 +375,7 @@ public class SnowRunner {
 		controllers.saveGameListeners.setSaveGame(selectedSaveGame);
 	}
 
-	interface DataReceiver {
+	public interface DataReceiver {
 		void setData(Data data);
 	}
 	
@@ -426,7 +427,7 @@ public class SnowRunner {
 		return sb.toString();
 	}
 
-	interface LanguageListener {
+	public interface LanguageListener {
 		void setLanguage(Language language);
 	}
 	
@@ -478,24 +479,24 @@ public class SnowRunner {
 		controllers.languageListeners.setLanguage(language);
 	}
 
-	static String solveStringID(Data.HasNameAndID namedToken, Language language) {
+	public static String solveStringID(Data.HasNameAndID namedToken, Language language) {
 		if (namedToken==null) return null;
 		String id = namedToken.getID();
 		return solveStringID(namedToken, id, language);
 	}
 
-	static String solveStringID(Data.HasNameAndID namedToken, String id, Language language) {
+	public static String solveStringID(Data.HasNameAndID namedToken, String id, Language language) {
 		String name_StringID = namedToken==null ? null : namedToken.getName_StringID();
 		if (name_StringID==null && id==null) return null;
 		return solveStringID(name_StringID, language, "<"+id+">");
 	}
 	
-	static String solveStringID(String strID, Language language) {
+	public static String solveStringID(String strID, Language language) {
 		if (strID==null) return null;
 		return solveStringID(strID, language, "<"+strID+">");
 	}
 	
-	static String solveStringID(String strID, Language language, String defaultStr) {
+	public static String solveStringID(String strID, Language language, String defaultStr) {
 		if (strID==null) strID = defaultStr;
 		String str = null;
 		if (language!=null) str = language.dictionary.get(strID);
@@ -503,14 +504,14 @@ public class SnowRunner {
 		return str;
 	}
 	
-	static String getReducedString(String str, int maxLength) {
+	public static String getReducedString(String str, int maxLength) {
 		if (str==null) return null;
 		if (str.length() > maxLength-4)
 			return str.substring(0,maxLength-4)+" ...";
 		return str;
 	}
 	
-	static void removeRedundantStrs(Vector<String> strs, boolean sort) {
+	public static void removeRedundantStrs(Vector<String> strs, boolean sort) {
 		for (int i=0; i<strs.size(); i++) {
 			String name = strs.get(i);
 			int nextEqual = strs.indexOf(name, i+1);
@@ -522,26 +523,26 @@ public class SnowRunner {
 		if (sort) strs.sort(null);
 	}
 
-	static String[] removeRedundantStrs(String[] strs, boolean sort) {
+	public static String[] removeRedundantStrs(String[] strs, boolean sort) {
 		Vector<String> vec = new Vector<>(Arrays.asList(strs));
 		removeRedundantStrs(vec, sort);
 		return vec.toArray(new String[vec.size()]);
 	}
 
-	static String selectNonNull(String... strings) {
+	public static String selectNonNull(String... strings) {
 		for (String str : strings)
 			if (str!=null)
 				return str;
 		return null;
 	}
 
-	static <V> Vector<V> addNull(V[] array) {
+	public static <V> Vector<V> addNull(V[] array) {
 		Vector<V> values = new Vector<>(Arrays.asList(array));
 		values.insertElementAt(null, 0);
 		return values;
 	}
 
-	static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, ActionListener al) {
+	public static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, ActionListener al) {
 		JCheckBoxMenuItem comp = new JCheckBoxMenuItem(title,isSelected);
 		comp.setEnabled(isEnabled);
 		if (al!=null) comp.addActionListener(al);
@@ -549,14 +550,14 @@ public class SnowRunner {
 		return comp;
 	}
 
-	static JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
+	public static JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
 		JMenuItem comp = new JMenuItem(title);
 		comp.setEnabled(isEnabled);
 		if (al!=null) comp.addActionListener(al);
 		return comp;
 	}
 	
-	static JCheckBox createCheckBox(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Consumer<Boolean> setValue) {
+	public static JCheckBox createCheckBox(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Consumer<Boolean> setValue) {
 		JCheckBox comp = new JCheckBox(title);
 		if (bg!=null) bg.add(comp);
 		comp.setEnabled(isEnabled);
@@ -567,24 +568,24 @@ public class SnowRunner {
 		return comp;
 	}
 	
-	static JButton createButton(String title, boolean isEnabled, ActionListener al) {
+	public static JButton createButton(String title, boolean isEnabled, ActionListener al) {
 		return createButton(title, isEnabled, null, al);
 	}
 	
-	static JButton createButton(String title, boolean isEnabled, Insets margin, ActionListener al) {
+	public static JButton createButton(String title, boolean isEnabled, Insets margin, ActionListener al) {
 		JButton comp = new JButton(title);
 		comp.setEnabled(isEnabled);
 		if (margin!=null) comp.setMargin(margin);
 		if (al!=null) comp.addActionListener(al);
 		return comp;
 	}
-	static <AC> JButton createButton(String title, boolean isEnabled, Disabler<AC> disabler, AC ac, ActionListener al) {
+	public static <AC> JButton createButton(String title, boolean isEnabled, Disabler<AC> disabler, AC ac, ActionListener al) {
 		JButton comp = createButton(title, isEnabled, al);
 		if (disabler!=null) disabler.add(ac, comp);
 		return comp;
 	}
 
-	static JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, ActionListener al) {
+	public static JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, ActionListener al) {
 		JRadioButton comp = new JRadioButton(title);
 		if (bg!=null) bg.add(comp);
 		comp.setEnabled(isEnabled);
@@ -592,51 +593,51 @@ public class SnowRunner {
 		if (al!=null) comp.addActionListener(al);
 		return comp;
 	}
-	static <AC> JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, Disabler<AC> disabler, AC ac, ActionListener al) {
+	public static <AC> JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, Disabler<AC> disabler, AC ac, ActionListener al) {
 		JRadioButton comp = createRadioButton(title, bg, isEnabled, isSelected, al);
 		if (disabler!=null) disabler.add(ac, comp);
 		return comp;
 	}
 	
-	static <AC> JLabel createLabel(String text, Disabler<AC> disabler, AC ac) {
+	public static <AC> JLabel createLabel(String text, Disabler<AC> disabler, AC ac) {
 		JLabel comp = new JLabel(text);
 		if (disabler!=null) disabler.add(ac, comp);
 		return comp;
 	}
 	
-	static JTextField createIntTextField(int columns, String text, Predicate<Integer> isOK, Consumer<Integer> setValue) {
+	public static JTextField createIntTextField(int columns, String text, Predicate<Integer> isOK, Consumer<Integer> setValue) {
 		return createTextField(columns, text, str->{
 			try { return Integer.parseInt(str); }
 			catch (NumberFormatException e) { return null; }
 		}, isOK, setValue);
 	}
 	
-	static JTextField createLongTextField(int columns, String text, Predicate<Long> isOK, Consumer<Long> setValue) {
+	public static JTextField createLongTextField(int columns, String text, Predicate<Long> isOK, Consumer<Long> setValue) {
 		return createTextField(columns, text, str->{
 			try { return Long.parseLong(str); }
 			catch (NumberFormatException e) { return null; }
 		}, isOK, setValue);
 	}
 	
-	static JTextField createFloatTextField(int columns, String text, Predicate<Float> isOK, Consumer<Float> setValue) {
+	public static JTextField createFloatTextField(int columns, String text, Predicate<Float> isOK, Consumer<Float> setValue) {
 		return createTextField(columns, text, str->{
 			try { return Float.parseFloat(str); }
 			catch (NumberFormatException e) { return null; }
 		}, isOK, setValue);
 	}
 	
-	static JTextField createDoubleTextField(int columns, String text, Predicate<Double> isOK, Consumer<Double> setValue) {
+	public static JTextField createDoubleTextField(int columns, String text, Predicate<Double> isOK, Consumer<Double> setValue) {
 		return createTextField(columns, text, str->{
 			try { return Double.parseDouble(str); }
 			catch (NumberFormatException e) { return null; }
 		}, isOK, setValue);
 	}
 	
-	static JTextField createStringTextField(int columns, String text, Consumer<String> setValue) {
+	public static JTextField createStringTextField(int columns, String text, Consumer<String> setValue) {
 		return createTextField(columns, text, str->str, null, setValue);
 	}
 	
-	static <V> JTextField createTextField(int columns, String text, Function<String,V> convert, Predicate<V> isOK, Consumer<V> setValue) {
+	public static <V> JTextField createTextField(int columns, String text, Function<String,V> convert, Predicate<V> isOK, Consumer<V> setValue) {
 		JTextField comp = new JTextField(text,columns);
 		Color defaultBG = comp.getBackground();
 		if (setValue!=null && convert!=null) {
@@ -666,10 +667,10 @@ public class SnowRunner {
 		return comp;
 	}
 
-	static String getTruckLabel(Truck truck, Language language) {
+	public static String getTruckLabel(Truck truck, Language language) {
 		return getTruckLabel(truck, language, true);
 	}
-	static String getTruckLabel(Truck truck, Language language, boolean addInternalDLC ) {
+	public static String getTruckLabel(Truck truck, Language language, boolean addInternalDLC ) {
 		if (truck==null)
 			return "<null>";
 		
@@ -689,7 +690,7 @@ public class SnowRunner {
 		return removeRedundantStrs(namesArr, true);
 	}
 
-	static Function<String,String> createGetNameFunction(HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
+	public static Function<String,String> createGetNameFunction(HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
 		if (truckAddons==null && trailers==null)
 			return null;
 		
@@ -729,22 +730,22 @@ public class SnowRunner {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(mapper).sorted().iterator());
 	}
 
-	static String joinTruckNames(Vector<Truck> list, Language language) {
+	public static String joinTruckNames(Vector<Truck> list, Language language) {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(truck->SnowRunner.solveStringID(truck, language)).sorted().iterator());
 	}
 
-	static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
+	public static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
 		return joinRequiredAddonsToString(requiredAddons, null, null, indent);
 	}
 
-	static String joinRequiredAddonsToString(String[][] requiredAddons, Function<String,String> getName_StringID, Language language, String indent) {
+	public static String joinRequiredAddonsToString(String[][] requiredAddons, Function<String,String> getName_StringID, Language language, String indent) {
 		if (requiredAddons==null || requiredAddons.length==0) return null;
 		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", getTruckAddonNames(list,getName_StringID,language))).iterator();
 		String orGroupIndent = "  ";
 		return indent+orGroupIndent+String.join(String.format("%n%1$sAND%n%1$s"+orGroupIndent, indent), it);
 	}
 
-	static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
+	public static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
 		if (requiredAddons==null || requiredAddons.length==0) return null;
 		
 		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->{
@@ -775,14 +776,15 @@ public class SnowRunner {
 		return pos;
 	}
 	
-	static class SpecialTruckAddons {
+	public static class SpecialTruckAddons {
 
-		interface Listener {
+		public interface Listener {
 			void specialTruckAddOnsHaveChanged(List list, Change change);
 		}
 
-		enum Change { Added, Removed, None }
-		enum List {
+		public enum Change { Added, Removed, None }
+		
+		public enum List {
 			MetalDetectors  ("Metal Detector"),
 			SeismicVibrators("Seismic Vibrator"),
 			LogLifts        ("Log Lift"),
@@ -795,11 +797,11 @@ public class SnowRunner {
 		}
 
 		private final Listener listenersController;
-		final SpecialTruckAddonList metalDetectors;
-		final SpecialTruckAddonList seismicVibrators;
-		final SpecialTruckAddonList logLifts;
-		final SpecialTruckAddonList miniCranes;
-		final SpecialTruckAddonList bigCranes;
+		public final SpecialTruckAddonList metalDetectors;
+		public final SpecialTruckAddonList seismicVibrators;
+		public final SpecialTruckAddonList logLifts;
+		public final SpecialTruckAddonList miniCranes;
+		public final SpecialTruckAddonList bigCranes;
 		
 		public SpecialTruckAddons(Listener listenersController) {
 			this.listenersController = listenersController;
@@ -815,7 +817,7 @@ public class SnowRunner {
 				action.accept(list, getList(list));
 		}
 
-		SpecialTruckAddonList getList(List list) {
+		public SpecialTruckAddonList getList(List list) {
 			switch (list) {
 			case BigCranes       : return bigCranes;
 			case LogLifts        : return logLifts;
@@ -826,7 +828,7 @@ public class SnowRunner {
 			return null;
 		}
 
-		class SpecialTruckAddonList {
+		public class SpecialTruckAddonList {
 			
 			private final AppSettings.ValueKey settingsKey;
 			private final HashSet<String> idList;
@@ -853,18 +855,18 @@ public class SnowRunner {
 				settings.putStrings(settingsKey, " : ", idList.toArray(new String[idList.size()]));
 			}
 
-			boolean contains(TruckAddon addon) {
+			public boolean contains(TruckAddon addon) {
 				return addon!=null && idList.contains(addon.id);
 			}
 
-			void remove(TruckAddon addon) {
+			public void remove(TruckAddon addon) {
 				if (addon==null) return;
 				idList.remove(addon.id);
 				listenersController.specialTruckAddOnsHaveChanged(list, Change.Removed);
 				update();
 			}
 
-			void add(TruckAddon addon) {
+			public void add(TruckAddon addon) {
 				if (addon==null) return;
 				idList.add(addon.id);
 				listenersController.specialTruckAddOnsHaveChanged(list, Change.Added);
@@ -1125,16 +1127,16 @@ public class SnowRunner {
 		
 	}
 
-	static class Controllers {
+	public static class Controllers {
 		
-		interface ListenerSource {}
-		interface ListenerSourceParent {}
+		public interface ListenerSource {}
+		public interface ListenerSourceParent {}
 		
-		final LanguageListenerController languageListeners;
-		final DataReceiverController dataReceivers;
-		final SaveGameListenerController saveGameListeners;
-		final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
-		final SpecialTruckAddOnsController specialTruckAddonsListeners;
+		public final LanguageListenerController languageListeners;
+		public final DataReceiverController dataReceivers;
+		public final SaveGameListenerController saveGameListeners;
+		public final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
+		public final SpecialTruckAddOnsController specialTruckAddonsListeners;
 		
 		final VectorMap<ListenerSourceParent, ListenerSource> childrenOfSources;
 		final VectorMapMap<ListenerSourceParent, String, ListenerSource> volatileChildrenOfSources;
@@ -1228,11 +1230,11 @@ public class SnowRunner {
 					removeListenersOfSource(source);
 		}
 
-		static class AbstractController<Listener> {
+		private static class AbstractController<Listener> {
 			protected final Vector<Listener> listeners = new Vector<>();
 			final VectorMap<ListenerSource, Listener> listenersOfSource = new VectorMap<>();
 			
-			void add(ListenerSource source, Listener l) {
+			public void add(ListenerSource source, Listener l) {
 				listenersOfSource.add(source, l);
 				listeners.add(l);
 			}
@@ -1258,35 +1260,35 @@ public class SnowRunner {
 			}
 		}
 		
-		static class LanguageListenerController extends AbstractController<LanguageListener> implements LanguageListener {
+		public static class LanguageListenerController extends AbstractController<LanguageListener> implements LanguageListener {
 			@Override public void setLanguage(Language language) {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setLanguage(language);
 			}
 		}
 
-		static class DataReceiverController extends AbstractController<DataReceiver> implements DataReceiver {
+		public static class DataReceiverController extends AbstractController<DataReceiver> implements DataReceiver {
 			@Override public void setData(Data data) {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setData(data);
 			}
 		}
 
-		static class SaveGameListenerController extends AbstractController<SaveGameListener> implements SaveGameListener {
+		public static class SaveGameListenerController extends AbstractController<SaveGameListener> implements SaveGameListener {
 			@Override public void setSaveGame(SaveGame saveGame) {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setSaveGame(saveGame);
 			}
 		}
 
-		static class SpecialTruckAddOnsController extends AbstractController<SpecialTruckAddons.Listener> implements SpecialTruckAddons.Listener {
+		public static class SpecialTruckAddOnsController extends AbstractController<SpecialTruckAddons.Listener> implements SpecialTruckAddons.Listener {
 			@Override public void specialTruckAddOnsHaveChanged(SpecialTruckAddons.List list, SpecialTruckAddons.Change change) {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).specialTruckAddOnsHaveChanged(list, change);
 			}
 		}
 
-		static class TruckToDLCAssignmentListenerController extends AbstractController<TruckToDLCAssignmentListener> implements TruckToDLCAssignmentListener {
+		public static class TruckToDLCAssignmentListenerController extends AbstractController<TruckToDLCAssignmentListener> implements TruckToDLCAssignmentListener {
 			
 			@Override public void setTruckToDLCAssignments(HashMap<String, String> assignments) {
 				for (int i=0; i<listeners.size(); i++)
@@ -1299,8 +1301,8 @@ public class SnowRunner {
 		}
 	}
 
-	static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
-		enum ValueKey {
+	public static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
+		public enum ValueKey {
 			WindowX, WindowY, WindowWidth, WindowHeight,
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted,

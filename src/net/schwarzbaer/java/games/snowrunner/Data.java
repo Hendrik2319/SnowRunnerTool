@@ -34,25 +34,25 @@ public class Data {
 
 	private static SetMap<String,String> unexpectedValues;
 	
-	final XMLTemplateStructure rawdata;
-	final HashMap<String,Language> languages;
-	final AddonCategories addonCategories;
-	final HashMap<String,CargoType> cargoTypes;
-	final HashMap<String,WheelsDef> wheels;
-	final HashMap<String,Truck> trucks;
-	final HashMap<String,Trailer> trailers;
-	final HashMap<String,TruckAddon> truckAddons;
+	public final XMLTemplateStructure rawdata;
+	public final HashMap<String,Language> languages;
+	public final AddonCategories addonCategories;
+	public final HashMap<String,CargoType> cargoTypes;
+	public final HashMap<String,WheelsDef> wheels;
+	public final HashMap<String,Truck> trucks;
+	public final HashMap<String,Trailer> trailers;
+	public final HashMap<String,TruckAddon> truckAddons;
 	final StringVectorMap<Truck> socketIDsUsedByTrucks;
 	final StringVectorMap<Trailer> socketIDsUsedByTrailers;
 	final StringVectorMap<TruckAddon> socketIDsUsedByTruckAddons;
-	final HashMap<String,Vector<Engine>> engineSets;
-	final HashMap<String,Engine> engines;
-	final HashMap<String,Vector<Gearbox>> gearboxSets;
-	final HashMap<String,Gearbox> gearboxes;
-	final HashMap<String,Vector<Suspension>> suspensionSets;
-	final HashMap<String,Suspension> suspensions;
-	final HashMap<String,Vector<Winch>> winchSets;
-	final HashMap<String,Winch> winches;
+	public final HashMap<String,Vector<Engine>> engineSets;
+	public final HashMap<String,Engine> engines;
+	public final HashMap<String,Vector<Gearbox>> gearboxSets;
+	public final HashMap<String,Gearbox> gearboxes;
+	public final HashMap<String,Vector<Suspension>> suspensionSets;
+	public final HashMap<String,Suspension> suspensions;
+	public final HashMap<String,Vector<Winch>> winchSets;
+	public final HashMap<String,Winch> winches;
 
 	Data(XMLTemplateStructure rawdata) {
 		this.rawdata = rawdata;
@@ -268,7 +268,7 @@ public class Data {
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
 	
-	static class UserDefinedValues {
+	public static class UserDefinedValues {
 		final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
 
 		void read() {
@@ -308,7 +308,7 @@ public class Data {
 			System.out.printf("... done%n");
 		}
 		
-		void write() {
+		public void write() {
 			System.out.printf("Write UserDefinedValues to file ...%n");
 			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
 				
@@ -353,7 +353,7 @@ public class Data {
 		}
 	}
 	
-	static String getLineValue(String line, String prefix) {
+	public static String getLineValue(String line, String prefix) {
 		if (!line.startsWith(prefix)) return null;
 		return line.substring(prefix.length());
 	}
@@ -404,7 +404,7 @@ public class Data {
 		readEntries(zipFile, languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
 	}
 
-	static class Language {
+	public static class Language {
 		final String name;
 		final HashMap<String,String> dictionary;
 		
@@ -521,9 +521,9 @@ public class Data {
 	}
 
 	static class ItemBased {
-		final String id;
-		final String xmlName;
-		final String dlcName;
+		public final String id;
+		public final String xmlName;
+		public final String dlcName;
 		ItemBased(Item item) {
 			id      = item.name;
 			xmlName = item.name+".xml";
@@ -563,11 +563,11 @@ public class Data {
 		@Override public String getID() { return id; }
 	}
 
-	static class AddonCategories extends ItemBased {
+	public static class AddonCategories extends ItemBased {
 		static final String NULL_CATEGORY = "#### NULL ####";
 		static final String CARGO_CATEGORY = "#### CARGO ####";
 	
-		final HashMap<String,Category> categories;
+		public final HashMap<String,Category> categories;
 		
 		AddonCategories(Item item) {
 			super(item);
@@ -604,12 +604,12 @@ public class Data {
 			return AddonCategories.getCategoryLabel(category);
 		}
 
-		static class Category implements HasNameAndID {
+		public static class Category implements HasNameAndID {
 
-			final String name;
-			final boolean requiresOneAddonInstalled;
-			final String icon;
-			final String label_StringID;
+			public final String name;
+			public final boolean requiresOneAddonInstalled;
+			public final String icon;
+			public final String label_StringID;
 
 			Category(GenericXmlNode node) {
 				//node.attributes.forEach((key,value)->{
@@ -633,16 +633,16 @@ public class Data {
 	
 	}
 	
-	static class TruckComponent implements HasNameAndID {
+	public static class TruckComponent implements HasNameAndID {
 		
-		final String setID;
-		final String id;
-		final Integer price;
-		final Boolean unlockByExploration;
-		final Integer unlockByRank;
-		final String description_StringID;
-		final String name_StringID;
-		final Vector<Truck> usableBy;
+		public final String setID;
+		public final String id;
+		public final Integer price;
+		public final Boolean unlockByExploration;
+		public final Integer unlockByRank;
+		public final String description_StringID;
+		public final String name_StringID;
+		public final Vector<Truck> usableBy;
 		protected final GenericXmlNode gameDataNode;
 		
 		protected TruckComponent(String setID, GenericXmlNode node, String instanceNodeName) {
@@ -712,11 +712,11 @@ public class Data {
 		
 	}
 
-	static class Winch extends TruckComponent {
+	public static class Winch extends TruckComponent {
 
-		final boolean isEngineIgnitionRequired;
-		final Integer length;
-		final Float strengthMult;
+		public final boolean isEngineIgnitionRequired;
+		public final Integer length;
+		public final Float strengthMult;
 
 		Winch(String setName, GenericXmlNode node) {
 			super(setName, node, "Winch");
@@ -743,10 +743,10 @@ public class Data {
 
 	}
 
-	static class Suspension extends TruckComponent {
+	public static class Suspension extends TruckComponent {
 
-		final Integer damageCapacity;
-		final String type_StringID;
+		public final Integer damageCapacity;
+		public final String type_StringID;
 
 		Suspension(String setName, GenericXmlNode node) {
 			super(setName, node, "SuspensionSet");
@@ -768,17 +768,17 @@ public class Data {
 
 	}
 
-	static class Gearbox extends TruckComponent {
+	public static class Gearbox extends TruckComponent {
 
-		final Integer damageCapacity;
-		final Float fuelConsumption;
-		final Float awdConsumptionModifier;
-		final Float idleFuelModifier;
-		final boolean existsHighGear;
-		final boolean existsLowerGear;
-		final boolean existsLowerMinusGear;
-		final boolean existsLowerPlusGear;
-		final boolean isManualLowGear;
+		public final Integer damageCapacity;
+		public final Float fuelConsumption;
+		public final Float awdConsumptionModifier;
+		public final Float idleFuelModifier;
+		public final boolean existsHighGear;
+		public final boolean existsLowerGear;
+		public final boolean existsLowerMinusGear;
+		public final boolean existsLowerPlusGear;
+		public final boolean isManualLowGear;
 
 		Gearbox(String setName, GenericXmlNode node) {
 			super(setName, node, "Gearbox");
@@ -821,13 +821,13 @@ public class Data {
 
 	}
 
-	static class Engine extends TruckComponent {
+	public static class Engine extends TruckComponent {
 
-		final Integer damageCapacity;
-		final Float fuelConsumption;
-		final Float brakesDelay;
-		final Integer torque;
-		final Float engineResponsiveness;
+		public final Integer damageCapacity;
+		public final Float fuelConsumption;
+		public final Float brakesDelay;
+		public final Integer torque;
+		public final Float engineResponsiveness;
 
 		Engine(String setName, GenericXmlNode node) {
 			super(setName, node, "Engine");
@@ -856,11 +856,11 @@ public class Data {
 		
 	}
 
-	static class WheelsDef extends ItemBased {
+	public static class WheelsDef extends ItemBased {
 	
-		final Vector<TruckTire> truckTires;
+		public final Vector<TruckTire> truckTires;
 	
-		public WheelsDef(Item item) {
+		private WheelsDef(Item item) {
 			super(item);
 			
 			truckTires = new Vector<>();
@@ -871,9 +871,9 @@ public class Data {
 	
 	}
 
-	static class TruckTire {
+	public static class TruckTire {
 		
-		static int getTypeOrder(String tireType_StringID) {
+		public static int getTypeOrder(String tireType_StringID) {
 			if (tireType_StringID==null) return 0;
 			switch (tireType_StringID) {
 			case "UI_TIRE_TYPE_HIGHWAY_NAME"   : return 1;
@@ -885,23 +885,23 @@ public class Data {
 			return 0;
 		}
 	
-		final String wheelsDefID;
-		final int indexInDef;
-		final String dlc;
+		public final String wheelsDefID;
+		public final int indexInDef;
+		public final String dlc;
 		
-		final String tireType_StringID;
-		final Float frictionHighway;
-		final Float frictionOffroad;
-		final Float frictionMud;
-		final boolean onIce;
+		public final String tireType_StringID;
+		public final Float frictionHighway;
+		public final Float frictionOffroad;
+		public final Float frictionMud;
+		public final boolean onIce;
 		
-		final Integer price;
-		final Boolean unlockByExploration;
-		final Integer unlockByRank;
-		final String description_StringID;
-		final String name_StringID;
+		public final Integer price;
+		public final Boolean unlockByExploration;
+		public final Integer unlockByRank;
+		public final String description_StringID;
+		public final String name_StringID;
 	
-		TruckTire(GenericXmlNode node, String wheelsDefID, int indexInDef, String dlc) {
+		private TruckTire(GenericXmlNode node, String wheelsDefID, int indexInDef, String dlc) {
 			this.wheelsDefID = wheelsDefID;
 			this.indexInDef = indexInDef;
 			this.dlc = dlc;
@@ -954,71 +954,71 @@ public class Data {
 		return null;
 	}
 
-	static class Truck extends ItemBased implements HasNameAndID {
+	public static class Truck extends ItemBased implements HasNameAndID {
 
-		enum DiffLockType {
+		public enum DiffLockType {
 			None, Uninstalled, Installed, Always;
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
 		}
-		enum Country {
+		public enum Country {
 			US, RU;
 			static String toString(Country country) { return country==null ? null : country.toString(); }
 		}
-		enum TruckType {
+		public enum TruckType {
 			HEAVY, OFFROAD, HEAVY_DUTY, HIGHWAY, SCOUT;
 			static String toString(TruckType truckType) { return truckType==null ? null : truckType.toString(); }
 		}
 		
-		final TruckType type;
-		final Country country;
-		final Integer price;
-		final Boolean unlockByExploration;
-		final Integer unlockByRank;
-		final String description_StringID;
-		final String name_StringID;
-		final String image;
+		public final TruckType type;
+		public final Country country;
+		public final Integer price;
+		public final Boolean unlockByExploration;
+		public final Integer unlockByRank;
+		public final String description_StringID;
+		public final String name_StringID;
+		public final String image;
 		
-		final Integer fuelCapacity;
-		final DiffLockType diffLockType;
-		final Boolean  isWinchUpgradable;
-		final String   maxWheelRadiusWithoutSuspension;
+		public final Integer fuelCapacity;
+		public final DiffLockType diffLockType;
+		public final Boolean  isWinchUpgradable;
+		public final String   maxWheelRadiusWithoutSuspension;
 		
-		final CompatibleWheel[] compatibleWheels;
-		final AddonSockets[] addonSockets;
-		final HashSet<Trailer> compatibleTrailers;
-		final StringVectorMap<TruckAddon> compatibleTruckAddons;
+		public final CompatibleWheel[] compatibleWheels;
+		public final AddonSockets[] addonSockets;
+		public final HashSet<Trailer> compatibleTrailers;
+		public final StringVectorMap<TruckAddon> compatibleTruckAddons;
 		
-		final String   defaultEngine_ItemID;
-		final Engine   defaultEngine;
-		final String[] compatibleEngines_SetIDs;
-		final Collection<Engine> compatibleEngines;
+		public final String   defaultEngine_ItemID;
+		public final Engine   defaultEngine;
+		public final String[] compatibleEngines_SetIDs;
+		public final Collection<Engine> compatibleEngines;
 		
-		final String   defaultGearbox_ItemID;
-		final Gearbox  defaultGearbox;
-		final String[] compatibleGearboxes_SetIDs;
-		final Collection<Gearbox> compatibleGearboxes;
+		public final String   defaultGearbox_ItemID;
+		public final Gearbox  defaultGearbox;
+		public final String[] compatibleGearboxes_SetIDs;
+		public final Collection<Gearbox> compatibleGearboxes;
 		
-		final String     defaultSuspension_ItemID;
-		final Suspension defaultSuspension;
-		final String[]   compatibleSuspensions_SetIDs;
-		final Collection<Suspension> compatibleSuspensions;
+		public final String     defaultSuspension_ItemID;
+		public final Suspension defaultSuspension;
+		public final String[]   compatibleSuspensions_SetIDs;
+		public final Collection<Suspension> compatibleSuspensions;
 		
-		final String   defaultWinch_ItemID;
-		final Winch    defaultWinch;
-		final String[] compatibleWinches_SetIDs;
-		final Collection<Winch> compatibleWinches;
+		public final String   defaultWinch_ItemID;
+		public final Winch    defaultWinch;
+		public final String[] compatibleWinches_SetIDs;
+		public final Collection<Winch> compatibleWinches;
 		
-		final HashSet<String> defaultAddonIDs;
-		final Vector<TruckAddon> defaultAddons;
+		public final HashSet<String> defaultAddonIDs;
+		public final Vector<TruckAddon> defaultAddons;
 
-		boolean hasCompatibleAWD;
-		boolean hasCompatibleDiffLock;
-		final boolean hasCompatibleAutomaticWinch;
+		public boolean hasCompatibleAWD;
+		public boolean hasCompatibleDiffLock;
+		public final boolean hasCompatibleAutomaticWinch;
 
-		TruckAddon defaultAWD;
-		TruckAddon defaultDiffLock;
+		public TruckAddon defaultAWD;
+		public TruckAddon defaultDiffLock;
 		
-		Truck(Item item, Data data) {
+		private Truck(Item item, Data data) {
 			super(item);
 			if (!item.className.equals("trucks"))
 				throw new IllegalStateException();
@@ -1149,9 +1149,9 @@ public class Data {
 		@Override public String getName_StringID() { return name_StringID; }
 		@Override public String getID() { return id; }
 		
-		static class UDV {
+		public static class UDV {
 			
-			enum ItemState {
+			public enum ItemState {
 				None, Able, Installed, Permanent;
 				final String label;
 				
@@ -1166,10 +1166,10 @@ public class Data {
 				}
 			}
 			
-			ItemState realDiffLock;
-			ItemState realAWD;
+			public ItemState realDiffLock;
+			public ItemState realAWD;
 			
-			UDV() {
+			private UDV() {
 				realDiffLock = null;
 				realAWD = null;
 			}
@@ -1264,13 +1264,13 @@ public class Data {
 			}
 		}
 
-		static class CompatibleWheel {
+		public static class CompatibleWheel {
 			
-			final Float scale;
-			final String type;
-			final WheelsDef wheelsDef;
+			public final Float scale;
+			public final String type;
+			public final WheelsDef wheelsDef;
 			
-			CompatibleWheel(GenericXmlNode node, Function<String,WheelsDef> getWheelsDef) {
+			private CompatibleWheel(GenericXmlNode node, Function<String,WheelsDef> getWheelsDef) {
 				if (!node.nodeName.equals("CompatibleWheels"))
 					throw new IllegalStateException();
 				
@@ -1279,7 +1279,7 @@ public class Data {
 				wheelsDef = type==null ? null : getWheelsDef.apply(type);
 			}
 		
-			Integer getSize() {
+			public Integer getSize() {
 				return computeSize_inch(scale);
 			}
 		
@@ -1302,23 +1302,23 @@ public class Data {
 
 	}
 	
-	static class Trailer extends ItemBased implements HasNameAndID {
+	public static class Trailer extends ItemBased implements HasNameAndID {
 
-		final String attachType;
-		final Integer price;
-		final Boolean unlockByExploration;
-		final Integer unlockByRank;
-		final Boolean isQuestItem;
-		final String[] excludedCargoTypes;
-		final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
-		final String description_StringID;
-		final String name_StringID;
-		final String installSocket;
-		final Integer cargoSlots;
-		final Integer repairsCapacity;
-		final Integer wheelRepairsCapacity;
-		final Integer fuelCapacity;
-		final Vector<Truck> usableBy;
+		public final String attachType;
+		public final Integer price;
+		public final Boolean unlockByExploration;
+		public final Integer unlockByRank;
+		public final Boolean isQuestItem;
+		public final String[] excludedCargoTypes;
+		public final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
+		public final String description_StringID;
+		public final String name_StringID;
+		public final String installSocket;
+		public final Integer cargoSlots;
+		public final Integer repairsCapacity;
+		public final Integer wheelRepairsCapacity;
+		public final Integer fuelCapacity;
+		public final Vector<Truck> usableBy;
 
 		public Trailer(Item item) {
 			super(item);
@@ -1380,32 +1380,32 @@ public class Data {
 		@Override public String getID() { return id; }
 	}
 
-	static class TruckAddon extends ItemBased implements HasNameAndID {
+	public static class TruckAddon extends ItemBased implements HasNameAndID {
 
 		//enum InstState { NotInstallable, Installable, Installed }
 		
-		final String category;
-		final Integer price;
-		final Boolean unlockByExploration;
-		final Integer unlockByRank;
-		final String description_StringID;
-		final String name_StringID;
-		final String installSocket;
-		final boolean isCargo;
-		final Integer cargoLength;
-		final String  cargoType;
-		final Integer cargoValue;
-		final String  cargoName_StringID;
-		final String  cargoDescription_StringID;
-		final String[] excludedCargoTypes;
-		final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
-		final Integer repairsCapacity;
-		final Integer wheelRepairsCapacity;
-		final Integer fuelCapacity;
-		final Integer cargoSlots;
-		final Boolean enablesAllWheelDrive;
-		final Boolean enablesDiffLock;
-		final Vector<Truck> usableBy;
+		public final String category;
+		public final Integer price;
+		public final Boolean unlockByExploration;
+		public final Integer unlockByRank;
+		public final String description_StringID;
+		public final String name_StringID;
+		public final String installSocket;
+		public final boolean isCargo;
+		public final Integer cargoLength;
+		public final String  cargoType;
+		public final Integer cargoValue;
+		public final String  cargoName_StringID;
+		public final String  cargoDescription_StringID;
+		public final String[] excludedCargoTypes;
+		public final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
+		public final Integer repairsCapacity;
+		public final Integer wheelRepairsCapacity;
+		public final Integer fuelCapacity;
+		public final Integer cargoSlots;
+		public final Boolean enablesAllWheelDrive;
+		public final Boolean enablesDiffLock;
+		public final Vector<Truck> usableBy;
 
 		public TruckAddon(Item item, HashMap<String, CargoType> cargoTypes) {
 			super(item);

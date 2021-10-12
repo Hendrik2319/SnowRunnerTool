@@ -11,7 +11,7 @@ import java.util.function.Function;
 
 class MapTypes {
 
-	static class SetMap<MapKeyType,SetValueType> extends HashMap<MapKeyType,HashSet<SetValueType>> {
+	public static class SetMap<MapKeyType,SetValueType> extends HashMap<MapKeyType,HashSet<SetValueType>> {
 		private static final long serialVersionUID = -6897179951968079373L;
 		private final Comparator<? super MapKeyType> compMapKeyType;
 		private final Comparator<? super SetValueType> compSetValueType;
@@ -42,7 +42,7 @@ class MapTypes {
 		}
 	}
 	
-	static class StringVectorMap<ValueType> extends VectorMap<String,ValueType> {
+	public static class StringVectorMap<ValueType> extends VectorMap<String,ValueType> {
 		private static final long serialVersionUID = -8709491018088867713L;
 
 		void printTo(PrintStream out, Function<ValueType, String> valueToStr) {
@@ -58,7 +58,7 @@ class MapTypes {
 		}
 	}
 	
-	static class VectorMap<KeyType,ValueType> extends HashMap<KeyType,Vector<ValueType>> {
+	public static class VectorMap<KeyType,ValueType> extends HashMap<KeyType,Vector<ValueType>> {
 		private static final long serialVersionUID = -5963711992044437609L;
 
 		void add(KeyType key, ValueType value) {
@@ -89,7 +89,7 @@ class MapTypes {
 		}
 	}
 	
-	static class VectorMapMap<KeyType1,KeyType2,ValueType> extends HashMap<KeyType1,HashMap<KeyType2,Vector<ValueType>>> {
+	public static class VectorMapMap<KeyType1,KeyType2,ValueType> extends HashMap<KeyType1,HashMap<KeyType2,Vector<ValueType>>> {
 		private static final long serialVersionUID = -1085811850916454661L;
 
 		void add(KeyType1 key1, KeyType2 key2, ValueType value) {

@@ -15,7 +15,7 @@ import net.schwarzbaer.java.lib.jsonparser.JSON_Parser;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Parser.ParseException;
 
 @SuppressWarnings("unused")
-class SaveGameData {
+public class SaveGameData {
 	
 	private static final List<String> DEFAULT_FILES = Arrays.asList( "CommonSslSave.cfg", "CompleteSave.cfg", "user_profile.cfg", "user_settings.cfg", "user_social_data.cfg" );
 	private static final String SAVEGAME_PREFIX = "CompleteSave";
@@ -81,20 +81,20 @@ class SaveGameData {
 		}
 	}
 
-	static class SaveGame {
+	public static class SaveGame {
 	
-		final String indexStr;
-		final JSON_Data.Value<NV, V> data;
-		final HashMap<String, Integer> ownedTrucks;
-		final Long experience;
-		final Long money;
-		final Long rank;
-		final long saveTime;
-		final double gameTime;
-		final boolean isHardMode;
-		final String worldConfiguration;
+		public final String indexStr;
+		public final JSON_Data.Value<NV, V> data;
+		public final HashMap<String, Integer> ownedTrucks;
+		public final Long experience;
+		public final Long money;
+		public final Long rank;
+		public final long saveTime;
+		public final double gameTime;
+		public final boolean isHardMode;
+		public final String worldConfiguration;
 
-		SaveGame(String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
+		private SaveGame(String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
 			if (data==null)
 				throw new IllegalArgumentException();
 			

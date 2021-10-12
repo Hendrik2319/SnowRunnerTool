@@ -35,7 +35,7 @@ import javax.swing.JTextField;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 
-class TruckAssignToDLCDialog extends JDialog {
+public class TruckAssignToDLCDialog extends JDialog {
 	private static final long serialVersionUID = 5851218628292882974L;
 
 	private Boolean useKnownDLC;
@@ -44,7 +44,7 @@ class TruckAssignToDLCDialog extends JDialog {
 	private final JButton btnOk;
 	private boolean assignmentsChanged;
 	
-	TruckAssignToDLCDialog(Window owner, Truck truck, Language language, HashMap<String, String> truckToDLCAssignments) {
+	public TruckAssignToDLCDialog(Window owner, Truck truck, Language language, HashMap<String, String> truckToDLCAssignments) {
 		super(owner,ModalityType.APPLICATION_MODAL);
 		useKnownDLC = null;
 		selectedNewDLC = null;
@@ -167,7 +167,7 @@ class TruckAssignToDLCDialog extends JDialog {
 		btnOk.setEnabled( useKnownDLC!=null && ( (useKnownDLC && selectedKnownDLC!=null) || (!useKnownDLC && selectedNewDLC!=null) ) );
 	}
 
-	boolean showDialog() {
+	public boolean showDialog() {
 		setVisible(true);
 		return assignmentsChanged;
 	}
