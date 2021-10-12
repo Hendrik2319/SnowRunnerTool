@@ -66,9 +66,15 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
-import net.schwarzbaer.java.games.snowrunner.tables.DataTables;
-import net.schwarzbaer.java.games.snowrunner.tables.DataTables.CombinedTableTabPaneTextAreaPanel;
-import net.schwarzbaer.java.games.snowrunner.tables.DataTables.ExtendedVerySimpleTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabPaneTextAreaPanel;
+import net.schwarzbaer.java.games.snowrunner.tables.EnginesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.ExtendedVerySimpleTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.GearboxesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SuspensionsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
+import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.WinchesTableModel;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
@@ -275,17 +281,17 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new DataTables.   TrailersTableModel(mainWindow, controllers, false));
-				createTab("engine"    , this.truck.compatibleEngines     , () -> new DataTables.    EnginesTableModel(mainWindow, controllers, false));
-				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new DataTables.  GearboxesTableModel(mainWindow, controllers, false));
-				createTab("suspension", this.truck.compatibleSuspensions , () -> new DataTables.SuspensionsTableModel(mainWindow, controllers, false));
-				createTab("winch"     , this.truck.compatibleWinches     , () -> new DataTables.    WinchesTableModel(mainWindow, controllers, false));
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel(mainWindow, controllers, false));
+				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel(mainWindow, controllers, false));
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel(mainWindow, controllers, false));
+				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, controllers, false));
+				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel(mainWindow, controllers, false));
 				
 				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
-					createTab(category, compatibleTruckAddons.get(category), () -> new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns));
+					createTab(category, compatibleTruckAddons.get(category), () -> new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns));
 			}
 		}
 
@@ -330,8 +336,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private final JLabel socketIndexLabel;
 		private final JLabel defaultAddonLabel;
 		private final JTabbedPane tablePanels;
-		private final DataTables.TrailersTableModel trailersTableModel;
-		private final DataTables.TruckAddonsTableModel truckAddonsTableModel;
+		private final TrailersTableModel trailersTableModel;
+		private final TruckAddonsTableModel truckAddonsTableModel;
 		private AddonSockets[] addonSockets;
 		private int currentSocketIndex;
 		private Language language;
@@ -344,8 +350,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", DataTables.TableSimplifier.create(   trailersTableModel = new DataTables.   TrailersTableModel(mainWindow, controllers, false)));
-			tablePanels.addTab("Addons"  , DataTables.TableSimplifier.create(truckAddonsTableModel = new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns)));
+			tablePanels.addTab("Trailers", TableSimplifier.create(   trailersTableModel = new TrailersTableModel(mainWindow, controllers, false)));
+			tablePanels.addTab("Addons"  , TableSimplifier.create(truckAddonsTableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns)));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;

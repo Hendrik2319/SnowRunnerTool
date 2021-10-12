@@ -65,9 +65,18 @@ import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMapMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
-import net.schwarzbaer.java.games.snowrunner.tables.DataTables;
-import net.schwarzbaer.java.games.snowrunner.tables.DataTables.CombinedTableTabPaneTextAreaPanel;
-import net.schwarzbaer.java.games.snowrunner.tables.DataTables.TruckTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.AddonCategoriesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabPaneTextAreaPanel;
+import net.schwarzbaer.java.games.snowrunner.tables.DLCTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.EnginesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.GearboxesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SuspensionsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
+import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.WheelsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.WinchesTableModel;
 import net.schwarzbaer.system.DateTimeFormatter;
 import net.schwarzbaer.system.Settings;
 
@@ -118,15 +127,15 @@ public class SnowRunner {
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 		contentPane.addTab("Trucks"          , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons, userDefinedValues));
 		contentPane.addTab("Trucks (old)"    , new TrucksListPanel (mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Wheels"          , DataTables.TableSimplifier.create(new DataTables.WheelsTableModel     (mainWindow, controllers)));
-		contentPane.addTab("DLCs"            , DataTables.TableSimplifier.create(new DataTables.DLCTableModel        (            controllers)));
-		contentPane.addTab("Trailers"        , DataTables.TableSimplifier.create(new DataTables.TrailersTableModel   (mainWindow, controllers,true)));
+		contentPane.addTab("Wheels"          , TableSimplifier.create(new WheelsTableModel     (mainWindow, controllers)));
+		contentPane.addTab("DLCs"            , TableSimplifier.create(new DLCTableModel        (            controllers)));
+		contentPane.addTab("Trailers"        , TableSimplifier.create(new TrailersTableModel   (mainWindow, controllers,true)));
 		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Engines"         , DataTables.TableSimplifier.create(new DataTables.EnginesTableModel    (mainWindow, controllers,true)));
-		contentPane.addTab("Gearboxes"       , DataTables.TableSimplifier.create(new DataTables.GearboxesTableModel  (mainWindow, controllers,true)));
-		contentPane.addTab("Suspensions"     , DataTables.TableSimplifier.create(new DataTables.SuspensionsTableModel(mainWindow, controllers,true)));
-		contentPane.addTab("Winches"         , DataTables.TableSimplifier.create(new DataTables.WinchesTableModel    (mainWindow, controllers,true)));
-		contentPane.addTab("Addon Categories", DataTables.TableSimplifier.create(new DataTables.AddonCategoriesTableModel(mainWindow, controllers)));
+		contentPane.addTab("Engines"         , TableSimplifier.create(new EnginesTableModel    (mainWindow, controllers,true)));
+		contentPane.addTab("Gearboxes"       , TableSimplifier.create(new GearboxesTableModel  (mainWindow, controllers,true)));
+		contentPane.addTab("Suspensions"     , TableSimplifier.create(new SuspensionsTableModel(mainWindow, controllers,true)));
+		contentPane.addTab("Winches"         , TableSimplifier.create(new WinchesTableModel    (mainWindow, controllers,true)));
+		contentPane.addTab("Addon Categories", TableSimplifier.create(new AddonCategoriesTableModel(mainWindow, controllers)));
 		contentPane.addTab("Raw Data", rawDataPanel);
 		
 		
@@ -928,7 +937,7 @@ public class SnowRunner {
 			tabs.add(allTab);
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
-			DataTables.TruckAddonsTableModel tableModel = new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
+			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
 			controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
 			tableModel.setData(data.truckAddons.values());
@@ -943,7 +952,7 @@ public class SnowRunner {
 				tabs.add(tab);
 				
 				title = tab.getTabTitle(data.addonCategories, language);
-				tableModel = new DataTables.TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
+				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
 				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
 				tableModel.setData(list);
@@ -979,11 +988,11 @@ public class SnowRunner {
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
 			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
-			TruckTableModel truckTableModel = new DataTables.TruckTableModel(mainWindow, controllers, specialTruckAddOns, userDefinedValues);
+			TruckTableModel truckTableModel = new TruckTableModel(mainWindow, controllers, specialTruckAddOns, userDefinedValues);
 			controllers.addChild(this,truckTableModel);
-			JComponent truckTableScrollPane = DataTables.TableSimplifier.create(
+			JComponent truckTableScrollPane = TableSimplifier.create(
 					truckTableModel,
-					(DataTables.TableSimplifier.ArbitraryOutputSource) rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex)));
+					(TableSimplifier.ArbitraryOutputSource) rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex)));
 			
 			setTopComponent(truckTableScrollPane);
 			setBottomComponent(tabbedPaneFromTruckPanel);
