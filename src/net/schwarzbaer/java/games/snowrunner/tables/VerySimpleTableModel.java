@@ -51,8 +51,8 @@ import javax.swing.SwingConstants;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
-import javax.swing.text.StyledDocument;
 
+import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.java.games.snowrunner.Data;
@@ -1699,6 +1699,10 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			super(mainWindow, controllers, columns);
 			textOutputUpdateMethod = null;
 		}
+		
+		public void setOutputUpdateMethod(Runnable textOutputUpdateMethod) {
+			this.textOutputUpdateMethod = textOutputUpdateMethod;
+		}
 
 		@Override protected void extraUpdate() {
 			updateTextOutput();
@@ -1716,28 +1720,20 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			super(mainWindow, controllers, columns);
 		}
 
-		@Override public void setOutputUpdateMethod(Runnable textOutputUpdateMethod) {
-			this.textOutputUpdateMethod = textOutputUpdateMethod;
-		}
-
 		@Override
-		public void setContentForRow(StyledDocument doc, int rowIndex) {
+		public void setContentForRow(StyledDocumentInterface doc, int rowIndex) {
 			RowType row = getRow(rowIndex);
 			if (row!=null)
 				setContentForRow(doc, row);
 		}
 
-		protected abstract void setContentForRow(StyledDocument doc, RowType row);
+		protected abstract void setContentForRow(StyledDocumentInterface doc, RowType row);
 	}
 	
 	public static abstract class ExtendedVerySimpleTableModel1<RowType> extends TextOutputSourceTableModel<RowType> implements TextAreaOutputSource {
 
 		protected ExtendedVerySimpleTableModel1(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 			super(mainWindow, controllers, columns);
-		}
-
-		@Override public void setOutputUpdateMethod(Runnable textOutputUpdateMethod) {
-			this.textOutputUpdateMethod = textOutputUpdateMethod;
 		}
 		
 		@Override public String getTextForRow(int rowIndex) {

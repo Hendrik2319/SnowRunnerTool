@@ -4,9 +4,7 @@ import java.awt.Window;
 import java.util.Comparator;
 import java.util.Vector;
 
-import javax.swing.text.BadLocationException;
-import javax.swing.text.StyledDocument;
-
+import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.games.snowrunner.Data.Engine;
 import net.schwarzbaer.java.games.snowrunner.Data.Gearbox;
 import net.schwarzbaer.java.games.snowrunner.Data.Suspension;
@@ -24,19 +22,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		setInitialRowOrder(Comparator.<RowType,String>comparing(e->e.setID).thenComparing(e->e.id));
 	}
 
-	private String getTextForRow(RowType row) {
+	@Override protected void setContentForRow(StyledDocumentInterface doc, RowType row) {
 		String description_StringID = row.description_StringID;
 		Vector<Truck> usableBy = row.usableBy;
-		return TruckAddonsTableModel.generateText(description_StringID, null, null, usableBy, language, null, null);
-	}
-
-	@Override protected void setContentForRow(StyledDocument doc, RowType row) {
-		try {
-			doc.insertString(0, getTextForRow(row), null);
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-		}
-		// TODO: setContentForRow(StyledDocument doc, RowType row)
+		TruckAddonsTableModel.generateText(doc, description_StringID, null, null, usableBy, language, null, null);
 	}
 	
 	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {

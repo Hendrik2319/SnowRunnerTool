@@ -21,8 +21,8 @@ import javax.swing.JTextPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SortOrder;
 import javax.swing.text.DefaultStyledDocument;
-import javax.swing.text.StyledDocument;
 
+import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
@@ -323,9 +323,9 @@ public class TableSimplifier {
 		interface TextPaneOutputSource extends OutputSource<JTextPane> {
 			@Override default void setContentForRow(JTextPane textPane, int rowIndex) {
 				DefaultStyledDocument doc = new DefaultStyledDocument();
-				if (rowIndex>=0) setContentForRow(doc, rowIndex);
+				if (rowIndex>=0) setContentForRow(new StyledDocumentInterface(doc, "TextPaneOutput", null, 12), rowIndex);
 				textPane.setStyledDocument(doc);
 			}
-			void setContentForRow(StyledDocument doc, int rowIndex);
+			void setContentForRow(StyledDocumentInterface doc, int rowIndex);
 		}
 	}

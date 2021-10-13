@@ -52,6 +52,7 @@ import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
 import net.schwarzbaer.gui.ProgressDialog;
 import net.schwarzbaer.gui.StandardMainWindow;
+import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
@@ -521,21 +522,17 @@ public class SnowRunner {
 	}
 	
 	public static void removeRedundantStrs(Vector<String> strs, boolean sort) {
-		for (int i=0; i<strs.size(); i++) {
-			String name = strs.get(i);
-			int nextEqual = strs.indexOf(name, i+1);
-			while (nextEqual>=0) {
-				strs.remove(nextEqual);
-				nextEqual = strs.indexOf(name, i+1);
-			}
-		}
+		HashSet<String> set = new HashSet<>(strs);
+		strs.clear();
+		strs.addAll(set);
 		if (sort) strs.sort(null);
 	}
 
 	public static String[] removeRedundantStrs(String[] strs, boolean sort) {
-		Vector<String> vec = new Vector<>(Arrays.asList(strs));
-		removeRedundantStrs(vec, sort);
-		return vec.toArray(new String[vec.size()]);
+		HashSet<String> set = new HashSet<>(Arrays.asList(strs));
+		String[] array = set.toArray(new String[set.size()]);
+		if (sort) Arrays.sort(array);
+		return array;
 	}
 
 	public static String selectNonNull(String... strings) {
@@ -691,12 +688,19 @@ public class SnowRunner {
 		return truckName;
 	}
 
-	static String[] getTruckAddonNames(String[] idList, Function<String,String> getName_StringID, Language language) {
+	public static String[][] getNamesFromIDs(String[][] idLists, Function<String, String> getName_StringID, Language language) {
+		String[][] names = new String[idLists.length][];
+		for (int i=0; i<names.length; i++)
+			names[i] = getNamesFromIDs(idLists[i],getName_StringID,language);
+		return names;
+	}
+
+	public static String[] getNamesFromIDs(String[] idList, Function<String,String> getName_StringID, Language language) {
 		if (getName_StringID==null)
 			return idList;
 		
-		String[] namesArr = Arrays.stream(idList).map(id->getNameFromID(id, getName_StringID, language)).toArray(String[]::new);
-		return removeRedundantStrs(namesArr, true);
+		String[] names = Arrays.stream(idList).map(id->getNameFromID(id, getName_StringID, language)).toArray(String[]::new);
+		return removeRedundantStrs(names, true);
 	}
 
 	public static Function<String,String> createGetNameFunction(HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
@@ -744,14 +748,35 @@ public class SnowRunner {
 	}
 
 	public static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
-		return joinRequiredAddonsToString(requiredAddons, null, null, indent);
+		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", list)).iterator();
+		String orGroupIndent = "  ";
+		return indent+orGroupIndent+String.join(String.format("%n%1$sAND%n%1$s"+orGroupIndent, indent), it);
 	}
 
 	public static String joinRequiredAddonsToString(String[][] requiredAddons, Function<String,String> getName_StringID, Language language, String indent) {
 		if (requiredAddons==null || requiredAddons.length==0) return null;
-		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", getTruckAddonNames(list,getName_StringID,language))).iterator();
-		String orGroupIndent = "  ";
-		return indent+orGroupIndent+String.join(String.format("%n%1$sAND%n%1$s"+orGroupIndent, indent), it);
+		String[][] requiredAddonNames = getNamesFromIDs(requiredAddons, getName_StringID, language);
+		return joinRequiredAddonsToString(requiredAddonNames, indent);
+	}
+
+	public static void writeRequiredAddonsToDoc(StyledDocumentInterface doc, Color operatorColor, String[][] requiredAddons, String indent) {
+		for (int i=0; i<requiredAddons.length; i++) {
+			if (i>0) {
+				doc.append("%n%s", indent);
+				doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), "AND%n");
+			}
+			doc.append("%s", indent+"  ");
+			for (int j=0; j<requiredAddons[i].length; j++) {
+				if (j>0) doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), " OR ");
+				doc.append("%s", requiredAddons[i][j]);
+			}
+		}
+	}
+
+	public static void writeRequiredAddonsToDoc(StyledDocumentInterface doc, Color operatorColor, String[][] requiredAddons, Function<String,String> getName_StringID, Language language, String indent) {
+		if (requiredAddons==null || requiredAddons.length==0) return;
+		String[][] requiredAddonNames = getNamesFromIDs(requiredAddons, getName_StringID, language);
+		writeRequiredAddonsToDoc(doc, operatorColor, requiredAddonNames, indent);
 	}
 
 	public static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {

@@ -11,9 +11,9 @@ import java.util.Vector;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JTable;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.StyledDocument;
 
+import net.schwarzbaer.gui.StyledDocumentInterface;
+import net.schwarzbaer.gui.StyledDocumentInterface.Style;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
@@ -148,68 +148,64 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		});
 	}
 
-	private String getTextForRow(TruckAddon row) {
+	@Override protected void setContentForRow(StyledDocumentInterface doc, TruckAddon row) {
 		String description_StringID = SnowRunner.selectNonNull( row.description_StringID, row.cargoDescription_StringID );
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
 		Vector<Truck> usableBy = row.usableBy;
-		return generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
+		generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
 	}
 
-	@Override protected void setContentForRow(StyledDocument doc, TruckAddon row) {
-		try {
-			doc.insertString(0, getTextForRow(row), null);
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-		}
-		// TODO: setContentForRow(StyledDocument doc, TruckAddon row)
-	}
-
-	static String generateText(
+	static void generateText(
+			StyledDocumentInterface doc,
 			String description_StringID,
 			String[][] requiredAddons,
 			String[] excludedCargoTypes,
 			Vector<Truck> usableBy,
 			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
 		
-		StringBuilder sb = new StringBuilder();
+		// TODO: generateText( StyledDocumentInterface doc, ...
 		boolean isFirst = true;
 		
 		
 		String description = SnowRunner.solveStringID(description_StringID, language);
 		if (description!=null && !"EMPTY_LINE".equals(description)) {
-			sb.append(String.format("Description: <%s>%n%s", description_StringID, description));
+			doc.append(Style.BOLD,"Description: ");
+			doc.append(new Style(Color.GRAY,false,true,"Monospaced"),"<%s>%n", description_StringID);
+			doc.append("%s", description);
 			isFirst = false;
 		}
 		
 		if (requiredAddons!=null && requiredAddons.length>0) {
-			if (!isFirst) sb.append("\r\n\r\n");
+			if (!isFirst) doc.append("%n%n");
 			isFirst = false;
-			sb.append("Required Addons:\r\n");
+			doc.append(Style.BOLD,"Required Addons:%n");
 			if (truckAddons==null && trailers==null)
-				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "    "));
+				SnowRunner.writeRequiredAddonsToDoc(doc, Color.GRAY, requiredAddons, "    ");
+				//doc.append("%s", SnowRunner.joinRequiredAddonsToString(requiredAddons, "    "));
 			else {
-				sb.append("    [IDs]\r\n");
-				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "        ")+"\r\n");
-				sb.append("    [Names]\r\n");
-				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, SnowRunner.createGetNameFunction(truckAddons, trailers), language, "        "));
+				doc.append(Color.GRAY,"    [IDs]%n");
+				SnowRunner.writeRequiredAddonsToDoc(doc, Color.GRAY, requiredAddons, "        ");
+				//doc.append("%s%n", SnowRunner.joinRequiredAddonsToString(requiredAddons, "        "));
+				doc.append(Color.GRAY,"%n    [Names]%n");
+				SnowRunner.writeRequiredAddonsToDoc(doc, Color.GRAY, requiredAddons, SnowRunner.createGetNameFunction(truckAddons, trailers), language, "        ");
+				//doc.append("%s", SnowRunner.joinRequiredAddonsToString(requiredAddons, SnowRunner.createGetNameFunction(truckAddons, trailers), language, "        "));
 			}
 		}
 		
 		if (excludedCargoTypes!=null && excludedCargoTypes.length>0) {
-			if (!isFirst) sb.append("\r\n\r\n");
+			if (!isFirst) doc.append("%n%n");
 			isFirst = false;
-			sb.append("Excluded Cargo Types:\r\n");
-			sb.append(SnowRunner.joinAddonIDs(excludedCargoTypes));
+			doc.append(Style.BOLD,"Excluded Cargo Types:%n");
+			doc.append("    %s", SnowRunner.joinAddonIDs(excludedCargoTypes));
 		}
 		
 		if (usableBy!=null && !usableBy.isEmpty()) {
-			if (!isFirst) sb.append("\r\n\r\n");
+			if (!isFirst) doc.append("%n%n");
 			isFirst = false;
-			sb.append("Usable By:\r\n");
-			sb.append(SnowRunner.joinTruckNames(usableBy,language));
+			doc.append(Style.BOLD,"Usable By:%n");
+			doc.append("%s", SnowRunner.joinTruckNames(usableBy,language));
 		}
 		
-		return sb.toString();
 	}
 }

@@ -5,9 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Vector;
 
-import javax.swing.text.BadLocationException;
-import javax.swing.text.StyledDocument;
-
+import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -66,20 +64,11 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		updateTextOutput();
 	}
 
-	private String getTextForRow(Trailer row) {
+	@Override protected void setContentForRow(StyledDocumentInterface doc, Trailer row) {
 		String description_StringID = row.description_StringID;
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
 		Vector<Truck> usableBy = row.usableBy;
-		return TruckAddonsTableModel.generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
-	}
-
-	@Override protected void setContentForRow(StyledDocument doc, Trailer row) {
-		try {
-			doc.insertString(0, getTextForRow(row), null);
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-		}
-		// TODO: setContentForRow(StyledDocument doc, Trailer row)
+		TruckAddonsTableModel.generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
 	}
 }
