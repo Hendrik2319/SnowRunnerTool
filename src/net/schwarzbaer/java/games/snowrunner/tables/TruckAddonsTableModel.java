@@ -69,7 +69,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			}, true);
 		
 		else
-			controllers.dataReceivers.add(this,data->{
+			controllers.dataReceivers.add(this,data->{ // TODO: this doesn't work
 				truckAddons = data==null ? null : data.truckAddons;
 				trailers    = data==null ? null : data.trailers;
 				updateTextOutput();
@@ -141,7 +141,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		});
 	}
 
-	public String getTextForRow(TruckAddon row) {
+	private String getTextForRow(TruckAddon row) {
 		String description_StringID = SnowRunner.selectNonNull( row.description_StringID, row.cargoDescription_StringID );
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
@@ -149,14 +149,13 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		return generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
 	}
 
-	@Override
-	protected void setContentForRow(StyledDocument doc, TruckAddon row) {
+	@Override protected void setContentForRow(StyledDocument doc, TruckAddon row) {
 		try {
 			doc.insertString(0, getTextForRow(row), null);
 		} catch (BadLocationException e) {
 			e.printStackTrace();
 		}
-		// TODO Auto-generated method stub
+		// TODO: setContentForRow(StyledDocument doc, TruckAddon row)
 	}
 
 	static String generateText(

@@ -28,9 +28,9 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 				new ColumnID("InstallSk","Install Socket"       ,  String.class, 130,   null,      null, false, row->((Trailer)row).installSocket),
 				new ColumnID("CargoSlts","Cargo Slots"          , Integer.class,  70, CENTER,      null, false, row->((Trailer)row).cargoSlots),
 				new ColumnID("Repairs"  ,"Repairs"              , Integer.class,  50,  RIGHT,    "%d R", false, row->((Trailer)row).repairsCapacity),
-				new ColumnID("WheelRep","Wheel Repairs"        , Integer.class,  85, CENTER,   "%d WR", false, row->((Trailer)row).wheelRepairsCapacity),
+				new ColumnID("WheelRep" ,"Wheel Repairs"        , Integer.class,  85, CENTER,   "%d WR", false, row->((Trailer)row).wheelRepairsCapacity),
 				new ColumnID("Fuel"     ,"Fuel"                 , Integer.class,  50,  RIGHT,    "%d L", false, row->((Trailer)row).fuelCapacity),
-				new ColumnID("QuestItm","Is Quest Item"        , Boolean.class,  80,   null,      null, false, row->((Trailer)row).isQuestItem),
+				new ColumnID("QuestItm" ,"Is Quest Item"        , Boolean.class,  80,   null,      null, false, row->((Trailer)row).isQuestItem),
 				new ColumnID("Price"    ,"Price"                , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((Trailer)row).price), 
 				new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Trailer)row).unlockByExploration), 
 				new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, row->((Trailer)row).unlockByRank), 
@@ -50,7 +50,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 				return trailers==null ? null : trailers.values();
 			}, true);
 		else
-			controllers.dataReceivers.add(this,data->{
+			controllers.dataReceivers.add(this,data->{ // TODO: this doesn't work
 				truckAddons = data==null ? null : data.truckAddons;
 				trailers    = data==null ? null : data.trailers;
 				updateTextOutput();
@@ -59,7 +59,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 	}
 
-	public String getTextForRow(Trailer row) {
+	private String getTextForRow(Trailer row) {
 		String description_StringID = row.description_StringID;
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
@@ -67,13 +67,12 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		return TruckAddonsTableModel.generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
 	}
 
-	@Override
-	protected void setContentForRow(StyledDocument doc, Trailer row) {
+	@Override protected void setContentForRow(StyledDocument doc, Trailer row) {
 		try {
 			doc.insertString(0, getTextForRow(row), null);
 		} catch (BadLocationException e) {
 			e.printStackTrace();
 		}
-		// TODO Auto-generated method stub
+		// TODO: setContentForRow(StyledDocument doc, Trailer row)
 	}
 }

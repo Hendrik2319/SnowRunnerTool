@@ -24,20 +24,19 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		setInitialRowOrder(Comparator.<RowType,String>comparing(e->e.setID).thenComparing(e->e.id));
 	}
 
-	protected String getTextForRow(RowType row) {
+	private String getTextForRow(RowType row) {
 		String description_StringID = row.description_StringID;
 		Vector<Truck> usableBy = row.usableBy;
 		return TruckAddonsTableModel.generateText(description_StringID, null, null, usableBy, language, null, null);
 	}
 
-	@Override
-	protected void setContentForRow(StyledDocument doc, RowType row) {
+	@Override protected void setContentForRow(StyledDocument doc, RowType row) {
 		try {
 			doc.insertString(0, getTextForRow(row), null);
 		} catch (BadLocationException e) {
 			e.printStackTrace();
 		}
-		// TODO Auto-generated method stub
+		// TODO: setContentForRow(StyledDocument doc, RowType row)
 	}
 	
 	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {
