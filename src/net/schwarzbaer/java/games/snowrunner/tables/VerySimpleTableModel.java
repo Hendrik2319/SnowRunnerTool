@@ -230,9 +230,9 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		if (getData!=null)
 			controllers.dataReceivers.add(this, data -> {
 				if (!forwardNulls)
-					setData(data==null ? null : getData.apply(data));
+					setRowData(data==null ? null : getData.apply(data));
 				else
-					setData(getData.apply(data));
+					setRowData(getData.apply(data));
 			});
 	}
 
@@ -252,7 +252,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		}
 	}
 
-	public final void setData(Collection<RowType> rows) {
+	public final void setRowData(Collection<RowType> rows) {
 		this.rows.clear();
 		originalRows.clear();
 		if (rows!=null) {

@@ -158,12 +158,12 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		tabbedPanel.addTab("Addons by Category", addonsPanel2);
 	}
 
-	void setTruck(Truck truck) {
+	void setTruck(Truck truck, Data data) {
 		this.truck = truck;
 		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : this.truck.name_StringID);
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
-		addonsPanel2         .setData(truck);
+		addonsPanel2         .setData(truck, data);
 		updateOutput();
 	}
 
@@ -272,7 +272,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			repaint();
 		}
 
-		public void setData(Truck truck) {
+		public void setData(Truck truck, Data data) {
 			this.truck = truck;
 			
 			currentTabs.clear();
@@ -281,7 +281,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel(mainWindow, controllers, false));
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel(mainWindow, controllers, false, data));
 				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel(mainWindow, controllers, false));
 				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel(mainWindow, controllers, false));
 				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, controllers, false));
@@ -291,7 +291,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
-					createTab(category, compatibleTruckAddons.get(category), () -> new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns));
+					createTab(category, compatibleTruckAddons.get(category), () -> new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data));
 			}
 		}
 
@@ -304,7 +304,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				addTab("##", tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);
 				tableModel.setLanguage(language);
-				tableModel.setData(usableItems);
+				tableModel.setRowData(usableItems);
 			}
 		}
 
@@ -396,8 +396,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			if (addonSockets==null || currentSocketIndex<0 || currentSocketIndex>=addonSockets.length) {
 				socketIndexLabel.setText(" # / # ");
-				trailersTableModel.setData((Collection<Trailer>)null);
-				truckAddonsTableModel.setData((Collection<TruckAddon>)null);
+				trailersTableModel.setRowData(null);
+				truckAddonsTableModel.setRowData(null);
 				tablePanels.setTitleAt(0, "Trailers");
 				tablePanels.setTitleAt(1, "Addons");
 				
@@ -407,11 +407,11 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				
 				HashSet<Trailer> trailers = new HashSet<>();
 				socket.compatibleTrailers.values().forEach(trailers::addAll);
-				trailersTableModel.setData(trailers);
+				trailersTableModel.setRowData(trailers);
 				
 				HashSet<TruckAddon> truckAddons = new HashSet<>();
 				socket.compatibleTruckAddons.values().forEach(truckAddons::addAll);
-				truckAddonsTableModel.setData(truckAddons);
+				truckAddonsTableModel.setRowData(truckAddons);
 				
 				if (trailers.isEmpty() && !truckAddons.isEmpty())
 					tablePanels.setSelectedIndex(1);

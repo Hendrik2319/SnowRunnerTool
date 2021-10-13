@@ -14,6 +14,7 @@ import javax.swing.JTable;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.StyledDocument;
 
+import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -32,6 +33,10 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 	private TruckAddon clickedItem;
 	private final SpecialTruckAddons specialTruckAddons;
 
+	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons, Data data) {
+		this(mainWindow, controllers, connectToGlobalData, specialTruckAddons);
+		setExtraData(data);
+	}
 	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons) {
 		super(mainWindow, controllers, new ColumnID[] {
 				new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
@@ -69,11 +74,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			}, true);
 		
 		else
-			controllers.dataReceivers.add(this,data->{ // TODO: this doesn't work
-				truckAddons = data==null ? null : data.truckAddons;
-				trailers    = data==null ? null : data.trailers;
-				updateTextOutput();
-			});
+			controllers.dataReceivers.add(this,this::setExtraData);
 		
 		coloring.addBackgroundRowColorizer(addon->{
 			for (SpecialTruckAddons.List listID : SpecialTruckAddons.List.values()) {
@@ -88,6 +89,12 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		
 		Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 		setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.category,string_nullsLast).thenComparing(row->row.id));
+	}
+
+	private void setExtraData(Data data) {
+		truckAddons = data==null ? null : data.truckAddons;
+		trailers    = data==null ? null : data.trailers;
+		updateTextOutput();
 	}
 
 	@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {

@@ -8,6 +8,7 @@ import java.util.Vector;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.StyledDocument;
 
+import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
@@ -20,6 +21,10 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
 
+	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data) {
+		this(mainWindow, controllers, connectToGlobalData);
+		setExtraData(data);
+	}
 	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
 		super(mainWindow, controllers, new ColumnID[] {
 				new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
@@ -50,13 +55,15 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 				return trailers==null ? null : trailers.values();
 			}, true);
 		else
-			controllers.dataReceivers.add(this,data->{ // TODO: this doesn't work
-				truckAddons = data==null ? null : data.truckAddons;
-				trailers    = data==null ? null : data.trailers;
-				updateTextOutput();
-			});
+			controllers.dataReceivers.add(this,this::setExtraData);
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
+	}
+
+	private void setExtraData(Data data) {
+		truckAddons = data==null ? null : data.truckAddons;
+		trailers    = data==null ? null : data.trailers;
+		updateTextOutput();
 	}
 
 	private String getTextForRow(Trailer row) {

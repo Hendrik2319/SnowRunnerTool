@@ -937,10 +937,10 @@ public class SnowRunner {
 			tabs.add(allTab);
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
-			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
+			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data);
 			controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
-			tableModel.setData(data.truckAddons.values());
+			tableModel.setRowData(data.truckAddons.values());
 			
 			Vector<String> categories = new Vector<>(truckAddons.keySet());
 			categories.sort(CATEGORY_ORDER);
@@ -952,10 +952,10 @@ public class SnowRunner {
 				tabs.add(tab);
 				
 				title = tab.getTabTitle(data.addonCategories, language);
-				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns);
+				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data);
 				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
-				tableModel.setData(list);
+				tableModel.setRowData(list);
 			}
 		}
 		
@@ -976,12 +976,19 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent/*, ListenerSource*/ {
+	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent, ListenerSource {
 		private static final long serialVersionUID = 6564351588107715699L;
+		
+		private Data data;
 
 		TrucksTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, UserDefinedValues userDefinedValues) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
+			
+			data = null;
+			controllers.dataReceivers.add(this, data->{
+				this.data = data;
+			});
 			
 			TruckPanelProto truckPanelProto = new TruckPanelProto(mainWindow, controllers, specialTruckAddOns);
 			controllers.addChild(this,truckPanelProto);
@@ -992,7 +999,7 @@ public class SnowRunner {
 			controllers.addChild(this,truckTableModel);
 			JComponent truckTableScrollPane = TableSimplifier.create(
 					truckTableModel,
-					(TableSimplifier.ArbitraryOutputSource) rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex)));
+					(TableSimplifier.ArbitraryOutputSource) rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex),data));
 			
 			setTopComponent(truckTableScrollPane);
 			setBottomComponent(tabbedPaneFromTruckPanel);
@@ -1006,12 +1013,14 @@ public class SnowRunner {
 		private final Controllers controllers;
 		private final StandardMainWindow mainWindow;
 		private HashMap<String, String> truckToDLCAssignments;
+		private Data data;
 		
 		TrucksListPanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
 			this.controllers = controllers;
 			this.truckToDLCAssignments = null;
+			this.data = null;
 			setResizeWeight(0);
 			
 			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, this.controllers, specialTruckAddOns);
@@ -1022,8 +1031,9 @@ public class SnowRunner {
 			JScrollPane truckListScrollPane = new JScrollPane(truckList = new JList<>());
 			truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
 			truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			truckList.addListSelectionListener(e->truckPanelProto.setTruck(truckList.getSelectedValue()));
+			truckList.addListSelectionListener(e->truckPanelProto.setTruck(truckList.getSelectedValue(),data));
 			this.controllers.dataReceivers.add(this,data -> {
+				this.data = data;
 				Vector<Truck> items = new Vector<>(data.trucks.values());
 				items.sort(Comparator.<Truck,String>comparing(Truck->Truck.id));
 				truckList.setListData(items);
