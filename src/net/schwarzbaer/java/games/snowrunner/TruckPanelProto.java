@@ -66,17 +66,17 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
-import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabPaneTextAreaPanel;
-import net.schwarzbaer.java.games.snowrunner.tables.EnginesTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.ExtendedVerySimpleTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.GearboxesTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.SuspensionsTableModel;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.WinchesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.WinchesTableModel;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
 class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
 	private final JTextArea truckInfoTextArea;
@@ -89,7 +89,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 	private Truck truck;
 	private SaveGame saveGame;
 	private HashMap<String, String> truckToDLCAssignments;
-	private AddonCategories addonCategories; // TODO
+	private AddonCategories addonCategories;
 
 
 	TruckPanelProto(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
@@ -235,7 +235,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
-	private static class AddonsPanel2 extends CombinedTableTabPaneTextAreaPanel implements ListenerSource, ListenerSourceParent {
+	private static class AddonsPanel2 extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent {
 		private static final long serialVersionUID = 4098254083170104250L;
 
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
@@ -295,11 +295,11 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			}
 		}
 
-		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, Supplier<ExtendedVerySimpleTableModel<ItemType>> constructor) {
+		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, Supplier<ExtendedVerySimpleTableModel2<ItemType>> constructor) {
 			if (!usableItems.isEmpty()) {
 				Tab tab = new Tab(category, usableItems.size());
 				currentTabs.add(tab);
-				ExtendedVerySimpleTableModel<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems 
+				ExtendedVerySimpleTableModel2<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems 
 				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab("##", tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);

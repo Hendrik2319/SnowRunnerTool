@@ -5,13 +5,17 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Vector;
 
+import javax.swing.text.BadLocationException;
+import javax.swing.text.StyledDocument;
+
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-public class TrailersTableModel extends ExtendedVerySimpleTableModel<Trailer> {
+public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 	
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
@@ -49,17 +53,27 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel<Trailer> {
 			controllers.dataReceivers.add(this,data->{
 				truckAddons = data==null ? null : data.truckAddons;
 				trailers    = data==null ? null : data.trailers;
-				updateTextArea();
+				updateTextOutput();
 			});
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 	}
 
-	@Override public String getTextForRow(Trailer row) {
+	public String getTextForRow(Trailer row) {
 		String description_StringID = row.description_StringID;
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
 		Vector<Truck> usableBy = row.usableBy;
-		return SetInstancesTableModel.generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
+		return TruckAddonsTableModel.generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
+	}
+
+	@Override
+	protected void setContentForRow(StyledDocument doc, Trailer row) {
+		try {
+			doc.insertString(0, getTextForRow(row), null);
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+		// TODO Auto-generated method stub
 	}
 }

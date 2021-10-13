@@ -11,7 +11,10 @@ import java.util.Vector;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JTable;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.StyledDocument;
 
+import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
@@ -19,8 +22,9 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAddon> {
+public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAddon> {
 	
 	private static final Color COLOR_SPECIALTRUCKADDON = new Color(0xFFF3AD);
 	private HashMap<String, TruckAddon> truckAddons;
@@ -68,7 +72,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAdd
 			controllers.dataReceivers.add(this,data->{
 				truckAddons = data==null ? null : data.truckAddons;
 				trailers    = data==null ? null : data.trailers;
-				updateTextArea();
+				updateTextOutput();
 			});
 		
 		coloring.addBackgroundRowColorizer(addon->{
@@ -137,11 +141,69 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel<TruckAdd
 		});
 	}
 
-	@Override public String getTextForRow(TruckAddon row) {
+	public String getTextForRow(TruckAddon row) {
 		String description_StringID = SnowRunner.selectNonNull( row.description_StringID, row.cargoDescription_StringID );
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
 		Vector<Truck> usableBy = row.usableBy;
-		return SetInstancesTableModel.generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
+		return generateText(description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
+	}
+
+	@Override
+	protected void setContentForRow(StyledDocument doc, TruckAddon row) {
+		try {
+			doc.insertString(0, getTextForRow(row), null);
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+		// TODO Auto-generated method stub
+	}
+
+	static String generateText(
+			String description_StringID,
+			String[][] requiredAddons,
+			String[] excludedCargoTypes,
+			Vector<Truck> usableBy,
+			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
+		
+		StringBuilder sb = new StringBuilder();
+		boolean isFirst = true;
+		
+		
+		String description = SnowRunner.solveStringID(description_StringID, language);
+		if (description!=null && !"EMPTY_LINE".equals(description)) {
+			sb.append(String.format("Description: <%s>%n%s", description_StringID, description));
+			isFirst = false;
+		}
+		
+		if (requiredAddons!=null && requiredAddons.length>0) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Required Addons:\r\n");
+			if (truckAddons==null && trailers==null)
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "    "));
+			else {
+				sb.append("    [IDs]\r\n");
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, "        ")+"\r\n");
+				sb.append("    [Names]\r\n");
+				sb.append(SnowRunner.joinRequiredAddonsToString(requiredAddons, SnowRunner.createGetNameFunction(truckAddons, trailers), language, "        "));
+			}
+		}
+		
+		if (excludedCargoTypes!=null && excludedCargoTypes.length>0) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Excluded Cargo Types:\r\n");
+			sb.append(SnowRunner.joinAddonIDs(excludedCargoTypes));
+		}
+		
+		if (usableBy!=null && !usableBy.isEmpty()) {
+			if (!isFirst) sb.append("\r\n\r\n");
+			isFirst = false;
+			sb.append("Usable By:\r\n");
+			sb.append(SnowRunner.joinTruckNames(usableBy,language));
+		}
+		
+		return sb.toString();
 	}
 }

@@ -66,17 +66,17 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.tables.AddonCategoriesTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabPaneTextAreaPanel;
+import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.DLCTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.EnginesTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.GearboxesTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.SuspensionsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.WinchesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.WheelsTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.WinchesTableModel;
 import net.schwarzbaer.system.DateTimeFormatter;
 import net.schwarzbaer.system.Settings;
 
@@ -885,7 +885,7 @@ public class SnowRunner {
 		
 	}
 
-	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextAreaPanel implements ListenerSource, ListenerSourceParent {
+	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent {
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
 
 		private static final long serialVersionUID = 7841445317301513175L;
