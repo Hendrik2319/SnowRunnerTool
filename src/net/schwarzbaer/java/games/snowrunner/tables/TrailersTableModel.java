@@ -10,6 +10,7 @@ import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
@@ -18,10 +19,12 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 	
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
+	private SaveGame saveGame;
 
-	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data) {
+	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data, SaveGame saveGame) {
 		this(mainWindow, controllers, connectToGlobalData);
 		setExtraData(data);
+		this.saveGame = saveGame;
 	}
 	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
 		super(mainWindow, controllers, new ColumnID[] {
@@ -46,6 +49,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		
 		truckAddons = null;
 		trailers    = null;
+		saveGame    = null;
 		if (connectToGlobalData)
 			connectToGlobalData(data->{
 				truckAddons = data==null ? null : data.truckAddons;
@@ -53,7 +57,15 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 				return trailers==null ? null : trailers.values();
 			}, true);
 		else
-			controllers.dataReceivers.add(this,this::setExtraData);
+			controllers.dataReceivers.add(this,data -> {
+				setExtraData(data);
+				updateTextOutput();
+			});
+		
+		controllers.saveGameListeners.add(this, saveGame->{
+			this.saveGame = saveGame;
+			updateTextOutput();
+		});
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 	}
@@ -61,7 +73,6 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 	private void setExtraData(Data data) {
 		truckAddons = data==null ? null : data.truckAddons;
 		trailers    = data==null ? null : data.trailers;
-		updateTextOutput();
 	}
 
 	@Override protected void setContentForRow(StyledDocumentInterface doc, Trailer row) {
@@ -69,6 +80,6 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
 		Vector<Truck> usableBy = row.usableBy;
-		TruckAddonsTableModel.generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
+		TruckAddonsTableModel.generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers, saveGame);
 	}
 }

@@ -17,12 +17,14 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -87,6 +89,9 @@ public class SnowRunner {
 	public static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
 	public static final String PresetsTestOutputFile = "SnowRunner - PresetsTestOutput.dat";
 	
+	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
+	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
+	
 	public static final AppSettings settings = new AppSettings();
 
 	public static void main(String[] args) {
@@ -132,10 +137,10 @@ public class SnowRunner {
 		contentPane.addTab("DLCs"            , TableSimplifier.create(new DLCTableModel        (            controllers)));
 		contentPane.addTab("Trailers"        , TableSimplifier.create(new TrailersTableModel   (mainWindow, controllers,true)));
 		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Engines"         , TableSimplifier.create(new EnginesTableModel    (mainWindow, controllers,true)));
-		contentPane.addTab("Gearboxes"       , TableSimplifier.create(new GearboxesTableModel  (mainWindow, controllers,true)));
-		contentPane.addTab("Suspensions"     , TableSimplifier.create(new SuspensionsTableModel(mainWindow, controllers,true)));
-		contentPane.addTab("Winches"         , TableSimplifier.create(new WinchesTableModel    (mainWindow, controllers,true)));
+		contentPane.addTab("Engines"         , TableSimplifier.create(new EnginesTableModel    (mainWindow, controllers,true, null)));
+		contentPane.addTab("Gearboxes"       , TableSimplifier.create(new GearboxesTableModel  (mainWindow, controllers,true, null)));
+		contentPane.addTab("Suspensions"     , TableSimplifier.create(new SuspensionsTableModel(mainWindow, controllers,true, null)));
+		contentPane.addTab("Winches"         , TableSimplifier.create(new WinchesTableModel    (mainWindow, controllers,true, null)));
 		contentPane.addTab("Addon Categories", TableSimplifier.create(new AddonCategoriesTableModel(mainWindow, controllers)));
 		contentPane.addTab("Raw Data", rawDataPanel);
 		
@@ -747,6 +752,20 @@ public class SnowRunner {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(truck->SnowRunner.solveStringID(truck, language)).sorted().iterator());
 	}
 
+	public static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
+		if (requiredAddons==null || requiredAddons.length==0) return null;
+		
+		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->{
+			String str = String.join(" OR ", Arrays.asList(list));
+			if (list.length==1) return str;
+			return String.format("(%s)", str);
+		}).iterator();
+		
+		String str = String.join(" AND ", it);
+		if (requiredAddons.length==1) return str;
+		return String.format("(%s)", str);
+	}
+
 	public static String joinRequiredAddonsToString(String[][] requiredAddons, String indent) {
 		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->String.join("  OR  ", list)).iterator();
 		String orGroupIndent = "  ";
@@ -772,6 +791,32 @@ public class SnowRunner {
 			}
 		}
 	}
+	
+	private static class Pair<V1,V2> {
+		final V1 v1;
+		final V2 v2;
+		Pair(V1 v1, V2 v2) {
+			this.v1 = v1;
+			this.v2 = v2;
+		}
+		static Pair<Truck,String> create(Truck truck, Language language) {
+			return new Pair<>(truck, SnowRunner.solveStringID(truck, language));
+		}
+	}
+
+	public static void writeTruckNamesToDoc(StyledDocumentInterface doc, Color ownedTruckColor, Vector<Truck> list, Language language, SaveGame saveGame) {
+		Stream<Pair<Truck,String>> stream = list.stream().map(truck->Pair.create(truck,language)).sorted(Comparator.<Pair<Truck,String>,String>comparing(pair->pair.v2));
+		boolean isFirst = true;
+		for (Iterator<Pair<Truck,String>> iterator = stream.iterator(); iterator.hasNext();) {
+			if (!isFirst) doc.append(", ");
+			isFirst = false;
+			Pair<Truck,String> pair = iterator.next();
+			if (saveGame!=null && saveGame.playerOwnsTruck(pair.v1))
+				doc.append(ownedTruckColor,pair.v2);
+			else
+				doc.append(pair.v2);
+		}
+	}
 
 	public static void writeRequiredAddonsToDoc(StyledDocumentInterface doc, Color operatorColor, String[][] requiredAddons, Function<String,String> getName_StringID, Language language, String indent) {
 		if (requiredAddons==null || requiredAddons.length==0) return;
@@ -779,20 +824,6 @@ public class SnowRunner {
 		writeRequiredAddonsToDoc(doc, operatorColor, requiredAddonNames, indent);
 	}
 
-	public static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
-		if (requiredAddons==null || requiredAddons.length==0) return null;
-		
-		Iterable<String> it = ()->Arrays.stream(requiredAddons).map(list->{
-			String str = String.join(" OR ", Arrays.asList(list));
-			if (list.length==1) return str;
-			return String.format("(%s)", str);
-		}).iterator();
-		
-		String str = String.join(" AND ", it);
-		if (requiredAddons.length==1) return str;
-		return String.format("(%s)", str);
-	}
-	
 	public static String joinAddonIDs(String[] strs) {
 		if (strs==null) return "<null>";
 		if (strs.length==0) return "[]";
@@ -921,6 +952,7 @@ public class SnowRunner {
 		private Data data;
 		private Language language;
 		private final SpecialTruckAddons specialTruckAddOns;
+		private SaveGame saveGame;
 
 		TruckAddonsTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			this.mainWindow = mainWindow;
@@ -929,6 +961,7 @@ public class SnowRunner {
 			this.language = null;
 			this.data = null;
 			this.tabs = new Vector<>();
+			saveGame = null;
 			
 			this.controllers.languageListeners.add(this,language->{
 				this.language = language;
@@ -937,6 +970,9 @@ public class SnowRunner {
 			this.controllers.dataReceivers.add(this,data->{
 				this.data = data;
 				rebuildTabPanels();
+			});
+			this.controllers.saveGameListeners.add(this, saveGame->{
+				this.saveGame = saveGame;
 			});
 		}
 
@@ -962,7 +998,7 @@ public class SnowRunner {
 			tabs.add(allTab);
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
-			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data);
+			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data, saveGame);
 			controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
 			tableModel.setRowData(data.truckAddons.values());
@@ -977,7 +1013,7 @@ public class SnowRunner {
 				tabs.add(tab);
 				
 				title = tab.getTabTitle(data.addonCategories, language);
-				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data);
+				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data, saveGame);
 				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
 				tableModel.setRowData(list);
@@ -1159,7 +1195,7 @@ public class SnowRunner {
 		
 			private Color getForeground(Truck truck) {
 				if (truck!=null) {
-					if (saveGame!=null && saveGame.ownedTrucks!=null && saveGame.ownedTrucks.containsKey(truck.id))
+					if (saveGame!=null && saveGame.playerOwnsTruck(truck))
 						return COLOR_FG_OWNEDTRUCK;
 					if (truck.dlcName!=null)
 						return COLOR_FG_DLCTRUCK;

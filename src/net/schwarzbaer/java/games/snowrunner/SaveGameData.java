@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Object;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValue;
@@ -143,6 +144,17 @@ public class SaveGameData {
 				money      = null;
 				rank       = null;
 			}
+		}
+
+		public int getOwnedTruckCount(Truck truck) {
+			if (truck==null) return 0;
+			if (ownedTrucks==null) return 0;
+			Integer amount = ownedTrucks.get(truck.id);
+			return amount==null ? 0 : amount.intValue();
+		}
+
+		public boolean playerOwnsTruck(Truck truck) {
+			return getOwnedTruckCount(truck)>0;
 		}
 	
 	}

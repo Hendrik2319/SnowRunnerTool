@@ -11,27 +11,35 @@ import net.schwarzbaer.java.games.snowrunner.Data.Suspension;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
 public class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModel2<RowType> {
 
-	SetInstancesTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
+	protected SaveGame saveGame;
+
+	SetInstancesTableModel(Window mainWindow, Controllers controllers, SaveGame saveGame, ColumnID[] columns) {
 		super(mainWindow, controllers, columns);
+		this.saveGame = saveGame;
 		setInitialRowOrder(Comparator.<RowType,String>comparing(e->e.setID).thenComparing(e->e.id));
+		controllers.saveGameListeners.add(this, saveGame_->{
+			this.saveGame = saveGame_;
+			updateTextOutput();
+		});
 	}
 
 	@Override protected void setContentForRow(StyledDocumentInterface doc, RowType row) {
 		String description_StringID = row.description_StringID;
 		Vector<Truck> usableBy = row.usableBy;
-		TruckAddonsTableModel.generateText(doc, description_StringID, null, null, usableBy, language, null, null);
+		TruckAddonsTableModel.generateText(doc, description_StringID, null, null, usableBy, language, null, null, saveGame);
 	}
 	
 	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {
 	
-		public EnginesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
-			super(mainWindow, controllers, new ColumnID[] {
+		public EnginesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
+			super(mainWindow, controllers, saveGame, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 160,   null,      null, false, row->((Engine)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 190,   null,      null, false, row->((Engine)row).id),
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 130,   null,      null,  true, row->((Engine)row).name_StringID),
@@ -53,8 +61,8 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 
 	public static class GearboxesTableModel extends SetInstancesTableModel<Gearbox> {
 	
-		public GearboxesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
-			super(mainWindow, controllers, new ColumnID[] {
+		public GearboxesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
+			super(mainWindow, controllers, saveGame, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 180,   null,      null, false, row->((Gearbox)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 140,   null,      null, false, row->((Gearbox)row).id),
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, row->((Gearbox)row).name_StringID),
@@ -80,8 +88,8 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 
 	public static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
 	
-		public SuspensionsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
-			super(mainWindow, controllers, new ColumnID[] {
+		public SuspensionsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
+			super(mainWindow, controllers, saveGame, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 130,   null,      null, false, row->((Suspension)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 220,   null,      null, false, row->((Suspension)row).id),
 					new ColumnID("Type"     ,"Type"                 ,  String.class, 110,   null,      null,  true, row->((Suspension)row).type_StringID),
@@ -100,8 +108,8 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 
 	public static class WinchesTableModel extends SetInstancesTableModel<Winch> {
 
-		public WinchesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
-			super(mainWindow, controllers, new ColumnID[] {
+		public WinchesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
+			super(mainWindow, controllers, saveGame, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"                  ,  String.class, 140,   null,      null, false, row->((Winch)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"                 ,  String.class, 160,   null,      null, false, row->((Winch)row).id),
 					new ColumnID("Name"     ,"Name"                    ,  String.class, 150,   null,      null,  true, row->((Winch)row).name_StringID),

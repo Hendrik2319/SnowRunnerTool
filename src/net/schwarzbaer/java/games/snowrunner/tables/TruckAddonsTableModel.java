@@ -19,6 +19,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
@@ -32,10 +33,12 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 	private HashMap<String, Trailer> trailers;
 	private TruckAddon clickedItem;
 	private final SpecialTruckAddons specialTruckAddons;
+	private SaveGame saveGame;
 
-	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons, Data data) {
+	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons, Data data, SaveGame saveGame) {
 		this(mainWindow, controllers, connectToGlobalData, specialTruckAddons);
 		setExtraData(data);
+		this.saveGame = saveGame;
 	}
 	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons) {
 		super(mainWindow, controllers, new ColumnID[] {
@@ -66,6 +69,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		clickedItem = null;
 		truckAddons = null;
 		trailers    = null;
+		saveGame    = null;
 		if (connectToGlobalData)
 			connectToGlobalData(data->{
 				truckAddons = data==null ? null : data.truckAddons;
@@ -74,7 +78,15 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			}, true);
 		
 		else
-			controllers.dataReceivers.add(this,this::setExtraData);
+			controllers.dataReceivers.add(this,data -> {
+				setExtraData(data);
+				updateTextOutput();
+			});
+		
+		controllers.saveGameListeners.add(this, saveGame->{
+			this.saveGame = saveGame;
+			updateTextOutput();
+		});
 		
 		coloring.addBackgroundRowColorizer(addon->{
 			for (SpecialTruckAddons.List listID : SpecialTruckAddons.List.values()) {
@@ -94,7 +106,6 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 	private void setExtraData(Data data) {
 		truckAddons = data==null ? null : data.truckAddons;
 		trailers    = data==null ? null : data.trailers;
-		updateTextOutput();
 	}
 
 	@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
@@ -153,7 +164,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		String[][] requiredAddons = row.requiredAddons;
 		String[] excludedCargoTypes = row.excludedCargoTypes;
 		Vector<Truck> usableBy = row.usableBy;
-		generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers);
+		generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers, saveGame);
 	}
 
 	static void generateText(
@@ -162,7 +173,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			String[][] requiredAddons,
 			String[] excludedCargoTypes,
 			Vector<Truck> usableBy,
-			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers) {
+			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, SaveGame saveGame) {
 		
 		// TODO: generateText( StyledDocumentInterface doc, ...
 		boolean isFirst = true;
@@ -204,7 +215,8 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			if (!isFirst) doc.append("%n%n");
 			isFirst = false;
 			doc.append(Style.BOLD,"Usable By:%n");
-			doc.append("%s", SnowRunner.joinTruckNames(usableBy,language));
+			SnowRunner.writeTruckNamesToDoc(doc, SnowRunner.COLOR_FG_OWNEDTRUCK, usableBy, language, saveGame);
+			//doc.append("%s", SnowRunner.joinTruckNames(usableBy,language));
 		}
 		
 	}

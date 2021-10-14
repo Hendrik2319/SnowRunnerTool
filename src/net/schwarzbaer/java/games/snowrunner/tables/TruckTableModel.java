@@ -1,6 +1,5 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
-import java.awt.Color;
 import java.awt.Point;
 import java.awt.Window;
 import java.util.Arrays;
@@ -31,8 +30,6 @@ import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
 
 public class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TruckToDLCAssignmentListener {
 
-	private static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
-	private static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
 	private SaveGame saveGame;
@@ -90,11 +87,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 			if (truck==null)
 				return null;
 			
-			if (saveGame!=null && saveGame.ownedTrucks!=null && saveGame.ownedTrucks.containsKey(truck.id))
-				return COLOR_FG_OWNEDTRUCK;
+			if (saveGame!=null && saveGame.playerOwnsTruck(truck))
+				return SnowRunner.COLOR_FG_OWNEDTRUCK;
 			
 			if (truck.dlcName!=null)
-				return COLOR_FG_DLCTRUCK;
+				return SnowRunner.COLOR_FG_DLCTRUCK;
 			
 			return null;
 		});
@@ -128,11 +125,9 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 	}
 	
 	private static Integer getOwnedCount(Truck truck, TruckTableModel model) {
-		if (truck==null) return null;
 		if (model==null) return null;
 		if (model.saveGame==null) return null;
-		if (model.saveGame.ownedTrucks==null) return null;
-		return model.saveGame.ownedTrucks.get(truck.id);
+		return model.saveGame.getOwnedTruckCount(truck);
 	}
 
 	private static Float getMaxWheelValue(Truck truck, Function<TruckTire,Float> getTireValue) {

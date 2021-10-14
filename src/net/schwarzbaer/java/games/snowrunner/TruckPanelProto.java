@@ -203,9 +203,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		
 		if (saveGame!=null) {
 			outTop.add(0, "");
-			
-			Integer owned = saveGame.ownedTrucks==null ? null : saveGame.ownedTrucks.get(truck.id);
-			outTop.add(0, "Owned by Player", owned==null ? 0 : owned);
+			outTop.add(0, "Owned by Player", saveGame.getOwnedTruckCount(truck));
 		}
 		
 		
@@ -247,15 +245,18 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private final Vector<Tab> currentTabs;
 		private AddonCategories addonCategories;
 		private final SpecialTruckAddons specialTruckAddOns;
+		private SaveGame saveGame;
 
 		AddonsPanel2(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			this.mainWindow = mainWindow;
 			this.controllers = controllers;
 			this.specialTruckAddOns = specialTruckAddOns;
 			this.truck = null;
+			saveGame = null;
 			addonCategories = null;
 			currentTabs = new Vector<>();
 			language = null;
+			
 			this.controllers.languageListeners.add(this,language -> {
 				this.language = language;
 				updateTabTitles();
@@ -263,6 +264,9 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			this.controllers.dataReceivers.add(this,data->{
 				this.addonCategories = data.addonCategories;
 				updateTabTitles();
+			});
+			this.controllers.saveGameListeners.add(this, saveGame->{
+				this.saveGame = saveGame;
 			});
 		}
 
@@ -281,17 +285,17 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel(mainWindow, controllers, false, data));
-				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel(mainWindow, controllers, false));
-				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel(mainWindow, controllers, false));
-				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, controllers, false));
-				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel(mainWindow, controllers, false));
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, controllers, false, data, saveGame));
+				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, controllers, false, saveGame));
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, controllers, false, saveGame));
+				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, controllers, false, saveGame));
+				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel    (mainWindow, controllers, false, saveGame));
 				
 				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
-					createTab(category, compatibleTruckAddons.get(category), () -> new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data));
+					createTab(category, compatibleTruckAddons.get(category), () -> new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data, saveGame));
 			}
 		}
 
