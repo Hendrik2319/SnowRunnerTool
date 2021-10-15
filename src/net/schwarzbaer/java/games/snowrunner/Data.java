@@ -671,7 +671,6 @@ public class Data {
 			
 		}
 		
-		@SuppressWarnings("unused")
 		private static void showAttr(String debugOutputPrefix, String nodeName, String attrName, String value) {
 			if (value==null) return;
 			unexpectedValues.add(debugOutputPrefix+" <GameData"+(nodeName==null ? "" : "> <"+nodeName)+" "+attrName+"=\"####\">", value);
@@ -779,8 +778,8 @@ public class Data {
 		public static class GameDataTruck extends GameDataT3 {
 	
 			public final Truck.Country country;
-			public final String[] excludeAddons; // TODO: add to table
-			public final Boolean recallable; // TODO: add to table
+			public final String[] excludeAddons;
+			public final Boolean recallable;
 
 			GameDataTruck(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 				super(gameDataNode, debugOutputPrefix);
@@ -812,19 +811,31 @@ public class Data {
 		public static class GameDataTruckAddon extends GameDataT3NonTruck {
 	
 			public final String  category;
+			public final boolean isCargo;
+			public final Integer cargoLength;
+			public final String  cargoType;
+			public final String  cargoAddonSubtype; // TODO: add to table
+			public final Integer cargoValue;
+			public final String  cargoName_StringID;
+			public final String  cargoDescription_StringID;
 			public final Integer garagePoints; // TODO: add to table
 			public final Boolean isCustomizable; // TODO: add to table
 			public final Integer loadPoints; // TODO: add to table
 			public final Integer manualLoads; // TODO: add to table
+			public final Integer manualLoads_IS; // TODO: add to table
 			public final String  originalAddon; // TODO: add to table
 			public final String  saddleType; // TODO: add to table
 			public final Boolean showPackingStoppers; // TODO: add to table
 			public final Integer trialsToUnlock; // TODO: add to table
 			public final Boolean unpackOnTrailerDetach; // TODO: add to table
 			public final Integer wheelToPack; // TODO: add to table
+			public final String requiredAddonType; // TODO: add to table
+			public final String requiredAddonType_StringID; // TODO: add to table
 
-			GameDataTruckAddon(GenericXmlNode gameDataNode, String debugOutputPrefix) {
+			GameDataTruckAddon(GenericXmlNode gameDataNode, String debugOutputPrefix, HashMap<String, CargoType> cargoTypes) {
 				super(gameDataNode, debugOutputPrefix);
+				@SuppressWarnings("unused")
+				String str;
 				
 				category              =            gameDataNode.attributes.get("Category"           );
 				garagePoints          = parseInt ( gameDataNode.attributes.get("GaragePoints"         ) );
@@ -873,6 +884,71 @@ public class Data {
 				//str = gameDataNode.attributes.get("WheelToPack"          ); showAttr("[General]", null, "WheelToPack"          , str);
 				//   [General] <GameData WheelToPack="####">
 				//      2
+				
+				GenericXmlNode installSlotNode = gameDataNode.getNode("GameData", "InstallSlot"); // Cargo-Addon
+				isCargo     = installSlotNode!=null;
+				cargoLength = parseInt ( getAttribute(installSlotNode, "CargoLength") );
+				cargoType   =            getAttribute(installSlotNode, "CargoType"  );
+				cargoValue  = parseInt ( getAttribute(installSlotNode, "CargoValue" ) );
+				CargoType ct = null;
+				if (cargoType!=null && name_StringID==null)
+					ct = cargoTypes.get(cargoType);
+				if (ct!=null) {
+					cargoName_StringID = ct.name_StringID;
+					cargoDescription_StringID = ct.description_StringID;
+				} else {
+					cargoName_StringID = null;
+					cargoDescription_StringID = null;
+				}
+				cargoAddonSubtype =            getAttribute(installSlotNode, "CargoAddonSubtype"  );
+				manualLoads_IS    = parseInt ( getAttribute(installSlotNode, "ManualLoads" ) );
+				//str = getAttribute(installSlotNode, "CargoAddonSubtype"); showAttr("[General]", "InstallSlot", "CargoAddonSubtype", str);
+				//   [General] <GameData> <InstallSlot CargoAddonSubtype="####">
+				//      Cat745LogBunk
+				//      FrameAddonLog
+				//      TrailerLogMedium
+				//      TrailerPoleLogLong
+				//str = getAttribute(installSlotNode, "ManualLoads"      ); showAttr("[General]", "InstallSlot", "ManualLoads"      , str);
+				//   [General] <GameData> <InstallSlot ManualLoads="####">
+				//      3
+				//showAttrsAndSubNodes(installSlotNode, "[General]", "InstallSlot");
+				//   [General] <GameData> <InstallSlot ####="...">
+				//      CargoAddonSubtype
+				//    + CargoLength
+				//    + CargoType
+				//    + CargoValue
+				//      ManualLoads
+				//    - Offset
+				
+				GenericXmlNode requiredAddonTypeNode = gameDataNode.getNode("GameData", "RequiredAddonType");
+				requiredAddonType          = getAttribute(requiredAddonTypeNode, "Type"  );
+				requiredAddonType_StringID = getAttribute(requiredAddonTypeNode, "TypeUiName"  );
+				//str = getAttribute(requiredAddonTypeNode, "Type"      ); showAttr("[General]", "RequiredAddonType", "Type"      , str);
+				//   [General] <GameData> <RequiredAddonType Type="####">
+				//      SaddleHigh
+				//      SaddleLow
+				//str = getAttribute(requiredAddonTypeNode, "TypeUiName"); showAttr("[General]", "RequiredAddonType", "TypeUiName", str);
+				//   [General] <GameData> <RequiredAddonType TypeUiName="####">
+				//      UI_REQUIRED_ADDON_TYPE_SADDLE_HIGH
+				//      UI_REQUIRED_ADDON_TYPE_SADDLE_LOW
+				//showAttrsAndSubNodes(requiredAddonTypeNodes, "[General]", "RequiredAddonType");
+				//   [General] <GameData> <RequiredAddonType ####="...">
+				//      Type
+				//      TypeUiName
+				//   [General] <GameData> <RequiredAddonType>
+				//      N = 0
+				//      N = 1
+				
+				//GenericXmlNode spawnLoadOriginNode = gameDataNode.getNode("GameData", "SpawnLoadOrigin");
+				//str = getAttribute(spawnLoadOriginNode, "Position"); showAttr("[General]", "SpawnLoadOrigin", "Position", str);
+				//   [General] <GameData> <SpawnLoadOrigin Position="####">
+				//      (-.4; 0; 0)
+				//showAttrsAndSubNodes(spawnLoadOriginNodes, "[General]", "SpawnLoadOrigin");
+				//   [General] <GameData> <SpawnLoadOrigin ####="...">
+				//      Position
+				//   [General] <GameData> <SpawnLoadOrigin>
+				//      N = 0
+				//      N = 1
 			}
 		}
 	}
@@ -1537,12 +1613,6 @@ public class Data {
 
 	public static class TruckAddon extends ItemBased implements HasNameAndID {
 		
-		public final boolean isCargo;
-		public final Integer cargoLength;
-		public final String  cargoType;
-		public final Integer cargoValue;
-		public final String  cargoName_StringID;
-		public final String  cargoDescription_StringID;
 		public final Integer repairsCapacity;
 		public final Integer wheelRepairsCapacity;
 		public final Integer fuelCapacity;
@@ -1571,7 +1641,7 @@ public class Data {
 		
 			
 			GenericXmlNode gameDataNode = item.content.getNode("TruckAddon", "GameData");
-			gameData = new GameData.GameDataTruckAddon(gameDataNode, "Class[trucks] <TruckAddon>");
+			gameData = new GameData.GameDataTruckAddon(gameDataNode, "Class[trucks] <TruckAddon>", cargoTypes);
 			//gameDataNode.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("Class[trucks] <TruckAddon> <GameData ####=\"...\">", key);
 			//});
@@ -1589,34 +1659,13 @@ public class Data {
 			// <TruckAddon> <GameData OriginalAddon=\"...\"> --> verwendet bei abgewandelten AddOns --> im Spiel testen
 			//    \[media]\classes\trucks\addons\big_crane_us_ws4964.xml
 			
-			GenericXmlNode installSlotNode = gameDataNode.getNode("GameData", "InstallSlot"); // Cargo-Addon
-			isCargo     = installSlotNode!=null;
-			cargoLength = parseInt ( getAttribute(installSlotNode, "CargoLength") );
-			cargoType   =            getAttribute(installSlotNode, "CargoType"  );
-			cargoValue  = parseInt ( getAttribute(installSlotNode, "CargoValue" ) );
-			CargoType ct = null;
-			if (cargoType!=null && gameData.name_StringID==null)
-				ct = cargoTypes.get(cargoType);
-			if (ct!=null) {
-				cargoName_StringID = ct.name_StringID;
-				cargoDescription_StringID = ct.description_StringID;
-			} else {
-				cargoName_StringID = null;
-				cargoDescription_StringID = null;
-			}
-			
-			//if (installSlotNode!=null)
-			//	installSlotNode.attributes.forEach((key,value)->{
-			//		unexpectedValues.add("Class[trucks] <TruckAddon> <GameData> <InstallSlot ####=\"...\">", key);
-			//	});
-			
 		}
 
-		@Override public String getName_StringID() { return gameData.name_StringID!=null ? gameData.name_StringID : cargoName_StringID; }
+		@Override public String getName_StringID() { return gameData.name_StringID!=null ? gameData.name_StringID : gameData.cargoName_StringID; }
 		@Override public String getID() { return id; }
 
 		String getCategory() {
-			if (isCargo) return AddonCategories.CARGO_CATEGORY;
+			if (gameData.isCargo) return AddonCategories.CARGO_CATEGORY;
 			if (gameData.category==null) return AddonCategories.NULL_CATEGORY;
 			return gameData.category;
 		}
