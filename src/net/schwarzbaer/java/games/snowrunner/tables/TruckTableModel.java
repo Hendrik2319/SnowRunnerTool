@@ -125,7 +125,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 			case ShortLogs:
 			case MediumLogs:
 			case LongLogs:
-				// TODO: specialTruckAddons
+				// TODO: Truck ability for short, medium, long logs 
 				id = null;
 				break;
 			}

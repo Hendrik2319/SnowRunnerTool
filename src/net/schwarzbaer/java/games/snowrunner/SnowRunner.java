@@ -731,7 +731,7 @@ public class SnowRunner {
 		};
 	}
 
-	static String getNameFromID(String id, Function<String,String> getName_StringID, Language language) {
+	public static String getNameFromID(String id, Function<String,String> getName_StringID, Language language) {
 		if (getName_StringID==null)
 			throw new IllegalArgumentException();
 		if (id == null) return "<null>";
@@ -739,13 +739,23 @@ public class SnowRunner {
 		return solveStringID(name_StringID, language, String.format("<%s>", id));
 	}
 
-	static String joinTruckAddonNames(Vector<TruckAddon> list, AddonCategories addonCategories, Language language) {
+	public static String joinTruckAddonNames(Vector<TruckAddon> list, AddonCategories addonCategories, Language language) {
 		Function<TruckAddon, String> mapper = addon->{
 			String name = SnowRunner.solveStringID(addon, language);
 			String categoryLabel = AddonCategories.getCategoryLabel(addon.gameData.category,addonCategories,language);
 			return String.format("[%s] \"%s\"", categoryLabel, name);
 		};
 		return String.join(", ", (Iterable<String>)()->list.stream().map(mapper).sorted().iterator());
+	}
+	
+	public static String getIdAndName(String id, String stringID, Language lang) {
+		if (id!=null && stringID!=null)
+			return String.format("[%s] %s", id, SnowRunner.solveStringID(stringID, lang));
+		if (id!=null)
+			return String.format("[%s]", id);
+		if (stringID!=null)
+			return SnowRunner.solveStringID(stringID, lang);
+		return null;
 	}
 
 	public static String joinTruckNames(Vector<Truck> list, Language language) {
