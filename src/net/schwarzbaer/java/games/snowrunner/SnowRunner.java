@@ -850,14 +850,22 @@ public class SnowRunner {
 		public enum Change { Added, Removed, None }
 		
 		public enum List {
-			MetalDetectors  ("Metal Detector"),
-			SeismicVibrators("Seismic Vibrator"),
-			LogLifts        ("Log Lift"),
-			MiniCranes      ("Mini Crane"),
-			BigCranes       ("Big Crane");
+			MetalDetectors  ("Metal Detector"  , AppSettings.ValueKey.MetalDetectorAddons  ),
+			SeismicVibrators("Seismic Vibrator", AppSettings.ValueKey.SeismicVibratorAddons),
+			LogLifts        ("Log Lift"        , AppSettings.ValueKey.LogLiftAddons        ),
+			MiniCranes      ("Mini Crane"      , AppSettings.ValueKey.MiniCraneAddons      ),
+			BigCranes       ("Big Crane"       , AppSettings.ValueKey.BigCraneAddons       ),
+			ShortLogs       ("Short Log"       , AppSettings.ValueKey.ShortLogAddons       ),
+			MediumLogs      ("Medium Log"      , AppSettings.ValueKey.MediumLogAddons      ),
+			LongLogs        ("Long Log"        , AppSettings.ValueKey.LongLogAddons        ),
+			;
+			
 			final String label;
-			List(String label) {
+			final AppSettings.ValueKey settingsKey;
+			
+			List(String label, AppSettings.ValueKey settingsKey) {
 				this.label = label;
+				this.settingsKey = settingsKey;
 			}
 		}
 
@@ -867,14 +875,20 @@ public class SnowRunner {
 		public final SpecialTruckAddonList logLifts;
 		public final SpecialTruckAddonList miniCranes;
 		public final SpecialTruckAddonList bigCranes;
+		public final SpecialTruckAddonList shortLogs;
+		public final SpecialTruckAddonList mediumLogs;
+		public final SpecialTruckAddonList longLogs;
 		
 		public SpecialTruckAddons(Listener listenersController) {
 			this.listenersController = listenersController;
-			metalDetectors   = new SpecialTruckAddonList(AppSettings.ValueKey.MetalDetectorAddons  , List.MetalDetectors  );
-			seismicVibrators = new SpecialTruckAddonList(AppSettings.ValueKey.SeismicVibratorAddons, List.SeismicVibrators);
-			logLifts         = new SpecialTruckAddonList(AppSettings.ValueKey.LogLiftAddons        , List.LogLifts        );
-			miniCranes       = new SpecialTruckAddonList(AppSettings.ValueKey.MiniCraneAddons      , List.MiniCranes      );
-			bigCranes        = new SpecialTruckAddonList(AppSettings.ValueKey.BigCraneAddons       , List.BigCranes       );
+			metalDetectors   = new SpecialTruckAddonList(List.MetalDetectors  );
+			seismicVibrators = new SpecialTruckAddonList(List.SeismicVibrators);
+			logLifts         = new SpecialTruckAddonList(List.LogLifts        );
+			miniCranes       = new SpecialTruckAddonList(List.MiniCranes      );
+			bigCranes        = new SpecialTruckAddonList(List.BigCranes       );
+			shortLogs        = new SpecialTruckAddonList(List.ShortLogs       );
+			mediumLogs       = new SpecialTruckAddonList(List.MediumLogs      );
+			longLogs         = new SpecialTruckAddonList(List.LongLogs        );
 		}
 		
 		void foreachList(BiConsumer<List,SpecialTruckAddonList> action) {
@@ -884,26 +898,27 @@ public class SnowRunner {
 
 		public SpecialTruckAddonList getList(List list) {
 			switch (list) {
-			case BigCranes       : return bigCranes;
-			case LogLifts        : return logLifts;
 			case MetalDetectors  : return metalDetectors;
-			case MiniCranes      : return miniCranes;
 			case SeismicVibrators: return seismicVibrators;
+			case LogLifts        : return logLifts;
+			case MiniCranes      : return miniCranes;
+			case BigCranes       : return bigCranes;
+			case ShortLogs       : return shortLogs ;
+			case MediumLogs      : return mediumLogs;
+			case LongLogs        : return longLogs  ;
 			}
 			return null;
 		}
 
 		public class SpecialTruckAddonList {
 			
-			private final AppSettings.ValueKey settingsKey;
 			private final HashSet<String> idList;
 			private final List list;
 
-			SpecialTruckAddonList(AppSettings.ValueKey settingsKey, List list) {
-				this.settingsKey = settingsKey;
+			SpecialTruckAddonList(List list) {
 				this.list = list;
 				idList = new HashSet<>();
-				String[] idListArr = settings.getStrings(settingsKey, " : ");
+				String[] idListArr = settings.getStrings(this.list.settingsKey, " : ");
 				if (idListArr!=null) idList.addAll(Arrays.asList(idListArr));
 			}
 
@@ -917,7 +932,7 @@ public class SnowRunner {
 			}
 
 			private void update() {
-				settings.putStrings(settingsKey, " : ", idList.toArray(new String[idList.size()]));
+				settings.putStrings(list.settingsKey, " : ", idList.toArray(new String[idList.size()]));
 			}
 
 			public boolean contains(TruckAddon addon) {
@@ -1387,7 +1402,7 @@ public class SnowRunner {
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted,
 			MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
-			ColumnHidePresets, FilterRowsPresets,
+			ColumnHidePresets, FilterRowsPresets, ShortLogAddons, MediumLogAddons, LongLogAddons,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

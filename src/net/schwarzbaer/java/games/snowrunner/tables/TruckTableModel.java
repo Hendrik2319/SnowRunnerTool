@@ -117,6 +117,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 			case BigCranes       : id = "BigCrane"; break;
 			case LogLifts        : id = "MiniCrane"; break;
 			case MiniCranes      : id = "LogLift"; break;
+			
+			case ShortLogs:
+			case MediumLogs:
+			case LongLogs:
+				// TODO: specialTruckAddons
+				id = null;
+				break;
 			}
 			if (id!=null)
 				fireTableColumnUpdate(findColumnByID(id));
