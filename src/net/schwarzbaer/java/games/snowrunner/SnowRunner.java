@@ -720,11 +720,11 @@ public class SnowRunner {
 			
 			if (truckAddons!=null && name_StringID==null) {
 				TruckAddon truckAddon = truckAddons.get(id);
-				if (truckAddon != null) name_StringID = truckAddon.name_StringID;
+				if (truckAddon != null) name_StringID = truckAddon.gameData.name_StringID;
 			}
 			if (trailers!=null && name_StringID==null) {
 				Trailer trailer = trailers.get(id);
-				if (trailer != null) name_StringID = trailer.name_StringID;
+				if (trailer != null) name_StringID = trailer.gameData.name_StringID;
 			}
 			
 			return name_StringID;
@@ -742,7 +742,7 @@ public class SnowRunner {
 	static String joinTruckAddonNames(Vector<TruckAddon> list, AddonCategories addonCategories, Language language) {
 		Function<TruckAddon, String> mapper = addon->{
 			String name = SnowRunner.solveStringID(addon, language);
-			String categoryLabel = AddonCategories.getCategoryLabel(addon.category,addonCategories,language);
+			String categoryLabel = AddonCategories.getCategoryLabel(addon.gameData.category,addonCategories,language);
 			return String.format("[%s] \"%s\"", categoryLabel, name);
 		};
 		return String.join(", ", (Iterable<String>)()->list.stream().map(mapper).sorted().iterator());

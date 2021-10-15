@@ -76,7 +76,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		public void add(Float scale, TruckTire tire, Truck truck) {
 			trucks.add(truck);
 			sizes.add(CompatibleWheel.computeSize_inch(scale));
-			names_StringID.add(tire.name_StringID);
+			names_StringID.add(tire.gameData.name_StringID);
 			RowItem.TireValues newTireValues = new TireValues(tire);
 			if (!tireValues.equals(newTireValues)) {
 				System.err.printf("[WheelsTable] Found a wheel with same source (%s) but different values: %s <-> %s", key, tireValues, newTireValues);

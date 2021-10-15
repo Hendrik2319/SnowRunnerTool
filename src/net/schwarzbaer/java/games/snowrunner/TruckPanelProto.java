@@ -160,7 +160,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 
 	void setTruck(Truck truck, Data data) {
 		this.truck = truck;
-		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : this.truck.name_StringID);
+		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : this.truck.gameData.name_StringID);
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel2         .setData(truck, data);
@@ -185,11 +185,11 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		ValueListOutput outTop = new ValueListOutput();
 		
 		outTop.add(0, "ID"     , truck.id);
-		outTop.add(0, "Country", truck.country==null ? null : truck.country.toString());
-		outTop.add(0, "Price"  , truck.price);
+		outTop.add(0, "Country", truck.gameData.country==null ? null : truck.gameData.country.toString());
+		outTop.add(0, "Price"  , truck.gameData.price);
 		outTop.add(0, "Type"   , truck.type==null ? null : truck.type.toString());
-		outTop.add(0, "Unlock By Exploration", truck.unlockByExploration);
-		outTop.add(0, "Unlock By Rank"       , truck.unlockByRank);
+		outTop.add(0, "Unlock By Exploration", truck.gameData.unlockByExploration);
+		outTop.add(0, "Unlock By Rank"       , truck.gameData.unlockByRank);
 		outTop.add(0, "XML file"             , truck.xmlName);
 		
 		if (truck.dlcName!=null)
@@ -212,16 +212,16 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		String name = null;
 		String description = null;
 		if (language!=null) {
-			name        = language.dictionary.get(truck.name_StringID);
-			description = language.dictionary.get(truck.description_StringID);
+			name        = language.dictionary.get(truck.gameData.name_StringID);
+			description = language.dictionary.get(truck.gameData.description_StringID);
 		}
-		outTop.add(0, "Name", "<%s>", truck.name_StringID);
+		outTop.add(0, "Name", "<%s>", truck.gameData.name_StringID);
 		if (name!=null)
 			outTop.add(0, null, name);
 		
 		outTop.add(0, "");
 		
-		outTop.add(0, "Description", "<%s>", truck.description_StringID);
+		outTop.add(0, "Description", "<%s>", truck.gameData.description_StringID);
 		if (description != null)
 			outTop.add(0, null, description);
 		
@@ -731,7 +731,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			if (selectedWheel != null) {
 				//singleWheelInfoTextArea.append(selectedWheel.tire.tireType_StringID+"\r\n");
 				//singleWheelInfoTextArea.append("Description:\r\n");
-				String description = SnowRunner.solveStringID(selectedWheel.tire.description_StringID, language);
+				String description = SnowRunner.solveStringID(selectedWheel.tire.gameData.description_StringID, language);
 				textArea.append(description+"\r\n");
 			}
 		}
@@ -857,7 +857,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 					Comparator<RowItem> comparator = Comparator
 							.<RowItem,String>comparing(cw->cw.tire.tireType_StringID,typeComparator)
 							.thenComparing(cw->cw.scale,floatNullsLast)
-							.thenComparing(cw->cw.tire.name_StringID,stringNullsLast);
+							.thenComparing(cw->cw.tire.gameData.name_StringID,stringNullsLast);
 					data.sort(comparator);
 				}
 				
@@ -881,17 +881,17 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 					switch (columnID) {
 					case WheelsDefID: return row.wheelsDefID;
 					case Type       : return SnowRunner.solveStringID(row.tire.tireType_StringID, language);
-					case Name       : return SnowRunner.solveStringID(row.tire.name_StringID, language);
-					case Description: return SnowRunner.solveStringID(row.tire.description_StringID, language);
+					case Name       : return SnowRunner.solveStringID(row.tire.gameData.name_StringID, language);
+					case Description: return SnowRunner.solveStringID(row.tire.gameData.description_StringID, language);
 					case DLC        : return row.dlc;
 					case Friction_highway: return row.tire.frictionHighway;
 					case Friction_offroad: return row.tire.frictionOffroad;
 					case Friction_mud    : return row.tire.frictionMud;
 					case OnIce: return row.tire.onIce;
-					case Price: return row.tire.price;
+					case Price: return row.tire.gameData.price;
 					case Size : return row.getSize();
-					case UnlockByExploration: return row.tire.unlockByExploration;
-					case UnlockByRank: return row.tire.unlockByRank;
+					case UnlockByExploration: return row.tire.gameData.unlockByExploration;
+					case UnlockByRank: return row.tire.gameData.unlockByRank;
 					}
 				return null;
 			}
@@ -1347,7 +1347,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				}
 				
 				void add(CompatibleWheelsPanel.CWTableModel.RowItem wheel, Language language) {
-					String name = SnowRunner.solveStringID(wheel.tire.name_StringID, language);
+					String name = SnowRunner.solveStringID(wheel.tire.gameData.name_StringID, language);
 					Integer size = wheel.getSize();
 					
 					HashSet<Integer> sizes = wheels.get(name);
