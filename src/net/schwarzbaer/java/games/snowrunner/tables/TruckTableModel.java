@@ -84,7 +84,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 				new ColumnID( "CargoSlts", "Cargo Slots"          ,              Integer.class,  70,             null, CENTER,      null, false, row -> ((Truck)row).gameData.cargoSlots),
 				new ColumnID( "ExclCargo", "Excluded Cargo Types" ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludedCargoTypes)),
 				new ColumnID( "ExclAddon", "Exclude Addons"       ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludeAddons)),
-				new ColumnID( "Recall"   , "Recallable"           ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable),
+		//		new ColumnID( "Recall"   , "Recallable"           ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable_obsolete),
 		});
 		this.specialTruckAddons = specialTruckAddons;
 		this.userDefinedValues = udv;

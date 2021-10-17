@@ -94,10 +94,9 @@ public class TableSimplifier {
 					int colM = colV<0 ? -1 : table.convertColumnIndexToModel(colV);
 					int rowM = rowV<0 ? -1 : table.   convertRowIndexToModel(rowV);
 					Class<?> columnClass = colM<0 ? null : this.tableModel.getColumnClass(colM);
-					if (columnClass!=String.class) return;
 					Object value = colM<0 || rowM<0 ? null : this.tableModel.getValueAt(rowM, colM);
-					if (value==null) return;
-					clickedStringValue = value.toString();
+					if (columnClass==String.class && value!=null)
+						clickedStringValue = value.toString();
 				}
 				miCopyValue.setEnabled(clickedStringValue!=null);
 				miCopyValue.setText(
