@@ -224,9 +224,9 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	}
 	
 	protected void connectToGlobalData(Function<Data,Collection<RowType>> getData) {
-		connectToGlobalData(getData, false);
+		connectToGlobalData(false, getData);
 	}
-	protected void connectToGlobalData(Function<Data,Collection<RowType>> getData, boolean forwardNulls) {
+	protected void connectToGlobalData(boolean forwardNulls, Function<Data,Collection<RowType>> getData) {
 		if (getData!=null)
 			controllers.dataReceivers.add(this, data -> {
 				if (!forwardNulls)

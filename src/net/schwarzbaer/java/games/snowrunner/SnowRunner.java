@@ -21,9 +21,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import javax.swing.BorderFactory;
@@ -126,6 +128,15 @@ public class SnowRunner {
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
 		specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
+		controllers.specialTruckAddonsListeners.add(new ListenerSource() {}, (list, change) -> {
+			if (list==null || data==null) return;
+			switch (list) {
+			case LongLogs:
+			case MediumLogs:
+			case ShortLogs: data.logCapabilities.update(list, specialTruckAddons.getList(list)); break;
+			default: break;
+			}
+		});
 		
 		rawDataPanel = new RawDataPanel(mainWindow, controllers);
 		
@@ -295,6 +306,9 @@ public class SnowRunner {
 			//Data newData = testXMLTemplateStructure(initialPAK);
 			if (newData!=null) {
 				data = newData;
+				data.logCapabilities.update(SpecialTruckAddons.List.  LongLogs, specialTruckAddons.getList(SpecialTruckAddons.List.  LongLogs));
+				data.logCapabilities.update(SpecialTruckAddons.List.MediumLogs, specialTruckAddons.getList(SpecialTruckAddons.List.MediumLogs));
+				data.logCapabilities.update(SpecialTruckAddons.List. ShortLogs, specialTruckAddons.getList(SpecialTruckAddons.List. ShortLogs));
 				return true;
 			}
 		}
@@ -860,22 +874,27 @@ public class SnowRunner {
 		public enum Change { Added, Removed, None }
 		
 		public enum List {
-			MetalDetectors  ("Metal Detector"  , AppSettings.ValueKey.MetalDetectorAddons  ),
-			SeismicVibrators("Seismic Vibrator", AppSettings.ValueKey.SeismicVibratorAddons),
-			LogLifts        ("Log Lift"        , AppSettings.ValueKey.LogLiftAddons        ),
-			MiniCranes      ("Mini Crane"      , AppSettings.ValueKey.MiniCraneAddons      ),
-			BigCranes       ("Big Crane"       , AppSettings.ValueKey.BigCraneAddons       ),
-			ShortLogs       ("Short Log"       , AppSettings.ValueKey.ShortLogAddons       ),
-			MediumLogs      ("Medium Log"      , AppSettings.ValueKey.MediumLogAddons      ),
-			LongLogs        ("Long Log"        , AppSettings.ValueKey.LongLogAddons        ),
+			MetalDetectors  ("Metal Detector"  , AppSettings.ValueKey.MetalDetectorAddons  , addon->!addon.gameData.isCargo),
+			SeismicVibrators("Seismic Vibrator", AppSettings.ValueKey.SeismicVibratorAddons, addon->!addon.gameData.isCargo),
+			LogLifts        ("Log Lift"        , AppSettings.ValueKey.LogLiftAddons        , addon->!addon.gameData.isCargo),
+			MiniCranes      ("Mini Crane"      , AppSettings.ValueKey.MiniCraneAddons      , addon->!addon.gameData.isCargo),
+			BigCranes       ("Big Crane"       , AppSettings.ValueKey.BigCraneAddons       , addon->!addon.gameData.isCargo),
+			ShortLogs       ("Short Log"       , AppSettings.ValueKey.ShortLogAddons       , addon-> addon.gameData.isCargo),
+			MediumLogs      ("Medium Log"      , AppSettings.ValueKey.MediumLogAddons      , addon-> addon.gameData.isCargo),
+			LongLogs        ("Long Log"        , AppSettings.ValueKey.LongLogAddons        , addon-> addon.gameData.isCargo),
 			;
 			
 			final String label;
 			final AppSettings.ValueKey settingsKey;
+			public final Predicate<TruckAddon> isAllowed;
 			
 			List(String label, AppSettings.ValueKey settingsKey) {
+				this(label, settingsKey, null);
+			}
+			List(String label, AppSettings.ValueKey settingsKey, Predicate<TruckAddon> isAllowed) {
 				this.label = label;
 				this.settingsKey = settingsKey;
+				this.isAllowed = isAllowed;
 			}
 		}
 
@@ -930,6 +949,19 @@ public class SnowRunner {
 				idList = new HashSet<>();
 				String[] idListArr = settings.getStrings(this.list.settingsKey, " : ");
 				if (idListArr!=null) idList.addAll(Arrays.asList(idListArr));
+			}
+
+			public void forEach(Consumer<String> action) {
+				idList.forEach(action);
+			}
+
+			public <Result> Result forEach(Supplier<Result> getInitial, BiFunction<Result,Result,Result> combine, Predicate<Result> isFinalResult, Function<String,Result> action) {
+				Result result = getInitial.get();
+				for (String id : idList) {
+					result = combine.apply(result, action.apply(id));
+					if (isFinalResult.test(result)) break;
+				}
+				return result;
 			}
 
 			int findIn(HashMap<String, TruckAddon> truckAddons) {

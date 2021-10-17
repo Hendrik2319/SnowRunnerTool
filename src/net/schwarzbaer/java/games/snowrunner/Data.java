@@ -22,10 +22,13 @@ import java.util.function.Predicate;
 import java.util.zip.ZipFile;
 
 import net.schwarzbaer.gui.ValueListOutput;
-import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets;
+import net.schwarzbaer.java.games.snowrunner.Data.GameData.GameDataT3NonTruck;
+import net.schwarzbaer.java.games.snowrunner.Data.GameData.GameDataT3NonTruck.LoadArea;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.SetMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
@@ -35,6 +38,7 @@ public class Data {
 	private static SetMap<String,String> unexpectedValues;
 	
 	public final XMLTemplateStructure rawdata;
+	public final LogCapabilities logCapabilities;
 	public final HashMap<String,Language> languages;
 	public final AddonCategories addonCategories;
 	public final HashMap<String,CargoType> cargoTypes;
@@ -60,7 +64,7 @@ public class Data {
 		
 		unexpectedValues = new SetMap<>(null,null);
 		
-		
+		logCapabilities = new LogCapabilities();
 		
 		//HashSetMap<String,String> baseNodesInClasses = new HashSetMap<>(null,null);
 		//rawdata.classes.forEach((className,class_)->{
@@ -169,7 +173,7 @@ public class Data {
 				if (addon!=null) truck.defaultAddons.add(addon);
 			}
 			
-			for (AddonSockets as : truck.addonSockets) {
+			for (Truck.AddonSockets as : truck.addonSockets) {
 				if (as.defaultAddonID!=null) {
 					as.defaultAddonItem = truckAddons.get(as.defaultAddonID);
 					if (as.defaultAddonItem!=null) {
@@ -205,7 +209,7 @@ public class Data {
 			truck.compatibleTruckAddons.clear();
 			
 			// add all Addons & Trailers by SocketID
-			for (AddonSockets as : truck.addonSockets) {
+			for (Truck.AddonSockets as : truck.addonSockets) {
 				for (String socketID : as.compatibleSocketIDs) {
 					
 					Vector<Trailer> trailers = socketIDsUsedByTrailers.get(socketID);
@@ -230,8 +234,8 @@ public class Data {
 				for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values()) {
 					Vector<TruckAddon> addonsToRemove = new Vector<>();
 					for (TruckAddon addon : list) {
-						if (	findAddon(truck.gameData.excludeAddons, addon.id) ||
-								!findARequiredAddon(addon.gameData.requiredAddons,truck.compatibleTruckAddons)) {
+						if (	findAddon(addon.id, truck.gameData.excludeAddons) ||
+								!findRequiredAddons(addon.gameData.requiredAddons,truck.compatibleTruckAddons,truck.compatibleTrailers)) {
 							addonsToRemove.add(addon);
 							haveSomeRemoved = true;
 							//System.out.printf("Truck<%-20s>: Remove Addon <%s>%n", truck.id, addon.id);
@@ -241,8 +245,8 @@ public class Data {
 				}
 				Vector<Trailer> trailersToRemove = new Vector<>();
 				for (Trailer trailer : truck.compatibleTrailers) {
-					if (	findAddon(truck.gameData.excludeAddons, trailer.id) ||
-							!findARequiredAddon(trailer.gameData.requiredAddons,truck.compatibleTruckAddons)) {
+					if (	findAddon(trailer.id, truck.gameData.excludeAddons) ||
+							!findRequiredAddons(trailer.gameData.requiredAddons,truck.compatibleTruckAddons,truck.compatibleTrailers)) {
 						trailersToRemove.add(trailer);
 						haveSomeRemoved = true;
 						//System.out.printf("Truck<%-20s>: Remove Trailer <%s>%n", truck.id, trailer.id);
@@ -361,20 +365,12 @@ public class Data {
 		return line.substring(prefix.length());
 	}
 
-	private boolean findAddon(String[] idList, String id) {
-		if (idList!=null)
-			for (String id_ : idList)
-				if (id_.equals(id))
-					return true;
-		return false;
-	}
-
-	private static boolean findARequiredAddon(String[][] requiredAddons, StringVectorMap<TruckAddon> compatibleAddons) {
+	private static boolean findRequiredAddons(String[][] requiredAddons, StringVectorMap<TruckAddon> compatibleAddons, HashSet<Trailer> compatibleTrailers) {
 		for (int andIndex=0; andIndex<requiredAddons.length; andIndex++) {
 			boolean foundARequiredAddon = false;
 			for (int orIndex=0; orIndex<requiredAddons[andIndex].length; orIndex++) {
 				String requiredAddon = requiredAddons[andIndex][orIndex];
-				if (findARequiredAddon(requiredAddon, compatibleAddons)) {
+				if (findAddon(requiredAddon, compatibleAddons, compatibleTrailers)) {
 					foundARequiredAddon = true;
 					break;
 				}
@@ -385,10 +381,23 @@ public class Data {
 		return true;
 	}
 
-	private static boolean findARequiredAddon(String requiredAddon, StringVectorMap<TruckAddon> compatibleAddons) {
-		for (Vector<TruckAddon> list : compatibleAddons.values())
-			for (TruckAddon addon : list)
-				if (requiredAddon.equals(addon.id))
+	private static boolean findAddon(String id, StringVectorMap<TruckAddon> addons, HashSet<Trailer> trailers) {
+		if (addons!=null)
+			for (Vector<TruckAddon> list : addons.values())
+				for (TruckAddon addon : list)
+					if (id.equals(addon.id))
+						return true;
+		if (trailers!=null)
+			for (Trailer trailer : trailers)
+				if (id.equals(trailer.id))
+					return true;
+		return false;
+	}
+
+	private static boolean findAddon(String id, String[] idList) {
+		if (idList!=null)
+			for (String id_ : idList)
+				if (id_.equals(id))
 					return true;
 		return false;
 	}
@@ -1650,7 +1659,6 @@ public class Data {
 				
 			}
 		}
-
 	}
 	
 	public static class Trailer extends ItemBased implements HasNameAndID {
@@ -1738,5 +1746,116 @@ public class Data {
 			return gameData.category;
 		}
 
+	}
+	
+	//public boolean is()
+	
+	public Boolean isCapable(Truck truck, SpecialTruckAddons.List listID, SpecialTruckAddons specialTruckAddons) {
+		SpecialTruckAddonList addonList = specialTruckAddons.getList(listID);
+		switch (listID) {
+		
+		case MiniCranes:
+		case BigCranes:
+		case LogLifts:
+		case MetalDetectors:
+		case SeismicVibrators:
+			for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
+				for (TruckAddon addon : list)
+					if (addonList.contains(addon))
+						return true;
+			return false;
+			
+		case LongLogs:
+		case MediumLogs:
+		case ShortLogs:
+			return addonList.forEach(
+				()->null,
+				(r1,r2)->{
+					if (r1==null && r2==null) return null;
+					if (r1==null) return r2;
+					if (r2==null) return r1;
+					return r1 || r2;
+				},
+				r->r!=null && r.booleanValue(),
+				id->{
+					TruckAddon addon = truckAddons.get(id);
+					if (addon==null) return null;
+					
+					if (!findRequiredAddons(addon.gameData.requiredAddons, truck.compatibleTruckAddons, truck.compatibleTrailers))
+						return false;
+					
+					if (addon.gameData.cargoAddonSubtype==null)
+						return null;
+					
+					
+					Vector<TruckAddon> truckAddons = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.truckAddons.values(), addon_ ->addon_ .gameData);
+					Vector<Trailer   > trailers    = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.trailers   .values(), trailer->trailer.gameData);
+					
+					if (truckAddons.isEmpty() && trailers.isEmpty())
+						return null;
+					
+					for (TruckAddon addon_ : truckAddons)
+						if (findAddon(addon_.id, truck.compatibleTruckAddons, null))
+							return true;
+					
+					for (Trailer trailer : trailers)
+						if (findAddon(trailer.id, null, truck.compatibleTrailers))
+							return true;
+					
+					return false;
+				}
+			);
+		}
+		return null;
+	}
+
+	private static <ItemType> Vector<ItemType> findItemsWithCargoAddonSubtype(String cargoAddonSubtype, Collection<ItemType> items, Function<ItemType,GameData.GameDataT3NonTruck> getGameData) {
+		Vector<ItemType> resultList = new Vector<>();
+		for (ItemType item : items) {
+			GameDataT3NonTruck gameData = getGameData.apply(item);
+			if (gameData==null) continue;
+			for (GameData.GameDataT3NonTruck.LoadArea loadArea : gameData.loadAreas) {
+				if (cargoAddonSubtype.equals(loadArea.subtype)) {
+					resultList.add(item);
+					break;
+				}
+			}
+		}
+		return resultList;
+	}
+
+	public class LogCapabilities {
+
+		public void update(SpecialTruckAddons.List listID, SpecialTruckAddons.SpecialTruckAddonList list) {
+			
+			HashSet<String> cargoAddonSubtypes = new HashSet<>();
+			list.forEach(id->{
+				TruckAddon addon = truckAddons.get(id);
+				if (addon == null) return;
+				
+				if (addon.gameData.cargoAddonSubtype==null)
+					System.err.printf("Found an unusual %s in list of special truck addons: It doesn't contain a CargoAddonSubtype. (Addon: %s)", listID, id);
+				else
+					cargoAddonSubtypes.add(addon.gameData.cargoAddonSubtype);
+			});
+			Vector<String> sortedCargoAddonSubtypes = new Vector<>(cargoAddonSubtypes);
+			sortedCargoAddonSubtypes.sort(null);
+			System.out.printf("[%s] CargoAddonSubtypes: %s%n", listID, sortedCargoAddonSubtypes.toString());
+			
+			for (TruckAddon addon : truckAddons.values()) {
+				for (LoadArea loadArea : addon.gameData.loadAreas) {
+					if (loadArea.subtype!=null && cargoAddonSubtypes.contains(loadArea.subtype)) {
+						
+					}
+					
+				}
+			}
+			
+			
+			
+			// TODO Auto-generated method stub
+			
+		}
+		
 	}
 }

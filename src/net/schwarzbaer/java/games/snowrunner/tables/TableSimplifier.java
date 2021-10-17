@@ -2,6 +2,7 @@ package net.schwarzbaer.java.games.snowrunner.tables;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Comparator;
@@ -12,6 +13,7 @@ import java.util.function.Supplier;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -28,6 +30,7 @@ import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
+import net.schwarzbaer.system.ClipboardTools;
 
 public class TableSimplifier {
 		
@@ -35,11 +38,13 @@ public class TableSimplifier {
 		final JTable table;
 		final JScrollPane tableScrollPane;
 		final ContextMenu tableContextMenu;
+		private String clickedStringValue;
 	
 		private TableSimplifier(SimplifiedTableModel<?> tableModel) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			this.tableModel = tableModel;
+			clickedStringValue = null;
 			
 			table = new JTable();
 			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
@@ -73,9 +78,34 @@ public class TableSimplifier {
 				rowSorter.resetSortOrder();
 				table.repaint();
 			}));
+			JMenuItem miCopyValue = tableContextMenu.add(SnowRunner.createMenuItem("Copy Value",true,e->{
+				if (clickedStringValue!=null)
+					ClipboardTools.copyToClipBoard(clickedStringValue);
+			}));
 			tableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
 				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
 			}));
+			tableContextMenu.addContextMenuInvokeListener((table, x, y) -> {
+				clickedStringValue = null;
+				if (x!=null && y!=null) {
+					Point point = new Point(x,y);
+					int colV = table.columnAtPoint(point);
+					int rowV = table.   rowAtPoint(point);
+					int colM = colV<0 ? -1 : table.convertColumnIndexToModel(colV);
+					int rowM = rowV<0 ? -1 : table.   convertRowIndexToModel(rowV);
+					Class<?> columnClass = colM<0 ? null : this.tableModel.getColumnClass(colM);
+					if (columnClass!=String.class) return;
+					Object value = colM<0 || rowM<0 ? null : this.tableModel.getValueAt(rowM, colM);
+					if (value==null) return;
+					clickedStringValue = value.toString();
+				}
+				miCopyValue.setEnabled(clickedStringValue!=null);
+				miCopyValue.setText(
+					clickedStringValue==null
+					? "Copy Value to ClipBoard"
+					: String.format("Copy \"%s\" to ClipBoard", SnowRunner.getReducedString(clickedStringValue, 20))
+				);
+			});
 			
 			if (this.tableModel instanceof TableContextMenuModifier)
 				((TableContextMenuModifier)this.tableModel).modifyTableContextMenu(table,tableContextMenu);

@@ -54,11 +54,11 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		trailers    = null;
 		saveGame    = null;
 		if (connectToGlobalData)
-			connectToGlobalData(data->{
+			connectToGlobalData(true, data->{
 				truckAddons = data==null ? null : data.truckAddons;
 				trailers    = data==null ? null : data.trailers;
 				return trailers==null ? null : trailers.values();
-			}, true);
+			});
 		else
 			controllers.dataReceivers.add(this,data -> {
 				setExtraData(data);

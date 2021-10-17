@@ -88,11 +88,11 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		trailers    = null;
 		saveGame    = null;
 		if (connectToGlobalData)
-			connectToGlobalData(data->{
+			connectToGlobalData(true, data->{
 				truckAddons = data==null ? null : data.truckAddons;
 				trailers    = data==null ? null : data.trailers;
 				return truckAddons==null ? null : truckAddons.values();
-			}, true);
+			});
 		
 		else
 			controllers.dataReceivers.add(this,data -> {
@@ -168,6 +168,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 				menuItems.forEach((list,mi)->{
 					SpecialTruckAddonList addonList = specialTruckAddons.getList(list);
 					mi.setSelected(addonList.contains(clickedItem));
+					mi.setEnabled(list.isAllowed==null || list.isAllowed.test(clickedItem));
 				});
 			
 			specialAddonsMenu.setEnabled(clickedItem!=null);
