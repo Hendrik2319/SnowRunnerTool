@@ -35,14 +35,12 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 	private TruckAddon clickedItem;
 	private final SpecialTruckAddons specialTruckAddons;
 	private SaveGame saveGame;
-
-	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons, Data data, SaveGame saveGame) {
-		this(mainWindow, controllers, connectToGlobalData, specialTruckAddons);
-		setExtraData(data);
-		this.saveGame = saveGame;
-	}
+	
 	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons) {
-		super(mainWindow, controllers, new ColumnID[] {
+		this(mainWindow, controllers, connectToGlobalData, specialTruckAddons, true);
+	}
+	public TruckAddonsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SpecialTruckAddons specialTruckAddons, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
+		super(mainWindow, controllers, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
 				new ColumnID("ID"       ,"ID"                      ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
 				new ColumnID("DLC"      ,"DLC"                     ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).dlcName),
 				new ColumnID("Category" ,"Category"                ,  String.class, 150,   null,      null, false, row->((TruckAddon)row).gameData.category),
@@ -80,7 +78,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 				new ColumnID("CargType" ,"Cargo Type"              ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).gameData.cargoType),
 				new ColumnID("CargSType","Cargo Addon SubType"     ,  String.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.cargoAddonSubtype),
 				new ColumnID("UsableBy" ,"Usable By"               ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((TruckAddon)row).usableBy, lang)),
-		});
+		}));
 		this.specialTruckAddons = specialTruckAddons;
 		
 		clickedItem = null;
@@ -118,6 +116,12 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		
 		Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 		setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.gameData.category,string_nullsLast).thenComparing(row->row.id));
+	}
+
+	public TruckAddonsTableModel set(Data data, SaveGame saveGame) {
+		setExtraData(data);
+		this.saveGame = saveGame;
+		return this;
 	}
 
 	private void setExtraData(Data data) {

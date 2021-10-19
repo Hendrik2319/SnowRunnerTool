@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Vector;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -53,6 +54,7 @@ import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.gui.ZoomableCanvas;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
+import net.schwarzbaer.java.games.snowrunner.Data.HasNameAndID;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -76,6 +78,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.Winch
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
 class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
@@ -286,18 +289,69 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			if (this.truck!=null) {
 				
 				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, controllers, false, data, saveGame));
-				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, controllers, false, saveGame));
-				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, controllers, false, saveGame));
-				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, controllers, false, saveGame));
-				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel    (mainWindow, controllers, false, saveGame));
+				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultEngine_ItemID    , Data.Engine    .class)));
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultGearbox_ItemID   , Data.Gearbox   .class)));
+				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultSuspension_ItemID, Data.Suspension.class)));
+				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel    (mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultWinch_ItemID     , Data.Winch     .class)));
 				
 				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
-					createTab(category, compatibleTruckAddons.get(category), () -> new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data, saveGame));
+					createTab(category, compatibleTruckAddons.get(category), () -> {
+						return new TruckAddonsTableModel(
+							mainWindow, controllers, false, specialTruckAddOns,
+							true, createDefaultColumn_List(tr->tr.defaultAddonIDs,TruckAddon.class)
+						).set(data, saveGame);
+					});
 			}
 		}
+
+		private <RowType extends HasNameAndID> VerySimpleTableModel.ColumnID createDefaultColumn_List(Function<Truck,Collection<String>> getDefaultIDs, Class<RowType> rowType) {
+			return createDefaultColumn(
+					(truck,rowID)->{
+						Collection<String> defaultIDs = getDefaultIDs.apply(truck);
+						return defaultIDs!=null && defaultIDs.contains(rowID);
+					},
+					createRowIDFcn(rowType)
+			);
+		}
+
+		private <RowType extends HasNameAndID> VerySimpleTableModel.ColumnID createDefaultColumn_Single(Function<Truck,String> getDefaultID, Class<RowType> rowType) {
+			return createDefaultColumn(
+					(truck,rowID) -> {
+						String defaultID = getDefaultID.apply(truck);
+						return defaultID!=null && defaultID.equals(rowID);
+					},
+					createRowIDFcn(rowType)
+			);
+		}
+
+		private <RowType extends HasNameAndID> Function<Object, String> createRowIDFcn(Class<RowType> rowType) {
+			return row -> !rowType.isInstance(row) ? null : rowType.cast(row).getID();
+		}
+
+		private VerySimpleTableModel.ColumnID createDefaultColumn(BiFunction<Truck,String,Boolean> isDefaultID, Function<Object,String> getRowID) {
+			return createDefaultColumn(row->{
+				if (truck==null) return false;
+				if (row==null) return false;
+				String rowID = getRowID.apply(row);
+				return isDefaultID.apply(truck, rowID);
+			});
+		}
+
+		private VerySimpleTableModel.ColumnID createDefaultColumn(Function<Object,Boolean> isDefault) {
+			return new VerySimpleTableModel.ColumnID("Default","Default", String.class, 50, null, null, false, row->{
+				if (isDefault.apply(row)) return "default";
+				return null;
+			});
+		}
+
+//		private boolean isDefault(Object row) {
+//			TruckAddon addon = (TruckAddon)row;
+//			boolean isDefault = truck.defaultAddonIDs.contains(addon.id);
+//			return isDefault;
+//		}
 
 		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, Supplier<ExtendedVerySimpleTableModel2<ItemType>> constructor) {
 			if (!usableItems.isEmpty()) {

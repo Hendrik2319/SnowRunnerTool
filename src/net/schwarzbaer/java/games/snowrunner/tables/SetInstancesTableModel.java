@@ -39,7 +39,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {
 	
 		public EnginesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
-			super(mainWindow, controllers, saveGame, new ColumnID[] {
+			this(mainWindow, controllers, connectToGlobalData, saveGame, true);
+		}
+		public EnginesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
+			super(mainWindow, controllers, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 160,   null,      null, false, row->((Engine)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 190,   null,      null, false, row->((Engine)row).id),
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 130,   null,      null,  true, row->((Engine)row).gameData.name_StringID),
@@ -53,7 +56,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("BrakesDel","Brakes Delay"         ,   Float.class,  70,  RIGHT,   "%1.2f", false, row->((Engine)row).brakesDelay),
 					new ColumnID("Respons"  ,"Responsiveness"       ,   Float.class,  90,  RIGHT,   "%1.4f", false, row->((Engine)row).engineResponsiveness),
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Engine)row).usableBy, lang)),
-			});
+			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.engines.values());
 		}
@@ -62,7 +65,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 	public static class GearboxesTableModel extends SetInstancesTableModel<Gearbox> {
 	
 		public GearboxesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
-			super(mainWindow, controllers, saveGame, new ColumnID[] {
+			this(mainWindow, controllers, connectToGlobalData, saveGame, true);
+		}
+		public GearboxesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
+			super(mainWindow, controllers, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 180,   null,      null, false, row->((Gearbox)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 140,   null,      null, false, row->((Gearbox)row).id),
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, row->((Gearbox)row).gameData.name_StringID),
@@ -80,7 +86,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("FuelCons" ,"Fuel Consumption"     ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).fuelConsumption),
 					new ColumnID("IdleFuel" ,"Idle Fuel Modifier"   ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).idleFuelModifier),
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Gearbox)row).usableBy, lang)),
-			});
+			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.gearboxes.values());
 		}
@@ -89,7 +95,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 	public static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
 	
 		public SuspensionsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
-			super(mainWindow, controllers, saveGame, new ColumnID[] {
+			this(mainWindow, controllers, connectToGlobalData, saveGame, true);
+		}
+		public SuspensionsTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
+			super(mainWindow, controllers, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 130,   null,      null, false, row->((Suspension)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 220,   null,      null, false, row->((Suspension)row).id),
 					new ColumnID("Type"     ,"Type"                 ,  String.class, 110,   null,      null,  true, row->((Suspension)row).type_StringID),
@@ -100,7 +109,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Suspension)row).gameData.unlockByRank),
 					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, row->((Suspension)row).damageCapacity),
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Suspension)row).usableBy, lang)),
-			});
+			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.suspensions.values());
 		}
@@ -109,7 +118,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 	public static class WinchesTableModel extends SetInstancesTableModel<Winch> {
 
 		public WinchesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
-			super(mainWindow, controllers, saveGame, new ColumnID[] {
+			this(mainWindow, controllers, connectToGlobalData, saveGame, true);
+		}
+		public WinchesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
+			super(mainWindow, controllers, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"                  ,  String.class, 140,   null,      null, false, row->((Winch)row).setID),
 					new ColumnID("ItemID"   ,"Item ID"                 ,  String.class, 160,   null,      null, false, row->((Winch)row).id),
 					new ColumnID("Name"     ,"Name"                    ,  String.class, 150,   null,      null,  true, row->((Winch)row).gameData.name_StringID),
@@ -121,7 +133,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("Length"   ,"Length"                  , Integer.class,  50, CENTER,      null, false, row->((Winch)row).length),
 					new ColumnID("StrengthM","Strength Multi"          ,   Float.class,  80, CENTER,   "%1.2f", false, row->((Winch)row).strengthMult),
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Winch)row).usableBy, lang)),
-			});
+			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.winches.values());
 		}

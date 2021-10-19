@@ -1064,7 +1064,7 @@ public class SnowRunner {
 			tabs.add(allTab);
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
-			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data, saveGame);
+			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns).set(data, saveGame);
 			controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
 			tableModel.setRowData(data.truckAddons.values());
@@ -1079,7 +1079,7 @@ public class SnowRunner {
 				tabs.add(tab);
 				
 				title = tab.getTabTitle(data.addonCategories, language);
-				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns, data, saveGame);
+				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns).set(data, saveGame);
 				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
 				tableModel.setRowData(list);
@@ -1454,6 +1454,9 @@ public class SnowRunner {
 			SelectedSaveGame, ShowingSaveGameDataSorted,
 			MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
 			ColumnHidePresets, FilterRowsPresets, ShortLogAddons, MediumLogAddons, LongLogAddons,
+			
+			TruckTableModel_enableOwnedTrucksHighlighting,
+			TruckTableModel_enableDLCTrucksHighlighting,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {
@@ -1470,5 +1473,21 @@ public class SnowRunner {
 		public void      setWindowPos (Point location) {        putPoint(ValueKey.WindowX,ValueKey.WindowY,location); }
 		public Dimension getWindowSize(              ) { return getDimension(ValueKey.WindowWidth,ValueKey.WindowHeight); }
 		public void      setWindowSize(Dimension size) {        putDimension(ValueKey.WindowWidth,ValueKey.WindowHeight,size); }
+	}
+
+	public static <Type> Type[] mergeArrays(Type[] arr1, boolean addArr1BeforeArr2, Type[] arr2) {
+		if (arr1==null || arr1.length==0) return arr2;
+		if (arr2==null || arr2.length==0) return arr1;
+		
+		if (!addArr1BeforeArr2) {
+			Type[] temp = arr1;
+			arr1 = arr2;
+			arr2 = temp;
+		}
+		
+		Type[] result = Arrays.copyOf(arr1, arr1.length+arr2.length);
+		for (int i=0; i<arr2.length; i++)
+			result[i+arr1.length] = arr2[i];
+		return result;
 	}
 }
