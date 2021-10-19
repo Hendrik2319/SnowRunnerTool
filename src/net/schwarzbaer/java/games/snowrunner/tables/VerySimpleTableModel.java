@@ -84,6 +84,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	private   Comparator<RowType> initialRowOrder;
 	private   ColumnID clickedColumn;
 	private   int clickedColumnIndex;
+	private   RowType clickedRow;
 
 	protected VerySimpleTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 		super(columns);
@@ -97,6 +98,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		originalRows = new Vector<>();
 		clickedColumn = null;
 		clickedColumnIndex = -1;
+		clickedRow = null;
 		coloring = new Coloring<>(this);
 		
 		this.controllers.languageListeners.add(this,this);
@@ -408,10 +410,23 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			}
 		}));
 		
+		contextMenu.addSeparator();
+		
+		JMenuItem miShowCalculationPath = contextMenu.add(SnowRunner.createMenuItem("Show calculation path", true, e->{
+			if (clickedColumn==null) return;
+			if (clickedRow   ==null) return;
+			clickedColumn.getValue_verbose(clickedRow, language, this);
+		}));
+		
 		contextMenu.addContextMenuInvokeListener((table_, x, y) -> {
-			int colV = x==null || y==null ? -1 : table_.columnAtPoint(new Point(x,y));
+			Point p = x==null || y==null ? null : new Point(x,y);
+			int colV = p==null ? -1 : table_.columnAtPoint(p);
 			clickedColumnIndex = colV<0 ? -1 : table_.convertColumnIndexToModel(colV);
 			clickedColumn = clickedColumnIndex<0 ? null : super.columns[clickedColumnIndex];
+			
+			int rowV = p==null ? -1 : table_.rowAtPoint(p);
+			int rowM = rowV<0 ? -1 : table_.convertRowIndexToModel(rowV);
+			clickedRow = rowM<0 ? null : getRow(rowV);
 			
 			miDeactivateAllSpecialColorings.setEnabled(
 					!coloring.columnsWithActiveSpecialColoring.isEmpty()
@@ -429,6 +444,8 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				? String.format("Deactivate special coloring for column \"%s\"", clickedColumn.config.name)
 				: String.format(  "Activate special coloring for column \"%s\"", clickedColumn.config.name)
 			);
+			
+			miShowCalculationPath.setEnabled(clickedColumn!=null && clickedColumn.hasVerboseValueFcn());
 		});
 	}
 
@@ -444,29 +461,13 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
 		RowType row = getRow(rowIndex);
 		if (row==null) return null;
-		
 		return getValue(columnID, row);
-		
 	}
 	
 	Object getValue(ColumnID columnID, RowType row) {
-		if (columnID.getValue!=null) {
-			if (columnID.useValueAsStringID) {
-				String stringID = (String) columnID.getValue.apply(row);
-				return SnowRunner.solveStringID(stringID, language);
-			}
-			return columnID.getValue.apply(row);
-		}
-		if (columnID.getValueL!=null) {
-			return columnID.getValueL.getValue(row,language);
-		}
-		if (columnID.getValueT!=null) {
-			return columnID.getValueT.getValue(row,this);
-		}
-		
-		return null;
+		return columnID.getValue(row, language, this);
 	}
-
+	
 	protected int findColumnByID(String id) {
 		if (id==null) throw new IllegalArgumentException();
 		for (int i=0; i<super.columns.length; i++)
@@ -1641,38 +1642,41 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			String getValue(Object value, Language language);
 		}
 		
-		final SimplifiedColumnConfig config;
-		final String id;
-		final Function<Object, ?> getValue;
-		final ColumnID.LanguageBasedStringBuilder getValueL;
-		final ColumnID.TableModelBasedBuilder<?> getValueT;
-		final boolean useValueAsStringID;
-		final Integer horizontalAlignment;
-		final Color foreground;
-		final Color background;
-		final String format;
+		private final SimplifiedColumnConfig config;
+		private final String id;
+		private final Function<Object, ?> getValue;
+		private final LanguageBasedStringBuilder getValueL;
+		private final TableModelBasedBuilder<?> getValueT;
+		private Function<Object, ?> getValue_verbose;
+		private LanguageBasedStringBuilder getValueL_verbose;
+		private TableModelBasedBuilder<?> getValueT_verbose;
+		private final boolean useValueAsStringID;
+		private final Integer horizontalAlignment;
+		private final Color foreground;
+		private final Color background;
+		private final String format;
 		private boolean isVisible;
 		private FilterRowsDialog.Filter filter;
 		
-		ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Integer horizontalAlignment, String format, ColumnID.LanguageBasedStringBuilder getValue) {
+		ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
 			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, false, null, getValue, null);
 		}
 		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
 			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, getValue, null, null);
 		}
-		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, ColumnID.TableModelBasedBuilder<ColumnType> getValue) {
+		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
 			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, null, null, getValue);
 		}
-		ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, ColumnID.LanguageBasedStringBuilder getValue) {
+		ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
 			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false, null, getValue, null);
 		}
 		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
 			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null, null);
 		}
-		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, ColumnID.TableModelBasedBuilder<ColumnType> getValue) {
+		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
 			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue);
 		}
-		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue, ColumnID.LanguageBasedStringBuilder getValueL, ColumnID.TableModelBasedBuilder<ColumnType> getValueT) {
+		<ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue, LanguageBasedStringBuilder getValueL, TableModelBasedBuilder<ColumnType> getValueT) {
 			this.isVisible = true;
 			this.filter = null;
 			this.id = ID;
@@ -1687,8 +1691,59 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			this.config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
 			if (useValueAsStringID && columnClass!=String.class)
 				throw new IllegalStateException();
+			this.getValue_verbose = null;
+			this.getValueL_verbose = null;
+			this.getValueT_verbose = null;
 		}
 		@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
+		
+		public Object getValue(Object row, Language language, VerySimpleTableModel<?> tableModel) {
+			return getValue(row, language, tableModel, getValue, getValueL, getValueT);
+		}
+		
+		public Object getValue_verbose(Object row, Language language, VerySimpleTableModel<?> tableModel) {
+			return getValue(row, language, tableModel, getValue_verbose, getValueL_verbose, getValueT_verbose);
+		}
+		
+		private Object getValue(
+				Object row, Language language, VerySimpleTableModel<?> tableModel,
+				Function<Object, ?> getValue, LanguageBasedStringBuilder getValueL, TableModelBasedBuilder<?> getValueT
+		) {
+			if (getValue!=null) {
+				if (useValueAsStringID) {
+					String stringID = (String) getValue.apply(row);
+					return SnowRunner.solveStringID(stringID, language);
+				}
+				return getValue.apply(row);
+			}
+			if (getValueL!=null) {
+				return getValueL.getValue(row,language);
+			}
+			if (getValueT!=null) {
+				return getValueT.getValue(row,tableModel);
+			}
+			
+			return null;
+		}
+		
+		public boolean hasVerboseValueFcn() {
+			return getValue_verbose!=null || getValueL_verbose!=null || getValueT_verbose!=null;
+		}
+		
+		public ColumnID setVerboseValueFcn(Function<Object, ?> getValue) {
+			getValue_verbose = getValue;
+			return this;
+		}
+		
+		public ColumnID setVerboseValueFcn(LanguageBasedStringBuilder getValueL) {
+			getValueL_verbose = getValueL;
+			return this;
+		}
+		
+		public ColumnID setVerboseValueFcn(TableModelBasedBuilder<?> getValueT) {
+			getValueT_verbose = getValueT;
+			return this;
+		}
 	}
 	
 	public static abstract class TextOutputSourceTableModel<RowType> extends VerySimpleTableModel<RowType> {

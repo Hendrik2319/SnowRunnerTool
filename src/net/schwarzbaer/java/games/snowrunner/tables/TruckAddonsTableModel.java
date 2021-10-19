@@ -79,7 +79,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		//		new ColumnID("CargVal"  ,"Cargo Value"             , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoValue_obsolete),
 				new ColumnID("CargType" ,"Cargo Type"              ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).gameData.cargoType),
 				new ColumnID("CargSType","Cargo Addon SubType"     ,  String.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.cargoAddonSubtype),
-				new ColumnID("UsableBy" ,"Usable By"               ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((TruckAddon)row).usableBy, lang)),
+				new ColumnID("UsableBy" ,"Usable By"               ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((TruckAddon)row).usableBy, lang)),
 		});
 		this.specialTruckAddons = specialTruckAddons;
 		

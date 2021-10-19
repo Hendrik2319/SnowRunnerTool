@@ -762,6 +762,10 @@ public class SnowRunner {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(mapper).sorted().iterator());
 	}
 	
+	public static String joinNames(Vector<? extends Data.HasNameAndID> list, Language language) {
+		return String.join(", ", (Iterable<String>)()->list.stream().map(item->SnowRunner.solveStringID(item, language)).sorted().iterator());
+	}
+
 	public static String getIdAndName(String id, String stringID, Language lang) {
 		if (id!=null && stringID!=null)
 			return String.format("[%s] %s", id, SnowRunner.solveStringID(stringID, lang));
@@ -770,10 +774,6 @@ public class SnowRunner {
 		if (stringID!=null)
 			return SnowRunner.solveStringID(stringID, lang);
 		return null;
-	}
-
-	public static String joinTruckNames(Vector<Truck> list, Language language) {
-		return String.join(", ", (Iterable<String>)()->list.stream().map(truck->SnowRunner.solveStringID(truck, language)).sorted().iterator());
 	}
 
 	public static String joinRequiredAddonsToString_OneLine(String[][] requiredAddons) {
@@ -950,6 +950,15 @@ public class SnowRunner {
 				String[] idListArr = settings.getStrings(this.list.settingsKey, " : ");
 				if (idListArr!=null) idList.addAll(Arrays.asList(idListArr));
 			}
+
+			@Override
+			public String toString() {
+				Vector<String> sorted = new Vector<>(idList);
+				sorted.sort(null);
+				return String.format("<%s> %s", list, sorted.toString());
+			}
+
+
 
 			public void forEach(Consumer<String> action) {
 				idList.forEach(action);

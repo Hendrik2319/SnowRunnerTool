@@ -27,6 +27,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SaveGameListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 
 public class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TruckToDLCAssignmentListener {
 
@@ -40,7 +41,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 	private final SpecialTruckAddons specialTruckAddons;
 
 	public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
-		super(mainWindow, controllers, new ColumnID[] {
+		super(mainWindow, controllers, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "DLC"      , "DLC"                  ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
@@ -54,14 +55,14 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 				new ColumnID( "AWDUser"  , "AWD (by User)"        ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realAWD),
 				new ColumnID( "AWDTool"  , "AWD (by Tool)"        ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
 				new ColumnID( "AutoWinch", "AutomaticWinch"       ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
-				new ColumnID( "MetalD"   , "Metal Detector"       ,              Boolean.class,  90,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.MetalDetectors  , (TruckTableModel)model)),
-				new ColumnID( "Seismic"  , "Seismic Vibrator"     ,              Boolean.class,  90,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.SeismicVibrators, (TruckTableModel)model)),
-				new ColumnID( "BigCrane" , "Big Crane"            ,              Boolean.class,  60,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.BigCranes       , (TruckTableModel)model)),
-				new ColumnID( "MiniCrane", "Mini Crane"           ,              Boolean.class,  60,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.MiniCranes      , (TruckTableModel)model)),
-				new ColumnID( "LogLift"  , "Log Lift"             ,              Boolean.class,  50,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.LogLifts        , (TruckTableModel)model)),
-				new ColumnID( "LongLogs" , "Long Logs"            ,              Boolean.class,  60,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.LongLogs        , (TruckTableModel)model)),
-				new ColumnID( "MedLogs"  , "Medium Logs"          ,              Boolean.class,  75,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.MediumLogs      , (TruckTableModel)model)),
-				new ColumnID( "ShortLogs", "Short Logs"           ,              Boolean.class,  65,             null,   null,      null, false, (row,model) -> isCapable((Truck)row, SpecialTruckAddons.List.ShortLogs       , (TruckTableModel)model)),
+				new ColumnID( "MetalD"   , "Metal Detector"       ,              Boolean.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.MetalDetectors  , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.MetalDetectors  , true) ),
+				new ColumnID( "Seismic"  , "Seismic Vibrator"     ,              Boolean.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.SeismicVibrators, false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.SeismicVibrators, true) ),
+				new ColumnID( "BigCrane" , "Big Crane"            ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.BigCranes       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.BigCranes       , true) ),
+				new ColumnID( "MiniCrane", "Mini Crane"           ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.MiniCranes      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.MiniCranes      , true) ),
+				new ColumnID( "LogLift"  , "Log Lift"             ,              Boolean.class,  50,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.LogLifts        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.LogLifts        , true) ),
+				new ColumnID( "LongLogs" , "Long Logs"            ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.LongLogs        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.LongLogs        , true) ),
+				new ColumnID( "MedLogs"  , "Medium Logs"          ,              Boolean.class,  75,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.MediumLogs      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.MediumLogs      , true) ),
+				new ColumnID( "ShortLogs", "Short Logs"           ,              Boolean.class,  65,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.ShortLogs       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.ShortLogs       , true) ),
 				new ColumnID( "FuelCap"  , "Fuel Capacity"        ,              Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
 				new ColumnID( "WheelSizs", "Wheel Sizes"          ,               String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
 				new ColumnID( "WheelTyps", "Wheel Types"          ,               String.class, 280,             null,   null,      null, (row,lang) -> getWheelCategories((Truck)row,lang)),
@@ -141,14 +142,21 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 		});
 		
 	}
-	
-	private static Boolean isCapable(Truck row, SpecialTruckAddons.List listID, TruckTableModel model) {
-		if (row==null) return null;
-		if (listID==null) return null;
-		if (model==null) return null;
-		if (model.data==null) return null;
-		if (model.specialTruckAddons==null) return null;
-		return model.data.isCapable(row, listID, model.specialTruckAddons);
+
+	private static TableModelBasedBuilder<Boolean> createIsCapableFcn(SpecialTruckAddons.List listID, boolean verbose) {
+		return (row,model) -> {
+			if (!(row instanceof Truck)) return null;
+			Truck truck = (Truck) row;
+			
+			if (!(model instanceof TruckTableModel)) return null;
+			TruckTableModel truckTableModel = (TruckTableModel) model;
+			
+			if (truckTableModel.data==null) return null;
+			if (truckTableModel.specialTruckAddons==null) return null;
+			if (listID==null) return null;
+			
+			return truckTableModel.data.isCapable(truck, listID, truckTableModel.specialTruckAddons, verbose);
+		};
 	}
 
 	private static Integer getOwnedCount(Truck truck, TruckTableModel model) {
@@ -280,7 +288,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 		}));
 		
 		contextMenu.addContextMenuInvokeListener((table, x, y) -> {
-			int rowV = x==null || y==null ? -1 : table.rowAtPoint(new Point(x,y));
+			Point p = x==null || y==null ? null : new Point(x,y);
+			int rowV = p==null ? -1 : table.rowAtPoint(p);
 			int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
 			clickedItem = rowM<0 ? null : getRow(rowM);
 			

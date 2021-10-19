@@ -47,7 +47,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 				new ColumnID("ExclCargo","Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((Trailer)row).gameData.excludedCargoTypes)),
 				new ColumnID("RequAddon","Required Addons"      ,  String.class, 150,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Trailer)row).gameData.requiredAddons)),
 				new ColumnID("LoadAreas","Load Areas"           ,  String.class, 200,   null,      null, false, row->Arrays.toString(((Trailer)row).gameData.loadAreas)),
-				new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinTruckNames(((Trailer)row).usableBy, lang)),
+				new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Trailer)row).usableBy, lang)),
 		});
 		
 		truckAddons = null;
