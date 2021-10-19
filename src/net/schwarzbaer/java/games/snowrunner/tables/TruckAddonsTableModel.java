@@ -30,6 +30,8 @@ import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.Extende
 public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAddon> {
 	
 	private static final Color COLOR_SPECIALTRUCKADDON = new Color(0xFFF3AD);
+	private static boolean enableSpecialTruckAddonsHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting, true);
+	
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
 	private TruckAddon clickedItem;
@@ -104,10 +106,11 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		});
 		
 		coloring.addBackgroundRowColorizer(addon->{
-			for (SpecialTruckAddons.List listID : SpecialTruckAddons.List.values()) {
-				SpecialTruckAddonList list = this.specialTruckAddons.getList(listID);
-				if (list.contains(addon)) return COLOR_SPECIALTRUCKADDON;
-			}
+			if (enableSpecialTruckAddonsHighlighting)
+				for (SpecialTruckAddons.List listID : SpecialTruckAddons.List.values()) {
+					SpecialTruckAddonList list = this.specialTruckAddons.getList(listID);
+					if (list.contains(addon)) return COLOR_SPECIALTRUCKADDON;
+				}
 			return null;
 		});
 		controllers.specialTruckAddonsListeners.add(this, (list, change) -> {
@@ -163,6 +166,15 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			menuItems.put(list, mi);
 		}
 		
+		contextMenu.addSeparator();
+		
+		JCheckBoxMenuItem miEnableSpecialTruckAddonsHighlighting;
+		contextMenu.add(miEnableSpecialTruckAddonsHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of special truck addons", enableSpecialTruckAddonsHighlighting, null, true, e->{
+			enableSpecialTruckAddonsHighlighting = !enableSpecialTruckAddonsHighlighting;
+			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting, enableSpecialTruckAddonsHighlighting);
+			if (table!=null) table.repaint();
+		}));
+		
 		contextMenu.addContextMenuInvokeListener((table, x, y) -> {
 			int rowV = x==null || y==null ? -1 : table.rowAtPoint(new Point(x,y));
 			int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
@@ -181,6 +193,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 				? "Add Addon to a list of known special Addons"
 				: String.format("Add Addon \"%s\" to a list of known special Addons", SnowRunner.solveStringID(clickedItem, language))
 			);
+			miEnableSpecialTruckAddonsHighlighting.setSelected(enableSpecialTruckAddonsHighlighting);
 		});
 	}
 

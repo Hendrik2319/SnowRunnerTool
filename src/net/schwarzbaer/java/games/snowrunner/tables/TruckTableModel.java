@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.Vector;
 import java.util.function.Function;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
 import javax.swing.JTable;
 
@@ -33,14 +34,15 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
+	private static boolean enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
+	private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);  
+	
 	private SaveGame saveGame;
 	private Truck clickedItem;
 	private HashMap<String, String> truckToDLCAssignments;
 	private final UserDefinedValues userDefinedValues;
 	private Data data;
 	private final SpecialTruckAddons specialTruckAddons;
-	private boolean enableOwnedTrucksHighlighting;
-	private boolean enableDLCTrucksHighlighting;
 
 	public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
 		super(mainWindow, controllers, new VerySimpleTableModel.ColumnID[] {
@@ -93,8 +95,6 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 		this.userDefinedValues = udv;
 		this.data = null;
 		this.saveGame = null;
-		this.enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
-		this.enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting, true);
 		
 		connectToGlobalData(true, data->{
 			this.data = data;
@@ -294,12 +294,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 		
 		contextMenu.addSeparator();
 		
-		contextMenu.add(SnowRunner.createCheckBoxMenuItem("Highlighting of owned trucks", enableOwnedTrucksHighlighting, null, true, e->{
+		JCheckBoxMenuItem miEnableOwnedTrucksHighlighting, miEnableDLCTrucksHighlighting;
+		contextMenu.add(miEnableOwnedTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of owned trucks", enableOwnedTrucksHighlighting, null, true, e->{
 			enableOwnedTrucksHighlighting = !enableOwnedTrucksHighlighting;
 			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, enableOwnedTrucksHighlighting);
 			if (table!=null) table.repaint();
 		}));
-		contextMenu.add(SnowRunner.createCheckBoxMenuItem("Highlighting of DLC trucks", enableDLCTrucksHighlighting, null, true, e->{
+		contextMenu.add(miEnableDLCTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of DLC trucks", enableDLCTrucksHighlighting, null, true, e->{
 			enableDLCTrucksHighlighting = !enableDLCTrucksHighlighting;
 			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting, enableDLCTrucksHighlighting);
 			if (table!=null) table.repaint();
@@ -318,6 +319,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 				? "Assign truck to an official DLC"
 				: String.format("Assign \"%s\" to an official DLC", SnowRunner.getTruckLabel(clickedItem,language))
 			);
+			miEnableOwnedTrucksHighlighting.setSelected(enableOwnedTrucksHighlighting);
+			miEnableDLCTrucksHighlighting  .setSelected(enableDLCTrucksHighlighting  );
 		});
 		
 		controllers.truckToDLCAssignmentListeners.add(this, this);

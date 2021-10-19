@@ -128,15 +128,6 @@ public class SnowRunner {
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
 		specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
-		controllers.specialTruckAddonsListeners.add(new ListenerSource() {}, (list, change) -> {
-			if (list==null || data==null) return;
-			switch (list) {
-			case LongLogs:
-			case MediumLogs:
-			case ShortLogs: data.logCapabilities.update(list, specialTruckAddons.getList(list)); break;
-			default: break;
-			}
-		});
 		
 		rawDataPanel = new RawDataPanel(mainWindow, controllers);
 		
@@ -306,9 +297,6 @@ public class SnowRunner {
 			//Data newData = testXMLTemplateStructure(initialPAK);
 			if (newData!=null) {
 				data = newData;
-				data.logCapabilities.update(SpecialTruckAddons.List.  LongLogs, specialTruckAddons.getList(SpecialTruckAddons.List.  LongLogs));
-				data.logCapabilities.update(SpecialTruckAddons.List.MediumLogs, specialTruckAddons.getList(SpecialTruckAddons.List.MediumLogs));
-				data.logCapabilities.update(SpecialTruckAddons.List. ShortLogs, specialTruckAddons.getList(SpecialTruckAddons.List. ShortLogs));
 				return true;
 			}
 		}
@@ -1457,6 +1445,7 @@ public class SnowRunner {
 			
 			TruckTableModel_enableOwnedTrucksHighlighting,
 			TruckTableModel_enableDLCTrucksHighlighting,
+			TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {
