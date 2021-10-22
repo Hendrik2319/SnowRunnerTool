@@ -1198,7 +1198,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		private static class Presets extends ModelConfigureDialog.PresetMaps<HashMap<String,FilterRowsDialog.Filter>> {
 		
 			Presets() {
-				super(SnowRunner.AppSettings.ValueKey.FilterRowsPresets, /*SnowRunner.PresetsTestOutputFile,*/ HashMap<String,FilterRowsDialog.Filter>::new);
+				super(SnowRunner.AppSettings.ValueKey.FilterRowsPresets, SnowRunner.FilterRowsPresetsFile, HashMap<String,FilterRowsDialog.Filter>::new);
 			}
 		
 			@Override protected void parseLine(String line, HashMap<String, FilterRowsDialog.Filter> preset) {
@@ -1313,7 +1313,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		private static class Presets extends ModelConfigureDialog.PresetMaps<HashSet<String>> {
 		
 			Presets() {
-				super(SnowRunner.AppSettings.ValueKey.ColumnHidePresets, /*SnowRunner.PresetsTestOutputFile,*/ HashSet<String>::new);
+				super(SnowRunner.AppSettings.ValueKey.ColumnHidePresets, SnowRunner.ColumnHidePresetsFile, HashSet<String>::new);
 			}
 			
 			@Override protected void parseLine(String line, HashSet<String> preset) {
@@ -1342,6 +1342,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			private final Supplier<Preset> createEmptyPreset;
 			private final String pathname;
 			
+			@SuppressWarnings("unused")
 			PresetMaps(SnowRunner.AppSettings.ValueKey settingsKey, Supplier<Preset> createEmptyPreset) {
 				this(settingsKey, null, createEmptyPreset);
 			}
@@ -1369,13 +1370,14 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			void read() {
 				presets.clear();
 				
-				String text;
-				if (settingsKey!=null)
+				String text = null;
+				File file = pathname==null ? null : new File(pathname);
+				
+				if (settingsKey!=null && SnowRunner.settings.contains(settingsKey))
 					text = SnowRunner.settings.getString(settingsKey, null);
 				
-				else if (pathname!=null)
+				else if (file!=null && file.isFile())
 					try {
-						File file = new File(pathname);
 						System.out.printf("Read PresetMaps from file \"%s\" ...%n", file.getAbsolutePath());
 						byte[] bytes = Files.readAllBytes(file.toPath());
 						text = new String(bytes, StandardCharsets.UTF_8);

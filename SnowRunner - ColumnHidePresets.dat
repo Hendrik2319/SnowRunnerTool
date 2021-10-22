@@ -1,0 +1,10 @@
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset=Find Special Feature Truck
+Columns=AWDData,AWDTool,AWDUser,BigCrane,DLData,DLTool,DLUser,LogLift,LongLogs,MedLogs,MetalD,MiniCrane,Name,Owned,Seismic,ShortLogs,Type
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset=Main Columns
+Columns=AWDUser,AutoWinch,BigCrane,Country,DLUser,FuelCap,LogLift,LongLogs,MedLogs,MetalD,MiniCrane,Name,Owned,Seismic,ShortLogs,Type,WhHigh,WhMud,WhOffr,WheelSizs,WheelTyps
+

@@ -89,7 +89,8 @@ public class SnowRunner {
 
 	public static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
 	public static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
-	public static final String PresetsTestOutputFile = "SnowRunner - PresetsTestOutput.dat";
+	public static final String FilterRowsPresetsFile = "SnowRunner - FilterRowsPresets.dat";
+	public static final String ColumnHidePresetsFile = "SnowRunner - ColumnHidePresets.dat";
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
@@ -1441,7 +1442,8 @@ public class SnowRunner {
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted,
 			MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
-			ColumnHidePresets, FilterRowsPresets, ShortLogAddons, MediumLogAddons, LongLogAddons,
+			ShortLogAddons, MediumLogAddons, LongLogAddons,
+			ColumnHidePresets, FilterRowsPresets,
 			
 			TruckTableModel_enableOwnedTrucksHighlighting,
 			TruckTableModel_enableDLCTrucksHighlighting,
