@@ -644,8 +644,7 @@ class DataTrees {
 			return children.indexOf(node);
 		}
 	
-		@SuppressWarnings("rawtypes")
-		@Override public Enumeration children() {
+		@Override public Enumeration<TreeNode> children() {
 			if (children==null) children = createChildren();
 			return children.elements();
 		}
