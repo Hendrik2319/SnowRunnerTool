@@ -14,12 +14,9 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
-public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver, ListenerSource, Finalizable { // TODO: checked
+public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements Finalizable {
 
 	private Language language;
 	private final Vector<RowItem> rows;
@@ -33,33 +30,29 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		truckToDLCAssignments = null;
 		data = null;
 		rows = new Vector<>();
+		
 		finalizer = controllers.createNewFinalizer();
-		finalizer.addLanguageListener(this);
-		finalizer.addTruckToDLCAssignmentListener(this);
-		finalizer.addDataReceiver(this);
+		finalizer.addLanguageListener(language->{
+			this.language = language;
+			fireTableUpdate();
+		});
+		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
+			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+				DLCTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
+				rebuildRows();
+			}
+			@Override public void updateAfterAssignmentsChange() {
+				rebuildRows();
+			}
+		});
+		finalizer.addDataReceiver(data->{
+			this.data = data;
+			rebuildRows();
+		});
 	}
 
 	@Override public void prepareRemovingFromGUI() {
 		finalizer.removeSubCompsAndListenersFromGUI();
-	}
-
-	@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-		this.truckToDLCAssignments = truckToDLCAssignments;
-		rebuildRows();
-	}
-
-	@Override public void updateAfterAssignmentsChange() {
-		rebuildRows();
-	}
-
-	@Override public void setLanguage(Language language) {
-		this.language = language;
-		fireTableUpdate();
-	}
-	
-	@Override public void setData(Data data) {
-		this.data = data;
-		rebuildRows();
 	}
 	
 	private void rebuildRows() {

@@ -6,7 +6,7 @@ import java.util.Comparator;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 
-public class AddonCategoriesTableModel extends VerySimpleTableModel<AddonCategories.Category> { // TODO: checked
+public class AddonCategoriesTableModel extends VerySimpleTableModel<AddonCategories.Category> {
 
 	public AddonCategoriesTableModel(Window mainWindow, Controllers controllers) {
 		super(mainWindow, controllers, new ColumnID[] {

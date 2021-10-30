@@ -66,12 +66,9 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMap;
-import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMapMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.tables.AddonCategoriesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.DLCTableModel;
@@ -999,7 +996,7 @@ public class SnowRunner {
 		
 	}
 
-	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent, Finalizable { // TODO: checked
+	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextPanePanel implements Finalizable {
 		private static final long serialVersionUID = 7841445317301513175L;
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
 		
@@ -1098,7 +1095,7 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent, ListenerSource, Finalizable { // TODO: checked
+	private static class TrucksTablePanel extends JSplitPane implements Finalizable {
 		private static final long serialVersionUID = 6564351588107715699L;
 		
 		private Data data;
@@ -1134,7 +1131,7 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TrucksListPanel extends JSplitPane implements ListenerSourceParent, ListenerSource, Finalizable { // TODO: checked
+	private static class TrucksListPanel extends JSplitPane implements Finalizable {
 		private static final long serialVersionUID = 7004081774916835136L;
 		
 		private final JList<Truck> truckList;
@@ -1280,17 +1277,11 @@ public class SnowRunner {
 
 	public static class Controllers {
 		
-		public interface ListenerSource {}
-		public interface ListenerSourceParent {}
-		
 		public final LanguageListenerController languageListeners;
 		public final DataReceiverController dataReceivers;
 		public final SaveGameListenerController saveGameListeners;
 		public final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
 		public final SpecialTruckAddOnsController specialTruckAddonsListeners;
-		
-		final VectorMap<ListenerSourceParent, ListenerSource> childrenOfSources;
-		final VectorMapMap<ListenerSourceParent, String, ListenerSource> volatileChildrenOfSources;
 		
 		Controllers() {
 			languageListeners             = new LanguageListenerController();
@@ -1298,8 +1289,6 @@ public class SnowRunner {
 			saveGameListeners             = new SaveGameListenerController();
 			truckToDLCAssignmentListeners = new TruckToDLCAssignmentListenerController();
 			specialTruckAddonsListeners   = new SpecialTruckAddOnsController();
-			childrenOfSources = new VectorMap<>();
-			volatileChildrenOfSources = new VectorMapMap<>();
 		}
 		
 		void showListeners() {
@@ -1311,74 +1300,6 @@ public class SnowRunner {
 			saveGameListeners            .showListeners(indent, "SaveGameListeners"            );
 			truckToDLCAssignmentListeners.showListeners(indent, "TruckToDLCAssignmentListeners");
 			specialTruckAddonsListeners  .showListeners(indent, "SpecialTruckAddOnsListeners"  );
-			
-			System.out.printf("%sChild Relations: [%d]%n", indent, childrenOfSources.size());
-			childrenOfSources.forEach((parent,children)->{
-				System.out.printf("%1$s%1$s%2$s: [%3$d]%n", indent, parent, children.size());
-				children.forEach(l->{
-					System.out.printf("%1$s%1$s%1$s%2$s%n", indent, l);
-				});
-			});
-			
-			System.out.printf("%sVolatile Children: [%d]%n", indent, volatileChildrenOfSources.size());
-			volatileChildrenOfSources.forEach((parent,map2)->{
-				System.out.printf("%1$s%1$s%2$s: [%3$d]%n", indent, parent, map2.size());
-				map2.forEach((listID,list)->{
-					System.out.printf("%1$s%1$s%1$s\"%2$s\": [%3$d]%n", indent, listID, list.size());
-					list.forEach(l->{
-						System.out.printf("%1$s%1$s%1$s%1$s%2$s%n", indent, l);
-					});
-				});
-			});
-			
-		}
-	
-		void addVolatileChild(ListenerSourceParent parent, String listID, ListenerSource child) {
-			if (parent==null) throw new IllegalArgumentException();
-			if (listID==null) throw new IllegalArgumentException();
-			if (child ==null) throw new IllegalArgumentException();
-			volatileChildrenOfSources.add(parent, listID, child);
-		}
-		void addChild(ListenerSourceParent parent, ListenerSource child) {
-			if (parent==null) throw new IllegalArgumentException();
-			if (child ==null) throw new IllegalArgumentException();
-			childrenOfSources.add(parent, child);
-		}
-		
-		void removeListenersOfVolatileChildren(ListenerSourceParent parent) {
-			if (parent==null) throw new IllegalArgumentException();
-			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.remove(parent);
-			if (childrenLists != null)
-				childrenLists.values().forEach(this::removeListenersOfSources);
-		}
-		
-		void removeListenersOfVolatileChildren(ListenerSourceParent parent, String listID) {
-			if (parent==null) throw new IllegalArgumentException();
-			if (listID==null) throw new IllegalArgumentException();
-			HashMap<String, Vector<ListenerSource>> childrenLists = volatileChildrenOfSources.get(parent);
-			removeListenersOfSources(childrenLists==null ? null : childrenLists.remove(listID));
-		}
-		
-		void removeListenersOfSource(ListenerSource source) {
-			if (source==null) throw new IllegalArgumentException();
-			
-			languageListeners            .removeListenersOfSource(source);
-			dataReceivers                .removeListenersOfSource(source);
-			saveGameListeners            .removeListenersOfSource(source);
-			truckToDLCAssignmentListeners.removeListenersOfSource(source);
-			specialTruckAddonsListeners  .removeListenersOfSource(source);
-			
-			if (source instanceof ListenerSourceParent) {
-				ListenerSourceParent parent = (ListenerSourceParent) source;
-				removeListenersOfSources(childrenOfSources.remove(parent));
-				removeListenersOfVolatileChildren(parent);
-			}
-		}
-
-		private void removeListenersOfSources(Vector<ListenerSource> sources) {
-			if (sources!=null)
-				for (ListenerSource source : sources)
-					removeListenersOfSource(source);
 		}
 		
 		public interface Finalizable {
@@ -1389,7 +1310,7 @@ public class SnowRunner {
 			return new Finalizer();
 		}
 		
-		public class Finalizer implements ListenerSource {
+		public class Finalizer {
 			
 			private final Vector<Finalizable> subComps = new Vector<>();
 			private final StringVectorMap<Finalizable> volatileSubComps = new StringVectorMap<>();
@@ -1441,14 +1362,14 @@ public class SnowRunner {
 
 		private static class AbstractController<Listener> {
 			protected final Vector<Listener> listeners = new Vector<>();
-			final VectorMap<ListenerSource, Listener> listenersOfSource = new VectorMap<>();
+			private final VectorMap<Finalizer, Listener> listenersOfSource = new VectorMap<>();
 			
-			public void add(ListenerSource source, Listener l) {
+			public void add(Finalizer source, Listener l) {
 				listenersOfSource.add(source, l);
 				listeners.add(l);
 			}
 			
-			void removeListenersOfSource(ListenerSource source) {
+			void removeListenersOfSource(Finalizer source) {
 				Vector<Listener> list = listenersOfSource.remove(source);
 				if (list==null) return;
 				listeners.removeAll(list);

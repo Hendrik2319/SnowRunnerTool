@@ -29,7 +29,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentList
 import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 
-public class TruckTableModel extends VerySimpleTableModel<Truck> { // TODO: checked
+public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
 	private enum Edit { UD_DiffLock, UD_AWD }
 	

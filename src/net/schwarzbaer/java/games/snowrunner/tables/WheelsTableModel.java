@@ -14,7 +14,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 
-public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> { // TODO: checked
+public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
 
 	public WheelsTableModel(Window mainWindow, Controllers controllers) {
 		super(mainWindow, controllers, new ColumnID[] {

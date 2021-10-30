@@ -27,7 +27,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAddon> { // TODO: checked
+public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAddon> {
 	
 	private static final Color COLOR_SPECIALTRUCKADDON = new Color(0xFFF3AD);
 	private static boolean enableSpecialTruckAddonsHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting, true);

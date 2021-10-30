@@ -16,13 +16,13 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> { // TODO: checked
+public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 	
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
 	private SaveGame saveGame;
 
-	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data, SaveGame saveGame) { // TODO: checked
+	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data, SaveGame saveGame) {
 		this(mainWindow, controllers, connectToGlobalData);
 		setExtraData(data);
 		this.saveGame = saveGame;

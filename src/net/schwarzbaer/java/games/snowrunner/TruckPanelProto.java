@@ -68,8 +68,6 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
@@ -83,7 +81,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent, Finalizable { // TODO: checked
+class TruckPanelProto implements Finalizable {
 	
 	private final Finalizer finalizer;
 	private final JTextArea truckInfoTextArea;
@@ -129,7 +127,15 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			this.saveGame = saveGame;
 			updateOutput();
 		});
-		finalizer.addTruckToDLCAssignmentListener(this);
+		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
+			@Override public void updateAfterAssignmentsChange() {
+				updateOutput();
+			}
+			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+				TruckPanelProto.this.truckToDLCAssignments = truckToDLCAssignments;
+				updateOutput();
+			}
+		});
 		finalizer.addDataReceiver(data->{
 			addonCategories = data==null ? null : data.addonCategories;
 			updateOutput();
@@ -175,15 +181,6 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel2         .setData(truck, data);
-		updateOutput();
-	}
-
-	@Override public void updateAfterAssignmentsChange() {
-		updateOutput();
-	}
-
-	@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-		this.truckToDLCAssignments = truckToDLCAssignments;
 		updateOutput();
 	}
 
@@ -244,7 +241,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
-	private static class AddonsPanel2 extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent, Finalizable { // TODO: checked
+	private static class AddonsPanel2 extends CombinedTableTabPaneTextPanePanel implements Finalizable {
 		private static final long serialVersionUID = 4098254083170104250L;
 
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
@@ -400,7 +397,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		}
 	}
 
-	private static class AddonsPanel extends JPanel implements ListenerSource, Finalizable { // TODO: checked
+	private static class AddonsPanel extends JPanel implements Finalizable {
 		private static final long serialVersionUID = 5515829836865733889L;
 		
 		private final JLabel socketIndexLabel;

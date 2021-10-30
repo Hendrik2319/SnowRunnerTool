@@ -24,13 +24,12 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.V;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.system.ClipboardTools;
 
-class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver, ListenerSource, Finalizable {
+class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver, Finalizable {
 	private static final long serialVersionUID = 10671596986103400L;
 	
 	private Data data;
