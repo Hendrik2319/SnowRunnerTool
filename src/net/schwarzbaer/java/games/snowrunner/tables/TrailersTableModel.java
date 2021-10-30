@@ -16,13 +16,13 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
+public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> { // TODO: checked
 	
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
 	private SaveGame saveGame;
 
-	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data, SaveGame saveGame) {
+	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data, SaveGame saveGame) { // TODO: checked
 		this(mainWindow, controllers, connectToGlobalData);
 		setExtraData(data);
 		this.saveGame = saveGame;
@@ -60,12 +60,12 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 				return trailers==null ? null : trailers.values();
 			});
 		else
-			controllers.dataReceivers.add(this,data -> {
+			finalizer.addDataReceiver(data -> {
 				setExtraData(data);
 				updateTextOutput();
 			});
 		
-		controllers.saveGameListeners.add(this, saveGame->{
+		finalizer.addSaveGameListener(saveGame->{
 			this.saveGame = saveGame;
 			updateTextOutput();
 		});

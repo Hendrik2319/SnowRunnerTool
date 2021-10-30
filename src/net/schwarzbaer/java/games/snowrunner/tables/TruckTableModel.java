@@ -24,13 +24,12 @@ import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.SaveGameListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 
-public class TruckTableModel extends VerySimpleTableModel<Truck> implements SaveGameListener, TruckToDLCAssignmentListener {
+public class TruckTableModel extends VerySimpleTableModel<Truck> { // TODO: checked
 
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
@@ -129,8 +128,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 			return null;
 		});
 		
-		controllers.saveGameListeners.add(this, this);
-		controllers.specialTruckAddonsListeners.add(this, (list,change)->{
+		finalizer.addSaveGameListener(saveGame_->{
+			this.saveGame = saveGame_;
+			table.repaint();
+		});
+		finalizer.addSpecialTruckAddonsListener((list,change)->{
 			String id = null;
 			switch (list) {
 			case MetalDetectors  : id = "MetalD"   ; break;
@@ -289,7 +291,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 			TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
 			boolean assignmentsChanged = dlg.showDialog();
 			if (assignmentsChanged)
-				controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
+				finalizer.getControllers().truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
 		}));
 		
 		contextMenu.addSeparator();
@@ -323,17 +325,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> implements Save
 			miEnableDLCTrucksHighlighting  .setSelected(enableDLCTrucksHighlighting  );
 		});
 		
-		controllers.truckToDLCAssignmentListeners.add(this, this);
+		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
+			@Override public void updateAfterAssignmentsChange() {}
+			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+				TruckTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
+			}
+		});
 	}
-
-	@Override public void updateAfterAssignmentsChange() {}
-	@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-		this.truckToDLCAssignments = truckToDLCAssignments;
-	}
-
-	@Override public void setSaveGame(SaveGame saveGame) {
-		this.saveGame = saveGame;
-		table.repaint();
-	}
-	
 }

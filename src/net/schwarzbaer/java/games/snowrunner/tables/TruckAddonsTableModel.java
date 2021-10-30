@@ -27,7 +27,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAddon> {
+public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAddon> { // TODO: checked
 	
 	private static final Color COLOR_SPECIALTRUCKADDON = new Color(0xFFF3AD);
 	private static boolean enableSpecialTruckAddonsHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting, true);
@@ -95,12 +95,12 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			});
 		
 		else
-			controllers.dataReceivers.add(this,data -> {
+			finalizer.addDataReceiver(data -> {
 				setExtraData(data);
 				updateTextOutput();
 			});
 		
-		controllers.saveGameListeners.add(this, saveGame->{
+		finalizer.addSaveGameListener(saveGame->{
 			this.saveGame = saveGame;
 			updateTextOutput();
 		});
@@ -113,7 +113,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 				}
 			return null;
 		});
-		controllers.specialTruckAddonsListeners.add(this, (list, change) -> {
+		finalizer.addSpecialTruckAddonsListener((list, change) -> {
 			table.repaint();
 		});
 		

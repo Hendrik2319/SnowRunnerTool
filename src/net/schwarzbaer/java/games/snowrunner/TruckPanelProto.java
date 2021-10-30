@@ -66,6 +66,8 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
@@ -81,7 +83,9 @@ import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent {
+class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, ListenerSourceParent, Finalizable { // TODO: checked
+	
+	private final Finalizer finalizer;
 	private final JTextArea truckInfoTextArea;
 	private final JScrollPane truckInfoTextAreaScrollPane;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
@@ -94,12 +98,12 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 	private HashMap<String, String> truckToDLCAssignments;
 	private AddonCategories addonCategories;
 
-
 	TruckPanelProto(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 		language = null;
 		truck = null;
 		truckToDLCAssignments = null;
 		saveGame = null;
+		finalizer = controllers.createNewFinalizer();
 		
 		truckInfoTextArea = new JTextArea();
 		truckInfoTextArea.setEditable(false);
@@ -112,26 +116,30 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		addonSocketsPanel = new AddonSocketsPanel();
 		addonsPanel  = new AddonsPanel (mainWindow, controllers, specialTruckAddOns);
 		addonsPanel2 = new AddonsPanel2(mainWindow, controllers, specialTruckAddOns);
-		controllers.addChild(this, addonsPanel);
-		controllers.addChild(this, addonsPanel2);
+		finalizer.addSubComp(addonsPanel);
+		finalizer.addSubComp(addonsPanel2);
 		
-		controllers.languageListeners.add(this,language->{
+		finalizer.addLanguageListener(language->{
 			this.language = language;
 			compatibleWheelsPanel.setLanguage(language);
 			addonSocketsPanel.setLanguage(language);
 			updateOutput();
 		});
-		controllers.saveGameListeners.add(this,saveGame->{
+		finalizer.addSaveGameListener(saveGame->{
 			this.saveGame = saveGame;
 			updateOutput();
 		});
-		controllers.truckToDLCAssignmentListeners.add(this,this);
-		controllers.dataReceivers.add(this, data->{
+		finalizer.addTruckToDLCAssignmentListener(this);
+		finalizer.addDataReceiver(data->{
 			addonCategories = data==null ? null : data.addonCategories;
 			updateOutput();
 		});
 		
 		updateOutput();
+	}
+	
+	@Override public void prepareRemovingFromGUI() {
+		finalizer.removeSubCompsAndListenersFromGUI();
 	}
 	
 	JTabbedPane createTabbedPane() {
@@ -236,13 +244,13 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		truckInfoTextArea.setText(outTop.generateOutput());
 	}
 
-	private static class AddonsPanel2 extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent {
+	private static class AddonsPanel2 extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent, Finalizable { // TODO: checked
 		private static final long serialVersionUID = 4098254083170104250L;
 
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
 		
 		private final Window mainWindow;
-		private final Controllers controllers;
+		private final Finalizer finalizer;
 		private Language language;
 		private Truck truck;
 		private final Vector<Tab> currentTabs;
@@ -252,7 +260,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 
 		AddonsPanel2(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			this.mainWindow = mainWindow;
-			this.controllers = controllers;
+			this.finalizer = controllers.createNewFinalizer();
 			this.specialTruckAddOns = specialTruckAddOns;
 			this.truck = null;
 			saveGame = null;
@@ -260,19 +268,23 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			currentTabs = new Vector<>();
 			language = null;
 			
-			this.controllers.languageListeners.add(this,language -> {
+			finalizer.addLanguageListener(language -> {
 				this.language = language;
 				updateTabTitles();
 			});
-			this.controllers.dataReceivers.add(this,data->{
+			finalizer.addDataReceiver(data->{
 				this.addonCategories = data.addonCategories;
 				updateTabTitles();
 			});
-			this.controllers.saveGameListeners.add(this, saveGame->{
+			finalizer.addSaveGameListener(saveGame->{
 				this.saveGame = saveGame;
 			});
 		}
-
+		
+		@Override public void prepareRemovingFromGUI() {
+			finalizer.removeSubCompsAndListenersFromGUI();
+		}
+		
 		private void updateTabTitles() {
 			for (Tab tab : currentTabs)
 				tab.updateTabTitle();
@@ -284,15 +296,15 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			currentTabs.clear();
 			removeAllTabs();
-			controllers.removeListenersOfVolatileChildren(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS);
+			finalizer.removeVolatileSubCompsFromGUI(CONTROLLERS_CHILDLIST_TABTABLEMODELS);
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, controllers, false, data, saveGame));
-				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultEngine_ItemID    , Data.Engine    .class)));
-				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultGearbox_ItemID   , Data.Gearbox   .class)));
-				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultSuspension_ItemID, Data.Suspension.class)));
-				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel    (mainWindow, controllers, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultWinch_ItemID     , Data.Winch     .class)));
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, finalizer.getControllers(), false, data, saveGame));
+				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultEngine_ItemID    , Data.Engine    .class)));
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultGearbox_ItemID   , Data.Gearbox   .class)));
+				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultSuspension_ItemID, Data.Suspension.class)));
+				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel    (mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultWinch_ItemID     , Data.Winch     .class)));
 				
 				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
@@ -300,7 +312,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 				for (String category : truckAddonCategories)
 					createTab(category, compatibleTruckAddons.get(category), () -> {
 						return new TruckAddonsTableModel(
-							mainWindow, controllers, false, specialTruckAddOns,
+							mainWindow, finalizer.getControllers(), false, specialTruckAddOns,
 							true, createDefaultColumn_List(tr->tr.defaultAddonIDs,TruckAddon.class)
 						).set(data, saveGame);
 					});
@@ -357,8 +369,8 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			if (!usableItems.isEmpty()) {
 				Tab tab = new Tab(category, usableItems.size());
 				currentTabs.add(tab);
-				ExtendedVerySimpleTableModel2<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems 
-				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
+				ExtendedVerySimpleTableModel2<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems
+				finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab("##", tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);
 				tableModel.setLanguage(language);
@@ -388,7 +400,7 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		}
 	}
 
-	private static class AddonsPanel extends JPanel implements ListenerSource {
+	private static class AddonsPanel extends JPanel implements ListenerSource, Finalizable { // TODO: checked
 		private static final long serialVersionUID = 5515829836865733889L;
 		
 		private final JLabel socketIndexLabel;
@@ -399,17 +411,19 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 		private AddonSockets[] addonSockets;
 		private int currentSocketIndex;
 		private Language language;
+		private final Finalizer finalizer;
 
 		AddonsPanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(new GridBagLayout());
 			
+			finalizer = controllers.createNewFinalizer();
 			addonSockets = null;
 			currentSocketIndex = 0;
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", TableSimplifier.create(   trailersTableModel = new TrailersTableModel(mainWindow, controllers, false)));
-			tablePanels.addTab("Addons"  , TableSimplifier.create(truckAddonsTableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns)));
+			tablePanels.addTab("Trailers", TableSimplifier.create(finalizer.addSubComp(   trailersTableModel = new TrailersTableModel(mainWindow, controllers, false))));
+			tablePanels.addTab("Addons"  , TableSimplifier.create(finalizer.addSubComp(truckAddonsTableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns))));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;
@@ -429,12 +443,16 @@ class TruckPanelProto implements TruckToDLCAssignmentListener, ListenerSource, L
 			
 			updatePanel();
 			
-			controllers.languageListeners.add(this,language -> {
+			finalizer.addLanguageListener(language -> {
 				this.language = language;
 				updateDefaultAddonLabel();
 			});
 		}
-
+		
+		@Override public void prepareRemovingFromGUI() {
+			finalizer.removeSubCompsAndListenersFromGUI();
+		}
+		
 		void setData(AddonSockets[] addonSockets) {
 			this.addonSockets = addonSockets;
 			currentSocketIndex = 0;

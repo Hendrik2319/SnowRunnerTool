@@ -60,13 +60,14 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContextMenuModifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextPaneOutputSource;
 
-public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, ListenerSource, TableContextMenuModifier {
+public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, ListenerSource, TableContextMenuModifier, SnowRunner.Controllers.Finalizable {
 	
 	static final Color COLOR_BG_FALSE = new Color(0xFF6600);
 	static final Color COLOR_BG_TRUE = new Color(0x99FF33);
@@ -78,7 +79,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	protected final Vector<RowType> rows;
 	private   final Vector<RowType> originalRows;
 	protected final Window mainWindow;
-	protected final Controllers controllers;
+	protected final Finalizer finalizer;
 	protected final Coloring<RowType> coloring;
 	protected Language language;
 	private   Comparator<RowType> initialRowOrder;
@@ -89,7 +90,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	protected VerySimpleTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 		super(columns);
 		this.mainWindow = mainWindow;
-		this.controllers = controllers;
+		this.finalizer = controllers.createNewFinalizer();
 		this.originalColumns = columns;
 		this.columns = null; // to hide super.columns
 		language = null;
@@ -101,7 +102,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		clickedRow = null;
 		coloring = new Coloring<>(this);
 		
-		this.controllers.languageListeners.add(this,this);
+		finalizer.addLanguageListener(this);
 		
 		coloring.setBackgroundColumnColoring(true, Boolean.class, b -> b ? COLOR_BG_TRUE : COLOR_BG_FALSE);
 		
@@ -112,6 +113,10 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				throw new IllegalStateException(String.format("Found a non unique column ID \"%s\" in column %d in TableModel \"%s\"", columnID.id, i, this.getClass()));
 			columnIDIDs.add(columnID.id);
 		}
+	}
+
+	@Override public void prepareRemovingFromGUI() {
+		finalizer.removeSubCompsAndListenersFromGUI();
 	}
 
 	static class Coloring<RowType> {
@@ -230,7 +235,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	}
 	protected void connectToGlobalData(boolean forwardNulls, Function<Data,Collection<RowType>> getData) {
 		if (getData!=null)
-			controllers.dataReceivers.add(this, data -> {
+			finalizer.addDataReceiver(data -> {
 				if (!forwardNulls)
 					setRowData(data==null ? null : getData.apply(data));
 				else

@@ -22,13 +22,15 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AbstractTreeNode;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.V;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.system.ClipboardTools;
 
-class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver, ListenerSource {
+class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver, ListenerSource, Finalizable {
 	private static final long serialVersionUID = 10671596986103400L;
 	
 	private Data data;
@@ -40,6 +42,7 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 	private final Window window;
 	private final JTabbedPane saveGameDataPanel;
 	private SaveGameData saveGameData;
+	private final Finalizer finalizer;
 
 	RawDataPanel(Window window, SnowRunner.Controllers controllers) {
 		super();
@@ -65,10 +68,16 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 		addTab("SaveGame Data", saveGameDataPanel);
 		
 		updatePanels();
-		controllers.languageListeners.add(this,this);
-		controllers.dataReceivers.add(this,this);
+		
+		finalizer = controllers.createNewFinalizer();
+		finalizer.addLanguageListener(this);
+		finalizer.addDataReceiver(this);
 	}
 	
+	@Override public void prepareRemovingFromGUI() {
+		finalizer.removeSubCompsAndListenersFromGUI();
+	}
+
 	void showSaveGameDataSorted(boolean isShowingSaveGameDataSorted) {
 		this.isShowingSaveGameDataSorted = isShowingSaveGameDataSorted;
 		SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.ShowingSaveGameDataSorted, this.isShowingSaveGameDataSorted);

@@ -16,7 +16,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
-public class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModel2<RowType> {
+public class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModel2<RowType> { // TODO: checked
 
 	protected SaveGame saveGame;
 
@@ -24,7 +24,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		super(mainWindow, controllers, columns);
 		this.saveGame = saveGame;
 		setInitialRowOrder(Comparator.<RowType,String>comparing(e->e.setID).thenComparing(e->e.id));
-		controllers.saveGameListeners.add(this, saveGame_->{
+		finalizer.addSaveGameListener(saveGame_->{
 			this.saveGame = saveGame_;
 			updateTextOutput();
 		});

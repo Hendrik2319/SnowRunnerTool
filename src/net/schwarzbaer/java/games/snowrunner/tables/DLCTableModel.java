@@ -12,17 +12,20 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 
-public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver, ListenerSource {
+public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements LanguageListener, TruckToDLCAssignmentListener, DataReceiver, ListenerSource, Finalizable { // TODO: checked
 
 	private Language language;
 	private final Vector<RowItem> rows;
 	private HashMap<String, String> truckToDLCAssignments;
 	private Data data;
+	private final Finalizer finalizer;
 
 	public DLCTableModel(Controllers controllers) {
 		super(ColumnID.values());
@@ -30,9 +33,14 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		truckToDLCAssignments = null;
 		data = null;
 		rows = new Vector<>();
-		controllers.languageListeners.add(this,this);
-		controllers.truckToDLCAssignmentListeners.add(this,this);
-		controllers.dataReceivers.add(this,this);
+		finalizer = controllers.createNewFinalizer();
+		finalizer.addLanguageListener(this);
+		finalizer.addTruckToDLCAssignmentListener(this);
+		finalizer.addDataReceiver(this);
+	}
+
+	@Override public void prepareRemovingFromGUI() {
+		finalizer.removeSubCompsAndListenersFromGUI();
 	}
 
 	@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {

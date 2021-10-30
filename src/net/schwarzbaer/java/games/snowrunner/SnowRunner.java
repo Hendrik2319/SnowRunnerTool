@@ -68,6 +68,8 @@ import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMapMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSource;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.ListenerSourceParent;
 import net.schwarzbaer.java.games.snowrunner.tables.AddonCategoriesTableModel;
@@ -129,23 +131,24 @@ public class SnowRunner {
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
 		specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
+		Finalizer fin = controllers.createNewFinalizer();
 		
 		rawDataPanel = new RawDataPanel(mainWindow, controllers);
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"          , new TrucksTablePanel(mainWindow, controllers, specialTruckAddons, userDefinedValues));
-		contentPane.addTab("Trucks (old)"    , new TrucksListPanel (mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Wheels"          , TableSimplifier.create(new WheelsTableModel     (mainWindow, controllers)));
-		contentPane.addTab("DLCs"            , TableSimplifier.create(new DLCTableModel        (            controllers)));
-		contentPane.addTab("Trailers"        , TableSimplifier.create(new TrailersTableModel   (mainWindow, controllers,true)));
-		contentPane.addTab("Truck Addons"    , new TruckAddonsTablePanel(mainWindow, controllers, specialTruckAddons));
-		contentPane.addTab("Engines"         , TableSimplifier.create(new EnginesTableModel    (mainWindow, controllers,true, null)));
-		contentPane.addTab("Gearboxes"       , TableSimplifier.create(new GearboxesTableModel  (mainWindow, controllers,true, null)));
-		contentPane.addTab("Suspensions"     , TableSimplifier.create(new SuspensionsTableModel(mainWindow, controllers,true, null)));
-		contentPane.addTab("Winches"         , TableSimplifier.create(new WinchesTableModel    (mainWindow, controllers,true, null)));
-		contentPane.addTab("Addon Categories", TableSimplifier.create(new AddonCategoriesTableModel(mainWindow, controllers)));
-		contentPane.addTab("Raw Data", rawDataPanel);
+		contentPane.addTab("Trucks"          ,                        fin.addSubComp(new TrucksTablePanel         (mainWindow, controllers, specialTruckAddons, userDefinedValues)));
+		contentPane.addTab("Trucks (old)"    ,                        fin.addSubComp(new TrucksListPanel          (mainWindow, controllers, specialTruckAddons)));
+		contentPane.addTab("Wheels"          , TableSimplifier.create(fin.addSubComp(new WheelsTableModel         (mainWindow, controllers))));
+		contentPane.addTab("DLCs"            , TableSimplifier.create(fin.addSubComp(new DLCTableModel            (            controllers))));
+		contentPane.addTab("Trailers"        , TableSimplifier.create(fin.addSubComp(new TrailersTableModel       (mainWindow, controllers, true))));
+		contentPane.addTab("Truck Addons"    ,                        fin.addSubComp(new TruckAddonsTablePanel    (mainWindow, controllers, specialTruckAddons)));
+		contentPane.addTab("Engines"         , TableSimplifier.create(fin.addSubComp(new EnginesTableModel        (mainWindow, controllers, true, null))));
+		contentPane.addTab("Gearboxes"       , TableSimplifier.create(fin.addSubComp(new GearboxesTableModel      (mainWindow, controllers, true, null))));
+		contentPane.addTab("Suspensions"     , TableSimplifier.create(fin.addSubComp(new SuspensionsTableModel    (mainWindow, controllers, true, null))));
+		contentPane.addTab("Winches"         , TableSimplifier.create(fin.addSubComp(new WinchesTableModel        (mainWindow, controllers, true, null))));
+		contentPane.addTab("Addon Categories", TableSimplifier.create(fin.addSubComp(new AddonCategoriesTableModel(mainWindow, controllers))));
+		contentPane.addTab("Raw Data"        ,                        fin.addSubComp(rawDataPanel));
 		
 		
 		JMenuBar menuBar = new JMenuBar();
@@ -996,39 +999,42 @@ public class SnowRunner {
 		
 	}
 
-	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent {
-		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
-
+	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextPanePanel implements ListenerSource, ListenerSourceParent, Finalizable { // TODO: checked
 		private static final long serialVersionUID = 7841445317301513175L;
+		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
 		
 		private final Window mainWindow;
-		private final Controllers controllers;
+		private final Finalizer finalizer;
 		private final Vector<Tab> tabs;
+		private final SpecialTruckAddons specialTruckAddOns;
 		private Data data;
 		private Language language;
-		private final SpecialTruckAddons specialTruckAddOns;
 		private SaveGame saveGame;
 
 		TruckAddonsTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			this.mainWindow = mainWindow;
-			this.controllers = controllers;
+			this.finalizer = controllers.createNewFinalizer();
 			this.specialTruckAddOns = specialTruckAddOns;
 			this.language = null;
 			this.data = null;
 			this.tabs = new Vector<>();
-			saveGame = null;
+			this.saveGame = null;
 			
-			this.controllers.languageListeners.add(this,language->{
+			finalizer.addLanguageListener(language->{
 				this.language = language;
 				updateTabTitles();
 			});
-			this.controllers.dataReceivers.add(this,data->{
+			finalizer.addDataReceiver(data->{
 				this.data = data;
 				rebuildTabPanels();
 			});
-			this.controllers.saveGameListeners.add(this, saveGame->{
+			finalizer.addSaveGameListener(saveGame->{
 				this.saveGame = saveGame;
 			});
+		}
+
+		@Override public void prepareRemovingFromGUI() {
+			finalizer.removeSubCompsAndListenersFromGUI();
 		}
 
 		private void updateTabTitles() {
@@ -1041,7 +1047,7 @@ public class SnowRunner {
 		private void rebuildTabPanels() {
 			removeAllTabs();
 			tabs.clear();
-			controllers.removeListenersOfVolatileChildren(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS);
+			finalizer.removeVolatileSubCompsFromGUI(CONTROLLERS_CHILDLIST_TABTABLEMODELS);
 			
 			if (data==null) return;
 			
@@ -1053,8 +1059,8 @@ public class SnowRunner {
 			tabs.add(allTab);
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
-			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns).set(data, saveGame);
-			controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
+			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, finalizer.getControllers(), false, specialTruckAddOns).set(data, saveGame);
+			finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
 			tableModel.setRowData(data.truckAddons.values());
 			
@@ -1068,8 +1074,8 @@ public class SnowRunner {
 				tabs.add(tab);
 				
 				title = tab.getTabTitle(data.addonCategories, language);
-				tableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns).set(data, saveGame);
-				controllers.addVolatileChild(this, CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
+				tableModel = new TruckAddonsTableModel(mainWindow, finalizer.getControllers(), false, specialTruckAddOns).set(data, saveGame);
+				finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
 				tableModel.setRowData(list);
 			}
@@ -1092,27 +1098,29 @@ public class SnowRunner {
 		}
 	}
 
-	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent, ListenerSource {
+	private static class TrucksTablePanel extends JSplitPane implements ListenerSourceParent, ListenerSource, Finalizable { // TODO: checked
 		private static final long serialVersionUID = 6564351588107715699L;
 		
 		private Data data;
+		private final Finalizer finalizer;
 
 		TrucksTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, UserDefinedValues userDefinedValues) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
+			finalizer = controllers.createNewFinalizer();
 			
 			data = null;
-			controllers.dataReceivers.add(this, data->{
+			finalizer.addDataReceiver(data->{
 				this.data = data;
 			});
 			
 			TruckPanelProto truckPanelProto = new TruckPanelProto(mainWindow, controllers, specialTruckAddOns);
-			controllers.addChild(this,truckPanelProto);
+			finalizer.addSubComp(truckPanelProto);
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
 			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
 			TruckTableModel truckTableModel = new TruckTableModel(mainWindow, controllers, specialTruckAddOns, userDefinedValues);
-			controllers.addChild(this,truckTableModel);
+			finalizer.addSubComp(truckTableModel);
 			JComponent truckTableScrollPane = TableSimplifier.create(
 					truckTableModel,
 					(TableSimplifier.ArbitraryOutputSource) rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex),data));
@@ -1120,13 +1128,17 @@ public class SnowRunner {
 			setTopComponent(truckTableScrollPane);
 			setBottomComponent(tabbedPaneFromTruckPanel);
 		}
+
+		@Override public void prepareRemovingFromGUI() {
+			finalizer.removeSubCompsAndListenersFromGUI();
+		}
 	}
 
-	private static class TrucksListPanel extends JSplitPane implements ListenerSourceParent, ListenerSource {
+	private static class TrucksListPanel extends JSplitPane implements ListenerSourceParent, ListenerSource, Finalizable { // TODO: checked
 		private static final long serialVersionUID = 7004081774916835136L;
 		
 		private final JList<Truck> truckList;
-		private final Controllers controllers;
+		private final Finalizer finalizer;
 		private final StandardMainWindow mainWindow;
 		private HashMap<String, String> truckToDLCAssignments;
 		private Data data;
@@ -1134,13 +1146,13 @@ public class SnowRunner {
 		TrucksListPanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
-			this.controllers = controllers;
+			this.finalizer = controllers.createNewFinalizer();
 			this.truckToDLCAssignments = null;
 			this.data = null;
 			setResizeWeight(0);
 			
-			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, this.controllers, specialTruckAddOns);
-			this.controllers.addChild(this,truckPanelProto);
+			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, controllers, specialTruckAddOns);
+			finalizer.addSubComp(truckPanelProto);
 			JSplitPane splitPaneFromTruckPanel = truckPanelProto.createSplitPane();
 			splitPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 			
@@ -1148,7 +1160,7 @@ public class SnowRunner {
 			truckListScrollPane.setBorder(BorderFactory.createTitledBorder("All Trucks in Game"));
 			truckList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			truckList.addListSelectionListener(e->truckPanelProto.setTruck(truckList.getSelectedValue(),data));
-			this.controllers.dataReceivers.add(this,data -> {
+			finalizer.addDataReceiver(data -> {
 				this.data = data;
 				Vector<Truck> items = new Vector<>(data.trucks.values());
 				items.sort(Comparator.<Truck,String>comparing(Truck->Truck.id));
@@ -1156,24 +1168,28 @@ public class SnowRunner {
 			});
 			
 			TruckListContextMenu truckListContextMenu = new TruckListContextMenu();
-			this.controllers.languageListeners.add(this,truckListContextMenu);
+			finalizer.addLanguageListener(truckListContextMenu);
 			
 			TruckListCellRenderer truckListCellRenderer = new TruckListCellRenderer(truckList);
 			truckList.setCellRenderer(truckListCellRenderer);
-			this.controllers.languageListeners.add(this,truckListCellRenderer);
-			this.controllers.saveGameListeners.add(this,truckListCellRenderer);
+			finalizer.addLanguageListener(truckListCellRenderer);
+			finalizer.addSaveGameListener(truckListCellRenderer);
 			
 			setLeftComponent(truckListScrollPane);
 			setRightComponent(splitPaneFromTruckPanel);
 			
-			this.controllers.truckToDLCAssignmentListeners.add(this,new TruckToDLCAssignmentListener() {
+			finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
 				@Override public void updateAfterAssignmentsChange() {}
 				@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
 					TrucksListPanel.this.truckToDLCAssignments = truckToDLCAssignments;
 				}
 			});
 		}
-	
+		
+		@Override public void prepareRemovingFromGUI() {
+			finalizer.removeSubCompsAndListenersFromGUI();
+		}
+		
 		private class TruckListContextMenu extends ContextMenu implements LanguageListener {
 			private static final long serialVersionUID = 2917583352980234668L;
 			
@@ -1193,7 +1209,7 @@ public class SnowRunner {
 					TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
 					boolean assignmentsChanged = dlg.showDialog();
 					if (assignmentsChanged)
-						controllers.truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
+						finalizer.getControllers().truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
 				}));
 				
 				addContextMenuInvokeListener((comp, x, y) -> {
@@ -1366,7 +1382,7 @@ public class SnowRunner {
 		}
 		
 		public interface Finalizable {
-			void finalize();
+			void prepareRemovingFromGUI();
 		}
 		
 		public Finalizer createNewFinalizer() {
@@ -1378,6 +1394,10 @@ public class SnowRunner {
 			private final Vector<Finalizable> subComps = new Vector<>();
 			private final StringVectorMap<Finalizable> volatileSubComps = new StringVectorMap<>();
 			
+			public Controllers getControllers() {
+				return Controllers.this;
+			}
+
 			public <T extends Finalizable> T addSubComp(T subComp) {
 				subComps.add(subComp);
 				return subComp;
@@ -1388,13 +1408,13 @@ public class SnowRunner {
 				return subComp;
 			}
 			
-			public void finalize() {
+			public void removeSubCompsAndListenersFromGUI() {
 				for (Finalizable subComp : subComps)
-					subComp.finalize();
+					subComp.prepareRemovingFromGUI();
 				subComps.clear();
 				
 				for (String listID : volatileSubComps.keySet())
-					finalizeVolatileSubComps(listID);
+					removeVolatileSubCompsFromGUI(listID);
 				volatileSubComps.clear();
 				
 				languageListeners            .removeListenersOfSource(this);
@@ -1404,19 +1424,19 @@ public class SnowRunner {
 				specialTruckAddonsListeners  .removeListenersOfSource(this);
 			}
 			
-			public void finalizeVolatileSubComps(String listID) {
+			public void removeVolatileSubCompsFromGUI(String listID) {
 				Vector<Finalizable> list = volatileSubComps.get(listID);
 				if (list==null) return;
 				for (Finalizable subComp : list)
-					subComp.finalize();
+					subComp.prepareRemovingFromGUI();
 				volatileSubComps.remove(listID);
 			}
 
-			void addLanguageListener            (LanguageListener l            ) { languageListeners            .add(this,l); }
-			void addDataReceiver                (DataReceiver l                ) { dataReceivers                .add(this,l); }
-			void addSaveGameListener            (SaveGameListener l            ) { saveGameListeners            .add(this,l); }
-			void addTruckToDLCAssignmentListener(TruckToDLCAssignmentListener l) { truckToDLCAssignmentListeners.add(this,l); }
-			void addSpecialTruckAddonsListener  (SpecialTruckAddons.Listener l ) { specialTruckAddonsListeners  .add(this,l); }
+			public void addLanguageListener            (LanguageListener l            ) { languageListeners            .add(this,l); }
+			public void addDataReceiver                (DataReceiver l                ) { dataReceivers                .add(this,l); }
+			public void addSaveGameListener            (SaveGameListener l            ) { saveGameListeners            .add(this,l); }
+			public void addTruckToDLCAssignmentListener(TruckToDLCAssignmentListener l) { truckToDLCAssignmentListeners.add(this,l); }
+			public void addSpecialTruckAddonsListener  (SpecialTruckAddons.Listener l ) { specialTruckAddonsListeners  .add(this,l); }
 		}
 
 		private static class AbstractController<Listener> {
