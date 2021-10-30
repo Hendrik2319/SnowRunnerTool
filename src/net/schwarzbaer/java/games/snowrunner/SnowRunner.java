@@ -1364,6 +1364,60 @@ public class SnowRunner {
 				for (ListenerSource source : sources)
 					removeListenersOfSource(source);
 		}
+		
+		public interface Finalizable {
+			void finalize();
+		}
+		
+		public Finalizer createNewFinalizer() {
+			return new Finalizer();
+		}
+		
+		public class Finalizer implements ListenerSource {
+			
+			private final Vector<Finalizable> subComps = new Vector<>();
+			private final StringVectorMap<Finalizable> volatileSubComps = new StringVectorMap<>();
+			
+			public <T extends Finalizable> T addSubComp(T subComp) {
+				subComps.add(subComp);
+				return subComp;
+			}
+			
+			public <T extends Finalizable> T addVolatileSubComp(String listID, T subComp) {
+				volatileSubComps.add(listID, subComp);
+				return subComp;
+			}
+			
+			public void finalize() {
+				for (Finalizable subComp : subComps)
+					subComp.finalize();
+				subComps.clear();
+				
+				for (String listID : volatileSubComps.keySet())
+					finalizeVolatileSubComps(listID);
+				volatileSubComps.clear();
+				
+				languageListeners            .removeListenersOfSource(this);
+				dataReceivers                .removeListenersOfSource(this);
+				saveGameListeners            .removeListenersOfSource(this);
+				truckToDLCAssignmentListeners.removeListenersOfSource(this);
+				specialTruckAddonsListeners  .removeListenersOfSource(this);
+			}
+			
+			public void finalizeVolatileSubComps(String listID) {
+				Vector<Finalizable> list = volatileSubComps.get(listID);
+				if (list==null) return;
+				for (Finalizable subComp : list)
+					subComp.finalize();
+				volatileSubComps.remove(listID);
+			}
+
+			void addLanguageListener            (LanguageListener l            ) { languageListeners            .add(this,l); }
+			void addDataReceiver                (DataReceiver l                ) { dataReceivers                .add(this,l); }
+			void addSaveGameListener            (SaveGameListener l            ) { saveGameListeners            .add(this,l); }
+			void addTruckToDLCAssignmentListener(TruckToDLCAssignmentListener l) { truckToDLCAssignmentListeners.add(this,l); }
+			void addSpecialTruckAddonsListener  (SpecialTruckAddons.Listener l ) { specialTruckAddonsListeners  .add(this,l); }
+		}
 
 		private static class AbstractController<Listener> {
 			protected final Vector<Listener> listeners = new Vector<>();
