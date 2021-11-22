@@ -1330,11 +1330,11 @@ class TruckPanelProto implements Finalizable {
 				
 				@Override
 				protected void determineMinMax(MapLatLong min, MapLatLong max) {
-					min.longitude_x = minX==null ? 0   : Math.min(minX, 0);
-					min.latitude_y  = minY==null ? 0   : Math.min(minY, 0);
-					max.longitude_x = maxX==null ? 100 : Math.max(maxX, 0);
-					max.latitude_y  = maxY==null ? 100 : Math.max(maxY, 0);
-					float overSize = Math.max(max.longitude_x-min.longitude_x, max.latitude_y-min.latitude_y)*0.1f;
+					min.longitude_x = (double) (minX==null ? 0   : Math.min(minX, 0));
+					min.latitude_y  = (double) (minY==null ? 0   : Math.min(minY, 0));
+					max.longitude_x = (double) (maxX==null ? 100 : Math.max(maxX, 0));
+					max.latitude_y  = (double) (maxY==null ? 100 : Math.max(maxY, 0));
+					double overSize = Math.max(max.longitude_x-min.longitude_x, max.latitude_y-min.latitude_y)*0.1;
 					min.longitude_x -= overSize;
 					min.latitude_y  -= overSize;
 					max.longitude_x += overSize;
