@@ -2,13 +2,10 @@ package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Window;
 import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.io.File;
@@ -187,15 +184,7 @@ public class SnowRunner {
 		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
 		
-		if (settings.isSet(AppSettings.ValueGroup.WindowPos )) mainWindow.setLocation(settings.getWindowPos ());
-		if (settings.isSet(AppSettings.ValueGroup.WindowSize)) mainWindow.setSize    (settings.getWindowSize());
-		
-		mainWindow.addComponentListener(new ComponentListener() {
-			@Override public void componentShown  (ComponentEvent e) {}
-			@Override public void componentHidden (ComponentEvent e) {}
-			@Override public void componentResized(ComponentEvent e) { settings.setWindowSize( mainWindow.getSize() ); }
-			@Override public void componentMoved  (ComponentEvent e) { settings.setWindowPos ( mainWindow.getLocation() ); }
-		});
+		settings.registerAppWindow(mainWindow);
 	}
 
 	public interface TruckToDLCAssignmentListener {
@@ -1431,9 +1420,8 @@ public class SnowRunner {
 		}
 	}
 
-	public static class AppSettings extends Settings<AppSettings.ValueGroup, AppSettings.ValueKey> {
+	public static class AppSettings extends Settings.DefaultAppSettings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		public enum ValueKey {
-			WindowX, WindowY, WindowWidth, WindowHeight,
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted,
 			MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
@@ -1446,19 +1434,13 @@ public class SnowRunner {
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {
-			WindowPos (ValueKey.WindowX, ValueKey.WindowY),
-			WindowSize(ValueKey.WindowWidth, ValueKey.WindowHeight),
 			;
 			ValueKey[] keys;
 			ValueGroup(ValueKey...keys) { this.keys = keys;}
 			@Override public ValueKey[] getKeys() { return keys; }
 		}
 		
-		public AppSettings() { super(SnowRunner.class); }
-		public Point     getWindowPos (              ) { return getPoint(ValueKey.WindowX,ValueKey.WindowY); }
-		public void      setWindowPos (Point location) {        putPoint(ValueKey.WindowX,ValueKey.WindowY,location); }
-		public Dimension getWindowSize(              ) { return getDimension(ValueKey.WindowWidth,ValueKey.WindowHeight); }
-		public void      setWindowSize(Dimension size) {        putDimension(ValueKey.WindowWidth,ValueKey.WindowHeight,size); }
+		public AppSettings() { super(SnowRunner.class, ValueKey.values()); }
 	}
 
 	public static <Type> Type[] mergeArrays(Type[] arr1, boolean addArr1BeforeArr2, Type[] arr2) {
