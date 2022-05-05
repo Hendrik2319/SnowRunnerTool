@@ -37,7 +37,6 @@ import net.schwarzbaer.system.DateTimeFormatter;
 @SuppressWarnings("unused")
 class XMLTemplateStructure {
 	
-	
 	private record KnownWrongClassFile(String className, String fileName) {
 		static KnownWrongClassFile constructFrom(ClassStructur.StructItem structItem) {
 			if (structItem         ==null) throw new IllegalArgumentException();
@@ -45,15 +44,13 @@ class XMLTemplateStructure {
 			return new KnownWrongClassFile(structItem.className,structItem.itemFile.name);
 		}
 	}
+	
 	private static final HashSet<KnownWrongClassFile> knownWrongClassFiles = new HashSet<>();
 	static {
 		knownWrongClassFiles.add(new KnownWrongClassFile("engines", "e_un_truck_heavy_boarpac.xml"));
 	}
 	
-	
-	// 
-	private static boolean SHOW_UNEXPECTED_TEXT = false; 
-
+	private static final boolean SHOW_UNEXPECTED_TEXT = false; 
 	private static TestingGround testingGround;
 	
 	final HashMap<String, Templates> globalTemplates;
