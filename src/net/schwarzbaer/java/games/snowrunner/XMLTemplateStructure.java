@@ -37,6 +37,21 @@ import net.schwarzbaer.system.DateTimeFormatter;
 @SuppressWarnings("unused")
 class XMLTemplateStructure {
 	
+	
+	private record KnownWrongClassFile(String className, String fileName) {
+		static KnownWrongClassFile constructFrom(ClassStructur.StructItem structItem) {
+			if (structItem         ==null) throw new IllegalArgumentException();
+			if (structItem.itemFile==null) throw new IllegalArgumentException();
+			return new KnownWrongClassFile(structItem.className,structItem.itemFile.name);
+		}
+	}
+	private static final HashSet<KnownWrongClassFile> knownWrongClassFiles = new HashSet<>();
+	static {
+		knownWrongClassFiles.add(new KnownWrongClassFile("engines", "e_un_truck_heavy_boarpac.xml"));
+	}
+	
+	
+	// 
 	private static boolean SHOW_UNEXPECTED_TEXT = false; 
 
 	private static TestingGround testingGround;
@@ -626,6 +641,11 @@ class XMLTemplateStructure {
 				
 				//System.out.printf("Read Item \"%s\" ...%n", itemFile.getPath());
 				
+				if (knownWrongClassFiles.contains(KnownWrongClassFile.constructFrom(structItem))) {
+					System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
+					return null;
+				}
+				
 				NodeList nodes = readXML(zipFile, structItem.itemFile);
 				if (nodes==null) {
 					System.err.printf("Can't read xml file \"%s\" --> Item will be ignored%n", structItem.itemFilePath);
@@ -1044,7 +1064,7 @@ class XMLTemplateStructure {
 					else {
 						templateNode = templates.getTemplate(this.nodeName, templateName);
 						if (templateNode==null)
-							throw new ParseException("Can't find template \"%s\" for node \"%s\" [File:%s]", templateName, this.nodeName, source.getFilePath());
+							throwParseException(false, "Can't find template \"%s\" for node \"%s\" [File:%s]", templateName, this.nodeName, source.getFilePath());
 					}
 				}
 				

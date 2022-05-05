@@ -1068,8 +1068,8 @@ public class Data {
 				//      2
 				
 				// <TruckAddon> <GameData SaddleType=\"...\"> besser ignorieren, scheint wohl veraltet, ist jedenfalls mindestens einmal falsch
-				// <TruckAddon> <GameData LoadPoints=\"...\">  --> für Stämme -> erstmal ignorieren
-				// <TruckAddon> <GameData ManualLoads=\"...\">  --> für Stämme -> erstmal ignorieren
+				// <TruckAddon> <GameData LoadPoints=\"...\">  --> fÃ¼r StÃ¤mme -> erstmal ignorieren
+				// <TruckAddon> <GameData ManualLoads=\"...\">  --> fÃ¼r StÃ¤mme -> erstmal ignorieren
 				// <TruckAddon> <GameData GaragePoints=\"...\">  --> Keine Ahnung
 				//    \[media]\_dlc\dlc_1_1\classes\trucks\addons\frame_addon_sideboard_1.xml
 				//    \[media]\classes\trucks\addons\international_loadstar_1700_pickup.xml
@@ -1194,9 +1194,12 @@ public class Data {
 					InstanceType instance = constructor.apply(setID,node);
 					set.add(instance);
 					if (instance.id!=null) {
-						if (instanceList.containsKey(instance.id))
-							System.err.printf("Found more than one %s instances with the same ID (\"%s\") --> subsequent instances will be ignored", instanceNodeName, instance.id);
-						else
+						if (instanceList.containsKey(instance.id)) {
+							System.err.printf("Found more than one %s instances with the same ID (\"%s\") --> subsequent instances will be ignored%n", instanceNodeName, instance.id);
+							InstanceType other = instanceList.get(instance.id);
+							System.err.printf("   SetID of stored instance: \"%s\"%n", other.setID);
+							System.err.printf("   SetID of new    instance: \"%s\"%n", instance.setID);
+						} else
 							instanceList.put(instance.id, instance);
 					}
 				}
