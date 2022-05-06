@@ -1,4 +1,9 @@
 [DLC]
+name = < Base Game >
+truck = ank_mk38_ht
+truck = tuz_108_warthog
+
+[DLC]
 name = Anniversary DLC
 truck = cat_ct681
 truck = international_hx_520
@@ -6,6 +11,10 @@ truck = international_hx_520
 [DLC]
 name = Clasico Pack
 truck = chevy_apache
+
+[DLC]
+name = Crocodile Pack
+truck = step_3364_crocodile
 
 [DLC]
 name = GMC Brigadier
@@ -50,6 +59,11 @@ truck = zikz_605r
 name = Season 5: Build & Dispatch
 truck = tatra_force_t815_7
 truck = tatra_phoenix
+
+[DLC]
+name = Season 6: Haul & Hustle
+truck = aramatsu_forester
+truck = tayga_6455b
 
 [DLC]
 name = TATRA Dual Pack

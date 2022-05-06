@@ -72,11 +72,11 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	}
 
 	private static class RowItem {
-		final String internalDLC;
+		final String updateLevel;
 		final String officialDLC;
 		final String truckID;
 		private RowItem(String internalDLC, String officialDLC, String truckID) {
-			this.internalDLC = internalDLC;
+			this.updateLevel = internalDLC;
 			this.officialDLC = officialDLC;
 			this.truckID = truckID;
 		}
@@ -91,8 +91,8 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		if (rowIndex<0 || rowIndex>=rows.size()) return null;
 		RowItem row = rows.get(rowIndex);
 		switch (columnID) {
-		case Internal: return row.internalDLC;
-		case Official: return row.officialDLC;
+		case UpdateLevel: return row.updateLevel;
+		case OfficialDLC: return row.officialDLC;
 		case Truck:
 			Truck truck = data==null || row.truckID==null ? null : data.trucks.get(row.truckID);
 			if (truck == null) return String.format("<%s>", row.truckID);
@@ -102,9 +102,9 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	}
 
 	enum ColumnID implements Tables.SimplifiedColumnIDInterface {
-		Internal ("Internal Label", String .class, 100),
-		Official ("Official DLC"  , String .class, 200),
-		Truck    ("Truck"         , String .class, 200),
+		UpdateLevel ("Update Level", String .class, 100),
+		OfficialDLC ("Official DLC", String .class, 200),
+		Truck       ("Truck"       , String .class, 200),
 		;
 	
 		private final SimplifiedColumnConfig config;
