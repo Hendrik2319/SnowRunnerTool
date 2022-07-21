@@ -8,7 +8,14 @@ import java.awt.Window;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -84,9 +91,10 @@ import net.schwarzbaer.system.Settings;
 public class SnowRunner {
 
 	public static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
-	public static final String UserDefinedValuesFile = "SnowRunner - UserDefinedValues.dat";
-	public static final String FilterRowsPresetsFile = "SnowRunner - FilterRowsPresets.dat";
-	public static final String ColumnHidePresetsFile = "SnowRunner - ColumnHidePresets.dat";
+	public static final String UserDefinedValuesFile     = "SnowRunner - UserDefinedValues.dat";
+	public static final String FilterRowsPresetsFile     = "SnowRunner - FilterRowsPresets.dat";
+	public static final String ColumnHidePresetsFile     = "SnowRunner - ColumnHidePresets.dat";
+	public static final String SpecialTruckAddonsFile    = "SnowRunner - SpecialTruckAddons.dat";
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
@@ -124,8 +132,10 @@ public class SnowRunner {
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
-		specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
 		Finalizer fin = controllers.createNewFinalizer();
+		
+		specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
+		fin.addSpecialTruckAddonsListener((list, change) -> specialTruckAddons.writeToFile());
 		
 		rawDataPanel = new RawDataPanel(mainWindow, controllers);
 		
@@ -845,11 +855,15 @@ public class SnowRunner {
 	
 	public static class SpecialTruckAddons {
 
+		private static final String ValuePrefix = "$ ";
+		private static final String ListIdClosingBracket = "]]";
+		private static final String ListIDOpeningBracket = "[[";
+
 		public interface Listener {
 			void specialTruckAddOnsHaveChanged(List list, Change change);
 		}
 
-		public enum Change { Added, Removed, None }
+		public enum Change { Added, Removed }
 		
 		public enum List {
 			MetalDetectors  ("Metal Detector"  , AppSettings.ValueKey.MetalDetectorAddons  , addon->!addon.gameData.isCargo),
@@ -896,8 +910,80 @@ public class SnowRunner {
 			shortLogs        = new SpecialTruckAddonList(List.ShortLogs       );
 			mediumLogs       = new SpecialTruckAddonList(List.MediumLogs      );
 			longLogs         = new SpecialTruckAddonList(List.LongLogs        );
+			
+			// classes using this expect lists with values 
+			readFromFile();
+			
+			// for conversion
+			writeToFile();
+			for (List list : List.values())
+				settings.remove(list.settingsKey);
 		}
 		
+		public void readFromFile() {
+			File file = new File(SpecialTruckAddonsFile);
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+				
+				System.out.printf("Read SpecialTruckAddons from file \"%s\" ...%n", file.getAbsolutePath());
+				
+				SpecialTruckAddonList list = null;
+				String line, valueStr;
+				while ( (line=in.readLine())!=null ) {
+					
+					if (line.isEmpty()) continue;
+					if (line.startsWith(ListIDOpeningBracket) && line.endsWith(ListIdClosingBracket)) {
+						valueStr = line.substring(ListIDOpeningBracket.length(), line.length()-ListIdClosingBracket.length());
+						try {
+							List listID = List.valueOf(valueStr);
+							list = getList(listID);
+							if (list==null)
+								throw new IllegalStateException(String.format("Found List ID (\"%s\") with no assigned SpecialTruckAddonList in file \"%s\".", listID, file.getAbsolutePath()));
+						} catch (Exception e) {
+							throw new IllegalStateException(String.format("Found unknown List ID (\"%s\") in file \"%s\".", valueStr, file.getAbsolutePath()));
+						}
+					}
+					if (line.startsWith(ValuePrefix) && list!=null) {
+						valueStr = line.substring(ValuePrefix.length());
+						list.idList.add(valueStr);
+					}
+					
+				}
+				
+				System.out.printf("... done%n");
+				
+			} catch (FileNotFoundException ex) {
+				//ex.printStackTrace();
+			} catch (IOException ex) {
+				System.err.printf("IOException while reading SpecialTruckAddons from file \"%s\": %s", file.getAbsolutePath(), ex.getMessage());
+				//ex.printStackTrace();
+			}
+		}
+
+		public void writeToFile() {
+			File file = new File(SpecialTruckAddonsFile);
+			try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
+				
+				System.out.printf("Write SpecialTruckAddons to file \"%s\" ...%n", file.getAbsolutePath());
+				
+				String listIdFormat = String.format("%s%%s%s%%n", ListIDOpeningBracket, ListIdClosingBracket);
+				String valueFormat = String.format("%s%%s%%n", ValuePrefix);
+				for (List list : List.values()) {
+					out.printf(listIdFormat, list.name());
+					SpecialTruckAddonList values = getList(list);
+					Vector<String> vec = new Vector<>(values.idList);
+					vec.sort(null);
+					for (String id : vec) out.printf(valueFormat, id);
+					out.printf("%n");
+				}
+				
+				System.out.printf("... done%n");
+				
+			} catch (IOException ex) {
+				System.err.printf("IOException while writing SpecialTruckAddons to file \"%s\": %s", file.getAbsolutePath(), ex.getMessage());
+				//ex.printStackTrace();
+			}
+		}
+
 		void foreachList(BiConsumer<List,SpecialTruckAddonList> action) {
 			for (List list : List.values())
 				action.accept(list, getList(list));
@@ -925,7 +1011,7 @@ public class SnowRunner {
 			SpecialTruckAddonList(List list) {
 				this.list = list;
 				idList = new HashSet<>();
-				String[] idListArr = settings.getStrings(this.list.settingsKey, " : ");
+				String[] idListArr = settings.getStrings(this.list.settingsKey, " : "); // TODO
 				if (idListArr!=null) idList.addAll(Arrays.asList(idListArr));
 			}
 
@@ -935,8 +1021,6 @@ public class SnowRunner {
 				sorted.sort(null);
 				return String.format("<%s> %s", list, sorted.toString());
 			}
-
-
 
 			public void forEach(Consumer<String> action) {
 				idList.forEach(action);
@@ -960,10 +1044,6 @@ public class SnowRunner {
 				return count;
 			}
 
-			private void update() {
-				settings.putStrings(list.settingsKey, " : ", idList.toArray(new String[idList.size()]));
-			}
-
 			public boolean contains(TruckAddon addon) {
 				return addon!=null && idList.contains(addon.id);
 			}
@@ -972,14 +1052,12 @@ public class SnowRunner {
 				if (addon==null) return;
 				idList.remove(addon.id);
 				listenersController.specialTruckAddOnsHaveChanged(list, Change.Removed);
-				update();
 			}
 
 			public void add(TruckAddon addon) {
 				if (addon==null) return;
 				idList.add(addon.id);
 				listenersController.specialTruckAddOnsHaveChanged(list, Change.Added);
-				update();
 			}
 		}
 		
@@ -1440,7 +1518,11 @@ public class SnowRunner {
 			@Override public ValueKey[] getKeys() { return keys; }
 		}
 		
-		public AppSettings() { super(SnowRunner.class, ValueKey.values()); }
+		public AppSettings() {
+			super(SnowRunner.class, ValueKey.values());
+			remove(ValueKey.ColumnHidePresets);
+			remove(ValueKey.FilterRowsPresets);
+		}
 	}
 
 	public static <Type> Type[] mergeArrays(Type[] arr1, boolean addArr1BeforeArr2, Type[] arr2) {

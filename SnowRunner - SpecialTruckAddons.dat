@@ -1,0 +1,38 @@
+[[MetalDetectors]]
+$ frame_addon_metal_detector
+
+[[SeismicVibrators]]
+$ frame_addon_seismic_vibrator
+$ frame_seismic_vibrator_zikz_605r
+
+[[LogLifts]]
+$ crane_loglift
+$ crane_loglift_cat_ct681
+$ crane_loglift_zikz_605r
+
+[[MiniCranes]]
+$ crane_krs_58_bandit
+$ minicrane_ru
+$ minicrane_ru_zikz_605r
+$ minicrane_us
+$ minicrane_us_loadstar
+$ minicrane_us_navistar
+$ tatra_crane
+
+[[BigCranes]]
+$ big_crane_ru
+$ big_crane_us
+$ big_crane_us_ws4964
+$ big_crane_zikz_605r
+
+[[ShortLogs]]
+$ cargo_logs_cat_745c_log_bunk
+$ cargo_logs_frame_addon_log_short
+
+[[MediumLogs]]
+$ cargo_logs_medium_cat_745c_log_bunk
+$ cargo_logs_medium_trailer_log
+
+[[LongLogs]]
+$ cargo_logs_long_trailer_log_pole
+

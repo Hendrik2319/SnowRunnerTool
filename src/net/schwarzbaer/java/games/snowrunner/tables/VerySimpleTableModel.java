@@ -11,13 +11,12 @@ import java.awt.Point;
 import java.awt.Window;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -1200,10 +1199,10 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			}
 		}
 
-		private static class Presets extends ModelConfigureDialog.PresetMaps<HashMap<String,FilterRowsDialog.Filter>> {
+		private static class Presets extends PresetMaps<HashMap<String,FilterRowsDialog.Filter>> {
 		
 			Presets() {
-				super(SnowRunner.AppSettings.ValueKey.FilterRowsPresets, SnowRunner.FilterRowsPresetsFile, HashMap<String,FilterRowsDialog.Filter>::new);
+				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,FilterRowsDialog.Filter>::new);
 			}
 		
 			@Override protected void parseLine(String line, HashMap<String, FilterRowsDialog.Filter> preset) {
@@ -1315,10 +1314,10 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			return Arrays.stream(originalColumns).filter(column->column.isVisible).toArray(ColumnID[]::new);
 		}
 
-		private static class Presets extends ModelConfigureDialog.PresetMaps<HashSet<String>> {
+		private static class Presets extends PresetMaps<HashSet<String>> {
 		
 			Presets() {
-				super(SnowRunner.AppSettings.ValueKey.ColumnHidePresets, SnowRunner.ColumnHidePresetsFile, HashSet<String>::new);
+				super("ColumnHidePresets", SnowRunner.ColumnHidePresetsFile, HashSet<String>::new);
 			}
 			
 			@Override protected void parseLine(String line, HashSet<String> preset) {
@@ -1340,133 +1339,6 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	}
 
 	private static abstract class ModelConfigureDialog<Preset> extends JDialog {
-		private static abstract class PresetMaps<Preset> {
-			
-			private final HashMap<String,HashMap<String,Preset>> presets;
-			private final SnowRunner.AppSettings.ValueKey settingsKey;
-			private final Supplier<Preset> createEmptyPreset;
-			private final String pathname;
-			
-			@SuppressWarnings("unused")
-			PresetMaps(SnowRunner.AppSettings.ValueKey settingsKey, Supplier<Preset> createEmptyPreset) {
-				this(settingsKey, null, createEmptyPreset);
-			}
-			@SuppressWarnings("unused")
-			PresetMaps(String pathname, Supplier<Preset> createEmptyPreset) {
-				this(null, pathname, createEmptyPreset);
-			}
-			PresetMaps(SnowRunner.AppSettings.ValueKey settingsKey, String pathname, Supplier<Preset> createEmptyPreset) {
-				this.settingsKey = settingsKey;
-				this.createEmptyPreset = createEmptyPreset;
-				this.pathname = pathname;
-				this.presets = new HashMap<>();
-				if (pathname==null && settingsKey==null)
-					throw new IllegalArgumentException();
-				read();
-			}
-		
-			HashMap<String, Preset> getModelPresets(String tableModelID) {
-				HashMap<String, Preset> modelPresets = presets.get(tableModelID);
-				if (modelPresets==null)
-					presets.put(tableModelID, modelPresets = new HashMap<>());
-				return modelPresets;
-			}
-		
-			void read() {
-				presets.clear();
-				
-				String text = null;
-				File file = pathname==null ? null : new File(pathname);
-				
-				if (settingsKey!=null && SnowRunner.settings.contains(settingsKey))
-					text = SnowRunner.settings.getString(settingsKey, null);
-				
-				else if (file!=null && file.isFile())
-					try {
-						System.out.printf("Read PresetMaps from file \"%s\" ...%n", file.getAbsolutePath());
-						byte[] bytes = Files.readAllBytes(file.toPath());
-						text = new String(bytes, StandardCharsets.UTF_8);
-						System.out.printf("... done%n");
-					} catch (IOException e) {
-						text = null;
-					}
-				
-				else
-					throw new IllegalStateException();
-				
-				if (text==null) return;
-				
-				try (BufferedReader in = new BufferedReader(new StringReader(text))) {
-					
-					HashMap<String, Preset> modelPresets = null;
-					Preset preset = null;
-					String line, valueStr;
-					while ( (line=in.readLine())!=null ) {
-						
-						if (line.equals("[Preset]") || line.isEmpty()) {
-							modelPresets = null;
-							preset = null;
-						}
-						if ( (valueStr=Data.getLineValue(line, "TableModel="))!=null ) {
-							modelPresets = getModelPresets(valueStr);
-							preset = null;
-						}
-						if ( (valueStr=Data.getLineValue(line, "Preset="))!=null ) {
-							preset = modelPresets.get(valueStr);
-							if (preset==null)
-								modelPresets.put(valueStr, preset = createEmptyPreset.get());
-						}
-						parseLine(line, preset);
-						
-					}
-					
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		
-			void write() {
-				StringWriter stringWriter = new StringWriter();
-				try (PrintWriter out = new PrintWriter(stringWriter)) {
-					
-					Vector<String> tableModelIDs = new Vector<>(presets.keySet());
-					tableModelIDs.sort(null);
-					for (String tableModelID : tableModelIDs) {
-						HashMap<String, Preset> modelPresets = presets.get(tableModelID);
-						Vector<String> presetNames = new Vector<>(modelPresets.keySet());
-						presetNames.sort(null);
-						for (String presetName : presetNames) {
-							out.printf("[Preset]%n");
-							out.printf("TableModel=%s%n", tableModelID);
-							out.printf("Preset=%s%n", presetName);
-							writePresetInLines(modelPresets.get(presetName), out);
-							out.printf("%n");
-						}
-					}
-					
-				}
-				
-				String text = stringWriter.toString();
-				
-				if (settingsKey!=null)
-					SnowRunner.settings.putString(settingsKey, text);
-				
-				if (pathname!=null)
-					try {
-						File file = new File(pathname);
-						System.out.printf("Write PresetMaps to file \"%s\" ...%n", file.getAbsolutePath());
-						byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-						Files.write(file.toPath(), bytes, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-						System.out.printf("... done%n");
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-			}
-		
-			protected abstract void parseLine(String line, Preset preset);
-			protected abstract void writePresetInLines(Preset preset, PrintWriter out);
-		}
-
 		private static final long serialVersionUID = 8159900024537014376L;
 		
 		private final Window owner;
@@ -1476,11 +1348,11 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		protected final ColumnID[] originalColumns;
 		private final Vector<String> presetNames;
 		private final JComboBox<String> presetComboBox;
-		private final ModelConfigureDialog.PresetMaps<Preset> presetMaps;
+		private final PresetMaps<Preset> presetMaps;
 		protected final JScrollPane columnScrollPane;
 
 		
-		ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, ColumnID[] originalColumns, ModelConfigureDialog.PresetMaps<Preset> presetMaps, String tableModelID) {
+		ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, ColumnID[] originalColumns, PresetMaps<Preset> presetMaps, String tableModelID) {
 			super(owner, title, ModalityType.APPLICATION_MODAL);
 			this.owner = owner;
 			this.originalColumns = originalColumns;
@@ -1635,6 +1507,103 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			setLocationRelativeTo(owner);
 			setVisible(true);
 			return hasChanged;
+		}
+
+		protected static abstract class PresetMaps<Preset> {
+			
+			private final String label;
+			private final String pathname;
+			private final Supplier<Preset> createEmptyPreset;
+			private final HashMap<String,HashMap<String,Preset>> presets;
+			
+			PresetMaps(String label, String pathname, Supplier<Preset> createEmptyPreset) {
+				if (pathname         ==null) throw new IllegalArgumentException();
+				if (createEmptyPreset==null) throw new IllegalArgumentException();
+				this.label = label;
+				this.createEmptyPreset = createEmptyPreset;
+				this.pathname = pathname;
+				this.presets = new HashMap<>();
+				read();
+			}
+		
+			HashMap<String, Preset> getModelPresets(String tableModelID) {
+				HashMap<String, Preset> modelPresets = presets.get(tableModelID);
+				if (modelPresets==null)
+					presets.put(tableModelID, modelPresets = new HashMap<>());
+				return modelPresets;
+			}
+		
+			void read() {
+				presets.clear();
+				
+				File file = new File(pathname);
+				try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+					
+					System.out.printf("Read %s from file \"%s\" ...%n", label, file.getAbsolutePath());
+					
+					HashMap<String, Preset> modelPresets = null;
+					Preset preset = null;
+					String line, valueStr;
+					while ( (line=in.readLine())!=null ) {
+						
+						if (line.equals("[Preset]") || line.isEmpty()) {
+							modelPresets = null;
+							preset = null;
+						}
+						if ( (valueStr=Data.getLineValue(line, "TableModel="))!=null ) {
+							modelPresets = getModelPresets(valueStr);
+							preset = null;
+						}
+						if ( (valueStr=Data.getLineValue(line, "Preset="))!=null ) {
+							preset = modelPresets.get(valueStr);
+							if (preset==null)
+								modelPresets.put(valueStr, preset = createEmptyPreset.get());
+						}
+						parseLine(line, preset);
+						
+					}
+					
+					System.out.printf("... done%n");
+					
+				} catch (FileNotFoundException ex) {
+					//ex.printStackTrace();
+				} catch (IOException ex) {
+					System.err.printf("IOException while reading %s from file \"%s\": %s", label, file.getAbsolutePath(), ex.getMessage());
+					//ex.printStackTrace();
+				}
+			}
+		
+			void write() {
+				File file = new File(pathname);
+				try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
+					
+					System.out.printf("Write %s to file \"%s\" ...%n", label, file.getAbsolutePath());
+					
+					Vector<String> tableModelIDs = new Vector<>(presets.keySet());
+					tableModelIDs.sort(null);
+					for (String tableModelID : tableModelIDs) {
+						HashMap<String, Preset> modelPresets = presets.get(tableModelID);
+						Vector<String> presetNames = new Vector<>(modelPresets.keySet());
+						presetNames.sort(null);
+						for (String presetName : presetNames) {
+							out.printf("[Preset]%n");
+							out.printf("TableModel=%s%n", tableModelID);
+							out.printf("Preset=%s%n", presetName);
+							writePresetInLines(modelPresets.get(presetName), out);
+							out.printf("%n");
+						}
+					}
+					
+					System.out.printf("... done%n");
+					
+				} catch (IOException ex) {
+					System.err.printf("IOException while writing %s to file \"%s\": %s", label, file.getAbsolutePath(), ex.getMessage());
+					//ex.printStackTrace();
+				}
+			}
+		
+			protected abstract void parseLine(String line, Preset preset);
+			protected abstract void writePresetInLines(Preset preset, PrintWriter out);
 		}
 	
 	}
