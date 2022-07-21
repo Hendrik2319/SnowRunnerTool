@@ -28,9 +28,13 @@ $ big_crane_zikz_605r
 [[ShortLogs]]
 $ cargo_logs_cat_745c_log_bunk
 $ cargo_logs_frame_addon_log_short
+$ cargo_logs_short_aramatsu_forester
 
 [[MediumLogs]]
+$ cargo_logs_medium_aramatsu_forester
 $ cargo_logs_medium_cat_745c_log_bunk
+$ cargo_logs_medium_frame_addon
+$ cargo_logs_medium_frame_addon_high
 $ cargo_logs_medium_trailer_log
 
 [[LongLogs]]

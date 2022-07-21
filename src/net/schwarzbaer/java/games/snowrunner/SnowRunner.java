@@ -866,26 +866,20 @@ public class SnowRunner {
 		public enum Change { Added, Removed }
 		
 		public enum List {
-			MetalDetectors  ("Metal Detector"  , AppSettings.ValueKey.MetalDetectorAddons  , addon->!addon.gameData.isCargo),
-			SeismicVibrators("Seismic Vibrator", AppSettings.ValueKey.SeismicVibratorAddons, addon->!addon.gameData.isCargo),
-			LogLifts        ("Log Lift"        , AppSettings.ValueKey.LogLiftAddons        , addon->!addon.gameData.isCargo),
-			MiniCranes      ("Mini Crane"      , AppSettings.ValueKey.MiniCraneAddons      , addon->!addon.gameData.isCargo),
-			BigCranes       ("Big Crane"       , AppSettings.ValueKey.BigCraneAddons       , addon->!addon.gameData.isCargo),
-			ShortLogs       ("Short Log"       , AppSettings.ValueKey.ShortLogAddons       , addon-> addon.gameData.isCargo),
-			MediumLogs      ("Medium Log"      , AppSettings.ValueKey.MediumLogAddons      , addon-> addon.gameData.isCargo),
-			LongLogs        ("Long Log"        , AppSettings.ValueKey.LongLogAddons        , addon-> addon.gameData.isCargo),
+			MetalDetectors  ("Metal Detector"  , addon->!addon.gameData.isCargo),
+			SeismicVibrators("Seismic Vibrator", addon->!addon.gameData.isCargo),
+			LogLifts        ("Log Lift"        , addon->!addon.gameData.isCargo),
+			MiniCranes      ("Mini Crane"      , addon->!addon.gameData.isCargo),
+			BigCranes       ("Big Crane"       , addon->!addon.gameData.isCargo),
+			ShortLogs       ("Short Log"       , addon-> addon.gameData.isCargo),
+			MediumLogs      ("Medium Log"      , addon-> addon.gameData.isCargo),
+			LongLogs        ("Long Log"        , addon-> addon.gameData.isCargo),
 			;
 			
 			final String label;
-			final AppSettings.ValueKey settingsKey;
 			public final Predicate<TruckAddon> isAllowed;
-			
-			List(String label, AppSettings.ValueKey settingsKey) {
-				this(label, settingsKey, null);
-			}
-			List(String label, AppSettings.ValueKey settingsKey, Predicate<TruckAddon> isAllowed) {
+			List(String label, Predicate<TruckAddon> isAllowed) {
 				this.label = label;
-				this.settingsKey = settingsKey;
 				this.isAllowed = isAllowed;
 			}
 		}
@@ -913,11 +907,6 @@ public class SnowRunner {
 			
 			// classes using this expect lists with values 
 			readFromFile();
-			
-			// for conversion
-			writeToFile();
-			for (List list : List.values())
-				settings.remove(list.settingsKey);
 		}
 		
 		public void readFromFile() {
@@ -1011,8 +1000,6 @@ public class SnowRunner {
 			SpecialTruckAddonList(List list) {
 				this.list = list;
 				idList = new HashSet<>();
-				String[] idListArr = settings.getStrings(this.list.settingsKey, " : "); // TODO
-				if (idListArr!=null) idList.addAll(Arrays.asList(idListArr));
 			}
 
 			@Override
@@ -1502,9 +1489,6 @@ public class SnowRunner {
 		public enum ValueKey {
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted,
-			MetalDetectorAddons, SeismicVibratorAddons, LogLiftAddons, MiniCraneAddons, BigCraneAddons,
-			ShortLogAddons, MediumLogAddons, LongLogAddons,
-			ColumnHidePresets, FilterRowsPresets,
 			
 			TruckTableModel_enableOwnedTrucksHighlighting,
 			TruckTableModel_enableDLCTrucksHighlighting,
@@ -1520,8 +1504,6 @@ public class SnowRunner {
 		
 		public AppSettings() {
 			super(SnowRunner.class, ValueKey.values());
-			remove(ValueKey.ColumnHidePresets);
-			remove(ValueKey.FilterRowsPresets);
 		}
 	}
 
