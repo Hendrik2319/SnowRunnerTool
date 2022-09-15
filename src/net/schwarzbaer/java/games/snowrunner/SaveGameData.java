@@ -1,6 +1,7 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -72,9 +73,8 @@ public class SaveGameData {
 
 	private JSON_Data.Value<NV, V> readJsonFile(File file) {
 		if (!file.isFile()) return null;
-		JSON_Parser<NV,V> parser = new JSON_Parser<>(file, null);
 		try {
-			return parser.parse_withParseException();
+			return JSON_Parser.<NV, V>parse_withParseException(file, StandardCharsets.UTF_8, null, null);
 		} catch (ParseException e) {
 			System.err.printf("ParseException while parsing JSON file \"%s\": %s%n", file.getAbsolutePath(), e.getMessage());
 			//e.printStackTrace();
