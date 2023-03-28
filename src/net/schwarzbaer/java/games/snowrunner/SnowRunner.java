@@ -32,6 +32,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
@@ -73,6 +74,7 @@ import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
+import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.KnownBugs;
 import net.schwarzbaer.java.games.snowrunner.tables.AddonCategoriesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.DLCTableModel;
@@ -167,10 +169,11 @@ public class SnowRunner {
 			boolean changed = loadInitialPAK();
 			if (changed) updateAfterDataChange();
 		}));
-		fileMenu.add(createMenuItem("Reset application settings", true, e->{
-			for (AppSettings.ValueKey key:AppSettings.ValueKey.values())
-				settings.remove(key);
-		}));
+		fileMenu.add(createCheckBoxMenuItem("Hide Known Bugs", KnownBugs.getInstance().isHideKnownBugs(), null, true, KnownBugs.getInstance()::setHideKnownBugs));
+		//fileMenu.add(createMenuItem("Reset application settings", true, e->{
+		//	for (AppSettings.ValueKey key:AppSettings.ValueKey.values())
+		//		settings.remove(key);
+		//}));
 		//fileMenu.add(createMenuItem("Test XMLTemplateStructure", true, e->{
 		//	boolean changed = testXMLTemplateStructure();
 		//	if (changed) updateAfterDataChange();
@@ -179,8 +182,8 @@ public class SnowRunner {
 		languageMenu = menuBar.add(new JMenu("Language"));
 		
 		ButtonGroup bg = new ButtonGroup();
-		miSGValuesSorted   = createCheckBoxMenuItem("Show Values Sorted by Name"   ,  rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(true ));
-		miSGValuesOriginal = createCheckBoxMenuItem("Show Values in Original Order", !rawDataPanel.isShowingSaveGameDataSorted(), bg, false, e->rawDataPanel.showSaveGameDataSorted(false));
+		miSGValuesSorted   = createCheckBoxMenuItem("Show Values Sorted by Name"   ,  rawDataPanel.isShowingSaveGameDataSorted(), bg, false, ()->rawDataPanel.showSaveGameDataSorted(true ));
+		miSGValuesOriginal = createCheckBoxMenuItem("Show Values in Original Order", !rawDataPanel.isShowingSaveGameDataSorted(), bg, false, ()->rawDataPanel.showSaveGameDataSorted(false));
 		
 		JMenu saveGameDataMenu = menuBar.add(new JMenu("SaveGame Data"));
 		saveGameDataMenu.add(createMenuItem("Reload SaveGame Data", true, e->reloadSaveGameData()));
@@ -254,7 +257,7 @@ public class SnowRunner {
 		selectedSaveGameMenu.setEnabled(true);
 		for (String indexStr : indexStrs) {
 			boolean isSelected = selectedSaveGame!=null && indexStr.equals(selectedSaveGame.indexStr);
-			selectedSaveGameMenu.add(createCheckBoxMenuItem(getSaveGameLabel(indexStr), isSelected, bg, true, e->{
+			selectedSaveGameMenu.add(createCheckBoxMenuItem(getSaveGameLabel(indexStr), isSelected, bg, true, ()->{
 				selectedSaveGame = saveGameData.saveGames.get(indexStr);
 				if (selectedSaveGame!=null)
 					settings.putString(AppSettings.ValueKey.SelectedSaveGame, indexStr);
@@ -404,7 +407,7 @@ public class SnowRunner {
 		ButtonGroup bg = new ButtonGroup();
 		languageMenu.removeAll();
 		for (String langID:langs)
-			languageMenu.add(createCheckBoxMenuItem(langID, langID.equals(currentLangID), bg, true, e->setLanguage(langID)));
+			languageMenu.add(createCheckBoxMenuItem(langID, langID.equals(currentLangID), bg, true, ()->setLanguage(langID)));
 		
 		setLanguage(currentLangID);
 		
@@ -553,42 +556,46 @@ public class SnowRunner {
 		return values;
 	}
 
-	public static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, ActionListener al) {
-		JCheckBoxMenuItem comp = new JCheckBoxMenuItem(title,isSelected);
+	private static <Comp extends AbstractButton> Comp configureAbstractButton(Comp comp, String title, Boolean isSelected, ButtonGroup bg, boolean isEnabled, Insets margin, Consumer<Boolean> setValue)
+	{
+		return configureAbstractButton(comp, title, isSelected, bg, isEnabled, margin, setValue == null ? null : (ActionListener) (e->{
+			setValue.accept(comp.isSelected());			
+		}));
+	}
+
+	private static <Comp extends AbstractButton> Comp configureAbstractButton(Comp comp, String title, Boolean isSelected, ButtonGroup bg, boolean isEnabled, Insets margin, ActionListener al)
+	{
 		comp.setEnabled(isEnabled);
-		if (al!=null) comp.addActionListener(al);
-		if (bg!=null) bg.add(comp);
+		if (title     !=null) comp.setText(title);
+		if (bg        !=null) bg.add(comp);
+		if (isSelected!=null) comp.setSelected(isSelected);
+		if (al        !=null) comp.addActionListener(al);
+		if (margin    !=null) comp.setMargin(margin);
 		return comp;
 	}
 
+	public static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Consumer<Boolean> setValue) {
+		return configureAbstractButton(new JCheckBoxMenuItem(), title, isSelected, bg, isEnabled, null, setValue);
+	}
+
+	public static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Runnable al) {
+		return configureAbstractButton(new JCheckBoxMenuItem(), title, isSelected, bg, isEnabled, null, (ActionListener) e->al.run());
+	}
+
 	public static JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
-		JMenuItem comp = new JMenuItem(title);
-		comp.setEnabled(isEnabled);
-		if (al!=null) comp.addActionListener(al);
-		return comp;
+		return configureAbstractButton(new JMenuItem(), title, null, null, isEnabled, null, al);
 	}
 	
 	public static JCheckBox createCheckBox(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Consumer<Boolean> setValue) {
-		JCheckBox comp = new JCheckBox(title);
-		if (bg!=null) bg.add(comp);
-		comp.setEnabled(isEnabled);
-		comp.setSelected(isSelected);
-		if (setValue!=null) comp.addActionListener(e->{
-			setValue.accept(comp.isSelected());			
-		});
-		return comp;
+		return configureAbstractButton(new JCheckBox(), title, isSelected, bg, isEnabled, null, setValue);
 	}
-	
+
 	public static JButton createButton(String title, boolean isEnabled, ActionListener al) {
-		return createButton(title, isEnabled, null, al);
+		return configureAbstractButton(new JButton(), title, null, null, isEnabled, null, al);
 	}
 	
 	public static JButton createButton(String title, boolean isEnabled, Insets margin, ActionListener al) {
-		JButton comp = new JButton(title);
-		comp.setEnabled(isEnabled);
-		if (margin!=null) comp.setMargin(margin);
-		if (al!=null) comp.addActionListener(al);
-		return comp;
+		return configureAbstractButton(new JButton(), title, null, null, isEnabled, margin, al);
 	}
 	public static <AC> JButton createButton(String title, boolean isEnabled, Disabler<AC> disabler, AC ac, ActionListener al) {
 		JButton comp = createButton(title, isEnabled, al);
@@ -597,12 +604,7 @@ public class SnowRunner {
 	}
 
 	public static JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, ActionListener al) {
-		JRadioButton comp = new JRadioButton(title);
-		if (bg!=null) bg.add(comp);
-		comp.setEnabled(isEnabled);
-		comp.setSelected(isSelected);
-		if (al!=null) comp.addActionListener(al);
-		return comp;
+		return configureAbstractButton(new JRadioButton(), title, isSelected, bg, isEnabled, null, al);
 	}
 	public static <AC> JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, Disabler<AC> disabler, AC ac, ActionListener al) {
 		JRadioButton comp = createRadioButton(title, bg, isEnabled, isSelected, al);

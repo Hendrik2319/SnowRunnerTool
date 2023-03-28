@@ -154,7 +154,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			case LongLogs        : listLabel = "Long Logs"; break;
 			}
 			
-			JCheckBoxMenuItem  mi = SnowRunner.createCheckBoxMenuItem(listLabel, false, null, true, e->{
+			JCheckBoxMenuItem  mi = SnowRunner.createCheckBoxMenuItem(listLabel, false, null, true, ()->{
 				if (clickedItem==null) return;
 				SpecialTruckAddonList addonList = specialTruckAddons.getList(list);
 				if (addonList.contains(clickedItem))
@@ -169,7 +169,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		contextMenu.addSeparator();
 		
 		JCheckBoxMenuItem miEnableSpecialTruckAddonsHighlighting;
-		contextMenu.add(miEnableSpecialTruckAddonsHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of special truck addons", enableSpecialTruckAddonsHighlighting, null, true, e->{
+		contextMenu.add(miEnableSpecialTruckAddonsHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of special truck addons", enableSpecialTruckAddonsHighlighting, null, true, ()->{
 			enableSpecialTruckAddonsHighlighting = !enableSpecialTruckAddonsHighlighting;
 			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting, enableSpecialTruckAddonsHighlighting);
 			if (table!=null) table.repaint();

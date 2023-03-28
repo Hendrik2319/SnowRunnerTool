@@ -45,10 +45,6 @@ public class Data {
 	final StringVectorMap<Truck> socketIDsUsedByTrucks;
 	final StringVectorMap<Trailer> socketIDsUsedByTrailers;
 	final StringVectorMap<TruckAddon> socketIDsUsedByTruckAddons;
-//	final HashMap<String,Vector<Engine>> engineSets;
-//	final HashMap<String,Vector<Gearbox>> gearboxSets;
-//	final HashMap<String,Vector<Suspension>> suspensionSets;
-//	final HashMap<String,Vector<Winch>> winchSets;
 	public final TruckComponentSets<Engine    > engines;
 	public final TruckComponentSets<Gearbox   > gearboxes;
 	public final TruckComponentSets<Suspension> suspensions;
@@ -92,18 +88,14 @@ public class Data {
 		
 		
 		
-//		    engines = new HashMap<>();     engineSets = new HashMap<>();
-//		  gearboxes = new HashMap<>();    gearboxSets = new HashMap<>();
-//		suspensions = new HashMap<>(); suspensionSets = new HashMap<>();
-//		    winches = new HashMap<>();      winchSets = new HashMap<>();
 		    engines = new TruckComponentSets<>();
 		  gearboxes = new TruckComponentSets<>();
 		suspensions = new TruckComponentSets<>();
 		    winches = new TruckComponentSets<>();
-		TruckComponent.parseSet( rawdata,     "engines", /*    engineSets,*/     engines,     Engine::new,        "EngineVariants",        "Engine");
-		TruckComponent.parseSet( rawdata,   "gearboxes", /*   gearboxSets,*/   gearboxes,    Gearbox::new,       "GearboxVariants",       "Gearbox");		
-		TruckComponent.parseSet( rawdata, "suspensions", /*suspensionSets,*/ suspensions, Suspension::new, "SuspensionSetVariants", "SuspensionSet");
-		TruckComponent.parseSet( rawdata,     "winches", /*     winchSets,*/     winches,      Winch::new,         "WinchVariants",         "Winch");
+		TruckComponent.parseSet( rawdata,     "engines",     engines,     Engine::new,        "EngineVariants",        "Engine");
+		TruckComponent.parseSet( rawdata,   "gearboxes",   gearboxes,    Gearbox::new,       "GearboxVariants",       "Gearbox");		
+		TruckComponent.parseSet( rawdata, "suspensions", suspensions, Suspension::new, "SuspensionSetVariants", "SuspensionSet");
+		TruckComponent.parseSet( rawdata,     "winches",     winches,      Winch::new,         "WinchVariants",         "Winch");
 		
 		
 		
@@ -518,20 +510,6 @@ public class Data {
 			strs[i] = strs[i].trim();
 		return strs;
 	}
-
-//	private static <ItemType> Collection<ItemType> getItemsFromSets(HashMap<String, Vector<ItemType>> sets, String[] setIDs, Consumer<ItemType> followUp) {
-//		Vector<ItemType> allItems = new Vector<>();
-//		if (setIDs!=null)
-//			for (String setID : setIDs) {
-//				Vector<ItemType> set = sets.get(setID);
-//				if (set!=null)
-//					for (ItemType item : set) {
-//						allItems.add(item);
-//						followUp.accept(item);
-//					}
-//			}
-//		return allItems;
-//	}
 	
 	static <E extends Enum<E>> E parseEnum(String str, String enumLabel, E[] values) {
 		if (str==null) return null;
@@ -1248,20 +1226,8 @@ public class Data {
 				});
 				
 				GenericXmlNode[] nodes = item.content.getNodes(setNodeName, instanceNodeName);
-				//Vector<InstanceType> set = new Vector<>();
-				//setList.put(setID, set);
 				for (GenericXmlNode node : nodes) {
 					InstanceType instance = constructor.apply(setID,node);
-					//set.add(instance);
-					//if (instance.id!=null) {
-					//	if (instanceList.containsKey(instance.id)) {
-					//		System.err.printf("Found more than one %s instances with the same ID (\"%s\") --> subsequent instances will be ignored%n", instanceNodeName, instance.id);
-					//		InstanceType other = instanceList.get(instance.id);
-					//		System.err.printf("   SetID of stored instance: \"%s\"%n", other.setID);
-					//		System.err.printf("   SetID of new    instance: \"%s\"%n", instance.setID);
-					//	} else
-					//		instanceList.put(instance.id, instance);
-					//}
 					sets.addInstance(instance, instanceNodeName);
 				}
 			});
@@ -1598,73 +1564,49 @@ public class Data {
 			
 			
 			GenericXmlNode engineSocketNode = truckDataNode.getNode("TruckData","EngineSocket");
-			//if (engineSocketNode!=null)
-			//	engineSocketNode.attributes.forEach((key,value)->{
-			//		unexpectedValues.add("Class[trucks] <Truck> <TruckData> <EngineSocket ####=\"...\">", key);
-			//	});
 			//   Class[trucks] <Truck> <TruckData> <EngineSocket ####="...">
 			//      Default
 			//      Type
-			defaultEngine_ItemID = getAttribute(engineSocketNode, "Default");
-//			defaultEngine        = data.engines.get(defaultEngine_ItemID);
+			defaultEngine_ItemID     = getAttribute(engineSocketNode, "Default");
 			compatibleEngines_SetIDs = splitColonSeparatedIDList( getAttribute(engineSocketNode, "Type") );
-//			compatibleEngines        = getItemsFromSets(data.engineSets, compatibleEngines_SetIDs, item_->item_.usableBy.add(this));
-			defaultEngine        = data.engines.getInstance(defaultEngine_ItemID, compatibleEngines_SetIDs);
-			compatibleEngines    = data.engines.getInstancesFromSets(compatibleEngines_SetIDs);
+			defaultEngine     = data.engines.getInstance(defaultEngine_ItemID, compatibleEngines_SetIDs);
+			compatibleEngines = data.engines.getInstancesFromSets(compatibleEngines_SetIDs);
 			compatibleEngines.forEach(item_->item_.usableBy.add(this));
 			
 			GenericXmlNode gearboxSocketNode = truckDataNode.getNode("TruckData","GearboxSocket");
-			//if (gearboxSocketNode!=null)
-			//	gearboxSocketNode.attributes.forEach((key,value)->{
-			//		unexpectedValues.add("Class[trucks] <Truck> <TruckData> <GearboxSocket ####=\"...\">", key);
-			//	});
 			//   Class[trucks] <Truck> <TruckData> <GearboxSocket ####="...">
 			//      Default
 			//      Type
-			defaultGearbox_ItemID = getAttribute(gearboxSocketNode, "Default");
-//			defaultGearbox        = data.gearboxes.get(defaultGearbox_ItemID);
+			defaultGearbox_ItemID      = getAttribute(gearboxSocketNode, "Default");
 			compatibleGearboxes_SetIDs = splitColonSeparatedIDList( getAttribute(gearboxSocketNode, "Type") );
-//			compatibleGearboxes        = getItemsFromSets(data.gearboxSets, compatibleGearboxes_SetIDs, item_->item_.usableBy.add(this));
-			defaultGearbox        = data.gearboxes.getInstance(defaultGearbox_ItemID, compatibleGearboxes_SetIDs);
-			compatibleGearboxes   = data.gearboxes.getInstancesFromSets(compatibleGearboxes_SetIDs);
+			defaultGearbox      = data.gearboxes.getInstance(defaultGearbox_ItemID, compatibleGearboxes_SetIDs);
+			compatibleGearboxes = data.gearboxes.getInstancesFromSets(compatibleGearboxes_SetIDs);
 			compatibleGearboxes.forEach(item_->item_.usableBy.add(this));
 			
 			GenericXmlNode suspensionSocketNode = truckDataNode.getNode("TruckData","SuspensionSocket");
-			//if (suspensionSocketNode!=null)
-			//	suspensionSocketNode.attributes.forEach((key,value)->{
-			//		unexpectedValues.add("Class[trucks] <Truck> <TruckData> <SuspensionSocket ####=\"...\">", key);
-			//	});
 			//   Class[trucks] <Truck> <TruckData> <SuspensionSocket ####="...">
 			//      Default
 			//      HardpointY
 			//      MaxWheelRadiusWithoutSuspension
 			//      Type
-			defaultSuspension_ItemID = getAttribute(suspensionSocketNode, "Default");
-//			defaultSuspension        = data.suspensions.get(defaultSuspension_ItemID);
+			defaultSuspension_ItemID     = getAttribute(suspensionSocketNode, "Default");
 			compatibleSuspensions_SetIDs = splitColonSeparatedIDList( getAttribute(suspensionSocketNode, "Type") );
-//			compatibleSuspensions        = getItemsFromSets(data.suspensionSets, compatibleSuspensions_SetIDs, item_->item_.usableBy.add(this));
-			defaultSuspension        = data.suspensions.getInstance(defaultSuspension_ItemID, compatibleSuspensions_SetIDs);
-			compatibleSuspensions    = data.suspensions.getInstancesFromSets(compatibleSuspensions_SetIDs);
+			defaultSuspension     = data.suspensions.getInstance(defaultSuspension_ItemID, compatibleSuspensions_SetIDs);
+			compatibleSuspensions = data.suspensions.getInstancesFromSets(compatibleSuspensions_SetIDs);
 			compatibleSuspensions.forEach(item_->item_.usableBy.add(this));
 			maxWheelRadiusWithoutSuspension = getAttribute(suspensionSocketNode, "MaxWheelRadiusWithoutSuspension");
 			
 			GenericXmlNode winchUpgradeSocketNode = truckDataNode.getNode("TruckData","WinchUpgradeSocket");
-			//if (winchUpgradeSocketNode!=null)
-			//	winchUpgradeSocketNode.attributes.forEach((key,value)->{
-			//		unexpectedValues.add("Class[trucks] <Truck> <TruckData> <WinchUpgradeSocket ####=\"...\">", key);
-			//	});
 			//   Class[trucks] <Truck> <TruckData> <WinchUpgradeSocket ####="...">
 			//      Default
 			//      IsUpgradable
 			//      Type
-			defaultWinch_ItemID  = getAttribute(winchUpgradeSocketNode, "Default");
-//			defaultWinch         = data.winches.get(defaultWinch_ItemID);
+			defaultWinch_ItemID      = getAttribute(winchUpgradeSocketNode, "Default");
 			compatibleWinches_SetIDs = splitColonSeparatedIDList( getAttribute(winchUpgradeSocketNode, "Type") );
-//			compatibleWinches        = getItemsFromSets(data.winchSets, compatibleWinches_SetIDs, item_->item_.usableBy.add(this));
-			defaultWinch         = data.winches.getInstance(defaultWinch_ItemID, compatibleWinches_SetIDs);
-			compatibleWinches    = data.winches.getInstancesFromSets(compatibleWinches_SetIDs);
+			defaultWinch      = data.winches.getInstance(defaultWinch_ItemID, compatibleWinches_SetIDs);
+			compatibleWinches = data.winches.getInstancesFromSets(compatibleWinches_SetIDs);
 			compatibleWinches.forEach(item_->item_.usableBy.add(this));
-			isWinchUpgradable    = parseBool( getAttribute(winchUpgradeSocketNode, "IsUpgradable") );
+			isWinchUpgradable = parseBool( getAttribute(winchUpgradeSocketNode, "IsUpgradable") );
 			boolean automaticWinch = false;
 			for (Winch winch : compatibleWinches)
 				if (!winch.isEngineIgnitionRequired)

@@ -297,12 +297,12 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		contextMenu.addSeparator();
 		
 		JCheckBoxMenuItem miEnableOwnedTrucksHighlighting, miEnableDLCTrucksHighlighting;
-		contextMenu.add(miEnableOwnedTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of owned trucks", enableOwnedTrucksHighlighting, null, true, e->{
+		contextMenu.add(miEnableOwnedTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of owned trucks", enableOwnedTrucksHighlighting, null, true, ()->{
 			enableOwnedTrucksHighlighting = !enableOwnedTrucksHighlighting;
 			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, enableOwnedTrucksHighlighting);
 			if (table!=null) table.repaint();
 		}));
-		contextMenu.add(miEnableDLCTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of DLC trucks", enableDLCTrucksHighlighting, null, true, e->{
+		contextMenu.add(miEnableDLCTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of DLC trucks", enableDLCTrucksHighlighting, null, true, ()->{
 			enableDLCTrucksHighlighting = !enableDLCTrucksHighlighting;
 			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting, enableDLCTrucksHighlighting);
 			if (table!=null) table.repaint();

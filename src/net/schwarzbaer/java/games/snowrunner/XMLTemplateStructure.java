@@ -1215,6 +1215,11 @@ class XMLTemplateStructure {
 			return instance;
 		}
 		
+		public boolean isHideKnownBugs()
+		{
+			return hideKnownBugs;
+		}
+
 		void setHideKnownBugs(boolean hideKnownBugs)
 		{
 			this.hideKnownBugs = hideKnownBugs;
