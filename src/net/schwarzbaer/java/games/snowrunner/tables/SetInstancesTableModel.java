@@ -58,7 +58,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Engine)row).usableBy, lang)),
 			}));
 			if (connectToGlobalData)
-				connectToGlobalData(data->data.engines.values());
+				connectToGlobalData(data->data.engines.getAllInstances());
 		}
 	}
 
@@ -88,7 +88,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Gearbox)row).usableBy, lang)),
 			}));
 			if (connectToGlobalData)
-				connectToGlobalData(data->data.gearboxes.values());
+				connectToGlobalData(data->data.gearboxes.getAllInstances());
 		}
 	}
 
@@ -111,7 +111,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Suspension)row).usableBy, lang)),
 			}));
 			if (connectToGlobalData)
-				connectToGlobalData(data->data.suspensions.values());
+				connectToGlobalData(data->data.suspensions.getAllInstances());
 		}
 	}
 
@@ -135,7 +135,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Winch)row).usableBy, lang)),
 			}));
 			if (connectToGlobalData)
-				connectToGlobalData(data->data.winches.values());
+				connectToGlobalData(data->data.winches.getAllInstances());
 		}
 	}
 }

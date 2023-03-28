@@ -1232,6 +1232,14 @@ class XMLTemplateStructure {
 					System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
 				return true;
 			}
+			if ("trucks".equals(structItem.className) && "cargo".equals(structItem.subClassName) &&
+				(   "cargo_wooden_planks_02.xml".equals(structItem.itemFile.name) ||
+					"cargo_wooden_planks_04.xml".equals(structItem.itemFile.name) ) )
+			{
+				if (!hideKnownBugs)
+					System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
+				return true;
+			}
 			return false;
 		}
 
