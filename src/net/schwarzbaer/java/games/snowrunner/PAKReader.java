@@ -41,6 +41,7 @@ class PAKReader {
 	static class ZipEntryTreeNode {
 		final ZipEntryTreeNode parent;
 		final String name;
+		final String path;
 		final ZipEntry entry;
 		final HashMap<String, ZipEntryTreeNode> folders;
 		final HashMap<String, ZipEntryTreeNode> files;
@@ -55,6 +56,8 @@ class PAKReader {
 			this.entry = entry;
 			this.folders = this.entry!=null ? null : new HashMap<>();
 			this.files   = this.entry!=null ? null : new HashMap<>();
+			if (this.parent==null) path = name;
+			else path = this.parent.getPath()+"\\"+name;
 		}
 		
 		boolean isfile() {
@@ -62,8 +65,9 @@ class PAKReader {
 		}
 
 		String getPath() {
-			if (parent==null) return name;
-			return parent.getPath()+"\\"+name;
+			return path;
+			//if (parent==null) return name;
+			//return parent.getPath()+"\\"+name;
 		}
 
 		void forEachChild(Consumer<ZipEntryTreeNode> action) {

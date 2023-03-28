@@ -1,7 +1,5 @@
 package net.schwarzbaer.java.games.snowrunner;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,21 +26,27 @@ class XML {
 	private static StringReader fixDirtyXML(Function<String, String> fixDirtyXML, InputStream input) {
 		
 		byte[] bytes;
-		try (
-				BufferedInputStream in = new BufferedInputStream(input);
-				ByteArrayOutputStream out = new ByteArrayOutputStream();
-		) {
-			byte[] buffer = new byte[100000];
-			int n;
-			while ( (n=in.read(buffer))>=0 )
-				if (n>0) out.write(buffer, 0, n);
-			
-			bytes = out.toByteArray();
-			
+		try
+		{
+			bytes = input.readAllBytes();
+		//try (
+		//		BufferedInputStream in = new BufferedInputStream(input);
+		//		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		//) {
+		//	byte[] buffer = new byte[100000];
+		//	int n;
+		//	while ( (n=in.read(buffer))>=0 )
+		//		if (n>0) out.write(buffer, 0, n);
+		//	
+		//	bytes = out.toByteArray();
+		//	
 		} catch (IOException e1) {
 			e1.printStackTrace();
 			return null;
 		}
+		try { input.close(); }
+		catch (IOException e) {}
+		
 		
 		String string;
 		if (bytes.length>=3 && (bytes[0]&0xFF)==0xEF && (bytes[1]&0xFF)==0xBB && (bytes[2]&0xFF)==0xBF) // UTF8 marker bytes

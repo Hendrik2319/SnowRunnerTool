@@ -158,8 +158,13 @@ public class SnowRunner {
 		JMenuBar menuBar = new JMenuBar();
 		
 		JMenu fileMenu = menuBar.add(new JMenu("File"));
+		fileMenu.add(createMenuItem("Switch to another \"initial.pak\"", true, e->{
+			File initialPAK = selectInitialPAK();
+			boolean changed = loadInitialPAK(initialPAK);
+			if (changed) updateAfterDataChange();
+		}));
 		fileMenu.add(createMenuItem("Reload \"initial.pak\"", true, e->{
-			boolean changed = reloadInitialPAK();
+			boolean changed = loadInitialPAK();
 			if (changed) updateAfterDataChange();
 		}));
 		fileMenu.add(createMenuItem("Reset application settings", true, e->{
@@ -207,7 +212,7 @@ public class SnowRunner {
 		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
 		controllers.truckToDLCAssignmentListeners.setTruckToDLCAssignments(truckToDLCAssignments);
 		
-		if (reloadInitialPAK  ()) updateAfterDataChange();
+		if (loadInitialPAK    ()) updateAfterDataChange();
 		if (reloadSaveGameData()) updateAfterSaveGameChange();
 		
 	}
@@ -273,28 +278,18 @@ public class SnowRunner {
 		return String.format("SaveGame %s (%s, %s)", indexStr, mode, saveTime);
 	}
 
-	private boolean reloadInitialPAK() {
-		return testXMLTemplateStructure();
-//		File initialPAK = getInitialPAK();
-//		if (initialPAK!=null) {
-//			Data newData = Data.readInitialPAK(initialPAK);
-//			if (newData!=null) {
-//				data = newData;
-//				return true;
-//			}
-//		}
-//		return false;
+	private boolean loadInitialPAK() {
+		return loadInitialPAK(getInitialPAK());
 	}
 
-	private boolean testXMLTemplateStructure() {
-		File initialPAK = getInitialPAK();
+	private boolean loadInitialPAK(File initialPAK)
+	{
 		if (initialPAK!=null) {
 			Data newData = ProgressDialog.runWithProgressDialogRV(mainWindow, String.format("Read \"%s\"", initialPAK.getAbsolutePath()), 600, pd->{
-				Data localData = testXMLTemplateStructure(pd,initialPAK);
+				Data localData = readXMLTemplateStructure(pd,initialPAK);
 				if (Thread.currentThread().isInterrupted()) return null;
 				return localData;
 			});
-			//Data newData = testXMLTemplateStructure(initialPAK);
 			if (newData!=null) {
 				data = newData;
 				return true;
@@ -303,7 +298,7 @@ public class SnowRunner {
 		return false;
 	}
 	
-	private Data testXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
+	private Data readXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
 		setTask(pd, "Read XMLTemplateStructure");
 		System.out.printf("XMLTemplateStructure.");
 		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
@@ -374,13 +369,16 @@ public class SnowRunner {
 
 	private File getInitialPAK() {
 		File initialPAK = settings.getFile(AppSettings.ValueKey.InitialPAK, null);
-		if (initialPAK==null || !initialPAK.isFile()) {
-			DataSelectDialog dlg = new DataSelectDialog(mainWindow);
-			initialPAK = dlg.showDialog();
-			if (initialPAK == null || !initialPAK.isFile())
-				return null;
-			settings.putFile(AppSettings.ValueKey.InitialPAK, initialPAK);
-		}
+		if (initialPAK==null || !initialPAK.isFile())
+			initialPAK = selectInitialPAK();
+		return initialPAK;
+	}
+
+	private File selectInitialPAK() {
+		DataSelectDialog dlg = new DataSelectDialog(mainWindow);
+		File initialPAK = dlg.showDialog();
+		if (initialPAK==null || !initialPAK.isFile()) return null;
+		settings.putFile(AppSettings.ValueKey.InitialPAK, initialPAK);
 		return initialPAK;
 	}
 
@@ -1488,7 +1486,7 @@ public class SnowRunner {
 	public static class AppSettings extends Settings.DefaultAppSettings<AppSettings.ValueGroup, AppSettings.ValueKey> {
 		public enum ValueKey {
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
-			SelectedSaveGame, ShowingSaveGameDataSorted,
+			SelectedSaveGame, ShowingSaveGameDataSorted, XML_HideKnownBugs,
 			
 			TruckTableModel_enableOwnedTrucksHighlighting,
 			TruckTableModel_enableDLCTrucksHighlighting,

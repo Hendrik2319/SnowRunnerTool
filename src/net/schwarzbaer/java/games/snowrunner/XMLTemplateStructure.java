@@ -29,26 +29,12 @@ import org.w3c.dom.NodeList;
 import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
-import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.InheritRemoveException;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.Source;
 import net.schwarzbaer.system.DateTimeFormatter;
 
 @SuppressWarnings("unused")
 class XMLTemplateStructure {
-	
-	private record KnownWrongClassFile(String className, String fileName) {
-		static KnownWrongClassFile constructFrom(ClassStructur.StructItem structItem) {
-			if (structItem         ==null) throw new IllegalArgumentException();
-			if (structItem.itemFile==null) throw new IllegalArgumentException();
-			return new KnownWrongClassFile(structItem.className,structItem.itemFile.name);
-		}
-	}
-	
-	private static final HashSet<KnownWrongClassFile> knownWrongClassFiles = new HashSet<>();
-	static {
-		knownWrongClassFiles.add(new KnownWrongClassFile("engines", "e_un_truck_heavy_boarpac.xml"));
-	}
 	
 	private static final boolean SHOW_UNEXPECTED_TEXT = false; 
 	private static TestingGround testingGround;
@@ -445,9 +431,9 @@ class XMLTemplateStructure {
 					possibleParents.add(node.getPath());
 			});
 			if (possibleParents.isEmpty())
-				System.err.printf("Can't find parent \"%s\" for itme \"%s\"%n", parentFile, itemPath);
+				System.err.printf("Can't find parent \"%s\" for item \"%s\"%n", parentFile, itemPath);
 			else if (possibleParents.size()>1) {
-				System.err.printf("Found more thasn one parent \"%s\" for itme \"%s\":%n", parentFile, itemPath);
+				System.err.printf("Found more than one parent \"%s\" for item \"%s\":%n", parentFile, itemPath);
 				for (String p:possibleParents)
 					System.err.printf("    \"%s\"%n", p);
 			} else {
@@ -479,7 +465,7 @@ class XMLTemplateStructure {
 			
 			contentRootFolder.forEachChild(node->{
 				if (node.isfile())
-					System.err.printf("Found a File in conten root folder: %s%n", node.getPath());
+					System.err.printf("Found a File in content root folder: %s%n", node.getPath());
 				else {
 					if (!node.name.equals("_dlc") && !node.name.equals("_templates") && !node.name.equals("classes"))
 						System.err.printf("Found a unexpected subfolder in content root folder: %s%n", node.getPath());
@@ -638,10 +624,8 @@ class XMLTemplateStructure {
 				
 				//System.out.printf("Read Item \"%s\" ...%n", itemFile.getPath());
 				
-				if (knownWrongClassFiles.contains(KnownWrongClassFile.constructFrom(structItem))) {
-					System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
+				if (KnownBugs.getInstance().isKnownWrongClassFile_ignore(structItem))
 					return null;
-				}
 				
 				NodeList nodes = readXML(zipFile, structItem.itemFile);
 				if (nodes==null) {
@@ -711,20 +695,15 @@ class XMLTemplateStructure {
 				if (contentNode==null)
 					throw new ParseException("Found no content node in item file \"%s\"", structItem.itemFilePath);
 				
-				Templates.OdditiesHandler templatesOdditiesHandler = new Templates.OdditiesHandler();
+				KnownBugs.WrongParentNodePlacingWorkaround wpnpWorkaround = new KnownBugs.WrongParentNodePlacingWorkaround();
 				Templates localTemplates;
 				if (templatesNode==null)
 					// if no <_templates> node defined but "_template" attributes are used in sub nodes
-					localTemplates = new Templates(structItem.className, globalTemplates, structItem.itemFile, templatesOdditiesHandler);
+					localTemplates = new Templates(structItem.className, globalTemplates, structItem.itemFile);
 				else
-					localTemplates = new Templates(templatesNode, globalTemplates, structItem.itemFile, templatesOdditiesHandler);
+					localTemplates = new Templates(templatesNode, globalTemplates, structItem.itemFile, wpnpWorkaround);
 				
-				if (templatesOdditiesHandler.parentNode!=null) {
-					if (parentNode!=null)
-						throw new ParseException("Found an oddity (<_parent> node in <_templates> node) in file \"%s\" but also a <_parent> node outside of <_templates> node%n", structItem.itemFilePath);
-					parentNode = templatesOdditiesHandler.parentNode;
-				}
-				
+				parentNode = KnownBugs.getInstance().fixWrongParentNodePlacing_OutsideTemplates(parentNode, wpnpWorkaround, structItem.itemFilePath);
 				String parentFile = getParentFile(parentNode, structItem.itemFilePath);
 				
 				testingGround.addParentFileInfo(structItem.itemFile,parentFile);
@@ -756,6 +735,7 @@ class XMLTemplateStructure {
 				
 				//System.err.printf("[INFO] Found <_parent> node (->\"%s\") in item file \"%s\"%n", parentFile, itemFilePath);
 				
+				parentFile = KnownBugs.getInstance().fixParentFileName(parentFile, itemFilePath);
 				return parentFile;
 			}
 
@@ -774,12 +754,12 @@ class XMLTemplateStructure {
 		final HashMap<String, HashMap<String, GenericXmlNode>> templates;
 		final Templates includedTemplates;
 	
-		Templates(String className, HashMap<String, Templates> globalTemplates, ZipEntryTreeNode sourceFile, OdditiesHandler templatesOdditiesHandler) throws ParseException, EntryStructureException {
+		Templates(String className, HashMap<String, Templates> globalTemplates, ZipEntryTreeNode sourceFile) throws ParseException, EntryStructureException {
 			includedTemplates = getIncludedTemplates(globalTemplates, sourceFile, className, false);
 			templates = new HashMap<>();
 		}
 
-		Templates(Node templatesNode, HashMap<String,Templates> globalTemplates, ZipEntryTreeNode sourceFile, OdditiesHandler odditiesHandler) throws ParseException, EntryStructureException {
+		Templates(Node templatesNode, HashMap<String,Templates> globalTemplates, ZipEntryTreeNode sourceFile, KnownBugs.WrongParentNodePlacingWorkaround wpnpWorkaround) throws ParseException, EntryStructureException {
 			if (templatesNode==null) throw new IllegalArgumentException();
 			if (!templatesNode.getNodeName().equals("_templates")) throw new IllegalStateException();
 			if (templatesNode.getNodeType()!=Node.ELEMENT_NODE) throw new IllegalStateException();
@@ -793,39 +773,25 @@ class XMLTemplateStructure {
 				if (node.getNodeType()==Node.COMMENT_NODE) {
 					// is Ok, do nothing
 						
-				} else if (isEmptyTextNode(node, ()->String.format("<_templates> node in file \"%s\"", sourceFile.getPath()))) {
+				} else if (isEmptyTextNode(node, ()->String.format("<_templates> node in file \"%s\"", sourceFile.path))) {
 					// is Ok, do nothing
 					
 				} else if (node.getNodeType()==Node.ELEMENT_NODE) {
 					
 					String originalNodeName = node.getNodeName();
-					if (originalNodeName.equals("_parent")) {
-						if (odditiesHandler == null)
-							throw new ParseException("Found an oddity (<_parent> node in <_templates> node) in file \"%s\" but no OdditiesHandler to handle it%n", sourceFile.getPath());
-						odditiesHandler.parentNode = node;
+					if (KnownBugs.getInstance().fixWrongParentNodePlacing_InsideTemplates_continue(node, originalNodeName, wpnpWorkaround, sourceFile.path))
 						continue;
-					}
-					if (originalNodeName.equals("Mudguard")) {
-						// my guess: <Mudguard> should be a template in template list <Body>
-						HashMap<String, GenericXmlNode> templateList = createNewTemplateList("Body", sourceFile.getPath());
-						addNewTemplate_unchecked(node, "Body", "Mudguard", templateList, sourceFile, this);
+					if (KnownBugs.getInstance().fixTemplateList_continue(this, node, originalNodeName, sourceFile))
 						continue;
-					}
-					//if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\classes\\trucks\\trailers\\semitrailer_gooseneck_4.xml")) {
-					//	System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
-					//	continue;
-					//}
-					//if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\_dlc\\dlc_2_1\\classes\\trucks\\trailers\\semitrailer_special_w_cat_770.xml")) {
-					//	System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
-					//	continue;
-					//}
+					if (KnownBugs.getInstance().isWrongTemplateList_ignore(originalNodeName, sourceFile.path, templates))
+						continue;
 					
-					HashMap<String, GenericXmlNode> templateList = createNewTemplateList(originalNodeName, sourceFile.getPath());
-					parseTemplates(node, templateList, originalNodeName, sourceFile);
+					HashMap<String, GenericXmlNode> templateList = createNewTemplateList(this, originalNodeName, sourceFile.path);
+					parseTemplates(this, node, templateList, originalNodeName, sourceFile);
 					
 					
 				} else
-					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFile.getPath(), XML.toDebugString(node));
+					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFile.path, XML.toDebugString(node));
 			}
 		}
 
@@ -843,16 +809,16 @@ class XMLTemplateStructure {
 			return includedTemplates;
 		}
 	
-		private HashMap<String, GenericXmlNode> createNewTemplateList(String originalNodeName, String sourceFilePath) throws ParseException {
-			HashMap<String, GenericXmlNode> templateList = templates.get(originalNodeName);
+		private static HashMap<String, GenericXmlNode> createNewTemplateList(Templates templates, String originalNodeName, String sourceFilePath) throws ParseException {
+			HashMap<String, GenericXmlNode> templateList = templates.templates.get(originalNodeName);
 			if (templateList!=null)
 				throw new ParseException("Found more than one template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFilePath);
 			
-			templates.put(originalNodeName, templateList = new HashMap<>());
+			templates.templates.put(originalNodeName, templateList = new HashMap<>());
 			return templateList;
 		}
 		
-		private void parseTemplates(Node listNode, HashMap<String, GenericXmlNode> templatesList, String originalNodeName, ZipEntryTreeNode sourceFile) throws ParseException {
+		private static void parseTemplates(Templates templates, Node listNode, HashMap<String, GenericXmlNode> templatesList, String originalNodeName, ZipEntryTreeNode sourceFile) throws ParseException {
 			if (listNode==null) throw new IllegalArgumentException();
 			if (!listNode.getNodeName().equals(originalNodeName)) throw new IllegalStateException();
 			if (listNode.getNodeType()!=Node.ELEMENT_NODE) throw new IllegalStateException();
@@ -880,7 +846,7 @@ class XMLTemplateStructure {
 					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFile.getPath(), XML.toDebugString(node));
 			}
 			
-			new TemplateLoader(this, templateNodes, originalNodeName, templatesList, sourceFile).load();
+			new TemplateLoader(templates, templateNodes, originalNodeName, templatesList, sourceFile).load();
 		}
 		
 		static class TemplateLoader implements TemplatesInterface {
@@ -953,7 +919,7 @@ class XMLTemplateStructure {
 			return template;
 		}
 	
-		private String getIncludeFile(Node node, ZipEntryTreeNode file) throws ParseException {
+		private static String getIncludeFile(Node node, ZipEntryTreeNode file) throws ParseException {
 			if (node==null) return null;
 			if (!node.getNodeName().equals("_templates")) throw new IllegalStateException();
 			//if (node.getChildNodes().getLength()!=0)
@@ -983,257 +949,371 @@ class XMLTemplateStructure {
 			if (template != null) return template;
 			return includedTemplates==null ? null : includedTemplates.getTemplate(nodeName, templateName);
 		}
-
-		private static class OdditiesHandler {
-			Node parentNode = null;
-		}
 	}
 
 	static class GenericXmlNode {
-		private static final String ATTR_NOINHERIT      = "_noinherit";
-		private static final String ATTR_INHERIT_REMOVE = "_inheritRemove";
-		private static final String ATTR_TEMPLATE       = "_template";
-		
-		static class InheritRemoveException extends Exception {
-			private static final long serialVersionUID = -9221801644995970360L;
-		}
-		
-		final GenericXmlNode parent;
-		final String nodeName;
-		final HashMap<String, String> attributes;
-		final StringVectorMap<GenericXmlNode> nodes;
-		
-		GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode) {
-			if (sourceNode==null) throw new IllegalArgumentException();
+			private static final String ATTR_NOINHERIT      = "_noinherit";
+			private static final String ATTR_INHERIT_REMOVE = "_inheritRemove";
+			private static final String ATTR_TEMPLATE       = "_template";
 			
-			this.parent = parent;
-			this.nodeName = sourceNode.nodeName;
-			attributes = new HashMap<>(sourceNode.attributes);
-			nodes = new StringVectorMap<>();
-			sourceNode.nodes.forEachPair((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
-		}
-		
-		GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode, GenericXmlNode templateNode, Source source) throws ParseException {
-			if (sourceNode==null) throw new IllegalArgumentException();
+			static class InheritRemoveException extends Exception {
+				private static final long serialVersionUID = -9221801644995970360L;
+			}
 			
-			this.parent = parent;
-			this.nodeName = sourceNode.nodeName;
-			attributes = new HashMap<>();
-			nodes = new StringVectorMap<>();
+			final GenericXmlNode parent;
+			final String nodeName;
+			final HashMap<String, String> attributes;
+			final StringVectorMap<GenericXmlNode> nodes;
 			
-			
-			if (templateNode!=null)
-				attributes.putAll(templateNode.attributes);
-			attributes.putAll(sourceNode.attributes);
-
-			if (templateNode == null)
+			GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode) {
+				if (sourceNode==null) throw new IllegalArgumentException();
+				
+				this.parent = parent;
+				this.nodeName = sourceNode.nodeName;
+				attributes = new HashMap<>(sourceNode.attributes);
+				nodes = new StringVectorMap<>();
 				sourceNode.nodes.forEachPair((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
-			
-			else {
-				Consumer<String> debugOutput = str->testingGround.showCurrentState(templateNode, sourceNode, null, this, null, source, str);
-				mergeNodes(this, sourceNode.nodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased(), source);
 			}
-		}
-		
-		GenericXmlNode(GenericXmlNode parent, Node xmlNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
-			this(parent, xmlNode.getNodeName(), xmlNode, templates, parentNode, source);
-		}
-		
-		GenericXmlNode(GenericXmlNode parent, String nodeName, Node sourceNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
-			if (sourceNode==null) throw new IllegalArgumentException();
 			
-			this.parent = parent;
-			this.nodeName = nodeName;
-			attributes = new HashMap<>();
-			nodes = new StringVectorMap<>();
-			
-			if (parentNode!=null && !parentNode.nodeName.equals(this.nodeName))
-				throw new ParseException("Parent node has different name (\"%s\") than this node (\"%s\") [File:%s]", parentNode.nodeName, this.nodeName, source.getFilePath());
-			
-			GenericXmlNode templateNode = null;
-			NamedNodeMap xmlAttributes = sourceNode.getAttributes();
-			if (xmlAttributes!=null) {
+			GenericXmlNode(GenericXmlNode parent, GenericXmlNode sourceNode, GenericXmlNode templateNode, Source source) throws ParseException {
+				if (sourceNode==null) throw new IllegalArgumentException();
 				
-				String templateName = getAttribute(xmlAttributes, ATTR_TEMPLATE);
-				if (templateName!=null) {
-					if (templates==null)
-						throwParseException(false, "Found \"_template\" attribute but no Templates are defined  [Node:%s, File:%s]", this.nodeName, source.getFilePath());
-					else {
-						templateNode = templates.getTemplate(this.nodeName, templateName);
-						if (templateNode==null)
-							throwParseException(false, "Can't find template \"%s\" for node \"%s\" [File:%s]", templateName, this.nodeName, source.getFilePath());
+				this.parent = parent;
+				this.nodeName = sourceNode.nodeName;
+				attributes = new HashMap<>();
+				nodes = new StringVectorMap<>();
+				
+				
+				if (templateNode!=null)
+					attributes.putAll(templateNode.attributes);
+				attributes.putAll(sourceNode.attributes);
+	
+				if (templateNode == null)
+					sourceNode.nodes.forEachPair((key,childNode)->nodes.add(key, new GenericXmlNode(this, childNode)));
+				
+				else {
+					Consumer<String> debugOutput = str->testingGround.showCurrentState(templateNode, sourceNode, null, this, null, source, str);
+					mergeNodes(this, sourceNode.nodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased(), source);
+				}
+			}
+			
+			GenericXmlNode(GenericXmlNode parent, Node xmlNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
+				this(parent, xmlNode.getNodeName(), xmlNode, templates, parentNode, source);
+			}
+			
+			GenericXmlNode(GenericXmlNode parent, String nodeName, Node sourceNode, TemplatesInterface templates, GenericXmlNode parentNode, Source source) throws ParseException, InheritRemoveException {
+				if (sourceNode==null) throw new IllegalArgumentException();
+				
+				this.parent = parent;
+				this.nodeName = nodeName;
+				attributes = new HashMap<>();
+				nodes = new StringVectorMap<>();
+				
+				if (parentNode!=null && !parentNode.nodeName.equals(this.nodeName))
+					throw new ParseException("Parent node has different name (\"%s\") than this node (\"%s\") [File:%s]", parentNode.nodeName, this.nodeName, source.getFilePath());
+				
+				GenericXmlNode templateNode = null;
+				NamedNodeMap xmlAttributes = sourceNode.getAttributes();
+				if (xmlAttributes!=null) {
+					
+					String templateName = getAttribute(xmlAttributes, ATTR_TEMPLATE);
+					if (templateName!=null) {
+						if (templates==null)
+							throwParseException(false, "Found \"_template\" attribute but no Templates are defined  [Node:%s, File:%s]", this.nodeName, source.getFilePath());
+						else {
+							templateNode = templates.getTemplate(this.nodeName, templateName);
+							if (templateNode==null)
+								throwParseException(false, "Can't find template \"%s\" for node \"%s\" [File:%s]", templateName, this.nodeName, source.getFilePath());
+						}
+					}
+					
+					String inheritRemoveValue = getAttribute(xmlAttributes, ATTR_INHERIT_REMOVE);
+					if (inheritRemoveValue!=null && inheritRemoveValue.toLowerCase().equals("true")) {
+						throw new InheritRemoveException();
+						//testingGround.showCurrentState(parentNode, templateNode, sourceNode, this, templates==null ? null : templates.getInstance(), source, "Found _inheritRemove attribute");
+					}
+					
+					String noinheritValue = getAttribute(xmlAttributes, ATTR_NOINHERIT);
+					if (noinheritValue!=null && noinheritValue.toLowerCase().equals("true"))
+						parentNode = null;
+				}
+				
+				if (parentNode!=null)
+					attributes.putAll(parentNode.attributes);
+				if (templateNode!=null)
+					attributes.putAll(templateNode.attributes);
+				for (Node attrNode : XML.makeIterable(xmlAttributes)) {
+					String attrName = attrNode.getNodeName();
+					String attrValue = attrNode.getNodeValue();
+					if (attrName.startsWith("_") && !attrName.equals(ATTR_TEMPLATE))
+						testingGround.addSpecialAttribute(attrName,attrValue);
+					if (!attrName.equals(ATTR_TEMPLATE) && !attrName.equals(ATTR_NOINHERIT))
+						attributes.put(attrName,attrValue);
+				}
+				
+				StringVectorMap<Node> elementNodes = getElementNodes(sourceNode, source);
+				
+				if (parentNode==null && templateNode==null)
+					for (String key : elementNodes.keySet())
+						for (Node xmlSubNode : elementNodes.get(key))
+							nodes.add(key, new GenericXmlNode(this, xmlSubNode, templates, null, source));
+				
+				else if (parentNode!=null && templateNode!=null) {
+					StringVectorMap<GenericXmlNode> temporary = new StringVectorMap<>();
+					mergeNodes(this, elementNodes, templateNode.nodes, temporary , GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
+					mergeNodes(this, temporary   , parentNode  .nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased()     , source);
+					
+				} else if (parentNode!=null) {
+					mergeNodes(this, elementNodes, parentNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
+					
+				} else if (templateNode!=null) {
+					mergeNodes(this, elementNodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
+					
+				}
+			}
+			
+			private static <SourceNodeType> void mergeNodes(
+					GenericXmlNode parent,
+					StringVectorMap<SourceNodeType> sourceNodes,
+					StringVectorMap<GenericXmlNode> templateNodes,
+					StringVectorMap<GenericXmlNode> targetNodes,
+					GenericXmlNodeConstructor<SourceNodeType> nodeConstructor,
+					Source source)
+					throws ParseException {
+				
+				for (String key : templateNodes.keySet())
+					if (!sourceNodes.containsKey(key))
+						for (GenericXmlNode tempChildNode : templateNodes.get(key))
+							targetNodes.add(key, new GenericXmlNode(parent, tempChildNode));
+				
+				for (String key : sourceNodes.keySet()) {
+					Vector<GenericXmlNode> tempNodes = templateNodes.get(key);
+					Vector<SourceNodeType> srcNodes = sourceNodes.get(key);
+					for (int i=0; i<srcNodes.size(); i++) {
+						SourceNodeType srcChildNode = srcNodes.get(i);
+						GenericXmlNode tempChildNode = tempNodes==null || i>=tempNodes.size() ? null : tempNodes.get(i);
+						try {
+							targetNodes.add(key, nodeConstructor.construct(parent, srcChildNode, tempChildNode, source));
+						} catch (InheritRemoveException e) {
+							if (tempChildNode==null)
+								throwParseException(false, "Found unexpected attribute (\"%s\") in <%s> node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, key, source.getFilePath());
+						}
 					}
 				}
+			}
+			
+			interface GenericXmlNodeConstructor<SourceNodeType> {
+				GenericXmlNode construct(GenericXmlNode parent, SourceNodeType sourceNode, GenericXmlNode templateNode, Source source) throws ParseException, InheritRemoveException;
 				
-				String inheritRemoveValue = getAttribute(xmlAttributes, ATTR_INHERIT_REMOVE);
-				if (inheritRemoveValue!=null && inheritRemoveValue.toLowerCase().equals("true")) {
-					throw new InheritRemoveException();
-					//testingGround.showCurrentState(parentNode, templateNode, sourceNode, this, templates==null ? null : templates.getInstance(), source, "Found _inheritRemove attribute");
+				static GenericXmlNodeConstructor<Node> createXmlNodeBased(TemplatesInterface templates) {
+					return (parent, sourceNode, templateNode, source) -> new GenericXmlNode(parent, sourceNode, templates, templateNode, source);
 				}
 				
-				String noinheritValue = getAttribute(xmlAttributes, ATTR_NOINHERIT);
-				if (noinheritValue!=null && noinheritValue.toLowerCase().equals("true"))
-					parentNode = null;
-			}
-			
-			if (parentNode!=null)
-				attributes.putAll(parentNode.attributes);
-			if (templateNode!=null)
-				attributes.putAll(templateNode.attributes);
-			for (Node attrNode : XML.makeIterable(xmlAttributes)) {
-				String attrName = attrNode.getNodeName();
-				String attrValue = attrNode.getNodeValue();
-				if (attrName.startsWith("_") && !attrName.equals(ATTR_TEMPLATE))
-					testingGround.addSpecialAttribute(attrName,attrValue);
-				if (!attrName.equals(ATTR_TEMPLATE) && !attrName.equals(ATTR_NOINHERIT))
-					attributes.put(attrName,attrValue);
-			}
-			
-			StringVectorMap<Node> elementNodes = getElementNodes(sourceNode, source);
-			
-			if (parentNode==null && templateNode==null)
-				for (String key : elementNodes.keySet())
-					for (Node xmlSubNode : elementNodes.get(key))
-						nodes.add(key, new GenericXmlNode(this, xmlSubNode, templates, null, source));
-			
-			else if (parentNode!=null && templateNode!=null) {
-				StringVectorMap<GenericXmlNode> temporary = new StringVectorMap<>();
-				mergeNodes(this, elementNodes, templateNode.nodes, temporary , GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
-				mergeNodes(this, temporary   , parentNode  .nodes, this.nodes, GenericXmlNodeConstructor.createGenericNodeBased()     , source);
-				
-			} else if (parentNode!=null) {
-				mergeNodes(this, elementNodes, parentNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
-				
-			} else if (templateNode!=null) {
-				mergeNodes(this, elementNodes, templateNode.nodes, this.nodes, GenericXmlNodeConstructor.createXmlNodeBased(templates), source);
-				
-			}
-		}
-		
-		private static <SourceNodeType> void mergeNodes(
-				GenericXmlNode parent,
-				StringVectorMap<SourceNodeType> sourceNodes,
-				StringVectorMap<GenericXmlNode> templateNodes,
-				StringVectorMap<GenericXmlNode> targetNodes,
-				GenericXmlNodeConstructor<SourceNodeType> nodeConstructor,
-				Source source)
-				throws ParseException {
-			
-			for (String key : templateNodes.keySet())
-				if (!sourceNodes.containsKey(key))
-					for (GenericXmlNode tempChildNode : templateNodes.get(key))
-						targetNodes.add(key, new GenericXmlNode(parent, tempChildNode));
-			
-			for (String key : sourceNodes.keySet()) {
-				Vector<GenericXmlNode> tempNodes = templateNodes.get(key);
-				Vector<SourceNodeType> srcNodes = sourceNodes.get(key);
-				for (int i=0; i<srcNodes.size(); i++) {
-					SourceNodeType srcChildNode = srcNodes.get(i);
-					GenericXmlNode tempChildNode = tempNodes==null || i>=tempNodes.size() ? null : tempNodes.get(i);
-					try {
-						targetNodes.add(key, nodeConstructor.construct(parent, srcChildNode, tempChildNode, source));
-					} catch (InheritRemoveException e) {
-						if (tempChildNode==null)
-							throwParseException(false, "Found unexpected attribute (\"%s\") in <%s> node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, key, source.getFilePath());
-					}
+				static GenericXmlNodeConstructor<GenericXmlNode> createGenericNodeBased() {
+					return (parent, sourceNode, templateNode, source) -> new GenericXmlNode(parent, sourceNode, templateNode, source);
 				}
 			}
-		}
-		
-		interface GenericXmlNodeConstructor<SourceNodeType> {
-			GenericXmlNode construct(GenericXmlNode parent, SourceNodeType sourceNode, GenericXmlNode templateNode, Source source) throws ParseException, InheritRemoveException;
 			
-			static GenericXmlNodeConstructor<Node> createXmlNodeBased(TemplatesInterface templates) {
-				return (parent, sourceNode, templateNode, source) -> new GenericXmlNode(parent, sourceNode, templates, templateNode, source);
-			}
+	//		private static String toString(String label, Vector<String> strings) {
+	//			StringBuilder sb = new StringBuilder();
+	//			sb.append(label).append(":\r\n");
+	//			for (String str : strings)
+	//				sb.append("   \"").append(str).append("\"\r\n");
+	//			return sb.toString();
+	//		}
 			
-			static GenericXmlNodeConstructor<GenericXmlNode> createGenericNodeBased() {
-				return (parent, sourceNode, templateNode, source) -> new GenericXmlNode(parent, sourceNode, templateNode, source);
-			}
-		}
-		
-//		private static String toString(String label, Vector<String> strings) {
-//			StringBuilder sb = new StringBuilder();
-//			sb.append(label).append(":\r\n");
-//			for (String str : strings)
-//				sb.append("   \"").append(str).append("\"\r\n");
-//			return sb.toString();
-//		}
-		
-		private static StringVectorMap<Node> getElementNodes(Node xmlNode, Source source) throws ParseException {
-			StringVectorMap<Node> elementNodes = new StringVectorMap<>();
-			
-			NodeList nodes = xmlNode.getChildNodes();
-			for (Node childNode : XML.makeIterable(nodes)) {
-				if (childNode.getNodeType()==Node.COMMENT_NODE) {
-					// is Ok, do nothing
+			private static StringVectorMap<Node> getElementNodes(Node xmlNode, Source source) throws ParseException {
+				StringVectorMap<Node> elementNodes = new StringVectorMap<>();
+				
+				NodeList nodes = xmlNode.getChildNodes();
+				for (Node childNode : XML.makeIterable(nodes)) {
+					if (childNode.getNodeType()==Node.COMMENT_NODE) {
+						// is Ok, do nothing
+							
+					} else if (isEmptyTextNode(childNode, ()->String.format("node \"%s\" in file \"%s\"", xmlNode.getNodeName(), source.getFilePath()))) {
+						// is Ok, do nothing
 						
-				} else if (isEmptyTextNode(childNode, ()->String.format("node \"%s\" in file \"%s\"", xmlNode.getNodeName(), source.getFilePath()))) {
-					// is Ok, do nothing
-					
-				} else if (childNode.getNodeType()==Node.ELEMENT_NODE) {
-					elementNodes.add(childNode.getNodeName(),childNode);
-					
-				} else
-					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", source.getFilePath(), XML.toDebugString(childNode));
+					} else if (childNode.getNodeType()==Node.ELEMENT_NODE) {
+						elementNodes.add(childNode.getNodeName(),childNode);
+						
+					} else
+						throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", source.getFilePath(), XML.toDebugString(childNode));
+				}
+				return elementNodes;
 			}
-			return elementNodes;
-		}
-		
-		private static String getAttribute(NamedNodeMap attributes, String name) {
-			String template;
-			Node templateAttrNode = attributes.getNamedItem(name);
-			if (templateAttrNode!=null)
-				template = templateAttrNode.getNodeValue();
-			else template = null;
-			return template;
-		}
-		
-		interface Source {
-			String getFilePath();
-			static Source create(ZipEntryTreeNode sourceFile) {
-				return ()->sourceFile.getPath();
+			
+			private static String getAttribute(NamedNodeMap attributes, String name) {
+				String template;
+				Node templateAttrNode = attributes.getNamedItem(name);
+				if (templateAttrNode!=null)
+					template = templateAttrNode.getNodeValue();
+				else template = null;
+				return template;
+			}
+			
+			interface Source {
+				String getFilePath();
+				static Source create(ZipEntryTreeNode sourceFile) {
+					return ()->sourceFile.getPath();
+				}
+			}
+	
+			String[] getPath() {
+				Vector<String> vec = getPathVec();
+				return vec.toArray(new String[vec.size()]);
+			}
+			Vector<String> getPathVec() {
+				Vector<String> vec;
+				if (parent==null) vec = new Vector<>();
+				else vec = parent.getPathVec();
+				vec.add(this.nodeName);
+				return vec;
+			}
+	
+			GenericXmlNode getNode(String... path) {
+				GenericXmlNode[] nodes = getNodes(path);
+				if (nodes.length>1)
+					throw new IllegalStateException();
+				return nodes.length<1 ? null : nodes[0];
+			}
+			
+			GenericXmlNode[] getNodes(String... path) {
+				if (path.length<2)
+					throw new IllegalArgumentException();
+				if (!nodeName.equals(path[0]))
+					throw new IllegalArgumentException();
+				Vector<GenericXmlNode> nodes = new Vector<>();
+				getSubnodes(path,1,nodes);
+				return nodes.toArray(new GenericXmlNode[nodes.size()]);
+			}
+	
+			private void getSubnodes(String[] path, int index, Vector<GenericXmlNode> nodes) {
+				Vector<GenericXmlNode> childNodes = this.nodes.get(path[index]);
+				if (childNodes==null) return;
+				for (GenericXmlNode childNode : childNodes) {
+					if (index+1>=path.length)
+						nodes.add(childNode);
+					else
+						childNode.getSubnodes(path, index+1, nodes);
+				}
 			}
 		}
 
-		String[] getPath() {
-			Vector<String> vec = getPathVec();
-			return vec.toArray(new String[vec.size()]);
-		}
-		Vector<String> getPathVec() {
-			Vector<String> vec;
-			if (parent==null) vec = new Vector<>();
-			else vec = parent.getPathVec();
-			vec.add(this.nodeName);
-			return vec;
-		}
-
-		GenericXmlNode getNode(String... path) {
-			GenericXmlNode[] nodes = getNodes(path);
-			if (nodes.length>1)
-				throw new IllegalStateException();
-			return nodes.length<1 ? null : nodes[0];
+	static class KnownBugs {
+		private static KnownBugs instance = null;
+		private boolean hideKnownBugs;
+		
+		KnownBugs()
+		{
+			hideKnownBugs = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.XML_HideKnownBugs, false);
 		}
 		
-		GenericXmlNode[] getNodes(String... path) {
-			if (path.length<2)
-				throw new IllegalArgumentException();
-			if (!nodeName.equals(path[0]))
-				throw new IllegalArgumentException();
-			Vector<GenericXmlNode> nodes = new Vector<>();
-			getSubnodes(path,1,nodes);
-			return nodes.toArray(new GenericXmlNode[nodes.size()]);
+		static KnownBugs getInstance()
+		{
+			if (instance == null)
+				instance = new KnownBugs();
+			return instance;
+		}
+		
+		void setHideKnownBugs(boolean hideKnownBugs)
+		{
+			this.hideKnownBugs = hideKnownBugs;
+			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.XML_HideKnownBugs, this.hideKnownBugs);
 		}
 
-		private void getSubnodes(String[] path, int index, Vector<GenericXmlNode> nodes) {
-			Vector<GenericXmlNode> childNodes = this.nodes.get(path[index]);
-			if (childNodes==null) return;
-			for (GenericXmlNode childNode : childNodes) {
-				if (index+1>=path.length)
-					nodes.add(childNode);
-				else
-					childNode.getSubnodes(path, index+1, nodes);
+		boolean isKnownWrongClassFile_ignore(ClassStructur.StructItem structItem)
+		{
+			if (structItem         ==null) throw new IllegalArgumentException();
+			if (structItem.itemFile==null) throw new IllegalArgumentException();
+			
+			if ("engines".equals(structItem.className) && "e_un_truck_heavy_boarpac.xml".equals(structItem.itemFile.name))
+			{
+				if (!hideKnownBugs)
+					System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
+				return true;
 			}
+			return false;
+		}
+
+		boolean isWrongTemplateList_ignore(String originalNodeName, String filePath, HashMap<String, HashMap<String, GenericXmlNode>> templates)
+		{
+			if (originalNodeName.equals("CollarF") && filePath.equals("\\[media]\\_dlc\\dlc_9\\classes\\trucks\\derry_special_15c177_tunning\\derry_special_15c177_bumper_1a.xml"))
+			{
+				if (!hideKnownBugs)
+					System.err.printf("Found a known bug: Template \"%s\" in <_templates> node in file \"%s\" --> node ignored%n", originalNodeName, filePath);
+				return true;
+			}
+			if (originalNodeName.equals("Body") && filePath.equals("\\[media]\\_dlc\\dlc_8\\classes\\trucks\\kirovets_k7m.xml") && templates.get(originalNodeName)!=null)
+			{
+				if (!hideKnownBugs)
+					System.err.printf("Found a known bug: Second template list for \"%s\" in <_templates> node in file \"%s\" --> list ignored%n", originalNodeName, filePath);
+				return true;
+			}
+			return false;
+		}
+
+		String fixParentFileName(String parentFile, String filePath) {
+			if (filePath==null) return parentFile;
+			if (parentFile==null ) return parentFile;
+			if (filePath.equals("\\[media]\\_dlc\\stuff_01\\classes\\trucks\\western_star_57x_stuff\\stuff_hood_tiger_western_star_57x.xml")
+				&& parentFile.equals("stuff_hood_bull_tiger_f750"))
+			{
+				String oldName = parentFile;
+				parentFile =         "stuff_hood_tiger_ford_f750";
+				if (!hideKnownBugs)
+					System.err.printf("Found a known bug: Parent name \"%s\" seems to mean \"%s\" in file \"%s\" --> replaced%n", oldName, parentFile, filePath);
+			}
+			return parentFile;
+		}
+
+		boolean fixTemplateList_continue(Templates templates, Node node, String originalNodeName, ZipEntryTreeNode sourceFile) throws ParseException
+		{
+			if (originalNodeName.equals("Mudguard")) {
+				// my guess: <Mudguard> should be a template in template list <Body>
+				HashMap<String, GenericXmlNode> templateList = Templates.createNewTemplateList(templates, "Body", sourceFile.path);
+				Templates.addNewTemplate_unchecked(node, "Body", "Mudguard", templateList, sourceFile, templates);
+				if (!hideKnownBugs)
+					System.err.printf("Found a known bug: Node <Mudguard> should be a template in template list <Body> in file \"%s\" --> fixed%n", sourceFile.path);
+				return true;
+			}
+			//if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\classes\\trucks\\trailers\\semitrailer_gooseneck_4.xml")) {
+			//	System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
+			//	return true;
+			//}
+			//if (originalNodeName.equals("Mudguard") && sourceFilePath.equals("\\[media]\\_dlc\\dlc_2_1\\classes\\trucks\\trailers\\semitrailer_special_w_cat_770.xml")) {
+			//	System.err.printf("Found an expected oddity (templates \"%s\") in <_templates> node in file \"%s\" --> ignored%n", originalNodeName, sourceFilePath);
+			//	return true;
+			//}
+			return false;
+		}
+
+		static class WrongParentNodePlacingWorkaround {
+			Node parentNode = null;
+		}
+
+		boolean fixWrongParentNodePlacing_InsideTemplates_continue(Node node, String originalNodeName, WrongParentNodePlacingWorkaround wpnpWorkaround, String filePath) throws ParseException
+		{
+			if (originalNodeName.equals("_parent")) {
+				if (wpnpWorkaround == null)
+					throw new ParseException("Found a known bug: <_parent> node in <_templates> node in file \"%s\" but no OdditiesHandler to handle it%n", filePath);
+				wpnpWorkaround.parentNode = node;
+				if (!hideKnownBugs)
+					System.err.printf("Found a known bug: <_parent> node in <_templates> node in file \"%s\" --> fixed (inside templates)%n", filePath);
+				return true;
+			}
+			return false;
+		}
+
+		public Node fixWrongParentNodePlacing_OutsideTemplates(Node parentNode, WrongParentNodePlacingWorkaround wpnpWorkaround, String filePath) throws ParseException
+		{
+			if (wpnpWorkaround.parentNode!=null) {
+				if (parentNode!=null)
+					throw new ParseException("Found a known bug: <_parent> node in <_templates> node in file \"%s\" but also a <_parent> node outside of <_templates> node%n", filePath);
+				if (!hideKnownBugs)
+					System.err.printf("Found a known bug: <_parent> node in <_templates> node in file \"%s\" --> fixed (outside templates)%n", filePath);
+				return wpnpWorkaround.parentNode;
+			}
+			return parentNode;
 		}
 	}
 }
