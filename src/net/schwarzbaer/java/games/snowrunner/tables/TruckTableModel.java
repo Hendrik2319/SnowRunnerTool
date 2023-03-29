@@ -1,5 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
+import java.awt.Color;
 import java.awt.Point;
 import java.awt.Window;
 import java.util.Arrays;
@@ -16,6 +17,7 @@ import javax.swing.JTable;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
+import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
@@ -30,6 +32,8 @@ import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 
 public class TruckTableModel extends VerySimpleTableModel<Truck> {
+
+	private static final Color BG_COLOR__TRUCK_CAN_USE_TRAILER = new Color(0xCEFFC5);
 
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
@@ -50,6 +54,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private final UserDefinedValues userDefinedValues;
 	private Data data;
 	private final SpecialTruckAddons specialTruckAddons;
+	private Function<Truck, Color> colorizeTrucksByTrailers;
 
 	public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
 		super(mainWindow, controllers, new VerySimpleTableModel.ColumnID[] {
@@ -103,6 +108,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		this.userDefinedValues = udv;
 		this.data = null;
 		this.saveGame = null;
+		colorizeTrucksByTrailers = null;
 		
 		connectToGlobalData(true, data->{
 			this.data = data;
@@ -166,6 +172,33 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				TruckTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
 			}
 		});
+		
+		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
+	}
+
+	public interface FilterTrucksByTrailersListener
+	{
+		void setFilter(Trailer trailer);
+	}
+	
+	private void setTrailerForFilter(Trailer trailer)
+	{
+		if (colorizeTrucksByTrailers != null)
+			coloring.removeBackgroundRowColorizer(colorizeTrucksByTrailers);
+		
+		if (trailer==null)
+			colorizeTrucksByTrailers = null;
+		else
+			colorizeTrucksByTrailers = truck -> {
+				if (trailer.usableBy.contains(truck))
+					return BG_COLOR__TRUCK_CAN_USE_TRAILER;
+				return null;
+			};
+		
+		if (colorizeTrucksByTrailers != null)
+			coloring.addBackgroundRowColorizer(colorizeTrucksByTrailers);
+		
+		table.repaint();
 	}
 
 	private static TableModelBasedBuilder<Boolean> createIsCapableFcn(SpecialTruckAddons.AddonCategory listID, boolean verbose) {
@@ -308,6 +341,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
 	@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
 		super.modifyTableContextMenu(table_, contextMenu);
+		
+		contextMenu.addSeparator();
+		
+		contextMenu.add(SnowRunner.createMenuItem("Filter by Trailer -> context menu of any \"Trailers\" table", true, e->{}));
+		contextMenu.add(SnowRunner.createMenuItem("Reset Trailer Filter", true, e->setTrailerForFilter(null)));
 		
 		contextMenu.addSeparator();
 		

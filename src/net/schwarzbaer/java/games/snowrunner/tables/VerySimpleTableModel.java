@@ -156,6 +156,16 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			rowColorizersBG.add(colorizer);
 		}
 		
+		void removeForegroundRowColorizer(Function<RowType,Color> colorizer) {
+			if (colorizer==null) throw new IllegalArgumentException();
+			rowColorizersFG.remove(colorizer);
+		}
+		
+		void removeBackgroundRowColorizer(Function<RowType,Color> colorizer) {
+			if (colorizer==null) throw new IllegalArgumentException();
+			rowColorizersBG.remove(colorizer);
+		}
+		
 		private static <Type> Function<Object, Color> convertClassColorizer(Class<Type> class_, Function<Type, Color> getcolor) {
 			return obj->!class_.isInstance(obj) ? null : getcolor.apply(class_.cast(obj));
 		}

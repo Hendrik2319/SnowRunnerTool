@@ -1327,24 +1327,27 @@ public class SnowRunner {
 		public final SaveGameListenerController saveGameListeners;
 		public final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
 		public final SpecialTruckAddOnsController specialTruckAddonsListeners;
+		public final FilterTrucksByTrailersController filterTrucksByTrailersListeners;
 		
 		Controllers() {
-			languageListeners             = new LanguageListenerController();
-			dataReceivers                 = new DataReceiverController();
-			saveGameListeners             = new SaveGameListenerController();
-			truckToDLCAssignmentListeners = new TruckToDLCAssignmentListenerController();
-			specialTruckAddonsListeners   = new SpecialTruckAddOnsController();
+			languageListeners               = new LanguageListenerController();
+			dataReceivers                   = new DataReceiverController();
+			saveGameListeners               = new SaveGameListenerController();
+			truckToDLCAssignmentListeners   = new TruckToDLCAssignmentListenerController();
+			specialTruckAddonsListeners     = new SpecialTruckAddOnsController();
+			filterTrucksByTrailersListeners = new FilterTrucksByTrailersController();
 		}
 		
 		void showListeners() {
 			String indent = "    ";
 			
 			System.out.printf("Current State of Listeners:%n");
-			languageListeners            .showListeners(indent, "LanguageListeners"            );
-			dataReceivers                .showListeners(indent, "DataReceivers"                );
-			saveGameListeners            .showListeners(indent, "SaveGameListeners"            );
-			truckToDLCAssignmentListeners.showListeners(indent, "TruckToDLCAssignmentListeners");
-			specialTruckAddonsListeners  .showListeners(indent, "SpecialTruckAddOnsListeners"  );
+			languageListeners              .showListeners(indent, "LanguageListeners"              );
+			dataReceivers                  .showListeners(indent, "DataReceivers"                  );
+			saveGameListeners              .showListeners(indent, "SaveGameListeners"              );
+			truckToDLCAssignmentListeners  .showListeners(indent, "TruckToDLCAssignmentListeners"  );
+			specialTruckAddonsListeners    .showListeners(indent, "SpecialTruckAddOnsListeners"    );
+			filterTrucksByTrailersListeners.showListeners(indent, "FilterTrucksByTrailersListeners");
 		}
 		
 		public interface Finalizable {
@@ -1383,11 +1386,12 @@ public class SnowRunner {
 					removeVolatileSubCompsFromGUI(listID);
 				volatileSubComps.clear();
 				
-				languageListeners            .removeListenersOfSource(this);
-				dataReceivers                .removeListenersOfSource(this);
-				saveGameListeners            .removeListenersOfSource(this);
-				truckToDLCAssignmentListeners.removeListenersOfSource(this);
-				specialTruckAddonsListeners  .removeListenersOfSource(this);
+				languageListeners              .removeListenersOfSource(this);
+				dataReceivers                  .removeListenersOfSource(this);
+				saveGameListeners              .removeListenersOfSource(this);
+				truckToDLCAssignmentListeners  .removeListenersOfSource(this);
+				specialTruckAddonsListeners    .removeListenersOfSource(this);
+				filterTrucksByTrailersListeners.removeListenersOfSource(this);
 			}
 			
 			public void removeVolatileSubCompsFromGUI(String listID) {
@@ -1398,11 +1402,12 @@ public class SnowRunner {
 				volatileSubComps.remove(listID);
 			}
 
-			public void addLanguageListener            (LanguageListener l            ) { languageListeners            .add(this,l); }
-			public void addDataReceiver                (DataReceiver l                ) { dataReceivers                .add(this,l); }
-			public void addSaveGameListener            (SaveGameListener l            ) { saveGameListeners            .add(this,l); }
-			public void addTruckToDLCAssignmentListener(TruckToDLCAssignmentListener l) { truckToDLCAssignmentListeners.add(this,l); }
-			public void addSpecialTruckAddonsListener  (SpecialTruckAddons.Listener l ) { specialTruckAddonsListeners  .add(this,l); }
+			public void addLanguageListener              (LanguageListener l                               ) { languageListeners              .add(this,l); }
+			public void addDataReceiver                  (DataReceiver l                                   ) { dataReceivers                  .add(this,l); }
+			public void addSaveGameListener              (SaveGameListener l                               ) { saveGameListeners              .add(this,l); }
+			public void addTruckToDLCAssignmentListener  (TruckToDLCAssignmentListener l                   ) { truckToDLCAssignmentListeners  .add(this,l); }
+			public void addSpecialTruckAddonsListener    (SpecialTruckAddons.Listener l                    ) { specialTruckAddonsListeners    .add(this,l); }
+			public void addFilterTrucksByTrailersListener(TruckTableModel.FilterTrucksByTrailersListener l ) { filterTrucksByTrailersListeners.add(this,l); }
 		}
 
 		private static class AbstractController<Listener> {
@@ -1472,6 +1477,15 @@ public class SnowRunner {
 			@Override public void updateAfterAssignmentsChange() {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).updateAfterAssignmentsChange();
+			}
+		}
+
+		public static class FilterTrucksByTrailersController extends AbstractController<TruckTableModel.FilterTrucksByTrailersListener> implements TruckTableModel.FilterTrucksByTrailersListener
+		{
+			@Override public void setFilter(Trailer trailer)
+			{
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).setFilter(trailer);
 			}
 		}
 	}

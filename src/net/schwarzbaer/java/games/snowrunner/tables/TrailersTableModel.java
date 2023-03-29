@@ -1,9 +1,13 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
+import java.awt.Point;
 import java.awt.Window;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Vector;
+
+import javax.swing.JMenuItem;
+import javax.swing.JTable;
 
 import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.games.snowrunner.Data;
@@ -13,6 +17,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
 
 public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
@@ -20,6 +25,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
 	private SaveGame saveGame;
+	private Trailer clickedRow;
 
 	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data, SaveGame saveGame) {
 		this(mainWindow, controllers, connectToGlobalData);
@@ -83,5 +89,33 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		String[] excludedCargoTypes = row.gameData.excludedCargoTypes;
 		Vector<Truck> usableBy = row.usableBy;
 		TruckAddonsTableModel.generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers, saveGame);
+	}
+	
+	@Override public void modifyTableContextMenu(JTable table_, ContextMenu contextMenu)
+	{
+		super.modifyTableContextMenu(table_, contextMenu);
+		
+		contextMenu.addSeparator();
+		
+		JMenuItem miFilterTrucksByTrailer = contextMenu.add(SnowRunner.createMenuItem("Filter table \"Trucks\" by usability of this trailer", true, e->{
+			if (clickedRow != null)
+				finalizer.getControllers().filterTrucksByTrailersListeners.setFilter(clickedRow);
+		}));
+		
+		contextMenu.addContextMenuInvokeListener((table, x, y) -> {
+			Point p = x==null || y==null ? null : new Point(x,y);
+			int rowV = p==null ? -1 : table.rowAtPoint(p);
+			int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
+			clickedRow = rowM<0 ? null : getRow(rowM);
+			
+			String trailerName = clickedRow == null ? null : SnowRunner.solveStringID(clickedRow.getName_StringID(), language);
+			miFilterTrucksByTrailer.setEnabled(clickedRow!=null);
+			miFilterTrucksByTrailer.setText(
+					trailerName == null
+						?               "Filter table \"Trucks\" by usability of this trailer"
+						: String.format("Filter table \"Trucks\" by usability of trailer \"%s\"", trailerName)
+			);
+			
+		});
 	}
 }
