@@ -430,7 +430,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			
 			int rowV = p==null ? -1 : table_.rowAtPoint(p);
 			int rowM = rowV<0 ? -1 : table_.convertRowIndexToModel(rowV);
-			clickedRow = rowM<0 ? null : getRow(rowV);
+			clickedRow = rowM<0 ? null : getRow(rowM);
 			
 			miDeactivateAllSpecialColorings.setEnabled(
 					!coloring.columnsWithActiveSpecialColoring.isEmpty()

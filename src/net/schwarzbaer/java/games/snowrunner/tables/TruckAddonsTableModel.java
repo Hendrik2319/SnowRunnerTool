@@ -3,9 +3,9 @@ package net.schwarzbaer.java.games.snowrunner.tables;
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.Window;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Vector;
 
@@ -59,7 +59,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 				new ColumnID("UnlExpl"  ,"Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.unlockByExploration), 
 				new ColumnID("UnlRank"  ,"Unlock By Rank"          , Integer.class, 100, CENTER, "Rank %d", false, row->((TruckAddon)row).gameData.unlockByRank), 
 				new ColumnID("Desc"     ,"Description"             ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.gameData.description_StringID!=null ? row.gameData.description_StringID : row.gameData.cargoDescription_StringID; }), 
-				new ColumnID("ExclCargo","Excluded Cargo Types"    ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((TruckAddon)row).gameData.excludedCargoTypes)),
+				new ColumnID("ExclCargo","Excluded Cargo Types"    ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((TruckAddon)row).gameData.excludedCargoTypes,true)),
 				new ColumnID("RequAddon","Required Addons"         ,  String.class, 200,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((TruckAddon)row).gameData.requiredAddons)),
 		//		new ColumnID("GaragePts","Garage Points (obs?)"    , Integer.class, 120, CENTER,      null, false, row->((TruckAddon)row).gameData.garagePoints_obsolete),
 		//		new ColumnID("Custmizbl","Is Customizable (obs?)"  , Boolean.class, 125,   null,      null, false, row->((TruckAddon)row).gameData.isCustomizable_obsolete),
@@ -73,7 +73,8 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		//		new ColumnID("ShwPckStp","Show Packing Stoppers"   , Boolean.class, 125,   null,      null, false, row->((TruckAddon)row).gameData.showPackingStoppers_obsolete),
 				new ColumnID("UnpTrlDet","Unpack on Trailer Detach", Boolean.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.unpackOnTrailerDetach),
 				new ColumnID("AddonType","Addon Type"              ,  String.class,  85,   null,      null, false, row->((TruckAddon)row).gameData.addonType),
-				new ColumnID("LoadAreas","Load Areas"              ,  String.class, 200,   null,      null, false, row->Arrays.toString(((TruckAddon)row).gameData.loadAreas)),
+				new ColumnID("SpecAddon","Special Addon"           ,  String.class,  85,   null,      null, false, row->getAssignedSpecialAddonList(specialTruckAddons,(TruckAddon)row)),
+				new ColumnID("LoadAreas","Load Areas"              ,  String.class, 200,   null,      null, false, row->Data.GameData.GameDataT3NonTruck.LoadArea.toString(((TruckAddon)row).gameData.loadAreas)),
 				new ColumnID("IsCargo"  ,"Is Cargo"                , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).gameData.isCargo),
 				new ColumnID("CargLngth","Cargo Length"            , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoLength),
 		//		new ColumnID("CargVal"  ,"Cargo Value"             , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoValue_obsolete),
@@ -107,18 +108,33 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		
 		coloring.addBackgroundRowColorizer(addon->{
 			if (enableSpecialTruckAddonsHighlighting)
-				for (SpecialTruckAddons.List listID : SpecialTruckAddons.List.values()) {
+				for (SpecialTruckAddons.AddonCategory listID : SpecialTruckAddons.AddonCategory.values()) {
 					SpecialTruckAddonList list = this.specialTruckAddons.getList(listID);
 					if (list.contains(addon)) return COLOR_SPECIALTRUCKADDON;
 				}
 			return null;
 		});
 		finalizer.addSpecialTruckAddonsListener((list, change) -> {
+			int colM = findColumnByID("SpecAddon");
+			if (colM>=0) fireTableColumnUpdate(colM);
 			table.repaint();
 		});
 		
 		Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 		setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.gameData.category,string_nullsLast).thenComparing(row->row.id));
+	}
+	
+	private static String getAssignedSpecialAddonList(SpecialTruckAddons specialTruckAddons, TruckAddon addon)
+	{
+		EnumSet<SpecialTruckAddons.AddonCategory> listIDs = EnumSet.noneOf(SpecialTruckAddons.AddonCategory.class);
+		specialTruckAddons.foreachList((listID,list)->{
+			if (list.contains(addon))
+				listIDs.add(listID);
+		});
+		if (listIDs.isEmpty())
+			return null;
+		Iterable<String> it = ()->listIDs.stream().sorted().map(id->id.label).iterator();
+		return String.join(", ", it);
 	}
 
 	public TruckAddonsTableModel set(Data data, SaveGame saveGame) {
@@ -140,8 +156,8 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		JMenu specialAddonsMenu = new JMenu("Add Addon to List of known special Addons");
 		contextMenu.add(specialAddonsMenu);
 		
-		EnumMap<SpecialTruckAddons.List, JCheckBoxMenuItem> menuItems = new EnumMap<>(SpecialTruckAddons.List.class);
-		for (SpecialTruckAddons.List list : SpecialTruckAddons.List.values()) {
+		EnumMap<SpecialTruckAddons.AddonCategory, JCheckBoxMenuItem> menuItems = new EnumMap<>(SpecialTruckAddons.AddonCategory.class);
+		for (SpecialTruckAddons.AddonCategory list : SpecialTruckAddons.AddonCategory.values()) {
 			String listLabel = "";
 			switch (list) {
 			case MetalDetectors  : listLabel = "Metal Detector for special missions"; break;
@@ -244,7 +260,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 			if (!isFirst) doc.append("%n%n");
 			isFirst = false;
 			doc.append(Style.BOLD,"Excluded Cargo Types:%n");
-			doc.append("    %s", SnowRunner.joinAddonIDs(excludedCargoTypes));
+			doc.append("    %s", SnowRunner.joinAddonIDs(excludedCargoTypes,false));
 		}
 		
 		if (usableBy!=null && !usableBy.isEmpty()) {

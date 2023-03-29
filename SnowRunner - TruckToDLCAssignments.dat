@@ -30,8 +30,17 @@ truck = jeep_cj7_renegade
 truck = jeep_wrangler
 
 [DLC]
+name = Land Rover Dual Pack
+truck = land_rover_defender_110
+truck = land_rover_defender_90
+
+[DLC]
 name = Navistar 5000-MV Tractor
 truck = navistar_5000mv
+
+[DLC]
+name = Rezvani Hercules
+truck = rezvani_hercules_6x6
 
 [DLC]
 name = Season 1: Search & Recover
@@ -66,6 +75,22 @@ truck = aramatsu_forester
 truck = tayga_6455b
 
 [DLC]
+name = Season 7: Compete & Conquer
+truck = azov_43_191_sprinter
+truck = gor_by4
+
+[DLC]
+name = Season 8: Grand Harvest
+truck = kirovets_k700
+truck = kirovets_k7m
+truck = step_39331_pike
+
+[DLC]
+name = Season 9: Renew & Rebuild
+truck = derry_special_15c177
+truck = zikz_566a
+
+[DLC]
 name = TATRA Dual Pack
 truck = tatra_805
 truck = tatra_t813
@@ -73,4 +98,10 @@ truck = tatra_t813
 [DLC]
 name = Western Star 49X
 truck = western_star_49x
+
+[DLC]
+name = Western Star Wolf Pack
+truck = western_star_57x
+truck = western_star_nf1424
+truck = western_star_nf1430
 

@@ -520,97 +520,95 @@ public class Data {
 		return null;
 	}
 
-	public Boolean isCapable(Truck truck, SpecialTruckAddons.List listID, SpecialTruckAddons specialTruckAddons, boolean verbose) {
+	public Boolean isCapable(Truck truck, SpecialTruckAddons.AddonCategory listID, SpecialTruckAddons specialTruckAddons, boolean verbose) {
 		SpecialTruckAddonList addonList = specialTruckAddons.getList(listID);
 		if (verbose) System.out.printf("Is Truck <%s> capable of %s?%n", truck.id, listID);
 		
-		switch (listID) {
-		
-		case MiniCranes:
-		case BigCranes:
-		case LogLifts:
-		case MetalDetectors:
-		case SeismicVibrators:
-			for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
-				for (TruckAddon addon : list)
-					if (addonList.contains(addon)) {
-						if (verbose)
-							System.out.printf("   Yes. Found addon <%s>%n", addon.id);
-						return true;
-					}
-			if (verbose)
-				System.out.printf("   No. Can't find any needed addon (%s) in trucks compatible addon list%n", addonList.toString());
-			return false;
+		switch (listID.type) {
+			case Addon:
+				for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
+					for (TruckAddon addon : list)
+						if (addonList.contains(addon)) {
+							if (verbose)
+								System.out.printf("   Yes. Found addon <%s>%n", addon.id);
+							return true;
+						}
+				if (verbose)
+					System.out.printf("   No. Can't find any needed addon (%s) in trucks compatible addon list%n", addonList.toString());
+				return false;
 			
-		case LongLogs:
-		case MediumLogs:
-		case ShortLogs:
-			Boolean result = addonList.forEach(
-				()->null,
-				(r1,r2)->{
-					if (r1==null && r2==null) return null;
-					if (r1==null) return r2;
-					if (r2==null) return r1;
-					return r1 || r2;
-				},
-				r->r!=null && r.booleanValue(),
-				id->{
-					TruckAddon addon = truckAddons.get(id);
-					if (addon==null) {
-						if (verbose) System.out.printf("   Unknown TruckAddon <%s>%n", id);
-						return null;
-					}
-					if (verbose) {
-						String type = addon.gameData.isCargo ? "Cargo" : "Addon";
-						System.out.printf("   Test Needed TruckAddon: %s <%s>%n", type, id);
-					}
-					
-					if (!findRequiredAddons(addon.gameData.requiredAddons, truck.compatibleTruckAddons, truck.compatibleTrailers)) {
+			case Cargo:
+				Boolean result = addonList.forEach(
+					()->null,
+					(r1,r2)->{
+						if (r1==null && r2==null) return null;
+						if (r1==null) return r2;
+						if (r2==null) return r1;
+						return r1.booleanValue() || r2.booleanValue();
+					},
+					r->false, //r!=null && r.booleanValue(),
+					id->{
+						TruckAddon addon = truckAddons.get(id);
+						if (addon==null) {
+							if (verbose) System.out.printf("   Unknown TruckAddon <%s>%n", id);
+							return null;
+						}
 						if (verbose) {
-							System.out.printf("      Can't find required addons in list of compatible addons and trailers.%n", id);
-							System.out.printf("         required addons: %s%n", SnowRunner.joinRequiredAddonsToString_OneLine(addon.gameData.requiredAddons));
+							String type = addon.gameData.isCargo ? "Cargo" : "Addon";
+							System.out.printf("   Test <%s> [%s]%n", id, type);
 						}
-						return false;
-					}
-					
-					if (addon.gameData.cargoAddonSubtype==null) {
-						if (verbose) System.out.printf("      This addon has no CargoAddonSubtype.%n", id);
-						return null;
-					}
-					if (verbose) System.out.printf("      CargoAddonSubtype: \"%s\"%n", addon.gameData.cargoAddonSubtype);
-					
-					Vector<TruckAddon> truckAddons = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.truckAddons.values(), addon_ ->addon_ .gameData);
-					Vector<Trailer   > trailers    = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.trailers   .values(), trailer->trailer.gameData);
-					
-					if (truckAddons.isEmpty() && trailers.isEmpty()) {
-						if (verbose) System.out.printf("      Can't find any addon or trailer for CargoAddonSubtype.%n");
-						return null;
-					}
-					
-					if (verbose) {
-						if (!truckAddons.isEmpty())
+						
+						if (!findRequiredAddons(addon.gameData.requiredAddons, truck.compatibleTruckAddons, truck.compatibleTrailers)) {
+							if (verbose) {
+								System.out.printf("      Can't find required addons in list of compatible addons and trailers.%n", id);
+								System.out.printf("         required addons: %s%n", SnowRunner.joinRequiredAddonsToString_OneLine(addon.gameData.requiredAddons));
+							}
+							return false;
+						}
+						
+						if (addon.gameData.cargoAddonSubtype==null) {
+							if (verbose) System.out.printf("      This addon has no CargoAddonSubtype.%n", id);
+							return null;
+						}
+						if (verbose) System.out.printf("      CargoAddonSubtype: \"%s\"%n", addon.gameData.cargoAddonSubtype);
+						
+						Vector<TruckAddon> truckAddons = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.truckAddons.values(), addon_ ->addon_ .gameData);
+						Vector<Trailer   > trailers    = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.trailers   .values(), trailer->trailer.gameData);
+						
+						if (truckAddons.isEmpty() && trailers.isEmpty()) {
+							if (verbose) System.out.printf("      Can't find any addon or trailer for CargoAddonSubtype.%n");
+							return null;
+						}
+						
+						boolean noAddonFound = true;
+						if (verbose && !truckAddons.isEmpty())
 							System.out.printf("      Found addons for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinTruckAddonNames(truckAddons, null, null));
-						if (!trailers.isEmpty())
+						for (TruckAddon addon_ : truckAddons)
+							if (findAddon(addon_.id, truck.compatibleTruckAddons, null)) {
+								if (verbose) System.out.printf("         Found addon <%s> in trucks compatible addons list.%n", addon_.id);
+								noAddonFound = false;
+								break;
+							}
+						if (noAddonFound && verbose && !truckAddons.isEmpty())
+							System.out.printf("         None of the found addons are in trucks compatible addons list.%n");
+						
+						boolean noTrailerFound = true;
+						if (verbose && !trailers.isEmpty())
 							System.out.printf("      Found trailers for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinNames(trailers, null));
+						for (Trailer trailer : trailers)
+							if (findAddon(trailer.id, null, truck.compatibleTrailers)) {
+								if (verbose) System.out.printf("         Found trailer <%s> in trucks compatible addons list.%n", trailer.id);
+								noTrailerFound = false;
+								break;
+							}
+						if (noTrailerFound && verbose && !trailers.isEmpty())
+							System.out.printf("         None of the found trailers are in trucks compatible addons list.%n");
+						
+						return !(noAddonFound && noTrailerFound);
 					}
-					
-					for (TruckAddon addon_ : truckAddons)
-						if (findAddon(addon_.id, truck.compatibleTruckAddons, null)) {
-							if (verbose) System.out.printf("      Found addon <%s> in trucks compatible addons list.%n", addon_.id);
-							return true;
-						}
-					
-					for (Trailer trailer : trailers)
-						if (findAddon(trailer.id, null, truck.compatibleTrailers)) {
-							if (verbose) System.out.printf("      Found trailer <%s> in trucks compatible addons list.%n", trailer.id);
-							return true;
-						}
-					
-					return false;
-				}
-			);
-			if (verbose) System.out.printf("   Result: %s%n", result==null ? "Cant' decide" : result.booleanValue() ? "YES" : "NO");
-			return result;
+				);
+				if (verbose) System.out.printf("   Result: %s%n", result==null ? "Cant' decide" : result.booleanValue() ? "YES" : "NO");
+				return result;
 		}
 		return null;
 	}
@@ -882,9 +880,9 @@ public class Data {
 				public final Boolean trailerLoad;
 
 				@Override public String toString() {
-					String types = String.format("%s | %s", type==null ? "<null>" : type, subtype==null ? "<null>" : subtype);
+					String types = String.format("%s|%s", type==null ? "<null>" : type, subtype==null ? "<null>" : subtype);
 					if (trailerLoad!=null)
-						types += " | "+(trailerLoad ? "" : "No ")+"TrailerLoad";
+						types += " <"+(trailerLoad ? "" : "No ")+"TrailerLoad>";
 					return types;
 				}
 
@@ -935,6 +933,12 @@ public class Data {
 				}
 				
 				
+				public static String toString(LoadArea[] loadAreas)
+				{
+					if (loadAreas==null) return null;
+					if (loadAreas.length==0) return null;
+					return Arrays.toString(loadAreas);
+				}
 			}
 		}
 		

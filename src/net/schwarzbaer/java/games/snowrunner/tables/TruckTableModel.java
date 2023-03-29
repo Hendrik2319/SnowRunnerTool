@@ -35,6 +35,14 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	
 	private static boolean enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
 	private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);  
+	private static final String ID_MetalD    = "MetalD"   ;
+	private static final String ID_Seismic   = "Seismic"  ;
+	private static final String ID_BigCrane  = "BigCrane" ;
+	private static final String ID_MiniCrane = "MiniCrane";
+	private static final String ID_LogLift   = "LogLift"  ;
+	private static final String ID_LongLogs  = "LongLogs" ;
+	private static final String ID_MedLogs   = "MedLogs"  ;
+	private static final String ID_ShortLogs = "ShortLogs";
 	
 	private SaveGame saveGame;
 	private Truck clickedItem;
@@ -46,7 +54,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
 		super(mainWindow, controllers, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
-				new ColumnID( "DLC"      , "DLC"                  ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
+				new ColumnID( "UpdateLvl", "Update Level"         ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
+				new ColumnID( "DLC"      , "DLC"                  ,               String.class, 170,             null,   null,      null, false, (row,model) -> getDLC((Truck)row,(TruckTableModel)model)),
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
@@ -58,14 +67,14 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "AWDUser"  , "AWD (by User)"        ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realAWD),
 				new ColumnID( "AWDTool"  , "AWD (by Tool)"        ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
 				new ColumnID( "AutoWinch", "AutomaticWinch"       ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
-				new ColumnID( "MetalD"   , "Metal Detector"       ,              Boolean.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.MetalDetectors  , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.MetalDetectors  , true) ),
-				new ColumnID( "Seismic"  , "Seismic Vibrator"     ,              Boolean.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.SeismicVibrators, false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.SeismicVibrators, true) ),
-				new ColumnID( "BigCrane" , "Big Crane"            ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.BigCranes       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.BigCranes       , true) ),
-				new ColumnID( "MiniCrane", "Mini Crane"           ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.MiniCranes      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.MiniCranes      , true) ),
-				new ColumnID( "LogLift"  , "Log Lift"             ,              Boolean.class,  50,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.LogLifts        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.LogLifts        , true) ),
-				new ColumnID( "LongLogs" , "Long Logs"            ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.LongLogs        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.LongLogs        , true) ),
-				new ColumnID( "MedLogs"  , "Medium Logs"          ,              Boolean.class,  75,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.MediumLogs      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.MediumLogs      , true) ),
-				new ColumnID( "ShortLogs", "Short Logs"           ,              Boolean.class,  65,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.List.ShortLogs       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.List.ShortLogs       , true) ),
+				new ColumnID(ID_MetalD   , "Metal Detector"       ,              Boolean.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetectors  , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetectors  , true) ),
+				new ColumnID(ID_Seismic  , "Seismic Vibrator"     ,              Boolean.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrators, false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrators, true) ),
+				new ColumnID(ID_BigCrane , "Big Crane"            ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCranes       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCranes       , true) ),
+				new ColumnID(ID_MiniCrane, "Mini Crane"           ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCranes      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCranes      , true) ),
+				new ColumnID(ID_LogLift  , "Log Lift"             ,              Boolean.class,  50,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLifts        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLifts        , true) ),
+				new ColumnID(ID_LongLogs , "Long Logs"            ,              Boolean.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs        , true) ),
+				new ColumnID(ID_MedLogs  , "Medium Logs"          ,              Boolean.class,  75,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs      , true) ),
+				new ColumnID(ID_ShortLogs, "Short Logs"           ,              Boolean.class,  65,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs       , true) ),
 				new ColumnID( "FuelCap"  , "Fuel Capacity"        ,              Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
 				new ColumnID( "WheelSizs", "Wheel Sizes"          ,               String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
 				new ColumnID( "WheelTyps", "Wheel Types"          ,               String.class, 280,             null,   null,      null, (row,lang) -> getWheelCategories((Truck)row,lang)),
@@ -86,8 +95,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		//		new ColumnID( "MaxWhWoSp", "Max. WheelRadius Without Suspension", String.class, 200,             null,   null,      null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
 				new ColumnID( "Image"    , "Image"                ,               String.class, 130,             null,   null,      null, false, row -> ((Truck)row).image),
 				new ColumnID( "CargoSlts", "Cargo Slots"          ,              Integer.class,  70,             null, CENTER,      null, false, row -> ((Truck)row).gameData.cargoSlots),
-				new ColumnID( "ExclCargo", "Excluded Cargo Types" ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludedCargoTypes)),
-				new ColumnID( "ExclAddon", "Exclude Addons"       ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludeAddons)),
+				new ColumnID( "ExclCargo", "Excluded Cargo Types" ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludedCargoTypes,true)),
+				new ColumnID( "ExclAddon", "Exclude Addons"       ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludeAddons,true)),
 		//		new ColumnID( "Recall"   , "Recallable"           ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable_obsolete),
 		});
 		this.specialTruckAddons = specialTruckAddons;
@@ -135,22 +144,31 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		finalizer.addSpecialTruckAddonsListener((list,change)->{
 			String id = null;
 			switch (list) {
-			case MetalDetectors  : id = "MetalD"   ; break;
-			case SeismicVibrators: id = "Seismic"  ; break;
-			case BigCranes       : id = "BigCrane" ; break;
-			case LogLifts        : id = "MiniCrane"; break;
-			case MiniCranes      : id = "LogLift"  ; break;
-			case LongLogs        : id = "LongLogs" ; break;
-			case MediumLogs      : id = "MedLogs"  ; break;
-			case ShortLogs       : id = "ShortLogs"; break;
+			case MetalDetectors  : id = ID_MetalD   ; break;
+			case SeismicVibrators: id = ID_Seismic  ; break;
+			case BigCranes       : id = ID_BigCrane ; break;
+			case MiniCranes      : id = ID_MiniCrane; break;
+			case LogLifts        : id = ID_LogLift  ; break;
+			case LongLogs        : id = ID_LongLogs ; break;
+			case MediumLogs      : id = ID_MedLogs  ; break;
+			case ShortLogs       : id = ID_ShortLogs; break;
 			}
 			if (id!=null)
 				fireTableColumnUpdate(findColumnByID(id));
 		});
 		
+		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
+			@Override public void updateAfterAssignmentsChange() {
+				int colV = findColumnByID("DLC");
+				if (colV>=0) fireTableColumnUpdate(colV);
+			}
+			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+				TruckTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
+			}
+		});
 	}
 
-	private static TableModelBasedBuilder<Boolean> createIsCapableFcn(SpecialTruckAddons.List listID, boolean verbose) {
+	private static TableModelBasedBuilder<Boolean> createIsCapableFcn(SpecialTruckAddons.AddonCategory listID, boolean verbose) {
 		return (row,model) -> {
 			if (!(row instanceof Truck)) return null;
 			Truck truck = (Truck) row;
@@ -164,6 +182,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			
 			return truckTableModel.data.isCapable(truck, listID, truckTableModel.specialTruckAddons, verbose);
 		};
+	}
+
+	private static String getDLC(Truck truck, TruckTableModel model) {
+		if (truck==null) return null;
+		if (model==null) return null;
+		if (model.truckToDLCAssignments==null) return null;
+		return model.truckToDLCAssignments.get(truck.id);
 	}
 
 	private static Integer getOwnedCount(Truck truck, TruckTableModel model) {
@@ -325,11 +350,12 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			miEnableDLCTrucksHighlighting  .setSelected(enableDLCTrucksHighlighting  );
 		});
 		
-		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
-			@Override public void updateAfterAssignmentsChange() {}
-			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-				TruckTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
-			}
-		});
+		//   why here?  ->  moved into constructor
+		//finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
+		//	@Override public void updateAfterAssignmentsChange() {}
+		//	@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
+		//		TruckTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
+		//	}
+		//});
 	}
 }

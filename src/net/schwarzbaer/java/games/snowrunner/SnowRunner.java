@@ -18,6 +18,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -411,7 +412,7 @@ public class SnowRunner {
 		
 		setLanguage(currentLangID);
 		
-		EnumSet<SpecialTruckAddons.List> emptyLists = EnumSet.noneOf(SpecialTruckAddons.List.class);
+		EnumSet<SpecialTruckAddons.AddonCategory> emptyLists = EnumSet.noneOf(SpecialTruckAddons.AddonCategory.class);
 		specialTruckAddons.foreachList((listID,list)->{
 			int count = list.findIn(data.truckAddons);
 			if (count==0)
@@ -836,9 +837,9 @@ public class SnowRunner {
 		writeRequiredAddonsToDoc(doc, operatorColor, requiredAddonNames, indent);
 	}
 
-	public static String joinAddonIDs(String[] strs) {
-		if (strs==null) return "<null>";
-		if (strs.length==0) return "[]";
+	public static String joinAddonIDs(String[] strs, boolean emptyAndNullReturnsNull) {
+		if (strs==null    ) return emptyAndNullReturnsNull ? null : "<null>";
+		if (strs.length==0) return emptyAndNullReturnsNull ? null : "[]";
 		if (strs.length==1) return strs[0];
 		return Arrays.toString(strs);
 	}
@@ -860,50 +861,50 @@ public class SnowRunner {
 		private static final String ListIDOpeningBracket = "[[";
 
 		public interface Listener {
-			void specialTruckAddOnsHaveChanged(List list, Change change);
+			void specialTruckAddOnsHaveChanged(AddonCategory category, Change change);
 		}
 
 		public enum Change { Added, Removed }
+		public enum AddonType {
+			Addon(addon->!addon.gameData.isCargo),
+			Cargo(addon-> addon.gameData.isCargo),
+			;
+			public final Predicate<TruckAddon> isAllowed;
+			AddonType(Predicate<TruckAddon> isAllowed) { this.isAllowed = isAllowed; }
+		}
 		
-		public enum List {
-			MetalDetectors  ("Metal Detector"  , addon->!addon.gameData.isCargo),
-			SeismicVibrators("Seismic Vibrator", addon->!addon.gameData.isCargo),
-			LogLifts        ("Log Lift"        , addon->!addon.gameData.isCargo),
-			MiniCranes      ("Mini Crane"      , addon->!addon.gameData.isCargo),
-			BigCranes       ("Big Crane"       , addon->!addon.gameData.isCargo),
-			ShortLogs       ("Short Log"       , addon-> addon.gameData.isCargo),
-			MediumLogs      ("Medium Log"      , addon-> addon.gameData.isCargo),
-			LongLogs        ("Long Log"        , addon-> addon.gameData.isCargo),
+		public enum AddonCategory {
+			MetalDetectors  ("Metal Detector"  , AddonType.Addon),
+			SeismicVibrators("Seismic Vibrator", AddonType.Addon),
+			LogLifts        ("Log Lift"        , AddonType.Addon),
+			MiniCranes      ("Mini Crane"      , AddonType.Addon),
+			BigCranes       ("Big Crane"       , AddonType.Addon),
+			ShortLogs       ("Short Log"       , AddonType.Cargo),
+			MediumLogs      ("Medium Log"      , AddonType.Cargo),
+			LongLogs        ("Long Log"        , AddonType.Cargo),
 			;
 			
-			final String label;
+			public final AddonType type;
+			public final String label;
 			public final Predicate<TruckAddon> isAllowed;
-			List(String label, Predicate<TruckAddon> isAllowed) {
+			AddonCategory(String label, AddonType type) {
+				this(label, type, type.isAllowed);
+			}
+			AddonCategory(String label, AddonType type, Predicate<TruckAddon> isAllowed) {
 				this.label = label;
+				this.type = type;
 				this.isAllowed = isAllowed;
 			}
 		}
 
 		private final Listener listenersController;
-		public final SpecialTruckAddonList metalDetectors;
-		public final SpecialTruckAddonList seismicVibrators;
-		public final SpecialTruckAddonList logLifts;
-		public final SpecialTruckAddonList miniCranes;
-		public final SpecialTruckAddonList bigCranes;
-		public final SpecialTruckAddonList shortLogs;
-		public final SpecialTruckAddonList mediumLogs;
-		public final SpecialTruckAddonList longLogs;
+		private final EnumMap<AddonCategory,SpecialTruckAddonList> lists;
 		
 		public SpecialTruckAddons(Listener listenersController) {
 			this.listenersController = listenersController;
-			metalDetectors   = new SpecialTruckAddonList(List.MetalDetectors  );
-			seismicVibrators = new SpecialTruckAddonList(List.SeismicVibrators);
-			logLifts         = new SpecialTruckAddonList(List.LogLifts        );
-			miniCranes       = new SpecialTruckAddonList(List.MiniCranes      );
-			bigCranes        = new SpecialTruckAddonList(List.BigCranes       );
-			shortLogs        = new SpecialTruckAddonList(List.ShortLogs       );
-			mediumLogs       = new SpecialTruckAddonList(List.MediumLogs      );
-			longLogs         = new SpecialTruckAddonList(List.LongLogs        );
+			lists = new EnumMap<>(AddonCategory.class);
+			for (AddonCategory cat : AddonCategory.values())
+				lists.put(cat, new SpecialTruckAddonList(cat));
 			
 			// classes using this expect lists with values 
 			readFromFile();
@@ -923,8 +924,8 @@ public class SnowRunner {
 					if (line.startsWith(ListIDOpeningBracket) && line.endsWith(ListIdClosingBracket)) {
 						valueStr = line.substring(ListIDOpeningBracket.length(), line.length()-ListIdClosingBracket.length());
 						try {
-							List listID = List.valueOf(valueStr);
-							list = getList(listID);
+							AddonCategory listID = AddonCategory.valueOf(valueStr);
+							list = lists.get(listID);
 							if (list==null)
 								throw new IllegalStateException(String.format("Found List ID (\"%s\") with no assigned SpecialTruckAddonList in file \"%s\".", listID, file.getAbsolutePath()));
 						} catch (Exception e) {
@@ -956,9 +957,9 @@ public class SnowRunner {
 				
 				String listIdFormat = String.format("%s%%s%s%%n", ListIDOpeningBracket, ListIdClosingBracket);
 				String valueFormat = String.format("%s%%s%%n", ValuePrefix);
-				for (List list : List.values()) {
+				for (AddonCategory list : AddonCategory.values()) {
 					out.printf(listIdFormat, list.name());
-					SpecialTruckAddonList values = getList(list);
+					SpecialTruckAddonList values = lists.get(list);
 					Vector<String> vec = new Vector<>(values.idList);
 					vec.sort(null);
 					for (String id : vec) out.printf(valueFormat, id);
@@ -973,32 +974,22 @@ public class SnowRunner {
 			}
 		}
 
-		void foreachList(BiConsumer<List,SpecialTruckAddonList> action) {
-			for (List list : List.values())
-				action.accept(list, getList(list));
+		public void foreachList(BiConsumer<AddonCategory,SpecialTruckAddonList> action) {
+			for (AddonCategory category : AddonCategory.values())
+				action.accept(category, lists.get(category));
 		}
 
-		public SpecialTruckAddonList getList(List list) {
-			switch (list) {
-			case MetalDetectors  : return metalDetectors;
-			case SeismicVibrators: return seismicVibrators;
-			case LogLifts        : return logLifts;
-			case MiniCranes      : return miniCranes;
-			case BigCranes       : return bigCranes;
-			case ShortLogs       : return shortLogs ;
-			case MediumLogs      : return mediumLogs;
-			case LongLogs        : return longLogs  ;
-			}
-			return null;
+		public SpecialTruckAddonList getList(AddonCategory category) {
+			return lists.get(category);
 		}
 
 		public class SpecialTruckAddonList {
 			
 			private final HashSet<String> idList;
-			private final List list;
+			private final AddonCategory category;
 
-			SpecialTruckAddonList(List list) {
-				this.list = list;
+			SpecialTruckAddonList(AddonCategory list) {
+				this.category = list;
 				idList = new HashSet<>();
 			}
 
@@ -1006,7 +997,7 @@ public class SnowRunner {
 			public String toString() {
 				Vector<String> sorted = new Vector<>(idList);
 				sorted.sort(null);
-				return String.format("<%s> %s", list, sorted.toString());
+				return String.format("<%s> %s", category, sorted.toString());
 			}
 
 			public void forEach(Consumer<String> action) {
@@ -1038,13 +1029,13 @@ public class SnowRunner {
 			public void remove(TruckAddon addon) {
 				if (addon==null) return;
 				idList.remove(addon.id);
-				listenersController.specialTruckAddOnsHaveChanged(list, Change.Removed);
+				listenersController.specialTruckAddOnsHaveChanged(category, Change.Removed);
 			}
 
 			public void add(TruckAddon addon) {
 				if (addon==null) return;
 				idList.add(addon.id);
-				listenersController.specialTruckAddOnsHaveChanged(list, Change.Added);
+				listenersController.specialTruckAddOnsHaveChanged(category, Change.Added);
 			}
 		}
 		
@@ -1466,7 +1457,7 @@ public class SnowRunner {
 		}
 
 		public static class SpecialTruckAddOnsController extends AbstractController<SpecialTruckAddons.Listener> implements SpecialTruckAddons.Listener {
-			@Override public void specialTruckAddOnsHaveChanged(SpecialTruckAddons.List list, SpecialTruckAddons.Change change) {
+			@Override public void specialTruckAddOnsHaveChanged(SpecialTruckAddons.AddonCategory list, SpecialTruckAddons.Change change) {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).specialTruckAddOnsHaveChanged(list, change);
 			}
