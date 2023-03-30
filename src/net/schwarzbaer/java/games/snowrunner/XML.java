@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Vector;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -22,24 +21,24 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 class XML {
+	
+	interface FixXMLFunction {
+		String fixXML(String rawXML) throws FixXMLException;
+	}
 
-	private static StringReader fixDirtyXML(Function<String, String> fixDirtyXML, InputStream input) {
+	static class FixXMLException extends Exception {
+		private static final long serialVersionUID = -8293945385664767233L;
+		FixXMLException(String msg) { super(msg); }
+		FixXMLException(String format, Object... objects) { super(String.format(format, objects)); }
+		FixXMLException(Throwable cause, String format, Object... objects) { super(String.format(format, objects), cause); }
+	}
+
+	private static StringReader fixXML(FixXMLFunction fixXML, InputStream input) throws FixXMLException {
 		
 		byte[] bytes;
 		try
 		{
 			bytes = input.readAllBytes();
-		//try (
-		//		BufferedInputStream in = new BufferedInputStream(input);
-		//		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		//) {
-		//	byte[] buffer = new byte[100000];
-		//	int n;
-		//	while ( (n=in.read(buffer))>=0 )
-		//		if (n>0) out.write(buffer, 0, n);
-		//	
-		//	bytes = out.toByteArray();
-		//	
 		} catch (IOException e1) {
 			e1.printStackTrace();
 			return null;
@@ -54,17 +53,17 @@ class XML {
 		else
 			string = new String(bytes, StandardCharsets.UTF_8);
 		
-		String fixedXML = fixDirtyXML.apply( string );
+		String fixedXML = fixXML.fixXML( string );
 		
 		return new StringReader(fixedXML);
 	}
 
-	static Document parseUTF8(InputStream input) {
+	static Document parseUTF8(InputStream input) throws FixXMLException {
 		return parseUTF8(input, null);
 	}
-	static Document parseUTF8(InputStream input, Function<String,String> fixDirtyXML) {
-		if (fixDirtyXML != null) {
-			StringReader reader = fixDirtyXML(fixDirtyXML, input);
+	static Document parseUTF8(InputStream input, FixXMLFunction fixXML) throws FixXMLException {
+		if (fixXML != null) {
+			StringReader reader = fixXML(fixXML, input);
 			if (reader==null) return null;
 			return parseReader(reader);
 		} else

@@ -53,7 +53,7 @@ public class SaveGameData {
 			// "CompleteSave1.cfg"
 			if (!name.startsWith(SAVEGAME_PREFIX)) return false;
 			if (!name.  endsWith(SAVEGAME_SUFFIX)) return false;
-			return !name.equals(SAVEGAME_PREFIX+SAVEGAME_SUFFIX);
+			return true; // !name.equals(SAVEGAME_PREFIX+SAVEGAME_SUFFIX); // "CompleteSave.cfg" is also a save file 
 		});
 		for (File file : saveFiles) {
 			JSON_Data.Value<NV, V> value = readJsonFile(file);

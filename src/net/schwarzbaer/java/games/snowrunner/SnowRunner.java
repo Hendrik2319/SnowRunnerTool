@@ -304,7 +304,6 @@ public class SnowRunner {
 	
 	private Data readXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
 		setTask(pd, "Read XMLTemplateStructure");
-		System.out.printf("XMLTemplateStructure.");
 		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
 		if (structure==null) return null;
 		if (Thread.currentThread().isInterrupted()) return null;

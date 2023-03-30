@@ -25,12 +25,12 @@ class PAKReader {
 			}
 			
 			ValueType data = nextParsingStage.parse(zipFile, zipRoot);
-			System.out.printf("... done [readPAK()]%n");
+			System.out.printf("... done%n");
 			return data;
 			
 		} catch (IOException e) { e.printStackTrace(); }
 		
-		System.out.printf("... error [readPAK()]%n");
+		System.out.printf("... done with error%n");
 		return null;
 	}
 	
@@ -57,18 +57,18 @@ class PAKReader {
 			this.folders = this.entry!=null ? null : new HashMap<>();
 			this.files   = this.entry!=null ? null : new HashMap<>();
 			if (this.parent==null) path = name;
-			else path = this.parent.getPath()+"\\"+name;
+			else path = this.parent.path+"\\"+name;
 		}
 		
 		boolean isfile() {
 			return entry!=null;
 		}
 
-		String getPath() {
-			return path;
-			//if (parent==null) return name;
-			//return parent.getPath()+"\\"+name;
-		}
+		//String getPath() {
+		//	return path;
+		//	//if (parent==null) return name;
+		//	//return parent.getPath()+"\\"+name;
+		//}
 
 		void forEachChild(Consumer<ZipEntryTreeNode> action) {
 			files.values().forEach(action);

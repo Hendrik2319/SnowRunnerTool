@@ -269,7 +269,7 @@ public class Data {
 		final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
 
 		void read() {
-			System.out.printf("Read UserDefinedValues from file ...%n");
+			System.out.printf("Read UserDefinedValues from file \"%s\" ...%n", SnowRunner.UserDefinedValuesFile);
 			truckValues.clear();
 			
 			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
@@ -306,7 +306,7 @@ public class Data {
 		}
 		
 		public void write() {
-			System.out.printf("Write UserDefinedValues to file ...%n");
+			System.out.printf("Write UserDefinedValues to file \"%s\" ...%n", SnowRunner.UserDefinedValuesFile);
 			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
 				
 				Vector<String> keys = new Vector<>(truckValues.keySet());

@@ -10,6 +10,8 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -104,12 +106,12 @@ class XMLTemplateStructure {
 
 	private void readGlobalTemplates_(ZipFile zipFile, HashMap<String, Templates> globalTemplates, String templateName, ZipEntryTreeNode fileNode)
 			throws EntryStructureException, IOException, ParseException {
-		//System.out.printf("Read template \"%s\" ...%n", fileNode.getPath());
+		//System.out.printf("Read template \"%s\" ...%n", fileNode.path);
 		
 		NodeList nodes = readXML(zipFile, fileNode);
 		if (nodes==null) {
-			System.err.printf("Can't read xml file \"%s\" --> Templates file will be ignored%n", fileNode.getPath());
-			ignoredFiles.add(fileNode.getPath());
+			System.err.printf("Can't read xml file \"%s\" --> Templates file will be ignored%n", fileNode.path);
+			ignoredFiles.add(fileNode.path);
 			return;
 		}
 		
@@ -119,21 +121,21 @@ class XMLTemplateStructure {
 			if (node.getNodeType()==Node.COMMENT_NODE) {
 				// is Ok, do nothing
 					
-			} else if (isEmptyTextNode(node, ()->String.format("template file \"%s\"", fileNode.getPath()))) {
+			} else if (isEmptyTextNode(node, ()->String.format("template file \"%s\"", fileNode.path))) {
 				// is Ok, do nothing
 				
 			} else if (node.getNodeType()==Node.ELEMENT_NODE) {
 				if (!node.getNodeName().equals("_templates"))
-					throw new ParseException("Found unexpected element node in template file \"%s\": %s", fileNode.getPath(), XML.toDebugString(node));
+					throw new ParseException("Found unexpected element node in template file \"%s\": %s", fileNode.path, XML.toDebugString(node));
 				if (templatesNode!=null)
-					throw new ParseException("Found more than one <_templates> node in template file \"%s\"", fileNode.getPath());
+					throw new ParseException("Found more than one <_templates> node in template file \"%s\"", fileNode.path);
 				templatesNode = node;
 				
 			} else
-				throw new ParseException("Found unexpected node in template file \"%s\": %s", fileNode.getPath(), XML.toDebugString(node));
+				throw new ParseException("Found unexpected node in template file \"%s\": %s", fileNode.path, XML.toDebugString(node));
 		}
 		if (templatesNode==null)
-			throw new ParseException("Found no <_templates> node in template file \"%s\"", fileNode.getPath());
+			throw new ParseException("Found no <_templates> node in template file \"%s\"", fileNode.path);
 		
 		globalTemplates.put(templateName, new Templates(templatesNode, null, fileNode, null));
 		//System.out.printf("... done [read template]%n");
@@ -171,7 +173,7 @@ class XMLTemplateStructure {
 			int n, pos=0;
 			while ( pos<bytes.length && (n=in.read(bytes,pos,bytes.length-pos))>=0 ) pos += n;
 			if (pos<bytes.length) bytes = Arrays.copyOfRange(bytes, 0, pos);
-			System.err.printf("First %d bytes of file \"%s\":%n  %s%n", bytes.length, fileNode.getPath(), toHexString(bytes));
+			System.err.printf("First %d bytes of file \"%s\":%n  %s%n", bytes.length, fileNode.path, toHexString(bytes));
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
@@ -191,32 +193,32 @@ class XMLTemplateStructure {
 		if (zipFile ==null) throw new IllegalArgumentException();
 		if (fileNode==null) throw new IllegalArgumentException();
 		if (!fileNode.isfile())
-			throw new EntryStructureException("Given ZipEntryTreeNode isn't a file: %s", fileNode.getPath());
+			throw new EntryStructureException("Given ZipEntryTreeNode isn't a file: %s", fileNode.path);
 		if (!fileNode.name.endsWith(".xml"))
-			throw new EntryStructureException("Found a Non XML File: %s", fileNode.getPath());
+			throw new EntryStructureException("Found a Non XML File: %s", fileNode.path);
 		
 		try {
-			return readXML(zipFile.getInputStream(fileNode.entry));
+			return readXML(zipFile.getInputStream(fileNode.entry), fileNode.path);
 		} catch (ParseException e) {
-			System.err.printf("ParseException while basic reading of \"%s\":%n   %s%n", fileNode.getPath(), e.getMessage());
+			System.err.printf("ParseException while basic reading of \"%s\":%n   %s%n", fileNode.path, e.getMessage());
 			return null;
 		}
 	}
 	
-	private static NodeList readXML(InputStream input) throws ParseException {
-		Document doc = XML.parseUTF8(input,content->String.format("<%1$s>%2$s</%1$s>", "BracketNode", content));
-		if (doc==null) return null;
-		Node bracketNode = null;
-		for (Node node : XML.makeIterable(doc.getChildNodes())) {
-			if (node.getNodeType() != Node.ELEMENT_NODE)
-				throw new ParseException("Found unexpected node in read XML document: wrong node type");
-			if (!node.getNodeName().equals("BracketNode"))
-				throw new ParseException("Found unexpected node in read XML document: node name != <BracketNode>");
-			bracketNode = node;
+	private static NodeList readXML(InputStream input, String filePath) throws ParseException {
+		Document doc;
+		try
+		{
+			doc = XML.parseUTF8(input,content->{
+				KnownBugs knownBugs = KnownBugs.getInstance();
+				content = knownBugs.fixRawXML(content, filePath);
+				content = knownBugs.addBracketNode(content);
+				return content;
+			});
 		}
-		if (bracketNode==null)
-			throw new ParseException("Found no <BracketNode> in read XML document");
-		return bracketNode.getChildNodes();
+		catch (XML.FixXMLException e) { throw new ParseException(e); }
+		if (doc==null) return null;
+		return KnownBugs.getInstance().removeBracketNode(doc, filePath);
 	}
 	
 	private static class ClassStructur {
@@ -233,23 +235,23 @@ class XMLTemplateStructure {
 		
 		private static void scanDLCs(HashMap<String, StructClass> classes, ZipEntryTreeNode dlcsFolder) throws EntryStructureException {
 			if ( dlcsFolder==null) throw new EntryStructureException("No DLCs folder");
-			if (!dlcsFolder.files  .isEmpty()) throw new EntryStructureException("Found unexpected files in DLCs folder \"%s\"", dlcsFolder.getPath());
-			if ( dlcsFolder.folders.isEmpty()) throw new EntryStructureException("Found no DLC folders in DLCs folder \"%s\"", dlcsFolder.getPath());
+			if (!dlcsFolder.files  .isEmpty()) throw new EntryStructureException("Found unexpected files in DLCs folder \"%s\"", dlcsFolder.path);
+			if ( dlcsFolder.folders.isEmpty()) throw new EntryStructureException("Found no DLC folders in DLCs folder \"%s\"", dlcsFolder.path);
 			
 			for (ZipEntryTreeNode dlcNode:dlcsFolder.folders.values()) {
 				String dlcName = dlcNode.name;
-				if (!dlcNode.files.isEmpty()) throw new EntryStructureException("Found unexpected files in DLC folder \"%s\"", dlcNode.getPath());
+				if (!dlcNode.files.isEmpty()) throw new EntryStructureException("Found unexpected files in DLC folder \"%s\"", dlcNode.path);
 				
 				ZipEntryTreeNode classesFolder = null;
 				for (ZipEntryTreeNode subFolder:dlcNode.folders.values()) {
 					if (!subFolder.name.equals("classes"))
-						throw new EntryStructureException("Found unexpected folder (\"%s\") in DLC folder \"%s\"", subFolder.name, dlcNode.getPath());
+						throw new EntryStructureException("Found unexpected folder (\"%s\") in DLC folder \"%s\"", subFolder.name, dlcNode.path);
 					if (classesFolder != null)
-						throw new EntryStructureException("Found dublicate \"classes\" folder in DLC folder \"%s\"", dlcNode.getPath());
+						throw new EntryStructureException("Found dublicate \"classes\" folder in DLC folder \"%s\"", dlcNode.path);
 					classesFolder = subFolder;
 				}
 				if (classesFolder == null)
-					throw new EntryStructureException("Found no \"classes\" folder in DLC folder \"%s\"", dlcNode.getPath());
+					throw new EntryStructureException("Found no \"classes\" folder in DLC folder \"%s\"", dlcNode.path);
 				
 				scanClasses(classes,dlcName, classesFolder);
 			}
@@ -257,8 +259,8 @@ class XMLTemplateStructure {
 	
 		private static void scanClasses(HashMap<String, StructClass> classes, String dlc, ZipEntryTreeNode classesFolder) throws EntryStructureException {
 			if ( classesFolder==null) throw new EntryStructureException("No classes folder");
-			if (!classesFolder.files  .isEmpty()) throw new EntryStructureException("Found unexpected files in classes folder \"%s\"", classesFolder.getPath());
-			if ( classesFolder.folders.isEmpty()) throw new EntryStructureException("Found no sub folders in classes folder \"%s\"", classesFolder.getPath());
+			if (!classesFolder.files  .isEmpty()) throw new EntryStructureException("Found unexpected files in classes folder \"%s\"", classesFolder.path);
+			if ( classesFolder.folders.isEmpty()) throw new EntryStructureException("Found no sub folders in classes folder \"%s\"", classesFolder.path);
 			
 			for (ZipEntryTreeNode classFolder : classesFolder.folders.values()) {
 				String className = classFolder.name;
@@ -270,8 +272,8 @@ class XMLTemplateStructure {
 		
 		private static void scanClass(StructClass class_, String dlc, ZipEntryTreeNode classFolder) throws EntryStructureException {
 			for (ZipEntryTreeNode subClassFolder : classFolder.folders.values()) {
-				if (!subClassFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in sub class folder \"%s\"", subClassFolder.getPath());
-				if ( subClassFolder.files  .isEmpty()) throw new EntryStructureException("Found no item files in sub class folder \"%s\"", subClassFolder.getPath());
+				if (!subClassFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in sub class folder \"%s\"", subClassFolder.path);
+				if ( subClassFolder.files  .isEmpty()) throw new EntryStructureException("Found no item files in sub class folder \"%s\"", subClassFolder.path);
 				
 				scanItems(class_, dlc, subClassFolder.name, subClassFolder);
 			}
@@ -284,21 +286,21 @@ class XMLTemplateStructure {
 				String itemName = getXmlItemName(itemFile);
 				StructItem otherItem = class_.items.get(itemName);
 				if (otherItem!=null)
-					throw new EntryStructureException("Found more than one item file with name \"%s\" in class folder \"%s\"", itemName, folder.getPath());
+					throw new EntryStructureException("Found more than one item file with name \"%s\" in class folder \"%s\"", itemName, folder.path);
 				class_.items.put(itemName, new StructItem(dlc, class_.className, subClassName, itemName, itemFile));
 			}
 		}
 
 		private static HashMap<String,ZipEntryTreeNode> scanTemplates(ZipEntryTreeNode templatesFolder) throws EntryStructureException {
 			if ( templatesFolder==null) throw new EntryStructureException("No templates folder");
-			if (!templatesFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in templates folder \"%s\"", templatesFolder.getPath());
-			if ( templatesFolder.files  .isEmpty()) throw new EntryStructureException("Found no files in templates folder \"%s\"", templatesFolder.getPath());
+			if (!templatesFolder.folders.isEmpty()) throw new EntryStructureException("Found unexpected folders in templates folder \"%s\"", templatesFolder.path);
+			if ( templatesFolder.files  .isEmpty()) throw new EntryStructureException("Found no files in templates folder \"%s\"", templatesFolder.path);
 			
 			HashMap<String,ZipEntryTreeNode> templates = new HashMap<>();
 			for (ZipEntryTreeNode templatesNode:templatesFolder.files.values()) {
 				String itemName = getXmlItemName(templatesNode);
 				if (templates.containsKey(itemName))
-					throw new EntryStructureException("Found more than one templates file with name \"%s\" in templates folder \"%s\"", itemName, templatesFolder.getPath());
+					throw new EntryStructureException("Found more than one templates file with name \"%s\" in templates folder \"%s\"", itemName, templatesFolder.path);
 				templates.put(itemName, templatesNode);
 			}
 			return templates;
@@ -306,7 +308,7 @@ class XMLTemplateStructure {
 	
 		private static String getXmlItemName(ZipEntryTreeNode node) throws EntryStructureException {
 			if (!node.name.endsWith(".xml"))
-				throw new EntryStructureException("Found a Non XML File: %s", node.getPath());
+				throw new EntryStructureException("Found a Non XML File: %s", node.path);
 			return node.name.substring(0, Math.max(0, node.name.length()-".xml".length()));
 		}
 	
@@ -336,7 +338,7 @@ class XMLTemplateStructure {
 				this.subClassName = subClassName;
 				this.itemName = itemName;
 				this.itemFile = itemFile;
-				this.itemFilePath = itemFile.getPath();
+				this.itemFilePath = itemFile.path;
 			}
 			
 		}
@@ -423,12 +425,12 @@ class XMLTemplateStructure {
 			if (parentFile==null) return;
 			
 			String filename = parentFile+".xml";
-			String itemPath = itemFile.getPath();
+			String itemPath = itemFile.path;
 			
 			Vector<String> possibleParents = new Vector<>();
 			contentRootFolder.traverseFiles(node->{
 				if (node.name.equalsIgnoreCase(filename))
-					possibleParents.add(node.getPath());
+					possibleParents.add(node.path);
 			});
 			if (possibleParents.isEmpty())
 				System.err.printf("Can't find parent \"%s\" for item \"%s\"%n", parentFile, itemPath);
@@ -448,27 +450,27 @@ class XMLTemplateStructure {
 			HashMap<String,ZipEntryTreeNode> fileNames = new HashMap<>();
 			contentRootFolder.traverseFiles(fileNode->{
 				
-				//if (fileNode.getPath().equals("\\[media]\\classes\\trucks\\step_310e.xml"))
+				//if (fileNode.path.equals("\\[media]\\classes\\trucks\\step_310e.xml"))
 				//	showBytes(zipFile, fileNode, 30);
 			
 				// all files are XML
 				if (!fileNode.name.endsWith(".xml"))
-					System.err.printf("Found a Non XML File: %s%n", fileNode.getPath());
+					System.err.printf("Found a Non XML File: %s%n", fileNode.path);
 				
 				// dublicate filenames
 				//ZipEntryTreeNode existingNode = fileNames.get(fileNode.name);
 				//if (existingNode!=null)
-				//	System.err.printf("Found dublicate filenames:%n   \"%s\"%n   \"%s\"%n", existingNode.getPath(), fileNode.getPath());
+				//	System.err.printf("Found dublicate filenames:%n   \"%s\"%n   \"%s\"%n", existingNode.path, fileNode.path);
 				//else
 				//	fileNames.put(fileNode.name,fileNode);
 			});
 			
 			contentRootFolder.forEachChild(node->{
 				if (node.isfile())
-					System.err.printf("Found a File in content root folder: %s%n", node.getPath());
+					System.err.printf("Found a File in content root folder: %s%n", node.path);
 				else {
 					if (!node.name.equals("_dlc") && !node.name.equals("_templates") && !node.name.equals("classes"))
-						System.err.printf("Found a unexpected subfolder in content root folder: %s%n", node.getPath());
+						System.err.printf("Found a unexpected subfolder in content root folder: %s%n", node.path);
 				}
 			});
 		}
@@ -521,6 +523,8 @@ class XMLTemplateStructure {
 		private static final long serialVersionUID = 7047000831781614584L;
 		ParseException(String msg) { super(msg); }
 		ParseException(String format, Object... objects) { super(String.format(format, objects)); }
+		ParseException(Throwable cause, String format, Object... objects) { super(String.format(format, objects), cause); }
+		ParseException(Throwable cause) { super(cause); }
 	}
 
 	private static void throwParseException(boolean throwException, String format, Object... objects) throws ParseException {
@@ -580,7 +584,11 @@ class XMLTemplateStructure {
 				blockedItems.add(structItem.itemFilePath);
 				
 				Item item = Item.read(zipFile, structItem, globalTemplates, this);
-				if (item == null) ignoredFiles.add(structItem.itemFilePath);
+				if (item == null)
+				{
+					if (!KnownBugs.getInstance().hideIgnoredFile(structItem.itemFilePath))
+						ignoredFiles.add(structItem.itemFilePath);
+				}
 				else loadedItems.put(structItem.itemName, item);
 				
 				blockedItems.remove(structItem.itemFilePath);
@@ -622,7 +630,7 @@ class XMLTemplateStructure {
 				if (structItem==null) throw new IllegalArgumentException();
 				if (!structItem.itemFile.isfile()) throw new IllegalStateException();
 				
-				//System.out.printf("Read Item \"%s\" ...%n", itemFile.getPath());
+				//System.out.printf("Read Item \"%s\" ...%n", itemFile.path);
 				
 				if (KnownBugs.getInstance().isKnownWrongClassFile_ignore(structItem))
 					return null;
@@ -712,7 +720,7 @@ class XMLTemplateStructure {
 				try {
 					content = new GenericXmlNode(null, contentNode, localTemplates, parentItem==null ? null : parentItem.content, GenericXmlNode.Source.create(structItem.itemFile));
 				} catch (InheritRemoveException e) {
-					throw new ParseException("Found unexpected attribute (\"%s\") in content node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, structItem.itemFile.getPath());
+					throw new ParseException("Found unexpected attribute (\"%s\") in content node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, structItem.itemFile.path);
 				}
 			}
 			
@@ -800,11 +808,11 @@ class XMLTemplateStructure {
 				return null;
 			
 			if (globalTemplates==null)
-				throw new ParseException("Found \"Include\" attribute (\"%s\") in <_templates> node in file \"%s\" but no globalTemplates are defined", includeFile, sourceFile.getPath());
+				throw new ParseException("Found \"Include\" attribute (\"%s\") in <_templates> node in file \"%s\" but no globalTemplates are defined", includeFile, sourceFile.path);
 			
 			Templates includedTemplates = globalTemplates.get(includeFile);
 			if (includedTemplates==null && expectingExistance)
-				throw new EntryStructureException("Can't find templates to include (\"%s\") in <_templates> node in file \"%s\"", includeFile, sourceFile.getPath());
+				throw new EntryStructureException("Can't find templates to include (\"%s\") in <_templates> node in file \"%s\"", includeFile, sourceFile.path);
 			
 			return includedTemplates;
 		}
@@ -823,7 +831,7 @@ class XMLTemplateStructure {
 			if (!listNode.getNodeName().equals(originalNodeName)) throw new IllegalStateException();
 			if (listNode.getNodeType()!=Node.ELEMENT_NODE) throw new IllegalStateException();
 			if (listNode.hasAttributes())
-				throw new ParseException("Found unexpected attriutes in template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFile.getPath());
+				throw new ParseException("Found unexpected attriutes in template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFile.path);
 			
 			NodeList childNodes = listNode.getChildNodes();
 			HashMap<String, Node> templateNodes = new HashMap<>();
@@ -831,19 +839,20 @@ class XMLTemplateStructure {
 				if (node.getNodeType()==Node.COMMENT_NODE) {
 					// is Ok, do nothing
 						
-				} else if (isEmptyTextNode(node, ()->String.format("template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFile.getPath()))) {
+				} else if (isEmptyTextNode(node, ()->String.format("template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFile.path))) {
 					// is Ok, do nothing
 					
 				} else if (node.getNodeType()==Node.ELEMENT_NODE) {
 					String templateName = node.getNodeName();
 					Node existingTemplate = templateNodes.get(templateName);
 					if (existingTemplate!=null)
-						throwParseException(false,"Found more than one template with name \"%s\" for node name \"%s\" in <_templates> node in file \"%s\" --> new template ignored", templateName, originalNodeName, sourceFile.getPath());
+						// throwParseException(false,"Found more than one template with name \"%s\" for node name \"%s\" in <_templates> node in file \"%s\" --> new template ignored", templateName, originalNodeName, sourceFile.path);
+						; // replace existing one
 					else
 						templateNodes.put(templateName, node);
 					
 				} else
-					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFile.getPath(), XML.toDebugString(node));
+					throw new ParseException("Found unexpected node in <_templates> node in file \"%s\": %s", sourceFile.path, XML.toDebugString(node));
 			}
 			
 			new TemplateLoader(templates, templateNodes, originalNodeName, templatesList, sourceFile).load();
@@ -897,7 +906,7 @@ class XMLTemplateStructure {
 				if (otherNode==null) return null;
 				
 				if (blockedNodes.contains(templateName))
-					throw new ParseException("Found _template cycle (\"%s\") in <_templates> node in file \"%s\"", templateName, sourceFile.getPath());
+					throw new ParseException("Found _template cycle (\"%s\") in <_templates> node in file \"%s\"", templateName, sourceFile.path);
 				
 				return addNewTemplate(otherNode, templateName);
 			}
@@ -913,7 +922,7 @@ class XMLTemplateStructure {
 			try {
 				template = new GenericXmlNode(null, originalNodeName, node, ti, null, GenericXmlNode.Source.create(sourceFile));
 			} catch (InheritRemoveException e) {
-				throw new ParseException("Found unexpected attribute (\"%s\") in <_templates> node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, sourceFile.getPath());
+				throw new ParseException("Found unexpected attribute (\"%s\") in <_templates> node in file \"%s\"", GenericXmlNode.ATTR_INHERIT_REMOVE, sourceFile.path);
 			}
 			templatesList.put(templateName, template);
 			return template;
@@ -923,18 +932,18 @@ class XMLTemplateStructure {
 			if (node==null) return null;
 			if (!node.getNodeName().equals("_templates")) throw new IllegalStateException();
 			//if (node.getChildNodes().getLength()!=0)
-			//	throw new ParseException("Found unexpected child nodes in <_templates> node in file \"%s\"", file.getPath());
+			//	throw new ParseException("Found unexpected child nodes in <_templates> node in file \"%s\"", file.path);
 			
 			NamedNodeMap attributes = node.getAttributes();
 			
 			String includeFile = null;
 			for (Node attrNode : XML.makeIterable(attributes)) {
 				if (!attrNode.getNodeName().equals("Include"))
-					throw new ParseException("Found unexpected attribute (\"%s\") in <_templates> node in file \"%s\"", attrNode.getNodeName(), file.getPath());
+					throw new ParseException("Found unexpected attribute (\"%s\") in <_templates> node in file \"%s\"", attrNode.getNodeName(), file.path);
 				includeFile = attrNode.getNodeValue();
 			}
 			//if (includeFile == null)
-			//	throw new ParseException("Can't find \"Include\" attribute in <_templates> node in item file \"%s\"", file.getPath());
+			//	throw new ParseException("Can't find \"Include\" attribute in <_templates> node in item file \"%s\"", file.path);
 			
 			return includeFile;
 		}
@@ -1154,7 +1163,7 @@ class XMLTemplateStructure {
 			interface Source {
 				String getFilePath();
 				static Source create(ZipEntryTreeNode sourceFile) {
-					return ()->sourceFile.getPath();
+					return ()->sourceFile.path;
 				}
 			}
 	
@@ -1202,10 +1211,15 @@ class XMLTemplateStructure {
 	static class KnownBugs {
 		private static KnownBugs instance = null;
 		private boolean hideKnownBugs;
+		private final HashMap<String, XMLfix> xmlFixes;
+		private final MessageDigest md5;
 		
 		KnownBugs()
 		{
+			try { md5 = MessageDigest.getInstance("MD5"); }
+			catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
 			hideKnownBugs = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.XML_HideKnownBugs, false);
+			xmlFixes = defineXMLfixes(this);
 		}
 		
 		static KnownBugs getInstance()
@@ -1226,25 +1240,36 @@ class XMLTemplateStructure {
 			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.XML_HideKnownBugs, this.hideKnownBugs);
 		}
 
+		boolean hideIgnoredFile(String filePath)
+		{
+			if (hideKnownBugs)
+			{
+				// Known Wrong Class Files
+				for (String knownFilePath : knownWrongClassFiles)
+					if (knownFilePath.equals(filePath))
+						return true;
+			}
+			return false;
+		}
+
+		private static String[] knownWrongClassFiles = new String[] {
+			"\\[media]\\_dlc\\dlc_6\\classes\\engines\\e_un_truck_heavy_boarpac.xml",
+			"\\[media]\\classes\\trucks\\cargo\\cargo_wooden_planks_04.xml",
+			"\\[media]\\classes\\trucks\\cargo\\cargo_wooden_planks_02.xml",
+		};
+
 		boolean isKnownWrongClassFile_ignore(ClassStructur.StructItem structItem)
 		{
 			if (structItem         ==null) throw new IllegalArgumentException();
 			if (structItem.itemFile==null) throw new IllegalArgumentException();
 			
-			if ("engines".equals(structItem.className) && "e_un_truck_heavy_boarpac.xml".equals(structItem.itemFile.name))
-			{
-				if (!hideKnownBugs)
-					System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
-				return true;
-			}
-			if ("trucks".equals(structItem.className) && "cargo".equals(structItem.subClassName) &&
-				(   "cargo_wooden_planks_02.xml".equals(structItem.itemFile.name) ||
-					"cargo_wooden_planks_04.xml".equals(structItem.itemFile.name) ) )
-			{
-				if (!hideKnownBugs)
-					System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
-				return true;
-			}
+			for (String knownFilePath : knownWrongClassFiles)
+				if (knownFilePath.equals(structItem.itemFilePath))
+				{
+					if (!hideKnownBugs)
+						System.err.printf("\"%s\" is a known wrong file --> Item will be ignored%n", structItem.itemFilePath);
+					return true;
+				}
 			return false;
 		}
 
@@ -1317,7 +1342,7 @@ class XMLTemplateStructure {
 			return false;
 		}
 
-		public Node fixWrongParentNodePlacing_OutsideTemplates(Node parentNode, WrongParentNodePlacingWorkaround wpnpWorkaround, String filePath) throws ParseException
+		Node fixWrongParentNodePlacing_OutsideTemplates(Node parentNode, WrongParentNodePlacingWorkaround wpnpWorkaround, String filePath) throws ParseException
 		{
 			if (wpnpWorkaround.parentNode!=null) {
 				if (parentNode!=null)
@@ -1327,6 +1352,172 @@ class XMLTemplateStructure {
 				return wpnpWorkaround.parentNode;
 			}
 			return parentNode;
+		}
+
+		String addBracketNode(String rawXML)
+		{
+			return String.format("<%1$s>%2$s</%1$s>", "BracketNode", rawXML);
+		}
+
+		NodeList removeBracketNode(Document doc, String filePath) throws ParseException
+		{
+			Node bracketNode = null;
+			for (Node node : XML.makeIterable(doc.getChildNodes())) {
+				if (node.getNodeType() != Node.ELEMENT_NODE)
+					throw new ParseException("Found unexpected node in read file \"%s\": wrong node type", filePath);
+				if (!node.getNodeName().equals("BracketNode"))
+					throw new ParseException("Found unexpected node in read file \"%s\": node name != <BracketNode>", filePath);
+				bracketNode = node;
+			}
+			if (bracketNode==null)
+				throw new ParseException("Found no <BracketNode> in read file \"%s\"", filePath);
+			return bracketNode.getChildNodes();
+		}
+
+		String fixRawXML(String rawXML, String filePath) throws XML.FixXMLException
+		{
+			XMLfix xmLfix = xmlFixes.get(filePath);
+			if (xmLfix!=null)
+			{
+				String hash = computeHash(rawXML, filePath);
+				if (hash.equals(xmLfix.expectedHash))
+					try { rawXML = xmLfix.fixXML.fixXML(rawXML); }
+					catch (XML.FixXMLException e) { throw new XML.FixXMLException(e, "Exception while fixing known bug in XML: "+e.getMessage()); }
+				else
+				{
+					System.out.printf("###  Found a file with an expected XML bug, but file content has another hash than expected:%n");
+					System.out.printf("   file: \"%s\"%n", filePath);
+					System.out.printf("   expected hash: %s%n", xmLfix.expectedHash);
+					System.out.printf("        new hash: %s%n", hash);
+				}
+			}
+			return rawXML;
+		}
+		
+		private String computeHash(String rawXML, String filePath)
+		{
+			md5.reset();
+			byte[] digest = md5.digest(rawXML.getBytes(StandardCharsets.UTF_8));
+			StringBuilder sb = new StringBuilder();
+			for (byte b : digest) sb.append(String.format("%02X", b));
+			return sb.toString();
+		}
+
+		private record XMLfix(String filePath, String expectedHash, XML.FixXMLFunction fixXML)
+		{
+			static void add(HashMap<String,XMLfix> fixes, String filePath, String expectedHash, XML.FixXMLFunction fixXML)
+			{
+				fixes.put(filePath, new XMLfix(filePath, expectedHash, fixXML));
+			}
+
+			static String remove(String rawXML, String string) throws XML.FixXMLException
+			{
+				if (string.isEmpty()) throw new IllegalArgumentException();
+				int pos = rawXML.indexOf(string);
+				if (pos<0) throw new XML.FixXMLException("Can't find string \"%s\" to remove.", string);
+				return rawXML.substring(0, pos) + rawXML.substring(pos+string.length());
+			}
+
+			static String replace(String rawXML, String oldString, String newString) throws XML.FixXMLException
+			{
+				if (oldString.isEmpty()) throw new IllegalArgumentException();
+				int pos = rawXML.indexOf(oldString);
+				if (pos<0) throw new XML.FixXMLException("Can't find string \"%s\" to replace.", oldString);
+				return rawXML.substring(0, pos) + newString + rawXML.substring(pos+oldString.length());
+			}
+		};
+
+		static HashMap<String,XMLfix> defineXMLfixes(KnownBugs knownBugs)
+		{
+			HashMap<String, XMLfix> fixes = new HashMap<>();
+			XMLfix.add(fixes,
+				// 8:27: Attribut "AllowHiddenExtrudes" wurde bereits für Element "MaterialType" angegeben.
+				"\\[media]\\_dlc\\us_09\\classes\\terrain_layers\\grass_burnt.xml",
+				"205BBCFFA529012C5A9F37FEBACF3AF5",
+				rawXML -> XMLfix.remove(rawXML,"AllowHiddenExtrudes=\"0.25\"")
+			);
+			XMLfix.add(fixes,
+				// 17:24: Attribut "IsSnowParticles" wurde bereits für Element "MaterialType" angegeben.
+				"\\[media]\\_dlc\\us_04\\classes\\terrain_layers\\snow_spring.xml",
+				"04208A31FECEEF2E9ADE972577FD1746",
+				rawXML -> XMLfix.remove(rawXML,"IsSnowParticles=\"true\"")
+			);
+			XMLfix.add(fixes,
+				// 4:37: Attribut "NightLightingShadowsAllowCap" wurde bereits für Element "ModelBrand" angegeben.
+				"\\[media]\\_dlc\\us_09\\classes\\models\\big_watchtower_us_09_objective.xml",
+				"731287C1B4218531DFA3A856CFF32D93",
+				rawXML -> XMLfix.remove(rawXML,"NightLightingShadowsAllowCap=\"true\"")
+			);
+			XMLfix.add(fixes,
+				// 4:37: Attribut "NightLightingShadowsAllowCap" wurde bereits für Element "ModelBrand" angegeben.
+				"\\[media]\\_dlc\\us_09\\classes\\models\\car_service_us_09_objective.xml",
+				"9F4E7DC49B1D015F4DFA75A59D041B1D",
+				rawXML -> XMLfix.remove(rawXML,"NightLightingShadowsAllowCap=\"true\"")
+			);
+			XMLfix.add(fixes,
+				// 9:101: Attribut "AngularDamping" wurde bereits für Element "Body" angegeben.
+				"\\[media]\\_dlc\\ru_08\\classes\\models\\scarecrow_ru08.xml",
+				"1F21DDE722C70292D1DCAA90A4EE5B49",
+				rawXML -> {
+					rawXML = XMLfix.remove(rawXML,"AngularDamping=\"0.1\" ");
+					rawXML = XMLfix.remove(rawXML,"AngularDamping=\"0.1\" ");
+					rawXML = XMLfix.remove(rawXML,"AngularDamping=\"0.1\" ");
+					return rawXML;
+				}
+			);
+			XMLfix.add(fixes,
+				// 42:21: Attribut "BloomEnabled" wurde bereits für Element "DayTimeState" angegeben.
+				"\\[media]\\_dlc\\us_03\\classes\\daytimes\\night_us_03.xml",
+				"6A06E21EAD17176873BE005C2C080568",
+				rawXML -> {
+					rawXML = XMLfix.remove(rawXML,"BloomEnabled=\"true\"");
+					rawXML = XMLfix.remove(rawXML,"BloomPoint=\"0.3\"");
+					return rawXML;
+				}
+			);
+			XMLfix.add(fixes,
+				// 42:21: Attribut "BloomEnabled" wurde bereits für Element "DayTimeState" angegeben.
+				"\\[media]\\classes\\daytimes\\night_ru_02.xml",
+				"04CFE749A42B06C2E68DC865BEF43D48",
+				rawXML -> {
+					rawXML = XMLfix.remove(rawXML,"BloomEnabled=\"true\"");
+					rawXML = XMLfix.remove(rawXML,"BloomPoint=\"0.3\"");
+					return rawXML;
+				}
+			);
+			XMLfix.add(fixes,
+				// 67:3: Elementtyp "Cloud" muss mit dem entsprechenden Endtag "</Cloud>" beendet werden.
+				"\\[media]\\classes\\skies\\sky_us_01_ttt.xml",
+				"6FF498012FD5A59D2A1CC1B5EA7523D1",
+				rawXML -> XMLfix.replace(rawXML, "<Cloud/>", "</Cloud>")
+			);
+			XMLfix.add(fixes,
+				// 12:183: Attribut "AngularSpeed" wurde bereits für Element "DayTimeOverride" angegeben.
+				"\\[media]\\classes\\skies\\sky_ru_02.xml",
+				"3C2AFD664BF532475EC6B52B1643347D",
+				rawXML -> XMLfix.replace(rawXML, "AngularSpeed=\"0.3\" AngularSpeed=\"0.2\"", "AngularSpeed=\"0.2\"")
+			);
+			XMLfix.add(fixes,
+				// 12:183: Attribut "AngularSpeed" wurde bereits für Element "DayTimeOverride" angegeben.
+				"\\[media]\\_dlc\\us_03\\classes\\skies\\sky_us_03.xml",
+				"2C0A014D4DCF31DFBC4EACAE8F933F30",
+				rawXML -> XMLfix.replace(rawXML, "AngularSpeed=\"0.3\" AngularSpeed=\"0.2\"", "AngularSpeed=\"0.2\"")
+			);
+			XMLfix.add(fixes,
+				// 13:183: Attribut "AngularSpeed" wurde bereits für Element "DayTimeOverride" angegeben.
+				"\\[media]\\_dlc\\us_07\\classes\\skies\\sky_us_07.xml",
+				"336F29856CB86FA9D07736CCAD547A71",
+				rawXML -> XMLfix.replace(rawXML, "AngularSpeed=\"0.3\" AngularSpeed=\"0.2\"", "AngularSpeed=\"0.2\"")
+			);
+			
+			// some code fixes
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\us_06\\classes\\grass\\grass_tall_spring_b.xml",
+				"1957EBDEF8D587A8FAFCBFF706A2240E",
+				rawXML -> XMLfix.remove(rawXML, " _template=\"SmallTree\"")
+			);
+			
+			return fixes;
 		}
 	}
 }
