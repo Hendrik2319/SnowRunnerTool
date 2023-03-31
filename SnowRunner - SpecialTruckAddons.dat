@@ -1,17 +1,17 @@
-[[MetalDetectors]]
+[[MetalDetector]]
 $ frame_addon_metal_detector
 
-[[SeismicVibrators]]
+[[SeismicVibrator]]
 $ frame_addon_seismic_vibrator
 $ frame_seismic_vibrator_zikz_605r
 
-[[LogLifts]]
+[[LogLift]]
 $ crane_aramatsu_forester
 $ crane_loglift
 $ crane_loglift_cat_ct681
 $ crane_loglift_zikz_605r
 
-[[MiniCranes]]
+[[MiniCrane]]
 $ crane_krs_58_bandit
 $ minicrane_ru
 $ minicrane_ru_zikz_605r
@@ -20,7 +20,7 @@ $ minicrane_us_loadstar
 $ minicrane_us_navistar
 $ tatra_crane
 
-[[BigCranes]]
+[[BigCrane]]
 $ big_crane_ru
 $ big_crane_us
 $ big_crane_us_ws4964

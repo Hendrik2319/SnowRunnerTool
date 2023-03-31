@@ -411,15 +411,15 @@ public class SnowRunner {
 		
 		setLanguage(currentLangID);
 		
-		EnumSet<SpecialTruckAddons.AddonCategory> emptyLists = EnumSet.noneOf(SpecialTruckAddons.AddonCategory.class);
+		EnumSet<SpecialTruckAddons.AddonCategory> idsOfEmptyLists = EnumSet.noneOf(SpecialTruckAddons.AddonCategory.class);
 		specialTruckAddons.foreachList((listID,list)->{
 			int count = list.findIn(data.truckAddons);
 			if (count==0)
-				emptyLists.add(listID);
+				idsOfEmptyLists.add(listID);
 		});
 		
-		if (!emptyLists.isEmpty()) {
-			Iterable<String> it = ()->emptyLists.stream().<String>map(listID->listID.label.toLowerCase()+"s").sorted().iterator();
+		if (!idsOfEmptyLists.isEmpty()) {
+			Iterable<String> it = ()->idsOfEmptyLists.stream().<String>map(listID->listID.label.toLowerCase()).sorted().iterator();
 			String missingObjects = String.join(" or ", it);
 			String message = wrapWords(65, "Their are no special TruckAddons like " + missingObjects + " defined or found in loaded data. Please select these via context menu in any TruckAddon table.");
 			JOptionPane.showMessageDialog(mainWindow, message, "Please define special TruckAddons", JOptionPane.INFORMATION_MESSAGE);
@@ -865,22 +865,22 @@ public class SnowRunner {
 
 		public enum Change { Added, Removed }
 		public enum AddonType {
-			Addon(addon->!addon.gameData.isCargo),
-			Cargo(addon-> addon.gameData.isCargo),
+			Addon        (addon->!addon.gameData.isCargo),
+			LoadAreaCargo(addon-> addon.gameData.isCargo),
 			;
 			public final Predicate<TruckAddon> isAllowed;
 			AddonType(Predicate<TruckAddon> isAllowed) { this.isAllowed = isAllowed; }
 		}
 		
 		public enum AddonCategory {
-			MetalDetectors  ("Metal Detector"  , AddonType.Addon),
-			SeismicVibrators("Seismic Vibrator", AddonType.Addon),
-			LogLifts        ("Log Lift"        , AddonType.Addon),
-			MiniCranes      ("Mini Crane"      , AddonType.Addon),
-			BigCranes       ("Big Crane"       , AddonType.Addon),
-			ShortLogs       ("Short Log"       , AddonType.Cargo),
-			MediumLogs      ("Medium Log"      , AddonType.Cargo),
-			LongLogs        ("Long Log"        , AddonType.Cargo),
+			MetalDetector  ("Metal Detector"  , AddonType.Addon),
+			SeismicVibrator("Seismic Vibrator", AddonType.Addon),
+			LogLift        ("Log Lift"        , AddonType.Addon),
+			MiniCrane      ("Mini Crane"      , AddonType.Addon),
+			BigCrane       ("Big Crane"       , AddonType.Addon),
+			ShortLogs      ("Short Logs"      , AddonType.LoadAreaCargo),
+			MediumLogs     ("Medium Logs"     , AddonType.LoadAreaCargo),
+			LongLogs       ("Long Logs"       , AddonType.LoadAreaCargo),
 			;
 			
 			public final AddonType type;
@@ -1003,7 +1003,7 @@ public class SnowRunner {
 				idList.forEach(action);
 			}
 
-			public <Result> Result forEach(Supplier<Result> getInitial, BiFunction<Result,Result,Result> combine, Predicate<Result> isFinalResult, Function<String,Result> action) {
+			public <Result> Result forEachAddon(Supplier<Result> getInitial, BiFunction<Result,Result,Result> combine, Predicate<Result> isFinalResult, Function<String,Result> action) {
 				Result result = getInitial.get();
 				for (String id : idList) {
 					result = combine.apply(result, action.apply(id));
