@@ -519,8 +519,64 @@ public class Data {
 		unexpectedValues.add(String.format("New Value for Enum <%s>", enumLabel), str);
 		return null;
 	}
+	
+	public interface BooleanWithText extends Comparable<BooleanWithText>
+	{
+		boolean getBool();
+		String getText();
+		@Override default public int compareTo(BooleanWithText other)
+		{
+			if (other==null) return -1;
+			if ( this.getBool() && !other.getBool()) return -1;
+			if (!this.getBool() &&  other.getBool()) return +1;
+			return this.getText().compareTo(other.getText());
+		}
+	}
+	
+	public static class Capability implements BooleanWithText
+	{
+		boolean isCapable = false;
+		boolean byTruck   = false;
+		boolean byTrailer = false;
 
-	public Boolean isCapable(Truck truck, SpecialTruckAddons.AddonCategory listID, SpecialTruckAddons specialTruckAddons, boolean verbose) {
+		@Override public int compareTo(BooleanWithText other)
+		{
+			if (!(other instanceof Capability))
+				return BooleanWithText.super.compareTo(other);
+			
+			Capability otherCap = (Capability) other;
+			if ( this.isCapable && !otherCap.isCapable) return -1;
+			if (!this.isCapable &&  otherCap.isCapable) return +1;
+			if ( this.byTruck && !otherCap.byTruck) return -1;
+			if (!this.byTruck &&  otherCap.byTruck) return +1;
+			if ( this.byTrailer && !otherCap.byTrailer) return -1;
+			if (!this.byTrailer &&  otherCap.byTrailer) return +1;
+			return 0;
+		}
+
+		@Override public boolean getBool() { return isCapable; }
+		@Override public String getText()
+		{
+			if (byTruck && byTrailer)
+				return "Truck, Trailer";
+			if (byTruck)
+				return "Truck";
+			if (byTrailer)
+				return "Trailer";
+			return "";
+		}
+	}
+
+	public Capability isCapable(Truck truck, SpecialTruckAddons.AddonCategory listID, SpecialTruckAddons specialTruckAddons, boolean verbose) {
+		Boolean isCapable = isCapable_old(truck, listID, specialTruckAddons, verbose);
+		if (isCapable==null) return null;
+		Capability cap = new Capability();
+		cap.isCapable = isCapable.booleanValue();
+		cap.byTruck = true;
+		return cap;
+	}
+
+	public Boolean isCapable_old(Truck truck, SpecialTruckAddons.AddonCategory listID, SpecialTruckAddons specialTruckAddons, boolean verbose) {
 		SpecialTruckAddonList addonList = specialTruckAddons.getList(listID);
 		if (verbose) System.out.printf("Is Truck <%s> capable of %s?%n", truck.id, listID);
 		
@@ -539,14 +595,18 @@ public class Data {
 			
 			case Cargo:
 				Boolean result = addonList.forEach(
+						
 					()->null,
+					
 					(r1,r2)->{
 						if (r1==null && r2==null) return null;
 						if (r1==null) return r2;
 						if (r2==null) return r1;
 						return r1.booleanValue() || r2.booleanValue();
 					},
+					
 					r->false, //r!=null && r.booleanValue(),
+					
 					id->{
 						TruckAddon addon = truckAddons.get(id);
 						if (addon==null) {
@@ -572,8 +632,8 @@ public class Data {
 						}
 						if (verbose) System.out.printf("      CargoAddonSubtype: \"%s\"%n", addon.gameData.cargoAddonSubtype);
 						
-						Vector<TruckAddon> truckAddons = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.truckAddons.values(), addon_ ->addon_ .gameData);
-						Vector<Trailer   > trailers    = findItemsWithCargoAddonSubtype(addon.gameData.cargoAddonSubtype, this.trailers   .values(), trailer->trailer.gameData);
+						Vector<TruckAddon> truckAddons = findItemsWithCargoAddonSubtype(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, this.truckAddons.values(), addon_ ->addon_ .gameData);
+						Vector<Trailer   > trailers    = findItemsWithCargoAddonSubtype(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, this.trailers   .values(), trailer->trailer.gameData);
 						
 						if (truckAddons.isEmpty() && trailers.isEmpty()) {
 							if (verbose) System.out.printf("      Can't find any addon or trailer for CargoAddonSubtype.%n");
@@ -613,13 +673,13 @@ public class Data {
 		return null;
 	}
 
-	private static <ItemType> Vector<ItemType> findItemsWithCargoAddonSubtype(String cargoAddonSubtype, Collection<ItemType> items, Function<ItemType,GameData.GameDataT3NonTruck> getGameData) {
+	private static <ItemType> Vector<ItemType> findItemsWithCargoAddonSubtype(String cargoType, String cargoAddonSubtype, Collection<ItemType> items, Function<ItemType,GameData.GameDataT3NonTruck> getGameData) {
 		Vector<ItemType> resultList = new Vector<>();
 		for (ItemType item : items) {
 			GameData.GameDataT3NonTruck gameData = getGameData.apply(item);
 			if (gameData==null) continue;
 			for (GameData.GameDataT3NonTruck.LoadArea loadArea : gameData.loadAreas) {
-				if (cargoAddonSubtype.equals(loadArea.subtype)) {
+				if (cargoType.equals(loadArea.type) && cargoAddonSubtype.equals(loadArea.subtype)) {
 					resultList.add(item);
 					break;
 				}

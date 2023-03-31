@@ -321,6 +321,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					label.setHorizontalAlignment(SwingConstants.LEFT);
 				
 				if (columnID.config.columnClass == Boolean.class) {
+					checkBox.setHorizontalAlignment(SwingConstants.CENTER);
 					valueStr = null;
 					if (value instanceof Boolean) {
 						Boolean b = (Boolean) value;
@@ -328,6 +329,21 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						useCheckBox = true;
 						
 					} else {
+						useCheckBox = false;
+						// -> empty JLabel -> No CheckBox
+					}
+				}
+				
+				if (Data.BooleanWithText.class.isAssignableFrom(columnID.config.columnClass)) {
+					checkBox.setHorizontalAlignment(SwingConstants.LEFT);
+					if (value instanceof Data.BooleanWithText) {
+						Data.BooleanWithText bwt = (Data.BooleanWithText) value;
+						isChecked = bwt.getBool();
+						valueStr  = bwt.getText();
+						useCheckBox = true;
+						
+					} else {
+						valueStr = null;
 						useCheckBox = false;
 						// -> empty JLabel -> No CheckBox
 					}
@@ -349,12 +365,16 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				}*/
 			}
 			
-			if (useCheckBox) {
+			if (useCheckBox)
+			{
 				checkBox.configureAsTableCellRendererComponent(table, isChecked, valueStr, isSelected, hasFocus, getCustomForeground, getCustomBackground);
 				return checkBox;
 			}
-			label.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus, getCustomBackground, getCustomForeground);
-			return label;
+			else
+			{
+				label   .configureAsTableCellRendererComponent(table, null     , valueStr, isSelected, hasFocus, getCustomBackground, getCustomForeground);
+				return label;
+			}
 		}
 	}
 
@@ -494,13 +514,13 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		private static final long serialVersionUID = 6171301101675843952L;
 		private static final FilterRowsDialog.Presets presets = new Presets();
 		
-		private final FilterRowsDialog.FilterGuiElement[] columnElements;
+		private final FilterGuiElement[] columnElements;
 	
 		FilterRowsDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
 			super(owner, "Filter Rows", "Define filters", originalColumns, presets, tableModelIDstr);
 			
 			JPanel columnPanel = FilterGuiElement.createEmptyColumnPanel();
-			columnElements = new FilterRowsDialog.FilterGuiElement[originalColumns.length];
+			columnElements = new FilterGuiElement[originalColumns.length];
 			for (int i=0; i<this.originalColumns.length; i++) {
 				columnElements[i] = new FilterGuiElement(this.originalColumns[i]);
 				columnElements[i].addToPanel(columnPanel);
@@ -529,7 +549,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			boolean hasChanged = false;
 			for (int i=0; i<this.originalColumns.length; i++) {
 				ColumnID columnID = this.originalColumns[i];
-				FilterRowsDialog.Filter filter = columnElements[i].getFilter();
+				Filter filter = columnElements[i].getFilter();
 				
 				if (filter==null && columnID.filter!=null) {
 					columnID.filter.active = false;
@@ -543,15 +563,15 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			return hasChanged;
 		}
 
-		@Override protected void setPresetInGui(HashMap<String, FilterRowsDialog.Filter> preset) {
-			for (FilterRowsDialog.FilterGuiElement elem : columnElements)
+		@Override protected void setPresetInGui(HashMap<String, Filter> preset) {
+			for (FilterGuiElement elem : columnElements)
 				elem.setValues(preset.get(elem.columnID.id));
 		}
 
-		@Override protected HashMap<String, FilterRowsDialog.Filter> getCopyOfCurrentPreset() {
-			HashMap<String, FilterRowsDialog.Filter> preset = new HashMap<>();
-			for (FilterRowsDialog.FilterGuiElement elem : columnElements) {
-				FilterRowsDialog.Filter filter = elem.getFilter();
+		@Override protected HashMap<String, Filter> getCopyOfCurrentPreset() {
+			HashMap<String, Filter> preset = new HashMap<>();
+			for (FilterGuiElement elem : columnElements) {
+				Filter filter = elem.getFilter();
 				if (filter!=null && filter.active)
 					preset.put(elem.columnID.id, filter.clone());
 			}
@@ -590,7 +610,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				return valueMeetsFilter_SubType(value);
 			}
 
-			public static FilterRowsDialog.Filter parse(String str) {
+			public static Filter parse(String str) {
 				int pos;
 				String valueStr;
 				
@@ -621,7 +641,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				String simpleClassName = str.substring(0, pos);
 				str = str.substring(pos+1);
 				
-				FilterRowsDialog.Filter filter = null;
+				Filter filter = null;
 				switch (simpleClassName) {
 				case "NumberFilter": filter = NumberFilter.parseNumberFilter(str); break;
 				case "BoolFilter"  : filter = BoolFilter.parseBoolFilter(str); break;
@@ -641,15 +661,15 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			}
 
 			@Override final public boolean equals(Object obj) {
-				if (!(obj instanceof FilterRowsDialog.Filter)) return false;
-				FilterRowsDialog.Filter other = (FilterRowsDialog.Filter) obj;
+				if (!(obj instanceof Filter)) return false;
+				Filter other = (Filter) obj;
 				if (this.active    !=other.active    ) return false;
 				if (this.allowUnset!=other.allowUnset) return false;
 				return equals_SubType(other);
 			}
 			
-			@Override final protected FilterRowsDialog.Filter clone() {
-				FilterRowsDialog.Filter filter = clone_SubType();
+			@Override final protected Filter clone() {
+				Filter filter = clone_SubType();
 				filter.active     = active    ;
 				filter.allowUnset = allowUnset;
 				return filter;
@@ -657,12 +677,12 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 
 			protected abstract boolean valueMeetsFilter_SubType(Object value);
 			protected abstract String toParsableString_SubType();
-			protected abstract boolean equals_SubType(FilterRowsDialog.Filter other);
-			protected abstract FilterRowsDialog.Filter clone_SubType();
+			protected abstract boolean equals_SubType(Filter other);
+			protected abstract Filter clone_SubType();
 			
 			
-			static class EnumFilter<E extends Enum<E>> extends FilterRowsDialog.Filter {
-				private final static HashMap<String,Function<String[],Filter.EnumFilter<?>>> KnownTypes = new HashMap<>();
+			static class EnumFilter<E extends Enum<E>> extends Filter {
+				private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
 				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
 				static {
 					registerEnumFilter("DiffLockType", Truck.DiffLockType .class, Truck.DiffLockType ::valueOf);
@@ -702,9 +722,9 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					return false;
 				}
 
-				@Override protected boolean equals_SubType(FilterRowsDialog.Filter other) {
-					if (other instanceof Filter.EnumFilter) {
-						Filter.EnumFilter<?> otherEnumFilter = (Filter.EnumFilter<?>) other;
+				@Override protected boolean equals_SubType(Filter other) {
+					if (other instanceof EnumFilter) {
+						EnumFilter<?> otherEnumFilter = (EnumFilter<?>) other;
 						if (valueClass != otherEnumFilter.valueClass) return false;
 						if (!areAllValuesContainedIn(otherEnumFilter.allowedValues)) return false;
 						if (!otherEnumFilter.areAllValuesContainedIn(allowedValues)) return false;
@@ -721,20 +741,20 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					return true;
 				}
 
-				@Override protected FilterRowsDialog.Filter clone_SubType() {
-					Filter.EnumFilter<E> enumFilter = new Filter.EnumFilter<>(filterID,valueClass);
+				@Override protected Filter clone_SubType() {
+					EnumFilter<E> enumFilter = new EnumFilter<>(filterID,valueClass);
 					enumFilter.allowedValues.addAll(allowedValues);
 					return enumFilter;
 				}
 
-				public static FilterRowsDialog.Filter parseEnumFilter(String str) {
+				public static Filter parseEnumFilter(String str) {
 					int pos = str.indexOf(':');
 					if (pos<0) return null;
 					String filterID = str.substring(0, pos);
 					String namesStr = str.substring(pos+1);
 					String[] names = namesStr.split(",");
 					
-					Function<String[], Filter.EnumFilter<?>> parseFilter = KnownTypes.get(filterID);
+					Function<String[], EnumFilter<?>> parseFilter = KnownTypes.get(filterID);
 					if (parseFilter==null) {
 						System.err.printf("Can't parse EnumFilter: Unknown filter ID \"%s\" in \"%s\"%n", filterID, str);
 						return null;
@@ -743,8 +763,8 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					return parseFilter.apply(names);
 				}
 
-				private static <E extends Enum<E>> Filter.EnumFilter<E> parseEnumFilter(Class<E> valueClass, String filterID, String[] names, Function<String, E> parseEnumValue) {
-					Filter.EnumFilter<E> filter = new Filter.EnumFilter<>(filterID,valueClass);
+				private static <E extends Enum<E>> EnumFilter<E> parseEnumFilter(Class<E> valueClass, String filterID, String[] names, Function<String, E> parseEnumValue) {
+					EnumFilter<E> filter = new EnumFilter<>(filterID,valueClass);
 					for (String name : names)
 						try {
 							filter.allowedValues.add(parseEnumValue.apply(name));
@@ -762,7 +782,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			}
 
 
-			static class NumberFilter<V extends Number> extends FilterRowsDialog.Filter {
+			static class NumberFilter<V extends Number> extends Filter {
 				
 				V min,max;
 				private final Class<V> valueClass;
@@ -793,9 +813,9 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					return false;
 				}
 
-				@Override protected boolean equals_SubType(FilterRowsDialog.Filter other) {
-					if (other instanceof Filter.NumberFilter) {
-						Filter.NumberFilter<?> numberFilter = (Filter.NumberFilter<?>) other;
+				@Override protected boolean equals_SubType(Filter other) {
+					if (other instanceof NumberFilter) {
+						NumberFilter<?> numberFilter = (NumberFilter<?>) other;
 						if (valueClass!=numberFilter.valueClass) return false;
 						if (!min.equals(numberFilter.min)) return false;
 						if (!max.equals(numberFilter.max)) return false;
@@ -805,11 +825,11 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				}
 
 				@Override
-				protected FilterRowsDialog.Filter clone_SubType() {
-					return new Filter.NumberFilter<>(valueClass, min, max, compare, toParsableString);
+				protected Filter clone_SubType() {
+					return new NumberFilter<>(valueClass, min, max, compare, toParsableString);
 				}
 				
-				public static FilterRowsDialog.Filter parseNumberFilter(String str) {
+				public static Filter parseNumberFilter(String str) {
 					String[] strs = str.split(":");
 					if (strs.length!=3) return null;
 					String valueClassName = strs[0];
@@ -819,7 +839,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					switch (valueClassName) {
 					case "Integer":
 						try {
-							Filter.NumberFilter<Integer> filter = createIntFilter();
+							NumberFilter<Integer> filter = createIntFilter();
 							filter.min = Integer.parseInt(minStr);
 							filter.max = Integer.parseInt(maxStr);
 							return filter;
@@ -828,7 +848,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						}
 					case "Long":
 						try {
-							Filter.NumberFilter<Long> filter = createLongFilter();
+							NumberFilter<Long> filter = createLongFilter();
 							filter.min = Long.parseLong(minStr);
 							filter.max = Long.parseLong(maxStr);
 							return filter;
@@ -837,7 +857,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						}
 					case "Float":
 						try {
-							Filter.NumberFilter<Float> filter = createFloatFilter();
+							NumberFilter<Float> filter = createFloatFilter();
 							filter.min = Float.intBitsToFloat( Integer.parseUnsignedInt(minStr,16) );
 							filter.max = Float.intBitsToFloat( Integer.parseUnsignedInt(maxStr,16) );
 							return filter;
@@ -846,7 +866,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						}
 					case "Double":
 						try {
-							Filter.NumberFilter<Double> filter = createDoubleFilter();
+							NumberFilter<Double> filter = createDoubleFilter();
 							filter.min = Double.longBitsToDouble( Long.parseUnsignedLong(minStr,16) );
 							filter.max = Double.longBitsToDouble( Long.parseUnsignedLong(maxStr,16) );
 							return filter;
@@ -864,15 +884,15 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					return String.format("%s:%s:%s", simpleName, minStr, maxStr);
 				}
 
-				static Filter.NumberFilter<Integer> createIntFilter   () { return new Filter.NumberFilter<Integer>(Integer.class, 0 , 0 , Integer::compare, v->Integer.toString(v)); }
-				static Filter.NumberFilter<Long   > createLongFilter  () { return new Filter.NumberFilter<Long   >(Long   .class, 0L, 0L, Long   ::compare, v->Long.toString(v)); }
-				static Filter.NumberFilter<Float  > createFloatFilter () { return new Filter.NumberFilter<Float  >(Float  .class, 0f, 0f, Float  ::compare, v->String.format("%08X", Float.floatToIntBits(v))); }
-				static Filter.NumberFilter<Double > createDoubleFilter() { return new Filter.NumberFilter<Double >(Double .class, 0d, 0d, Double ::compare, v->String.format("%016X", Double.doubleToLongBits(v))); }
+				static NumberFilter<Integer> createIntFilter   () { return new NumberFilter<Integer>(Integer.class, 0 , 0 , Integer::compare, v->Integer.toString(v)); }
+				static NumberFilter<Long   > createLongFilter  () { return new NumberFilter<Long   >(Long   .class, 0L, 0L, Long   ::compare, v->Long.toString(v)); }
+				static NumberFilter<Float  > createFloatFilter () { return new NumberFilter<Float  >(Float  .class, 0f, 0f, Float  ::compare, v->String.format("%08X", Float.floatToIntBits(v))); }
+				static NumberFilter<Double > createDoubleFilter() { return new NumberFilter<Double >(Double .class, 0d, 0d, Double ::compare, v->String.format("%016X", Double.doubleToLongBits(v))); }
 				
 			}
 			
 			
-			static class BoolFilter extends FilterRowsDialog.Filter {
+			static class BoolFilter extends Filter {
 			
 				boolean allowTrues = true;
 
@@ -881,25 +901,29 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						Boolean v = (Boolean) value;
 						return allowTrues == v.booleanValue();
 					}
+					if (value instanceof Data.BooleanWithText) {
+						Data.BooleanWithText v = (Data.BooleanWithText) value;
+						return allowTrues == v.getBool();
+					}
 					return false;
 				}
 
-				@Override protected boolean equals_SubType(FilterRowsDialog.Filter other) {
-					if (other instanceof Filter.BoolFilter) {
-						Filter.BoolFilter boolFilter = (Filter.BoolFilter) other;
+				@Override protected boolean equals_SubType(Filter other) {
+					if (other instanceof BoolFilter) {
+						BoolFilter boolFilter = (BoolFilter) other;
 						return this.allowTrues == boolFilter.allowTrues;
 					}
 					return false;
 				}
 			
-				@Override protected Filter.BoolFilter clone_SubType() {
-					Filter.BoolFilter boolFilter = new BoolFilter();
+				@Override protected BoolFilter clone_SubType() {
+					BoolFilter boolFilter = new BoolFilter();
 					boolFilter.allowTrues = allowTrues;
 					return boolFilter;
 				}
 
-				public static FilterRowsDialog.Filter parseBoolFilter(String str) {
-					Filter.BoolFilter boolFilter = new BoolFilter();
+				public static Filter parseBoolFilter(String str) {
+					BoolFilter boolFilter = new BoolFilter();
 					switch (str) {
 					case "true" : boolFilter.allowTrues = true; break;
 					case "false": boolFilter.allowTrues = false; break;
@@ -919,9 +943,10 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		}
 		
 		static class FilterGuiElement {
-			private static final HashMap<Class<?>,Supplier<FilterGuiElement.OptionsPanel>> RegisteredOptionsPanels = new HashMap<>();
+			private static final HashMap<Class<?>,Supplier<OptionsPanel>> RegisteredOptionsPanels = new HashMap<>();
 			static {
-				RegisteredOptionsPanels.put(Boolean.class, ()->new OptionsPanel.BoolOptions(new Filter.BoolFilter()));
+				RegisteredOptionsPanels.put(Boolean        .class, ()->new OptionsPanel.BoolOptions(new Filter.BoolFilter()));
+				RegisteredOptionsPanels.put(Data.Capability.class, ()->new OptionsPanel.BoolOptions(new Filter.BoolFilter()));
 				RegisteredOptionsPanels.put(Integer.class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null             ));
 				RegisteredOptionsPanels.put(Long   .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null             ));
 				RegisteredOptionsPanels.put(Float  .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite ));
@@ -935,13 +960,13 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
 			final ColumnID columnID;
 			private final JCheckBox baseCheckBox;
-			private final FilterGuiElement.OptionsPanel optionsPanel;
+			private final OptionsPanel optionsPanel;
 			private final Color defaultBG;
 
 			FilterGuiElement(ColumnID columnID) {
 				this.columnID = columnID;
 				
-				Supplier<FilterGuiElement.OptionsPanel> creator = RegisteredOptionsPanels.get(this.columnID.config.columnClass);
+				Supplier<OptionsPanel> creator = RegisteredOptionsPanels.get(this.columnID.config.columnClass);
 				if (creator==null) optionsPanel = new OptionsPanel.DummyOptions(this.columnID.config.columnClass);
 				else               optionsPanel = creator.get();
 				
@@ -971,11 +996,11 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				//optionsPanel.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
 			}
 
-			FilterRowsDialog.Filter getFilter() {
+			Filter getFilter() {
 				return optionsPanel.filter;
 			}
 
-			void setValues(FilterRowsDialog.Filter filter) {
+			void setValues(Filter filter) {
 				if (optionsPanel.filter!=null) {
 					optionsPanel.filter.active = filter!=null && filter.active;
 					baseCheckBox.setSelected(optionsPanel.filter.active);
@@ -1006,10 +1031,10 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				private static final long serialVersionUID = -8491252831775091069L;
 				
 				protected final GridBagConstraints c;
-				final FilterRowsDialog.Filter filter;
+				final Filter filter;
 				private final JCheckBox chkbxUnset;
 
-				OptionsPanel(FilterRowsDialog.Filter filter) {
+				OptionsPanel(Filter filter) {
 					super(new GridBagLayout());
 					this.filter = filter;
 					c = new GridBagConstraints();
@@ -1026,7 +1051,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						chkbxUnset.setEnabled(isEnabled);
 				}
 
-				void setValues(FilterRowsDialog.Filter filter) {
+				void setValues(Filter filter) {
 					if (this.filter!=null) {
 						this.filter.allowUnset = filter!=null && filter.allowUnset;
 						chkbxUnset.setSelected(this.filter.allowUnset);
@@ -1034,7 +1059,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				}
 
 
-				static class DummyOptions extends FilterGuiElement.OptionsPanel {
+				static class DummyOptions extends OptionsPanel {
 					private static final long serialVersionUID = 4500779916477896148L;
 
 					public DummyOptions(Class<?> columnClass) {
@@ -1049,7 +1074,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				}
 
 
-				static class EnumOptions<E extends Enum<E>> extends FilterGuiElement.OptionsPanel {
+				static class EnumOptions<E extends Enum<E>> extends OptionsPanel {
 					private static final long serialVersionUID = -458324264563153126L;
 					
 					private final Filter.EnumFilter<E> filter;
@@ -1085,7 +1110,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 							checkBoxes[i].setEnabled(isEnabled);
 					}
 
-					@Override void setValues(FilterRowsDialog.Filter filter) {
+					@Override void setValues(Filter filter) {
 						super.setValues(filter);
 						if (filter instanceof Filter.EnumFilter) {
 							Filter.EnumFilter<?> enumFilter = (Filter.EnumFilter<?>) filter;
@@ -1098,20 +1123,20 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 								E e = values[i];
 								if (enumFilter.allowedValues.contains(e)) {
 									this.filter.allowedValues.add(e);
-									checkBoxes[i].setSelected(true);										
+									checkBoxes[i].setSelected(true);
 								} else
-									checkBoxes[i].setSelected(false);										
+									checkBoxes[i].setSelected(false);
 							}
 						}
 					}
 
-					static <E extends Enum<E>> OptionsPanel.EnumOptions<E> create( Class<E> valueClass, E[] values) {
-						return new OptionsPanel.EnumOptions<>(new Filter.EnumFilter<>(Filter.EnumFilter.getFilterID(valueClass), valueClass), values);
+					static <E extends Enum<E>> EnumOptions<E> create( Class<E> valueClass, E[] values) {
+						return new EnumOptions<>(new Filter.EnumFilter<>(Filter.EnumFilter.getFilterID(valueClass), valueClass), values);
 					}
 				}
 
 
-				static class NumberOptions<V extends Number> extends FilterGuiElement.OptionsPanel {
+				static class NumberOptions<V extends Number> extends OptionsPanel {
 					private static final long serialVersionUID = -436186682804402478L;
 					
 					private final Filter.NumberFilter<V> filter;
@@ -1137,8 +1162,8 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						add(new JLabel(), c);
 					}
 					
-					static <V extends Number> OptionsPanel.NumberOptions<V> create(Filter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
-						return new OptionsPanel.NumberOptions<V>( filter,
+					static <V extends Number> NumberOptions<V> create(Filter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
+						return new NumberOptions<V>( filter,
 								v -> v==null ? "<null>" : toString.apply(v),
 								str -> {
 									try { return convert.apply(str);
@@ -1156,7 +1181,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						fldMax.setEnabled(isEnabled);
 					}
 
-					@Override void setValues(FilterRowsDialog.Filter filter) {
+					@Override void setValues(Filter filter) {
 						super.setValues(filter);
 						if (filter instanceof Filter.NumberFilter) {
 							Filter.NumberFilter<?> numberFilter = (Filter.NumberFilter<?>) filter;
@@ -1172,7 +1197,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 				}
 
 
-				static class BoolOptions extends FilterGuiElement.OptionsPanel {
+				static class BoolOptions extends OptionsPanel {
 					private static final long serialVersionUID = 1821563263682227455L;
 					private final Filter.BoolFilter filter;
 					private final JRadioButton rbtnTrue;
@@ -1195,7 +1220,7 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 						rbtnFalse.setEnabled(isEnabled);
 					}
 
-					@Override void setValues(FilterRowsDialog.Filter filter) {
+					@Override void setValues(Filter filter) {
 						super.setValues(filter);
 						if (filter instanceof Filter.BoolFilter) {
 							Filter.BoolFilter boolFilter = (Filter.BoolFilter) filter;
@@ -1209,13 +1234,13 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			}
 		}
 
-		private static class Presets extends PresetMaps<HashMap<String,FilterRowsDialog.Filter>> {
+		private static class Presets extends PresetMaps<HashMap<String,Filter>> {
 		
 			Presets() {
-				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,FilterRowsDialog.Filter>::new);
+				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,Filter>::new);
 			}
 		
-			@Override protected void parseLine(String line, HashMap<String, FilterRowsDialog.Filter> preset) {
+			@Override protected void parseLine(String line, HashMap<String, Filter> preset) {
 				String valueStr;
 				if ( (valueStr=Data.getLineValue(line, "Filter="))!=null ) {
 					int endOfKey = valueStr.indexOf(':');
@@ -1225,17 +1250,17 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 					}
 					String key = valueStr.substring(0, endOfKey);
 					String filterStr = valueStr.substring(endOfKey+1);
-					FilterRowsDialog.Filter filter = FilterRowsDialog.Filter.parse( filterStr );
+					Filter filter = Filter.parse( filterStr );
 					if (filter!=null) preset.put(key, filter);
 					else System.err.printf("Can't parse filter in line for FilterRowsPresets: \"%s\"%n", valueStr);
 				}
 			}
 		
-			@Override protected void writePresetInLines(HashMap<String, FilterRowsDialog.Filter> preset, PrintWriter out) {
+			@Override protected void writePresetInLines(HashMap<String, Filter> preset, PrintWriter out) {
 				Vector<String> keys = new Vector<>(preset.keySet());
 				keys.sort(null);
 				for (String key : keys) {
-					FilterRowsDialog.Filter filter = preset.get(key);
+					Filter filter = preset.get(key);
 					out.printf("Filter=%s:%s%n", key, filter.toParsableString());
 				}
 			}

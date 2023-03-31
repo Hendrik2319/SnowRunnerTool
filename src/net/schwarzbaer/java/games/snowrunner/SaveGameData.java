@@ -156,7 +156,11 @@ public class SaveGameData {
 		public boolean playerOwnsTruck(Truck truck) {
 			return getOwnedTruckCount(truck)>0;
 		}
-	
+		
+		public static class TruckInWarehouse
+		{
+			// TODO
+		}
 	}
 
 }
