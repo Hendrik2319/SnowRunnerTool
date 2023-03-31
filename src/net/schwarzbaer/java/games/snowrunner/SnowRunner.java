@@ -873,14 +873,15 @@ public class SnowRunner {
 		}
 		
 		public enum AddonCategory {
-			MetalDetector  ("Metal Detector"  , AddonType.Addon),
-			SeismicVibrator("Seismic Vibrator", AddonType.Addon),
-			LogLift        ("Log Lift"        , AddonType.Addon),
-			MiniCrane      ("Mini Crane"      , AddonType.Addon),
-			BigCrane       ("Big Crane"       , AddonType.Addon),
-			ShortLogs      ("Short Logs"      , AddonType.LoadAreaCargo),
-			MediumLogs     ("Medium Logs"     , AddonType.LoadAreaCargo),
-			LongLogs       ("Long Logs"       , AddonType.LoadAreaCargo),
+			MetalDetector   ("Metal Detector"     , AddonType.Addon),
+			SeismicVibrator ("Seismic Vibrator"   , AddonType.Addon),
+			LogLift         ("Log Lift"           , AddonType.Addon),
+			MiniCrane       ("Mini Crane"         , AddonType.Addon),
+			BigCrane        ("Big Crane"          , AddonType.Addon),
+			ShortLogs       ("Short Logs"         , AddonType.LoadAreaCargo),
+			MediumLogs      ("Medium Logs"        , AddonType.LoadAreaCargo),
+			LongLogs        ("Long Logs"          , AddonType.LoadAreaCargo),
+			MediumLogs_burnt("Medium Logs (burnt)", AddonType.LoadAreaCargo),
 			;
 			
 			public final AddonType type;

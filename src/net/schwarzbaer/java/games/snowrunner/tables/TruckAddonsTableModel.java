@@ -160,14 +160,15 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		for (SpecialTruckAddons.AddonCategory list : SpecialTruckAddons.AddonCategory.values()) {
 			String listLabel = "";
 			switch (list) {
-			case MetalDetector  : listLabel = "Metal Detector for special missions"; break;
-			case SeismicVibrator: listLabel = "Seismic Vibrator for special missions"; break;
-			case LogLift        : listLabel = "Log Lift for loading logs"; break;
-			case MiniCrane      : listLabel = "MiniCrane for loading cargo"; break;
-			case BigCrane       : listLabel = "Big Crane for howling trucks"; break;
-			case ShortLogs      : listLabel = "Short Logs"; break;
-			case MediumLogs     : listLabel = "Medium Logs"; break;
-			case LongLogs       : listLabel = "Long Logs"; break;
+			case MetalDetector   : listLabel = "Metal Detector for special missions"; break;
+			case SeismicVibrator : listLabel = "Seismic Vibrator for special missions"; break;
+			case LogLift         : listLabel = "Log Lift for loading logs"; break;
+			case MiniCrane       : listLabel = "MiniCrane for loading cargo"; break;
+			case BigCrane        : listLabel = "Big Crane for howling trucks"; break;
+			case ShortLogs       : listLabel = "Short Logs"; break;
+			case MediumLogs      : listLabel = "Medium Logs"; break;
+			case LongLogs        : listLabel = "Long Logs"; break;
+			case MediumLogs_burnt: listLabel = "Medium Logs (burnt)"; break;
 			}
 			
 			JCheckBoxMenuItem  mi = SnowRunner.createCheckBoxMenuItem(listLabel, false, null, true, ()->{

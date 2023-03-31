@@ -47,6 +47,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private static final String ID_LongLogs  = "LongLogs" ;
 	private static final String ID_MedLogs   = "MedLogs"  ;
 	private static final String ID_ShortLogs = "ShortLogs";
+	private static final String ID_MedLogsB  = "MedLogsB" ;
 	
 	private SaveGame saveGame;
 	private Truck clickedItem;
@@ -72,14 +73,15 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "AWDUser"  , "AWD (by User)"        ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realAWD),
 				new ColumnID( "AWDTool"  , "AWD (by Tool)"        ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
 				new ColumnID( "AutoWinch", "AutomaticWinch"       ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
-				new ColumnID(ID_MetalD   , "Metal Detector"       ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector  , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector  , true) ),
-				new ColumnID(ID_Seismic  , "Seismic Vibrator"     ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator, false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator, true) ),
-				new ColumnID(ID_BigCrane , "Big Crane"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane       , true) ),
-				new ColumnID(ID_MiniCrane, "Mini Crane"           ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCrane      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCrane      , true) ),
-				new ColumnID(ID_LogLift  , "Log Lift"             ,      Data.Capability.class,  50,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLift        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLift        , true) ),
-				new ColumnID(ID_LongLogs , "Long Logs"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs       , true) ),
-				new ColumnID(ID_MedLogs  , "Medium Logs"          ,      Data.Capability.class,  75,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs     , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs     , true) ),
-				new ColumnID(ID_ShortLogs, "Short Logs"           ,      Data.Capability.class,  65,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs      , true) ),
+				new ColumnID(ID_MetalD   , "Metal Detector"       ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   , true) ),
+				new ColumnID(ID_Seismic  , "Seismic Vibrator"     ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator , true) ),
+				new ColumnID(ID_BigCrane , "Big Crane"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane        , true) ),
+				new ColumnID(ID_MiniCrane, "Mini Crane"           ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCrane       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCrane       , true) ),
+				new ColumnID(ID_LogLift  , "Log Lift"             ,      Data.Capability.class,  50,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLift         , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLift         , true) ),
+				new ColumnID(ID_LongLogs , "Long Logs"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs        , true) ),
+				new ColumnID(ID_MedLogs  , "Medium Logs"          ,      Data.Capability.class,  75,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs      , true) ),
+				new ColumnID(ID_ShortLogs, "Short Logs"           ,      Data.Capability.class,  65,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs       , true) ),
+				new ColumnID(ID_MedLogsB , "Medium L. (Burnt)"    ,      Data.Capability.class,  95,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs_burnt, false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs_burnt, true) ),
 				new ColumnID( "FuelCap"  , "Fuel Capacity"        ,              Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
 				new ColumnID( "WheelSizs", "Wheel Sizes"          ,               String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
 				new ColumnID( "WheelTyps", "Wheel Types"          ,               String.class, 280,             null,   null,      null, (row,lang) -> getWheelCategories((Truck)row,lang)),
@@ -150,14 +152,15 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		finalizer.addSpecialTruckAddonsListener((list,change)->{
 			String id = null;
 			switch (list) {
-			case MetalDetector  : id = ID_MetalD   ; break;
-			case SeismicVibrator: id = ID_Seismic  ; break;
-			case BigCrane       : id = ID_BigCrane ; break;
-			case MiniCrane      : id = ID_MiniCrane; break;
-			case LogLift        : id = ID_LogLift  ; break;
-			case LongLogs       : id = ID_LongLogs ; break;
-			case MediumLogs     : id = ID_MedLogs  ; break;
-			case ShortLogs      : id = ID_ShortLogs; break;
+				case MetalDetector   : id = ID_MetalD   ; break;
+				case SeismicVibrator : id = ID_Seismic  ; break;
+				case BigCrane        : id = ID_BigCrane ; break;
+				case MiniCrane       : id = ID_MiniCrane; break;
+				case LogLift         : id = ID_LogLift  ; break;
+				case LongLogs        : id = ID_LongLogs ; break;
+				case MediumLogs      : id = ID_MedLogs  ; break;
+				case ShortLogs       : id = ID_ShortLogs; break;
+				case MediumLogs_burnt: id = ID_MedLogsB ; break;
 			}
 			if (id!=null)
 				fireTableColumnUpdate(findColumnByID(id));
