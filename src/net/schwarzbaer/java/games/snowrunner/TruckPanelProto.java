@@ -200,13 +200,13 @@ class TruckPanelProto implements Finalizable {
 		outTop.add(0, "Unlock By Rank"       , truck.gameData.unlockByRank);
 		outTop.add(0, "XML file"             , truck.xmlName);
 		
-		if (truck.dlcName!=null)
-			outTop.add(0, "Internal DLC", truck.dlcName);
+		if (truck.updateLevel!=null)
+			outTop.add(0, "Update Level", truck.updateLevel);
 		
 		if (truckToDLCAssignments!=null && truck.id!=null) {
 			String dlc = truckToDLCAssignments.get(truck.id);
 			if (dlc!=null)
-				outTop.add(0, "Official DLC", dlc);
+				outTop.add(0, "DLC", dlc);
 		}
 		
 		if (saveGame!=null) {
@@ -914,7 +914,7 @@ class TruckPanelProto implements Finalizable {
 					for (CompatibleWheel wheel : compatibleWheels) {
 						if (wheel.wheelsDef==null) continue;
 						String wheelsDefID = wheel.wheelsDef.id;
-						String dlc = wheel.wheelsDef.dlcName;
+						String dlc = wheel.wheelsDef.updateLevel;
 						for (int i=0; i<wheel.wheelsDef.truckTires.size(); i++) {
 							TruckTire tire = wheel.wheelsDef.truckTires.get(i);
 							data.add( new RowItem(wheelsDefID, dlc, wheel.scale, tire) );

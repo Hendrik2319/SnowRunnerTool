@@ -17,6 +17,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -654,18 +655,7 @@ public class SnowRunner {
 	}
 
 	public static String getTruckLabel(Truck truck, Language language) {
-		return getTruckLabel(truck, language, true);
-	}
-	public static String getTruckLabel(Truck truck, Language language, boolean addInternalDLC ) {
-		if (truck==null)
-			return "<null>";
-		
-		String truckName = SnowRunner.solveStringID(truck, language);
-		
-		if (addInternalDLC && truck.dlcName!=null)
-			truckName = String.format("%s [%s]", truckName, truck.dlcName);
-		
-		return truckName;
+		return truck==null ? "<null>" : SnowRunner.solveStringID(truck, language);
 	}
 
 	public static String[][] getNamesFromIDs(String[][] idLists, Function<String, String> getName_StringID, Language language) {
@@ -714,7 +704,7 @@ public class SnowRunner {
 		return solveStringID(name_StringID, language, String.format("<%s>", id));
 	}
 
-	public static String joinTruckAddonNames(Vector<TruckAddon> list, AddonCategories addonCategories, Language language) {
+	public static String joinTruckAddonNames(Collection<TruckAddon> list, AddonCategories addonCategories, Language language) {
 		Function<TruckAddon, String> mapper = addon->{
 			String name = SnowRunner.solveStringID(addon, language);
 			String categoryLabel = AddonCategories.getCategoryLabel(addon.gameData.category,addonCategories,language);
@@ -723,8 +713,12 @@ public class SnowRunner {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(mapper).sorted().iterator());
 	}
 	
-	public static String joinNames(Vector<? extends Data.HasNameAndID> list, Language language) {
+	public static String joinNames(Collection<? extends Data.HasNameAndID> list, Language language) {
 		return String.join(", ", (Iterable<String>)()->list.stream().map(item->SnowRunner.solveStringID(item, language)).sorted().iterator());
+	}
+	
+	public static String joinStringIDs(Collection<String> strIDs, Language language) {
+		return String.join(", ", (Iterable<String>)()->strIDs.stream().map(strID->SnowRunner.solveStringID(strID, language)).sorted().iterator());
 	}
 
 	public static String getIdAndName(String id, String stringID, Language lang) {
@@ -789,7 +783,7 @@ public class SnowRunner {
 		}
 	}
 
-	public static void writeTruckNamesToDoc(StyledDocumentInterface doc, Color ownedTruckColor, Vector<Truck> list, Language language, SaveGame saveGame) {
+	public static void writeTruckNamesToDoc(StyledDocumentInterface doc, Color ownedTruckColor, Collection<Truck> list, Language language, SaveGame saveGame) {
 		Stream<Pair<Truck,String>> stream = list.stream().map(truck->Pair.create(truck,language)).sorted(Comparator.<Pair<Truck,String>,String>comparing(pair->pair.v2));
 		boolean isFirst = true;
 		for (Iterator<Pair<Truck,String>> iterator = stream.iterator(); iterator.hasNext();) {
@@ -1283,7 +1277,7 @@ public class SnowRunner {
 				if (truck!=null) {
 					if (saveGame!=null && saveGame.playerOwnsTruck(truck))
 						return COLOR_FG_OWNEDTRUCK;
-					if (truck.dlcName!=null)
+					if (truck.updateLevel!=null)
 						return COLOR_FG_DLCTRUCK;
 				}
 				return null;

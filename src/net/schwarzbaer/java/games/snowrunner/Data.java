@@ -839,11 +839,11 @@ public class Data {
 	static class ItemBased {
 		public final String id;
 		public final String xmlName;
-		public final String dlcName;
+		public final String updateLevel;
 		ItemBased(Item item) {
 			id      = item.name;
 			xmlName = item.name+".xml";
-			dlcName = item.dlcName;
+			updateLevel = item.updateLevel;
 		}
 	}
 
@@ -1602,7 +1602,7 @@ public class Data {
 			truckTires = new Vector<>();
 			GenericXmlNode[] truckTireNodes = item.content.getNodes("TruckWheels","TruckTires","TruckTire");
 			for (int i=0; i<truckTireNodes.length; i++)
-				truckTires.add(new TruckTire(truckTireNodes[i], id, i, dlcName));
+				truckTires.add(new TruckTire(truckTireNodes[i], id, i, updateLevel));
 		}
 	
 	}
@@ -1623,7 +1623,7 @@ public class Data {
 	
 		public final String wheelsDefID;
 		public final int indexInDef;
-		public final String dlc;
+		public final String updateLevel;
 		
 		public final String tireType_StringID;
 		public final Float frictionHighway;
@@ -1633,10 +1633,10 @@ public class Data {
 		
 		public final GameData gameData;
 	
-		private TruckTire(GenericXmlNode node, String wheelsDefID, int indexInDef, String dlc) {
+		private TruckTire(GenericXmlNode node, String wheelsDefID, int indexInDef, String updateLevel) {
 			this.wheelsDefID = wheelsDefID;
 			this.indexInDef = indexInDef;
-			this.dlc = dlc;
+			this.updateLevel = updateLevel;
 			
 			GenericXmlNode wheelFrictionNode = node.getNode("TruckTire", "WheelFriction");
 			

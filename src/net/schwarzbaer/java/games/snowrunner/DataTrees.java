@@ -168,8 +168,8 @@ class DataTrees {
 
 		@Override
 		public String toString() {
-			if (item.dlcName==null) return item.name;
-			return String.format("%s [%s]", item.name, item.dlcName);
+			if (item.updateLevel==null) return item.name;
+			return String.format("%s [%s]", item.name, item.updateLevel);
 		}
 
 		@Override
@@ -177,11 +177,11 @@ class DataTrees {
 			Vector<TreeNode> children = new Vector<>();
 			
 			if (item!=null) {
-				if (item.dlcName     !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "DLC"     , item.dlcName     ));
-				if (item.className   !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "Class"   , item.className   ));
-				if (item.subClassName!=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "SubClass", item.subClassName));
-				if (item.name        !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "Name"    , item.name        ));
-				if (item.filePath    !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "File"    , item.filePath    ));
+				if (item.updateLevel !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "UpdateLevel", item.updateLevel ));
+				if (item.className   !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "Class"      , item.className   ));
+				if (item.subClassName!=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "SubClass"   , item.subClassName));
+				if (item.name        !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "Name"       , item.name        ));
+				if (item.filePath    !=null) children.add(new AttributesTreeNode.AttributeTreeNode(this, "File"       , item.filePath    ));
 				if (item.content     !=null) children.add(new GenericXmlNode_TreeNode(this, item.content));
 			}
 			

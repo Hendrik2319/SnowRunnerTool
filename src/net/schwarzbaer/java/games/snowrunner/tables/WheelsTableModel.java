@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.Vector;
 
 import net.schwarzbaer.java.games.snowrunner.Data;
-import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
@@ -19,20 +18,20 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 	public WheelsTableModel(Window mainWindow, Controllers controllers) {
 		super(mainWindow, controllers, new ColumnID[] {
 				new ColumnID("ID"     , "ID"     , String .class, 300,   null,    null, false, row -> ((RowItem)row).label),
-				new ColumnID("Names"  , "Names"  , String .class, 130,   null,    null, (row,lang) -> getNameList ( ((RowItem)row).names_StringID, lang)),
+				new ColumnID("Names"  , "Names"  , String .class, 130,   null,    null, (row,lang) -> SnowRunner.joinStringIDs(((RowItem)row).names_StringID, lang)),
 				new ColumnID("Sizes"  , "Sizes"  , String .class, 300,   null,    null, false, row -> getSizeList ( ((RowItem)row).sizes  )),
 				new ColumnID("Highway", "Highway", Float  .class,  55,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionHighway), 
 				new ColumnID("Offroad", "Offroad", Float  .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionOffroad), 
 				new ColumnID("Mud"    , "Mud"    , Float  .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionMud), 
 				new ColumnID("OnIce"  , "On Ice" , Boolean.class,  50,   null,    null, false, row -> ((RowItem)row).tireValues.onIce), 
-				new ColumnID("Trucks" , "Trucks" , String .class, 800,   null,    null, (row,lang) -> getTruckList( ((RowItem)row).trucks, lang)),
+				new ColumnID("Trucks" , "Trucks" , String .class, 800,   null,    null, (row,lang) -> SnowRunner.joinNames(((RowItem)row).trucks, lang)),
 		});
 		connectToGlobalData(WheelsTableModel::getData);
 	}
 
 	@Override protected String getRowName(RowItem row)
 	{
-		return row==null ? null : getNameList(row.names_StringID, language);
+		return row==null ? null : SnowRunner.joinStringIDs(row.names_StringID, language);
 	}
 
 	private static Vector<RowItem> getData(Data data) {
@@ -41,7 +40,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 			for (CompatibleWheel wheel : truck.compatibleWheels) {
 				if (wheel.wheelsDef==null) continue;
 				String wheelsDefID = wheel.wheelsDef.id;
-				String dlc = wheel.wheelsDef.dlcName;
+				String dlc = wheel.wheelsDef.updateLevel;
 				for (int i=0; i<wheel.wheelsDef.truckTires.size(); i++) {
 					TruckTire tire = wheel.wheelsDef.truckTires.get(i);
 					String key   = String.format("%s|%s[%d]", dlc==null ? "----" : dlc, wheelsDefID, i);
@@ -145,15 +144,6 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		}
 	}
 
-	private static String getTruckList(HashSet<Truck> trucks, Language language) {
-		Iterable<String> it = ()->trucks
-				.stream()
-				.map(t->SnowRunner.getTruckLabel(t,language))
-				.sorted()
-				.iterator();
-		return trucks.isEmpty() ? "" :  String.join(", ", it);
-	}
-
 	private static String getSizeList(HashSet<Integer> sizes) {
 		Iterable<String> it = ()->sizes
 				.stream()
@@ -161,15 +151,6 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 				.map(size->String.format("%d\"", size))
 				.iterator();
 		return sizes.isEmpty() ? "" :  String.join(", ", it);
-	}
-
-	private static String getNameList(HashSet<String> names_StringID, Language language) {
-		Iterable<String> it = ()->names_StringID
-				.stream()
-				.sorted()
-				.map(strID->SnowRunner.solveStringID(strID, language))
-				.iterator();
-		return names_StringID.isEmpty() ? "" :  String.join(", ", it);
 	}
 
 }

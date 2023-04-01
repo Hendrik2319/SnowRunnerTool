@@ -63,7 +63,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
 		super(mainWindow, controllers, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
-				new ColumnID( "UpdateLvl", "Update Level"         ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
+				new ColumnID( "UpdateLvl", "Update Level"         ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
 				new ColumnID( "DLC"      , "DLC"                  ,               String.class, 170,             null,   null,      null, false, (row,model) -> getDLC(row,model)),
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
@@ -132,7 +132,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			if (enableOwnedTrucksHighlighting && saveGame!=null && saveGame.playerOwnsTruck(truck))
 				return SnowRunner.COLOR_FG_OWNEDTRUCK;
 			
-			if (enableDLCTrucksHighlighting && truck.dlcName!=null)
+			if (enableDLCTrucksHighlighting && truck.updateLevel!=null)
 				return SnowRunner.COLOR_FG_DLCTRUCK;
 			
 			return null;

@@ -325,15 +325,15 @@ class XMLTemplateStructure {
 		
 		static class StructItem {
 	
-			final String dlcName;
+			final String updateLevel;
 			final String className;
 			final String subClassName;
 			final String itemName;
 			final ZipEntryTreeNode itemFile;
 			final String itemFilePath;
 	
-			StructItem(String dlcName, String className, String subClassName, String itemName, ZipEntryTreeNode itemFile) {
-				this.dlcName = dlcName;
+			StructItem(String updateLevel, String className, String subClassName, String itemName, ZipEntryTreeNode itemFile) {
+				this.updateLevel = updateLevel;
 				this.className = className;
 				this.subClassName = subClassName;
 				this.itemName = itemName;
@@ -620,7 +620,7 @@ class XMLTemplateStructure {
 	
 			final String name;
 			final String filePath;
-			final String dlcName;
+			final String updateLevel;
 			final String className;
 			final String subClassName;
 			final GenericXmlNode content;
@@ -659,7 +659,7 @@ class XMLTemplateStructure {
 				
 				this.name = structItem.itemName;
 				this.filePath = structItem.itemFilePath;
-				this.dlcName = structItem.dlcName;
+				this.updateLevel = structItem.updateLevel;
 				this.className = structItem.className;
 				this.subClassName = structItem.subClassName;
 				

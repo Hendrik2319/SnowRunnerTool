@@ -63,10 +63,10 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		rows.clear();
 		for (String truckID:truckIDs) {
 			Truck truck = data==null ? null : data.trucks.get(truckID);
-			String internalDLC = truck==null ? null : truck.dlcName==null ? "<LaunchDLC>" : truck.dlcName;
-			String officialDLC = truckToDLCAssignments==null ? null : truckToDLCAssignments.get(truckID);
-			if ((internalDLC!=null && !internalDLC.equals("<LaunchDLC>")) || officialDLC!=null)
-				rows.add(new RowItem(internalDLC, officialDLC, truckID));
+			String updateLevel = truck==null ? null : truck.updateLevel==null ? "<Launch>" : truck.updateLevel;
+			String dlc = truckToDLCAssignments==null ? null : truckToDLCAssignments.get(truckID);
+			if ((updateLevel!=null && !updateLevel.equals("<Launch>")) || dlc!=null)
+				rows.add(new RowItem(updateLevel, dlc, truckID));
 		}
 		fireTableUpdate();
 	}
@@ -96,7 +96,7 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		case Truck:
 			Truck truck = data==null || row.truckID==null ? null : data.trucks.get(row.truckID);
 			if (truck == null) return String.format("<%s>", row.truckID);
-			return SnowRunner.getTruckLabel(truck, language, false);
+			return SnowRunner.getTruckLabel(truck, language);
 		}
 		return null;
 	}
