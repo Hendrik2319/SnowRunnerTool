@@ -30,6 +30,11 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		connectToGlobalData(WheelsTableModel::getData);
 	}
 
+	@Override protected String getRowName(RowItem row)
+	{
+		return row==null ? null : getNameList(row.names_StringID, language);
+	}
+
 	private static Vector<RowItem> getData(Data data) {
 		HashMap<String,RowItem> rows = new HashMap<>();
 		for (Truck truck:data.trucks.values()) {

@@ -160,17 +160,17 @@ public class SnowRunner {
 		
 		JMenuBar menuBar = new JMenuBar();
 		
-		JMenu fileMenu = menuBar.add(new JMenu("File"));
-		fileMenu.add(createMenuItem("Switch to another \"initial.pak\"", true, e->{
+		JMenu baseDataMenu = menuBar.add(new JMenu("Base Data"));
+		baseDataMenu.add(createMenuItem("Switch to another \"initial.pak\"", true, e->{
 			File initialPAK = selectInitialPAK();
 			boolean changed = loadInitialPAK(initialPAK);
 			if (changed) updateAfterDataChange();
 		}));
-		fileMenu.add(createMenuItem("Reload \"initial.pak\"", true, e->{
+		baseDataMenu.add(createMenuItem("Reload \"initial.pak\"", true, e->{
 			boolean changed = loadInitialPAK();
 			if (changed) updateAfterDataChange();
 		}));
-		fileMenu.add(createCheckBoxMenuItem("Hide Known Bugs", KnownBugs.getInstance().isHideKnownBugs(), null, true, KnownBugs.getInstance()::setHideKnownBugs));
+		baseDataMenu.add(createCheckBoxMenuItem("Hide Known Bugs", KnownBugs.getInstance().isHideKnownBugs(), null, true, KnownBugs.getInstance()::setHideKnownBugs));
 		//fileMenu.add(createMenuItem("Reset application settings", true, e->{
 		//	for (AppSettings.ValueKey key:AppSettings.ValueKey.values())
 		//		settings.remove(key);
@@ -179,8 +179,6 @@ public class SnowRunner {
 		//	boolean changed = testXMLTemplateStructure();
 		//	if (changed) updateAfterDataChange();
 		//}));
-		
-		languageMenu = menuBar.add(new JMenu("Language"));
 		
 		ButtonGroup bg = new ButtonGroup();
 		miSGValuesSorted   = createCheckBoxMenuItem("Show Values Sorted by Name"   ,  rawDataPanel.isShowingSaveGameDataSorted(), bg, false, ()->rawDataPanel.showSaveGameDataSorted(true ));
@@ -194,6 +192,14 @@ public class SnowRunner {
 		saveGameDataMenu.add(miSGValuesSorted  );
 		saveGameDataMenu.add(miSGValuesOriginal);
 		selectedSaveGameMenu.setEnabled(false);
+		
+		boolean writeCalculationDetailsinToConsole = settings.getBool(AppSettings.ValueKey.Tables_WriteCalculationDetailsToConsole, true);
+		JMenu optionsMenu = menuBar.add(new JMenu("Options"));
+		optionsMenu.add(createCheckBoxMenuItem("Write Calculation Details to Console", writeCalculationDetailsinToConsole, null, true, b->{
+			settings.putBool(AppSettings.ValueKey.Tables_WriteCalculationDetailsToConsole, b);
+		}));
+		optionsMenu.addSeparator();
+		optionsMenu.add(languageMenu = new JMenu("Language"));
 		
 		JMenu testingMenu = menuBar.add(new JMenu("Testing"));
 		testingMenu.add(createMenuItem("Show Event Listeners", true, e->{
@@ -1464,6 +1470,7 @@ public class SnowRunner {
 			TruckTableModel_enableOwnedTrucksHighlighting,
 			TruckTableModel_enableDLCTrucksHighlighting,
 			TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting,
+			Tables_WriteCalculationDetailsToConsole,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

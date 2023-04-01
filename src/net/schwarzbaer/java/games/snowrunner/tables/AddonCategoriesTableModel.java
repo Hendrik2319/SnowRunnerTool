@@ -4,6 +4,7 @@ import java.awt.Window;
 import java.util.Comparator;
 
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 
 public class AddonCategoriesTableModel extends VerySimpleTableModel<AddonCategories.Category> {
@@ -18,5 +19,9 @@ public class AddonCategoriesTableModel extends VerySimpleTableModel<AddonCategor
 		connectToGlobalData(data->data.addonCategories.categories.values());
 		setInitialRowOrder(Comparator.<AddonCategories.Category,String>comparing(cat->cat.name));
 	}
-	
+
+	@Override protected String getRowName(AddonCategories.Category row)
+	{
+		return SnowRunner.solveStringID(row, language);
+	}
 }

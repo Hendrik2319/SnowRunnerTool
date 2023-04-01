@@ -214,6 +214,11 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		});
 	}
 
+	@Override protected String getRowName(TruckAddon row)
+	{
+		return SnowRunner.solveStringID(row, language);
+	}
+
 	@Override protected void setContentForRow(StyledDocumentInterface doc, TruckAddon row) {
 		String description_StringID = SnowRunner.selectNonNull( row.gameData.description_StringID, row.gameData.cargoDescription_StringID );
 		String[][] requiredAddons   = row.gameData.requiredAddons;

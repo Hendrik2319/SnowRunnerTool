@@ -35,6 +35,11 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		Vector<Truck> usableBy = row.usableBy;
 		TruckAddonsTableModel.generateText(doc, description_StringID, null, null, usableBy, language, null, null, saveGame);
 	}
+
+	@Override protected String getRowName(RowType row)
+	{
+		return SnowRunner.solveStringID(row, language);
+	}
 	
 	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {
 	

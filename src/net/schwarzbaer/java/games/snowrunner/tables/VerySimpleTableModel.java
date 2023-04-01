@@ -66,7 +66,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContext
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextPaneOutputSource;
 
-public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, TableContextMenuModifier, Finalizable {
+public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, TableContextMenuModifier, Finalizable {
 	
 	static final Color COLOR_BG_FALSE = new Color(0xFF6600);
 	static final Color COLOR_BG_TRUE = new Color(0x99FF33);
@@ -82,8 +82,9 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 	protected final Coloring<RowType> coloring;
 	protected Language language;
 	private   Comparator<RowType> initialRowOrder;
-	private   ColumnID clickedColumn;
 	private   int clickedColumnIndex;
+	private   int clickedRowIndex;
+	private   ColumnID clickedColumn;
 	private   RowType clickedRow;
 
 	protected VerySimpleTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
@@ -459,8 +460,8 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			clickedColumn = clickedColumnIndex<0 ? null : super.columns[clickedColumnIndex];
 			
 			int rowV = p==null ? -1 : table_.rowAtPoint(p);
-			int rowM = rowV<0 ? -1 : table_.convertRowIndexToModel(rowV);
-			clickedRow = rowM<0 ? null : getRow(rowM);
+			clickedRowIndex = rowV<0 ? -1 : table_.convertRowIndexToModel(rowV);
+			clickedRow = clickedRowIndex<0 ? null : getRow(clickedRowIndex);
 			
 			miDeactivateAllSpecialColorings.setEnabled(
 					!coloring.columnsWithActiveSpecialColoring.isEmpty()
@@ -480,6 +481,28 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 			);
 			
 			miShowCalculationPath.setEnabled(clickedColumn!=null && clickedColumn.hasVerboseValueFcn());
+			
+			String columnLabel = null;
+			if (columnLabel==null && clickedColumn!=null && !clickedColumn.config.name.isBlank())
+				columnLabel = "field \""+clickedColumn.config.name+"\"";
+			if (columnLabel==null && clickedColumnIndex>=0)
+				columnLabel = "field "+clickedColumnIndex;
+			if (columnLabel==null)
+				columnLabel = "field";
+			
+			String rowLabel = null;
+			if (rowLabel==null && clickedRow!=null)
+			{
+				String rowName = getRowName(clickedRow);
+				if (rowName!=null && !rowName.isBlank())
+					rowLabel = "row \""+rowName+"\"";
+			}
+			if (rowLabel==null && clickedRowIndex>=0)
+				rowLabel = "row "+clickedRowIndex;
+			if (rowLabel==null)
+				rowLabel = "row";
+				
+			miShowCalculationPath.setText( String.format( "Show calculation details of %s of %s", columnLabel, rowLabel ) );
 		});
 	}
 
@@ -491,6 +514,8 @@ public class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<V
 		if (rowIndex<0 || rowIndex>=rows.size()) return null;
 		return rows.get(rowIndex);
 	}
+
+	protected abstract String getRowName(RowType row);
 
 	@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
 		RowType row = getRow(rowIndex);

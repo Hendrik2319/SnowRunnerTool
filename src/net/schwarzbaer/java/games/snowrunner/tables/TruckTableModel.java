@@ -379,6 +379,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		userDefinedValues.write();
 	}
 
+	@Override protected String getRowName(Truck row)
+	{
+		return SnowRunner.solveStringID(row, language);
+	}
+
 	@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
 		super.modifyTableContextMenu(table_, contextMenu);
 		

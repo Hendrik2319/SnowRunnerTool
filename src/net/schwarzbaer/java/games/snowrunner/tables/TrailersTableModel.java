@@ -90,6 +90,11 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		Vector<Truck> usableBy = row.usableBy;
 		TruckAddonsTableModel.generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers, saveGame);
 	}
+
+	@Override protected String getRowName(Trailer row)
+	{
+		return SnowRunner.solveStringID(row, language);
+	}
 	
 	@Override public void modifyTableContextMenu(JTable table_, ContextMenu contextMenu)
 	{
