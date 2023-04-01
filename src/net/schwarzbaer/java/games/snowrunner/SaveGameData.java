@@ -158,8 +158,10 @@ public class SaveGameData {
 			if (ppd  ==null) { if (textOutput!=null) textOutput.printf("No corresponding data in SaveGame.%n"); return 0; }
 			if (ppd.trucksInWarehouse.isEmpty()) { if (textOutput!=null) textOutput.printf("No trucks in Warehouse.%n"); return 0; }
 			
-			int count = 0;
+			if (textOutput!=null)
+				textOutput.printf("<%s> Trucks in warehouse?%n", truck.id);
 			
+			int count = 0;
 			for (int i=0; i<ppd.trucksInWarehouse.size(); i++)
 			{
 				TruckDesc truckInSlot = ppd.trucksInWarehouse.get(i);
@@ -167,15 +169,28 @@ public class SaveGameData {
 				{
 					count++;
 					if (textOutput!=null)
-						textOutput.printf("Truck <%s> found in Warehouse at posistion %d.%n", truck.id, i+1);
+					{
+						textOutput.printf("    Truck <%s> found in warehouse at position %d.", truck.id, i+1);
+						if (!truckInSlot.retainedMapId.isBlank())
+							textOutput.printf(" (Map: %s)%n", truckInSlot.retainedMapId);
+						else
+							textOutput.printf("%n");
+					}
 				}
 			}
+			
+			if (textOutput!=null && count==0)
+				textOutput.printf("    Truck <%s> not found in warehouse.%n", truck.id);
+			
 			return count;
 		}
 
 		public int getTrucksInGarage(Truck truck, TextOutput textOutput) {
 			if (truck==null      ) { if (textOutput!=null) textOutput.printf("No truck defined.%n"); return 0; }
 			if (garages.isEmpty()) { if (textOutput!=null) textOutput.printf("No garages found in SaveGame.%n"); return 0; }
+			
+			if (textOutput!=null)
+				textOutput.printf("<%s> Trucks in garage?%n", truck.id);
 			
 			int count = 0;
 			for (String garageName : garages.keySet())
@@ -188,10 +203,13 @@ public class SaveGameData {
 					{
 						count++;
 						if (textOutput!=null)
-							textOutput.printf("Truck <%s> found in garage \"%s\", slot %d.%n", truck.id, garageName, i+1);
+							textOutput.printf("    Truck <%s> found in garage \"%s\", slot %d.%n", truck.id, garageName, i+1);
 					}
 				}
 			}
+			
+			if (textOutput!=null && count==0)
+				textOutput.printf("    Truck <%s> not found in any garage.%n", truck.id);
 			
 			return count;
 		}
@@ -311,6 +329,7 @@ public class SaveGameData {
 			public final String type;
 			public final String globalId;
 			public final String id;
+			public final String retainedMapId;
 			public final boolean isInvalid;
 			public final boolean isPacked;
 			public final boolean isUnlocked;
@@ -330,13 +349,14 @@ public class SaveGameData {
 			{
 				//optionalValues.scan(object, "TruckDesc");
 				
-				type       = JSON_Data.getStringValue(object, "type"      , debugOutputPrefixStr);
-				globalId   = JSON_Data.getStringValue(object, "globalId"  , debugOutputPrefixStr);
-				id         = JSON_Data.getStringValue(object, "id"        , debugOutputPrefixStr);
-				isInvalid  = JSON_Data.getBoolValue  (object, "isInvalid" , debugOutputPrefixStr);
-				isPacked   = JSON_Data.getBoolValue  (object, "isPacked"  , debugOutputPrefixStr);
-				isUnlocked = JSON_Data.getBoolValue  (object, "isUnlocked", debugOutputPrefixStr);
-				fuel       = JSON_Data.getFloatValue (object, "fuel"      , debugOutputPrefixStr);
+				type          = JSON_Data.getStringValue(object, "type"         , debugOutputPrefixStr);
+				globalId      = JSON_Data.getStringValue(object, "globalId"     , debugOutputPrefixStr);
+				id            = JSON_Data.getStringValue(object, "id"           , debugOutputPrefixStr);
+				retainedMapId = JSON_Data.getStringValue(object, "retainedMapId", debugOutputPrefixStr);
+				isInvalid     = JSON_Data.getBoolValue  (object, "isInvalid"    , debugOutputPrefixStr);
+				isPacked      = JSON_Data.getBoolValue  (object, "isPacked"     , debugOutputPrefixStr);
+				isUnlocked    = JSON_Data.getBoolValue  (object, "isUnlocked"   , debugOutputPrefixStr);
+				fuel          = JSON_Data.getFloatValue (object, "fuel"         , debugOutputPrefixStr);
 				
 				//KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 			}

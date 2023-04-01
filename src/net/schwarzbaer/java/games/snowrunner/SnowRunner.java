@@ -225,13 +225,13 @@ public class SnowRunner {
 		controllers.truckToDLCAssignmentListeners.setTruckToDLCAssignments(truckToDLCAssignments);
 		
 		if (loadInitialPAK    ()) updateAfterDataChange();
-		if (reloadSaveGameData()) updateAfterSaveGameChange();
+		reloadSaveGameData();
 		
 	}
 
-	private boolean reloadSaveGameData() {
+	private void reloadSaveGameData() {
 		File saveGameFolder = getSaveGameFolder();
-		if (saveGameFolder==null) return false;
+		if (saveGameFolder==null) return;
 		
 		System.out.printf("Read Data from SaveGame Folder \"%s\" ...%n", saveGameFolder.getAbsolutePath());
 		saveGameData = new SaveGameData(saveGameFolder);
@@ -280,7 +280,8 @@ public class SnowRunner {
 		
 		miSGValuesSorted  .setEnabled(true);
 		miSGValuesOriginal.setEnabled(true);
-		return true;
+		
+		updateAfterSaveGameChange();
 	}
 
 	private String getSaveGameLabel(String indexStr) {
