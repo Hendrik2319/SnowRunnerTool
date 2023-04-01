@@ -457,46 +457,12 @@ public class SnowRunner {
 		else
 			settings.remove(AppSettings.ValueKey.Language);
 		
-		/*
-		// DEBUG
-		if (language!=null) {
-			for (String country : new String[] {"US","RU"}) {
-				System.out.printf("Country: %s%n", country);
-				for (int region=1; region<7; region++) {
-					String regionName_ID = String.format("%s_%02d", country, region);
-					String regionName = language.dictionary.get(regionName_ID);
-					System.out.printf("   Region[%d]:  %s  <%s>%n", region, regionName, regionName_ID);
-					for (int map=1; map<6; map++) {
-						String mapName_ID = String.format("%s_%02d_%02d_NAME", country, region, map);
-						String mapName = language.dictionary.get(mapName_ID);
-						if (mapName==null) {
-							mapName_ID = String.format("LEVEL_%s_%02d_%02d_NAME", country, region, map);
-							mapName = language.dictionary.get(mapName_ID);
-						}
-						if (mapName==null) {
-							mapName_ID = String.format("%s_%02d_%02d_NEW_NAME", country, region, map);
-							mapName = language.dictionary.get(mapName_ID);
-						}
-						if (mapName==null) {
-							mapName_ID = String.format("LEVEL_%s_%02d_%02d", country, region, map).toLowerCase();
-							mapName = language.dictionary.get(mapName_ID);
-						}
-						if (mapName==null) {
-							mapName_ID = String.format("LEVEL_%s_%02d_%02d", country, region, map).toLowerCase()+"_NAME";
-							mapName = language.dictionary.get(mapName_ID);
-						}
-						if (mapName!=null)
-							System.out.printf("      Map[%d,%d]:  %s  <%s>%n", region, map, mapName, mapName_ID);
-					}
-				}
-			}
-		}
-		// DEBUG
-		*/
+		if (language!=null)
+			language.scanRegionNames(false);
 		
 		controllers.languageListeners.setLanguage(language);
 	}
-
+	
 	public static String solveStringID(Data.HasNameAndID namedToken, Language language) {
 		if (namedToken==null) return null;
 		String id = namedToken.getID();

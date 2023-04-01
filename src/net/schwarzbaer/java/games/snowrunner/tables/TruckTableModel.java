@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import javax.swing.JCheckBoxMenuItem;
@@ -61,11 +62,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		super(mainWindow, controllers, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "UpdateLvl", "Update Level"         ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).dlcName),
-				new ColumnID( "DLC"      , "DLC"                  ,               String.class, 170,             null,   null,      null, false, (row,model) -> getDLC((Truck)row,(TruckTableModel)model)),
+				new ColumnID( "DLC"      , "DLC"                  ,               String.class, 170,             null,   null,      null, false, (row,model) -> getDLC(row,model)),
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
-				new ColumnID( "Owned"    , "Owned"                ,              Integer.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount((Truck)row,(TruckTableModel)model)), 
+				new ColumnID( "Owned"    , "Owned"                ,              Integer.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount(row,model)), 
+				new ColumnID( "InWareHs" , "In Warehouse"         ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, false)).setVerboseValueFcn((Object row, VerySimpleTableModel<?> model) -> getTrucksInWarehouse(row, model, true)), 
+				new ColumnID( "InGarage" , "In Garage"            ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, false)).setVerboseValueFcn((Object row, VerySimpleTableModel<?> model) -> getTrucksInGarage   (row, model, true)),
 				new ColumnID( "DLData"   , "DiffLock (from Data)" ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
 				new ColumnID( "DLUser"   , "DiffLock (by User)"   ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realDiffLock),
 				new ColumnID( "DLTool"   , "DiffLock (by Tool)"   ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
@@ -204,33 +207,67 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		table.repaint();
 	}
 
+	private static <Result> Result castNCall(Object row, VerySimpleTableModel<?> model, BiFunction<Truck,TruckTableModel,Result> action)
+	{
+		if (!(row   instanceof Truck          )) return null;
+		if (!(model instanceof TruckTableModel)) return null;
+		return action.apply((Truck) row, (TruckTableModel) model);
+	}
+
 	private static TableModelBasedBuilder<Data.Capability> createIsCapableFcn(SpecialTruckAddons.AddonCategory listID, boolean verbose) {
-		return (row,model) -> {
-			if (!(row instanceof Truck)) return null;
-			Truck truck = (Truck) row;
-			
-			if (!(model instanceof TruckTableModel)) return null;
-			TruckTableModel truckTableModel = (TruckTableModel) model;
-			
-			if (truckTableModel.data==null) return null;
-			if (truckTableModel.specialTruckAddons==null) return null;
+		return (row,model) -> castNCall(row, model, (truck_, model_) -> {
+			if (model_.data==null) return null;
+			if (model_.specialTruckAddons==null) return null;
 			if (listID==null) return null;
 			
-			return truckTableModel.data.isCapable(truck, listID, truckTableModel.specialTruckAddons, verbose);
-		};
+			return model_.data.isCapable(truck_, listID, model_.specialTruckAddons, verbose);
+		});
+	//	{
+	//		return ;
+	//		if (!(row instanceof Truck)) return null;
+	//		Truck truck = (Truck) row;
+	//		
+	//		if (!(model instanceof TruckTableModel)) return null;
+	//		TruckTableModel truckTableModel = (TruckTableModel) model;
+	//		
+	//		if (truckTableModel.data==null) return null;
+	//		if (truckTableModel.specialTruckAddons==null) return null;
+	//		if (listID==null) return null;
+	//		
+	//		return truckTableModel.data.isCapable(truck, listID, truckTableModel.specialTruckAddons, verbose);
+	//	};
 	}
 
-	private static String getDLC(Truck truck, TruckTableModel model) {
-		if (truck==null) return null;
-		if (model==null) return null;
-		if (model.truckToDLCAssignments==null) return null;
-		return model.truckToDLCAssignments.get(truck.id);
+	private static String getDLC(Object row, VerySimpleTableModel<?> model)
+	{
+		return castNCall(row, model, (truck_, model_) -> {
+			if (model_.truckToDLCAssignments==null) return null;
+			return model_.truckToDLCAssignments.get(truck_.id);
+		});
 	}
-
-	private static Integer getOwnedCount(Truck truck, TruckTableModel model) {
-		if (model==null) return null;
-		if (model.saveGame==null) return null;
-		return model.saveGame.getOwnedTruckCount(truck);
+	
+	private static Integer getOwnedCount(Object row, VerySimpleTableModel<?> model)
+	{
+		return castNCall(row, model, (truck_, model_) -> {
+			if (model_.saveGame==null) return null;
+			return model_.saveGame.getOwnedTruckCount(truck_);
+		});
+	}
+	
+	private static Integer getTrucksInWarehouse(Object row, VerySimpleTableModel<?> model, boolean verbose)
+	{
+		return castNCall(row, model, (truck_, model_) -> {
+			if (model_.saveGame==null) return null;
+			return model_.saveGame.getTrucksInWarehouse(truck_, verbose);
+		});
+	}
+	
+	private static Integer getTrucksInGarage(Object row, VerySimpleTableModel<?> model, boolean verbose)
+	{
+		return castNCall(row, model, (truck_, model_) -> {
+			if (model_.saveGame==null) return null;
+			return model_.saveGame.getTrucksInGarage(truck_, verbose);
+		});
 	}
 
 	private static Float getMaxWheelValue(Truck truck, Function<TruckTire,Float> getTireValue) {

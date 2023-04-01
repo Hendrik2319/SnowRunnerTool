@@ -417,10 +417,21 @@ public class Data {
 	public static class Language {
 		final String name;
 		final HashMap<String,String> dictionary;
+		RegionNames regionNames;
 		
 		Language(String name) {
 			this.name = name;
 			this.dictionary = new HashMap<>();
+			regionNames = null;
+		}
+		
+		void scanRegionNames(boolean verbose)
+		{
+			if (regionNames == null)
+			{
+				regionNames = new RegionNames();
+				regionNames.scanRegionNames(this, verbose);
+			}
 		}
 
 		static Language readFrom(String name, InputStream input) {
@@ -456,6 +467,122 @@ public class Data {
 		}
 	}
 	
+	public static class RegionNames
+	{
+		private static final String[] countries = new String[] {"US","RU"};
+		private static final int maxRegion = 16;
+		private static final int maxMap    = 6;
+		private final HashMap<String, NameDesc[][]> data;
+		
+		private RegionNames() {
+			data = new HashMap<>();
+		}
+	
+		private void scanRegionNames(Language language, boolean verbose)
+		{
+			for (String country : countries) {
+				if (verbose) System.out.printf("Country: %s%n", country);
+				
+				NameDesc[][] names = new NameDesc[maxRegion][maxMap+1];
+				for (int i=0; i<maxRegion; i++) Arrays.fill(names[i], null);
+				data.put(country, names);
+				
+				for (int region=1; region<=maxRegion; region++) {
+					String regionName_ID = String.format("%s_%02d", country, region);
+					String regionName = language.dictionary.get(regionName_ID);
+					
+					if (regionName!=null)
+					{
+						names[region-1][0] = new NameDesc(regionName_ID, regionName, null, null);
+						
+						if (verbose)
+							System.out.printf("   Region[%d]:  %s%n", region, names[region-1][0]);
+						//	System.out.printf("   Region[%d]:  %s  <%s>%n", region, regionName, regionName_ID);
+					}
+					else
+						if (verbose) System.out.printf("   Region[%d] - Name not found%n", region);
+					
+					for (int map=1; map<=maxMap; map++) {
+						String mapName_ID = null;
+						String mapName = null;
+						String mapDesc_ID = null;
+						String mapDesc = null;
+						
+						if (mapName==null) {
+							mapName_ID = String.format("%s_%02d_%02d_NAME", country, region, map);
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName==null) {
+							mapName_ID = String.format("LEVEL_%s_%02d_%02d", country, region, map).toLowerCase();
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName==null) {
+							mapName_ID = String.format("LEVEL_%s_%02d_%02d", country, region, map).toLowerCase()+"_NAME";
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName==null) {
+							mapName_ID = String.format("LEVEL_%s_%02d_%02d_NAME", country, region, map);
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						if (mapName==null) {
+							mapName_ID = String.format("%s_%02d_%02d_NEW_NAME", country, region, map);
+							mapName = language.dictionary.get(mapName_ID);
+						}
+						
+						if (mapDesc==null) {
+							mapDesc_ID = String.format("%s_%02d_%02d_DESC", country, region, map);
+							mapDesc = language.dictionary.get(mapDesc_ID);
+						}
+						if (mapDesc==null) {
+							mapDesc_ID = String.format("LEVEL_%s_%02d_%02d", country, region, map).toLowerCase()+"_DESC";
+							mapDesc = language.dictionary.get(mapDesc_ID);
+						}
+						if (mapDesc==null) {
+							mapDesc_ID = String.format("LEVEL_%s_%02d_%02d_DESC", country, region, map);
+							mapDesc = language.dictionary.get(mapDesc_ID);
+						}
+						if (mapDesc==null) {
+							mapDesc_ID = String.format("%s_%02d_%02d_NEW_DESC", country, region, map);
+							mapDesc = language.dictionary.get(mapDesc_ID);
+						}
+						
+						if (mapName!=null || mapDesc!=null)
+						{
+							if (mapName==null) mapName_ID = null;
+							if (mapDesc==null) mapDesc_ID = null;
+							names[region-1][map] = new NameDesc(mapName_ID, mapName, mapDesc_ID, mapDesc);
+							
+							if (verbose)
+								System.out.printf("      Map[%d,%d]:  %s%n", region, map, names[region-1][map]);
+							//	System.out.printf("      Map[%d,%d]:  %s  <%s>%n", region, map, mapName, mapName_ID);
+						}
+					}
+				}
+			}
+		}
+	
+		public record NameDesc(String nameID, String name, String descID, String desc)
+		{
+			@Override public String toString()
+			{
+				StringBuilder sb = new StringBuilder();
+				if (name!=null || nameID!=null)
+					sb.append(name+" <"+nameID+">");
+				
+				if (desc!=null || descID!=null)
+				{
+					if (!sb.isEmpty())
+						sb.append(", ");
+					String trimmedDesc = desc==null ? null : desc.length()<30 ? desc : desc.substring(0, 30)+"...";
+					sb.append(trimmedDesc+" <"+descID+">");
+				}
+				
+				return sb.toString();
+			}
+		}
+		
+	}
+
 	private static Integer parseInt(String str) {
 		if (str==null) return null;
 		try {
@@ -1960,4 +2087,5 @@ public class Data {
 		}
 
 	}
+
 }
