@@ -28,9 +28,11 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.VerboseTableModelBasedBuilder;
 
 public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
@@ -66,9 +68,9 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
-				new ColumnID( "Owned"    , "Owned"                ,              Integer.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount(row,model)), 
-				new ColumnID( "InWareHs" , "In Warehouse"         ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, false)).setVerboseValueFcn((Object row, VerySimpleTableModel<?> model) -> getTrucksInWarehouse(row, model, true)), 
-				new ColumnID( "InGarage" , "In Garage"            ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, false)).setVerboseValueFcn((Object row, VerySimpleTableModel<?> model) -> getTrucksInGarage   (row, model, true)),
+				new ColumnID( "Owned"    , "Owned"                ,              Integer.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount(row,model)),
+				new ColumnID( "InWareHs" , "In Warehouse"         ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
+				new ColumnID( "InGarage" , "In Garage"            ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, null), (row, model, textOutput) -> getTrucksInGarage   (row, model, textOutput)),
 				new ColumnID( "DLData"   , "DiffLock (from Data)" ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
 				new ColumnID( "DLUser"   , "DiffLock (by User)"   ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realDiffLock),
 				new ColumnID( "DLTool"   , "DiffLock (by Tool)"   ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
@@ -76,15 +78,15 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "AWDUser"  , "AWD (by User)"        ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realAWD),
 				new ColumnID( "AWDTool"  , "AWD (by Tool)"        ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
 				new ColumnID( "AutoWinch", "AutomaticWinch"       ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
-				new ColumnID(ID_MetalD   , "Metal Detector"       ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   , true) ),
-				new ColumnID(ID_Seismic  , "Seismic Vibrator"     ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator , true) ),
-				new ColumnID(ID_BigCrane , "Big Crane"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane        , true) ),
-				new ColumnID(ID_MiniCrane, "Mini Crane"           ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCrane       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCrane       , true) ),
-				new ColumnID(ID_LogLift  , "Log Lift"             ,      Data.Capability.class,  50,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLift         , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLift         , true) ),
-				new ColumnID(ID_LongLogs , "Long Logs"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs        , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs        , true) ),
-				new ColumnID(ID_MedLogs  , "Medium Logs"          ,      Data.Capability.class,  75,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs      , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs      , true) ),
-				new ColumnID(ID_ShortLogs, "Short Logs"           ,      Data.Capability.class,  65,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs       , false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs       , true) ),
-				new ColumnID(ID_MedLogsB , "Medium L. (Burnt)"    ,      Data.Capability.class,  95,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs_burnt, false)).setVerboseValueFcn( createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs_burnt, true) ),
+				new ColumnID(ID_MetalD   , "Metal Detector"       ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.MetalDetector   ) ),
+				new ColumnID(ID_Seismic  , "Seismic Vibrator"     ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.SeismicVibrator ) ),
+				new ColumnID(ID_BigCrane , "Big Crane"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane        ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.BigCrane        ) ),
+				new ColumnID(ID_MiniCrane, "Mini Crane"           ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MiniCrane       ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.MiniCrane       ) ),
+				new ColumnID(ID_LogLift  , "Log Lift"             ,      Data.Capability.class,  50,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LogLift         ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.LogLift         ) ),
+				new ColumnID(ID_LongLogs , "Long Logs"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.LongLogs        ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.LongLogs        ) ),
+				new ColumnID(ID_MedLogs  , "Medium Logs"          ,      Data.Capability.class,  75,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs      ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.MediumLogs      ) ),
+				new ColumnID(ID_ShortLogs, "Short Logs"           ,      Data.Capability.class,  65,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.ShortLogs       ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.ShortLogs       ) ),
+				new ColumnID(ID_MedLogsB , "Medium L. (Burnt)"    ,      Data.Capability.class,  95,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MediumLogs_burnt), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.MediumLogs_burnt) ),
 				new ColumnID( "FuelCap"  , "Fuel Capacity"        ,              Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
 				new ColumnID( "WheelSizs", "Wheel Sizes"          ,               String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
 				new ColumnID( "WheelTyps", "Wheel Types"          ,               String.class, 280,             null,   null,      null, (row,lang) -> getWheelCategories((Truck)row,lang)),
@@ -214,28 +216,24 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		return action.apply((Truck) row, (TruckTableModel) model);
 	}
 
-	private static TableModelBasedBuilder<Data.Capability> createIsCapableFcn(SpecialTruckAddons.AddonCategory listID, boolean verbose) {
+	private static TableModelBasedBuilder<Data.Capability> createIsCapableFcn(SpecialTruckAddons.AddonCategory listID) {
 		return (row,model) -> castNCall(row, model, (truck_, model_) -> {
 			if (model_.data==null) return null;
 			if (model_.specialTruckAddons==null) return null;
 			if (listID==null) return null;
 			
-			return model_.data.isCapable(truck_, listID, model_.specialTruckAddons, verbose);
+			return model_.data.isCapable(truck_, listID, model_.specialTruckAddons, null);
 		});
-	//	{
-	//		return ;
-	//		if (!(row instanceof Truck)) return null;
-	//		Truck truck = (Truck) row;
-	//		
-	//		if (!(model instanceof TruckTableModel)) return null;
-	//		TruckTableModel truckTableModel = (TruckTableModel) model;
-	//		
-	//		if (truckTableModel.data==null) return null;
-	//		if (truckTableModel.specialTruckAddons==null) return null;
-	//		if (listID==null) return null;
-	//		
-	//		return truckTableModel.data.isCapable(truck, listID, truckTableModel.specialTruckAddons, verbose);
-	//	};
+	}
+
+	private static VerboseTableModelBasedBuilder<Data.Capability> createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory listID) {
+		return (row,model,textOutput) -> castNCall(row, model, (truck_, model_) -> {
+			if (model_.data==null) return null;
+			if (model_.specialTruckAddons==null) return null;
+			if (listID==null) return null;
+			
+			return model_.data.isCapable(truck_, listID, model_.specialTruckAddons, textOutput);
+		});
 	}
 
 	private static String getDLC(Object row, VerySimpleTableModel<?> model)
@@ -254,19 +252,19 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		});
 	}
 	
-	private static Integer getTrucksInWarehouse(Object row, VerySimpleTableModel<?> model, boolean verbose)
+	private static Integer getTrucksInWarehouse(Object row, VerySimpleTableModel<?> model, TextOutput textOutput)
 	{
 		return castNCall(row, model, (truck_, model_) -> {
 			if (model_.saveGame==null) return null;
-			return model_.saveGame.getTrucksInWarehouse(truck_, verbose);
+			return model_.saveGame.getTrucksInWarehouse(truck_, textOutput);
 		});
 	}
 	
-	private static Integer getTrucksInGarage(Object row, VerySimpleTableModel<?> model, boolean verbose)
+	private static Integer getTrucksInGarage(Object row, VerySimpleTableModel<?> model, TextOutput textOutput)
 	{
 		return castNCall(row, model, (truck_, model_) -> {
 			if (model_.saveGame==null) return null;
-			return model_.saveGame.getTrucksInGarage(truck_, verbose);
+			return model_.saveGame.getTrucksInGarage(truck_, textOutput);
 		});
 	}
 
@@ -340,6 +338,21 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
 		private ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
 			super(ID, name, columnClass, prefWidth, horizontalAlignment, format, getValue);
+			this.editMarker = editMarker;
+		}
+
+		private <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object, ColumnType> getValue, BiFunction<Object, TextOutput, ColumnType> getValue_verbose) {
+			super(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, getValue, getValue_verbose);
+			this.editMarker = editMarker;
+		}
+
+		private <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue, VerboseTableModelBasedBuilder<ColumnType> getValue_verbose) {
+			super(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, getValue, getValue_verbose);
+			this.editMarker = editMarker;
+		}
+
+		private ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Edit editMarker, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue, VerboseLanguageBasedStringBuilder getValue_verbose) {
+			super(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, getValue, getValue_verbose);
 			this.editMarker = editMarker;
 		}
 		

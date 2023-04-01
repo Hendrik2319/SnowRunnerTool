@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Vector;
 
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Array;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Object;
@@ -152,10 +153,10 @@ public class SaveGameData {
 			return getOwnedTruckCount(truck)>0;
 		}
 
-		public int getTrucksInWarehouse(Truck truck, boolean verbose) {
-			if (truck==null) { if (verbose) System.out.printf("No truck defined.%n"); return 0; }
-			if (ppd  ==null) { if (verbose) System.out.printf("No corresponding data in SaveGame.%n"); return 0; }
-			if (ppd.trucksInWarehouse.isEmpty()) { if (verbose) System.out.printf("No trucks in Warehouse.%n"); return 0; }
+		public int getTrucksInWarehouse(Truck truck, TextOutput textOutput) {
+			if (truck==null) { if (textOutput!=null) textOutput.printf("No truck defined.%n"); return 0; }
+			if (ppd  ==null) { if (textOutput!=null) textOutput.printf("No corresponding data in SaveGame.%n"); return 0; }
+			if (ppd.trucksInWarehouse.isEmpty()) { if (textOutput!=null) textOutput.printf("No trucks in Warehouse.%n"); return 0; }
 			
 			int count = 0;
 			
@@ -165,16 +166,16 @@ public class SaveGameData {
 				if (truckInSlot!=null && truckInSlot.type.equals(truck.id))
 				{
 					count++;
-					if (verbose)
-						System.out.printf("Truck <%s> found in Warehouse at posistion %d.%n", truck.id, i+1);
+					if (textOutput!=null)
+						textOutput.printf("Truck <%s> found in Warehouse at posistion %d.%n", truck.id, i+1);
 				}
 			}
 			return count;
 		}
 
-		public int getTrucksInGarage(Truck truck, boolean verbose) {
-			if (truck==null) { if (verbose) System.out.printf("No truck defined.%n"); return 0; }
-			if (garages.isEmpty()) { if (verbose) System.out.printf("No garages found in SaveGame.%n"); return 0; }
+		public int getTrucksInGarage(Truck truck, TextOutput textOutput) {
+			if (truck==null      ) { if (textOutput!=null) textOutput.printf("No truck defined.%n"); return 0; }
+			if (garages.isEmpty()) { if (textOutput!=null) textOutput.printf("No garages found in SaveGame.%n"); return 0; }
 			
 			int count = 0;
 			for (String garageName : garages.keySet())
@@ -186,8 +187,8 @@ public class SaveGameData {
 					if (truckInSlot!=null && truckInSlot.type.equals(truck.id))
 					{
 						count++;
-						if (verbose)
-							System.out.printf("Truck <%s> found in garage \"%s\", slot %d.%n", truck.id, garageName, i+1);
+						if (textOutput!=null)
+							textOutput.printf("Truck <%s> found in garage \"%s\", slot %d.%n", truck.id, garageName, i+1);
 					}
 				}
 			}

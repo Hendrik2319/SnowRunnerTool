@@ -26,6 +26,7 @@ import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
@@ -686,21 +687,21 @@ public class Data {
 		}
 	}
 
-	public Capability isCapable(Truck truck, SpecialTruckAddons.AddonCategory listID, SpecialTruckAddons specialTruckAddons, boolean verbose) {
+	public Capability isCapable(Truck truck, SpecialTruckAddons.AddonCategory listID, SpecialTruckAddons specialTruckAddons, TextOutput textOutput) {
 		SpecialTruckAddonList addonList = specialTruckAddons.getList(listID);
-		if (verbose) System.out.printf("Is Truck <%s> capable of %s?%n", truck.id, listID.label);
+		if (textOutput!=null) textOutput.printf("Is Truck <%s> capable of %s?%n", truck.id, listID.label);
 		
 		switch (listID.type) {
 			case Addon:
 				for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
 					for (TruckAddon addon : list)
 						if (addonList.contains(addon)) {
-							if (verbose)
-								System.out.printf("   Yes. Found addon <%s>%n", addon.id);
+							if (textOutput!=null)
+								textOutput.printf("   Yes. Found addon <%s>%n", addon.id);
 							return new Capability(true, true, false);
 						}
-				if (verbose)
-					System.out.printf("   No. Can't find any needed addon (%s) in trucks compatible addon list%n", addonList.toString());
+				if (textOutput!=null)
+					textOutput.printf("   No. Can't find any needed addon (%s) in trucks compatible addon list%n", addonList.toString());
 				return new Capability(false, false, false);
 			
 			case LoadAreaCargo:
@@ -722,87 +723,87 @@ public class Data {
 					r -> false, //r!=null && r.booleanValue(),
 					
 					id -> {
-						return determineCapability(truck, id, verbose);
+						return determineCapability(truck, id, textOutput);
 					}
 				);
-				if (verbose)
+				if (textOutput!=null)
 				{
 					if (result==null)
-						System.out.printf("   Result: Cant' decide%n");
+						textOutput.printf("   Result: Cant' decide%n");
 					else
-						System.out.printf("   Result: %s (by %s)%n", result.isCapable ? "YES" : "NO", result.getText(" and "));
+						textOutput.printf("   Result: %s (by %s)%n", result.isCapable ? "YES" : "NO", result.getText(" and "));
 				}
 				return result;
 		}
 		return null;
 	}
 
-	private Capability determineCapability(Truck truck, String id, boolean verbose)
+	private Capability determineCapability(Truck truck, String id, TextOutput textOutput)
 	{
 		TruckAddon addon = truckAddons.get(id);
 		if (addon==null) {
-			if (verbose) System.out.printf("   Unknown TruckAddon <%s>%n", id);
+			if (textOutput!=null) textOutput.printf("   Unknown TruckAddon <%s>%n", id);
 			return null;
 		}
-		if (verbose) {
+		if (textOutput!=null) {
 			String type = addon.gameData.isCargo ? "Cargo" : "Addon";
-			System.out.printf("   Test <%s> [%s]%n", id, type);
+			textOutput.printf("   Test <%s> [%s]%n", id, type);
 		}
 		
 		if (!findRequiredAddons(addon.gameData.requiredAddons, truck.compatibleTruckAddons, truck.compatibleTrailers)) {
-			if (verbose) {
-				System.out.printf("      Can't find required addons in list of compatible addons and trailers.%n", id);
-				System.out.printf("         required addons: %s%n", SnowRunner.joinRequiredAddonsToString_OneLine(addon.gameData.requiredAddons));
+			if (textOutput!=null) {
+				textOutput.printf("      Can't find required addons in list of compatible addons and trailers.%n", id);
+				textOutput.printf("         required addons: %s%n", SnowRunner.joinRequiredAddonsToString_OneLine(addon.gameData.requiredAddons));
 			}
 			return new Capability(false, false, false);
 		}
 		
 		// cargoType & cargoAddonSubtype ??
 		if (addon.gameData.cargoAddonSubtype==null) {
-			if (verbose) System.out.printf("      This addon has no CargoAddonSubtype.%n", id);
+			if (textOutput!=null) textOutput.printf("      This addon has no CargoAddonSubtype.%n", id);
 			return null;
 		}
-		if (verbose) System.out.printf("      CargoAddonSubtype: \"%s\"%n", addon.gameData.cargoAddonSubtype);
+		if (textOutput!=null) textOutput.printf("      CargoAddonSubtype: \"%s\"%n", addon.gameData.cargoAddonSubtype);
 		
 		Vector<TruckAddon> truckAddons = findItemsWithCompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, this.truckAddons.values());
 		Vector<Trailer   > trailers    = findItemsWithCompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, this.trailers   .values());
 		
 		if (truckAddons.isEmpty() && trailers.isEmpty()) {
-			if (verbose) System.out.printf("      Can't find any addon or trailer for CargoAddonSubtype.%n");
+			if (textOutput!=null) textOutput.printf("      Can't find any addon or trailer for CargoAddonSubtype.%n");
 			return null;
 		}
 		
 		Capability result = null;
 		
 		boolean noAddonFound = true;
-		if (verbose && !truckAddons.isEmpty())
-			System.out.printf("      Found addons for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinTruckAddonNames(truckAddons, null, null));
+		if (textOutput!=null && !truckAddons.isEmpty())
+			textOutput.printf("      Found addons for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinTruckAddonNames(truckAddons, null, null));
 		for (TruckAddon addon_ : truckAddons)
 			if (findAddon(addon_.id, truck.compatibleTruckAddons, null)) {
-				if (verbose) System.out.printf("         Found addon <%s> in trucks list of compatible addons.%n", addon_.id);
+				if (textOutput!=null) textOutput.printf("         Found addon <%s> in truck's list of compatible addons.%n", addon_.id);
 				noAddonFound = false;
 				if (result == null) result = new Capability(false,false,false);
 				result.isCapable = true;
 				result.byTruck   = true;
 				break;
 			}
-		if (verbose && noAddonFound && !truckAddons.isEmpty())
-			System.out.printf("         None of the found addons are in trucks list of compatible addons.%n");
+		if (textOutput!=null && noAddonFound && !truckAddons.isEmpty())
+			textOutput.printf("         None of the found addons are in truck's list of compatible addons.%n");
 		
 		boolean noTrailerFound = true;
-		if (verbose && !trailers.isEmpty())
-			System.out.printf("      Found trailers for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinNames(trailers, null));
+		if (textOutput!=null && !trailers.isEmpty())
+			textOutput.printf("      Found trailers for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinNames(trailers, null));
 		for (Trailer trailer : trailers)
 			if (findAddon(trailer.id, null, truck.compatibleTrailers)) {
-				if (verbose) System.out.printf("         Found trailer <%s> in trucks list of compatible trailers.%n", trailer.id);
+				if (textOutput!=null) textOutput.printf("         Found trailer <%s> in truck's list of compatible trailers.%n", trailer.id);
 				noTrailerFound = false;
 				if (result == null) result = new Capability(false,false,false);
 				result.isCapable = true;
 				result.byTrailer = true;
 				break;
 			}
-		if (verbose && noTrailerFound && !trailers.isEmpty())
-			System.out.printf("         None of the found trailers are in trucks list of compatible trailers.%n");
+		if (textOutput!=null && noTrailerFound && !trailers.isEmpty())
+			textOutput.printf("         None of the found trailers are in truck's list of compatible trailers.%n");
 		
 		if (result == null)
 			result = new Capability(false,false,false);

@@ -54,6 +54,7 @@ import javax.swing.table.TableColumnModel;
 import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
+import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -62,6 +63,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContextMenuModifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextPaneOutputSource;
@@ -450,7 +452,23 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		JMenuItem miShowCalculationPath = contextMenu.add(SnowRunner.createMenuItem("Show calculation path", true, e->{
 			if (clickedColumn==null) return;
 			if (clickedRow   ==null) return;
-			clickedColumn.getValue_verbose(clickedRow, language, this);
+			boolean writeToConsole = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.Tables_WriteCalculationDetailsToConsole, true);
+			if (writeToConsole)
+				clickedColumn.getValue_verbose(clickedRow, language, this, new TextOutput.SystemOut());
+			else
+			{
+				TextOutput.Collector textOutput = new TextOutput.Collector();
+				clickedColumn.getValue_verbose(clickedRow, language, this, textOutput);
+				TextAreaDialog.showText(mainWindow, "Calculation Details", 300, 400, false, false, textOutput.toString(), null, dialog -> {
+					SnowRunner.settings.registerExtraWindow(dialog,
+						SnowRunner.AppSettings.ValueKey.Tables_CalcDetailsDialog_WindowX,
+						SnowRunner.AppSettings.ValueKey.Tables_CalcDetailsDialog_WindowY,
+						SnowRunner.AppSettings.ValueKey.Tables_CalcDetailsDialog_WindowWidth,
+						SnowRunner.AppSettings.ValueKey.Tables_CalcDetailsDialog_WindowHeight,
+						300, 400
+					);
+				});
+			}
 		}));
 		
 		contextMenu.addContextMenuInvokeListener((table_, x, y) -> {
@@ -1678,14 +1696,22 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			String getValue(Object value, Language language);
 		}
 		
+		public interface VerboseTableModelBasedBuilder<ValueType> {
+			ValueType getValue(Object value, VerySimpleTableModel<?> tableModel, TextOutput textOutput);
+		}
+		
+		public interface VerboseLanguageBasedStringBuilder {
+			String getValue(Object value, Language language, TextOutput textOutput);
+		}
+		
 		private final SimplifiedColumnConfig config;
 		private final String id;
 		private final Function<Object, ?> getValue;
 		private final LanguageBasedStringBuilder getValueL;
 		private final TableModelBasedBuilder<?> getValueT;
-		private Function<Object, ?> getValue_verbose;
-		private LanguageBasedStringBuilder getValueL_verbose;
-		private TableModelBasedBuilder<?> getValueT_verbose;
+		private final BiFunction<Object,TextOutput,?> getValue_verbose;
+		private final VerboseLanguageBasedStringBuilder getValueL_verbose;
+		private final VerboseTableModelBasedBuilder<?> getValueT_verbose;
 		private final boolean useValueAsStringID;
 		private final Integer horizontalAlignment;
 		private final Color foreground;
@@ -1694,25 +1720,38 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private boolean isVisible;
 		private FilterRowsDialog.Filter filter;
 		
-		public ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
-			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, false, null, getValue, null);
+		public              ColumnID(String ID, String name, Class<String    > columnClass, int prefWidth,                                     Integer horizontalAlignment, String format,                             LanguageBasedStringBuilder         getValue) {
+			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, false            , null, getValue, null, null, null, null);
 		}
-		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
-			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, getValue, null, null);
+		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth,                                     Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType>        getValue) {
+			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, getValue, null, null, null, null, null);
 		}
-		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
-			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, null, null, getValue);
+		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth,                                     Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
+			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, useValueAsStringID, null, null, getValue, null, null, null);
 		}
-		public ColumnID(String ID, String name, Class<String> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, LanguageBasedStringBuilder getValue) {
-			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false, null, getValue, null);
+		public              ColumnID(String ID, String name, Class<String    > columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format,                             LanguageBasedStringBuilder         getValue) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false             , null, getValue, null, null, null, null);
 		}
-		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue) {
-			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null, null);
+		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType>        getValue) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null, null, null, null, null);
 		}
 		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
-			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue);
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue, null, null, null);
 		}
-		private <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType> getValue, LanguageBasedStringBuilder getValueL, TableModelBasedBuilder<ColumnType> getValueT) {
+		public              ColumnID(String ID, String name, Class<String    > columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format,                             LanguageBasedStringBuilder         getValue, VerboseLanguageBasedStringBuilder         getValue_verbose) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false             , null, getValue, null, null, getValue_verbose, null);
+		}
+		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType>        getValue, BiFunction<Object,TextOutput,ColumnType>  getValue_verbose) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null, null, getValue_verbose, null, null);
+		}
+		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue, VerboseTableModelBasedBuilder<ColumnType> getValue_verbose) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue, null, null, getValue_verbose);
+		}
+		private <ColumnType> ColumnID(
+				String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID,
+				Function  <Object,           ColumnType> getValue        ,        LanguageBasedStringBuilder getValueL        ,        TableModelBasedBuilder<ColumnType> getValueT        ,
+				BiFunction<Object,TextOutput,ColumnType> getValue_verbose, VerboseLanguageBasedStringBuilder getValueL_verbose, VerboseTableModelBasedBuilder<ColumnType> getValueT_verbose
+		) {
 			this.isVisible = true;
 			this.filter = null;
 			this.id = ID;
@@ -1727,24 +1766,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			this.config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
 			if (useValueAsStringID && columnClass!=String.class)
 				throw new IllegalStateException();
-			this.getValue_verbose = null;
-			this.getValueL_verbose = null;
-			this.getValueT_verbose = null;
+			this.getValue_verbose = getValue_verbose;
+			this.getValueL_verbose = getValueL_verbose;
+			this.getValueT_verbose = getValueT_verbose;
 		}
 		@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 		
 		public Object getValue(Object row, Language language, VerySimpleTableModel<?> tableModel) {
-			return getValue(row, language, tableModel, getValue, getValueL, getValueT);
-		}
-		
-		public Object getValue_verbose(Object row, Language language, VerySimpleTableModel<?> tableModel) {
-			return getValue(row, language, tableModel, getValue_verbose, getValueL_verbose, getValueT_verbose);
-		}
-		
-		private Object getValue(
-				Object row, Language language, VerySimpleTableModel<?> tableModel,
-				Function<Object, ?> getValue, LanguageBasedStringBuilder getValueL, TableModelBasedBuilder<?> getValueT
-		) {
 			if (getValue!=null) {
 				if (useValueAsStringID) {
 					String stringID = (String) getValue.apply(row);
@@ -1756,7 +1784,25 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				return getValueL.getValue(row,language);
 			}
 			if (getValueT!=null) {
-				return getValueT.getValue(row,tableModel);
+				return getValueT.getValue(row,(VerySimpleTableModel<?>) tableModel);
+			}
+			
+			return null;
+		}
+		
+		public Object getValue_verbose(Object row, Language language, VerySimpleTableModel<?> tableModel, TextOutput textOutput) {
+			if (getValue_verbose!=null) {
+				if (useValueAsStringID) {
+					String stringID = (String) getValue_verbose.apply(row, textOutput);
+					return SnowRunner.solveStringID(stringID, language);
+				}
+				return getValue_verbose.apply(row, textOutput);
+			}
+			if (getValueL_verbose!=null) {
+				return getValueL_verbose.getValue(row,language,textOutput);
+			}
+			if (getValueT_verbose!=null) {
+				return getValueT_verbose.getValue(row,(VerySimpleTableModel<?>) tableModel,textOutput);
 			}
 			
 			return null;
@@ -1764,21 +1810,6 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		
 		public boolean hasVerboseValueFcn() {
 			return getValue_verbose!=null || getValueL_verbose!=null || getValueT_verbose!=null;
-		}
-		
-		public ColumnID setVerboseValueFcn(Function<Object, ?> getValue) {
-			getValue_verbose = getValue;
-			return this;
-		}
-		
-		public ColumnID setVerboseValueFcn(LanguageBasedStringBuilder getValueL) {
-			getValueL_verbose = getValueL;
-			return this;
-		}
-		
-		public ColumnID setVerboseValueFcn(TableModelBasedBuilder<?> getValueT) {
-			getValueT_verbose = getValueT;
-			return this;
 		}
 	}
 	

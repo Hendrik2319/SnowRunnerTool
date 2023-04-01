@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -1471,6 +1472,11 @@ public class SnowRunner {
 			TruckTableModel_enableDLCTrucksHighlighting,
 			TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting,
 			Tables_WriteCalculationDetailsToConsole,
+			
+			Tables_CalcDetailsDialog_WindowX,
+			Tables_CalcDetailsDialog_WindowY,
+			Tables_CalcDetailsDialog_WindowWidth,
+			Tables_CalcDetailsDialog_WindowHeight,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {
@@ -1499,5 +1505,26 @@ public class SnowRunner {
 		for (int i=0; i<arr2.length; i++)
 			result[i+arr1.length] = arr2[i];
 		return result;
+	}
+	
+	public interface TextOutput
+	{
+		void printf(               String format, Object... values);
+		void printf(Locale locale, String format, Object... values);
+		
+		public static class SystemOut implements TextOutput
+		{
+			@Override public void printf(               String format, Object... values) { System.out.printf(        format, values); }
+			@Override public void printf(Locale locale, String format, Object... values) { System.out.printf(locale, format, values); }
+		}
+		
+		public static class Collector implements TextOutput
+		{
+			private final StringBuilder sb = new StringBuilder();
+			@Override public void printf(               String format, Object... values) { sb.append( String.format(        format, values) ); }
+			@Override public void printf(Locale locale, String format, Object... values) { sb.append( String.format(locale, format, values) ); }
+			@Override public String toString() { return sb.toString(); }
+			          public void clear() { sb.setLength(0); }
+		}
 	}
 }
