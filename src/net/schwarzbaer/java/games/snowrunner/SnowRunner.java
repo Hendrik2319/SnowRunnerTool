@@ -81,6 +81,7 @@ import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.KnownBugs;
 import net.schwarzbaer.java.games.snowrunner.tables.AddonCategoriesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.DLCTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.SaveGameDataPanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
@@ -103,6 +104,7 @@ public class SnowRunner {
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
+	public static final DateTimeFormatter dateTimeFormatter = new DateTimeFormatter();
 	
 	public static final AppSettings settings = new AppSettings();
 
@@ -157,6 +159,7 @@ public class SnowRunner {
 		contentPane.addTab("Suspensions"     , TableSimplifier.create(fin.addSubComp(new SuspensionsTableModel    (mainWindow, controllers, true, null))));
 		contentPane.addTab("Winches"         , TableSimplifier.create(fin.addSubComp(new WinchesTableModel        (mainWindow, controllers, true, null))));
 		contentPane.addTab("Addon Categories", TableSimplifier.create(fin.addSubComp(new AddonCategoriesTableModel(mainWindow, controllers))));
+		contentPane.addTab("SaveGame"        ,                        fin.addSubComp(new SaveGameDataPanel        (mainWindow, controllers)));
 		contentPane.addTab("Raw Data"        ,                        fin.addSubComp(rawDataPanel));
 		
 		
@@ -664,6 +667,15 @@ public class SnowRunner {
 		for (int i=0; i<names.length; i++)
 			names[i] = getNamesFromIDs(idLists[i],getName_StringID,language);
 		return names;
+	}
+
+	public static String[] getNamesFromIDs(Collection<String> idList, Function<String,String> getName_StringID, Language language, boolean sorted) {
+		if (getName_StringID==null)
+			return idList.toArray(String[]::new);
+		
+		Stream<String> stream = idList.stream().map(id->getNameFromID(id, getName_StringID, language));
+		if (sorted) stream = stream.sorted();
+		return stream.toArray(String[]::new);
 	}
 
 	public static String[] getNamesFromIDs(String[] idList, Function<String,String> getName_StringID, Language language) {

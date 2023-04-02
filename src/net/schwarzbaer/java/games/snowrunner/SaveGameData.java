@@ -63,11 +63,11 @@ public class SaveGameData {
 		for (File file : saveFiles) {
 			JSON_Data.Value<NV, V> value = readJsonFile(file);
 			if (value!=null) {
-				rawJsonData.put(file.getName(), value);
-				String name = file.getName();
-				String indexStr = name.substring(SAVEGAME_PREFIX.length(), name.length()-SAVEGAME_SUFFIX.length());
+				String fileName = file.getName();
+				rawJsonData.put(fileName, value);
+				String indexStr = fileName.substring(SAVEGAME_PREFIX.length(), fileName.length()-SAVEGAME_SUFFIX.length());
 				try {
-					saveGames.put(indexStr, new SaveGame(indexStr, value));
+					saveGames.put(indexStr, new SaveGame(fileName, indexStr, value));
 				} catch (TraverseException e) {
 					System.err.printf("Can't parse SaveGame \"%s\": %s", indexStr, e.getMessage());
 					//e.printStackTrace();
@@ -92,6 +92,7 @@ public class SaveGameData {
 
 	public static class SaveGame {
 	
+		public final String fileName;
 		public final String indexStr;
 		public final JSON_Data.Value<NV, V> data;
 		public final long saveTime;
@@ -101,10 +102,11 @@ public class SaveGameData {
 		public final PersistentProfileData ppd;
 		public final HashMap<String, Garage> garages;
 
-		private SaveGame(String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
+		private SaveGame(String fileName, String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
 			if (data==null)
 				throw new IllegalArgumentException();
 			
+			this.fileName = fileName;
 			this.indexStr = indexStr;
 			this.data = data;
 			

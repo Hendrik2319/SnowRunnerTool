@@ -418,7 +418,7 @@ public class Data {
 	public static class Language {
 		final String name;
 		final HashMap<String,String> dictionary;
-		RegionNames regionNames;
+		public RegionNames regionNames;
 		
 		Language(String name) {
 			this.name = name;
@@ -479,6 +479,60 @@ public class Data {
 			data = new HashMap<>();
 		}
 	
+		public String getNameForMap(String mapID)
+		{
+			// mapID: level_ru_02_03
+			String  country     = null;
+			Integer regionIndex = null;
+			Integer mapIndex    = null;
+			
+			if (mapID.toLowerCase().startsWith("level_"))
+				mapID = mapID.substring("level_".length());
+			
+			String[] parts = mapID.split("_");
+			
+			for (String str : countries)
+				if (parts[0].equalsIgnoreCase(str))
+					country = str;
+			
+			if (parts.length>1)
+				regionIndex = parseInt(parts[1]);
+			
+			if (parts.length>2)
+				mapIndex = parseInt(parts[2]);
+			
+			if (country!=null && regionIndex!=null && mapIndex!=null)
+			 {
+				String name = getNameForMap(country, regionIndex.intValue(), mapIndex.intValue());
+				if (name != null) return name;
+				return String.format("No Name for Map(%s,%02d,%02d)", country, regionIndex, mapIndex);
+			}
+
+			return String.format("No Name for Map(%s)", mapID);
+		}
+
+		public String getNameForMap(String country, int regionIndex, int mapIndex)
+		{
+			MapAndRegion mr = getMap(country, regionIndex, mapIndex);
+			if (mr==null) return null;
+			
+			return mr.toString();
+		}
+
+		private MapAndRegion getMap(String country, int regionIndex, int mapIndex)
+		{
+			NameDesc[][] regions = data.get(country);
+			if (regions == null) return null;
+			
+			if (regionIndex<1 || regionIndex>regions.length) return null;
+			NameDesc[] maps = regions[regionIndex-1];
+			
+			if (mapIndex<1 || mapIndex>maps.length) return null;
+			
+			NameDesc region = maps.length==0 ? null : maps[0]; 
+			return new MapAndRegion(region, maps[mapIndex]);
+		}
+
 		private void scanRegionNames(Language language, boolean verbose)
 		{
 			for (String country : countries) {
@@ -559,6 +613,20 @@ public class Data {
 						}
 					}
 				}
+			}
+		}
+		
+		private record MapAndRegion(NameDesc region, NameDesc map)
+		{
+			@Override
+			public String toString()
+			{
+				String regionStr = region!=null && region.name!=null ? region.name : null;
+				String mapStr    = map   !=null && map   .name!=null ? map   .name : null;
+				
+				if (regionStr==null && mapStr==null) return "<No Name>";
+				if (regionStr==null) return mapStr;
+				return mapStr+" / "+regionStr;
 			}
 		}
 	
