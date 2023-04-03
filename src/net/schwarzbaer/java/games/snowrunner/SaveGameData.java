@@ -6,6 +6,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Vector;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
@@ -69,7 +71,7 @@ public class SaveGameData {
 				try {
 					saveGames.put(indexStr, new SaveGame(fileName, indexStr, value));
 				} catch (TraverseException e) {
-					System.err.printf("Can't parse SaveGame \"%s\": %s", indexStr, e.getMessage());
+					System.err.printf("Can't parse SaveGame \"%s\": %s%n", indexStr, e.getMessage());
 					//e.printStackTrace();
 				}
 			}
@@ -91,16 +93,68 @@ public class SaveGameData {
 	}
 
 	public static class SaveGame {
+		
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_Root = KJV_FACTORY.create("[SaveGame]<root>")
+		//		.add("CompleteSave"   , JSON_Data.Value.Type.Object)
+				.add("cfg_version"    , JSON_Data.Value.Type.Integer);
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_CompleteSave = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave")
+				.add("SslValue"       , JSON_Data.Value.Type.Object)
+				.add("SslType"        , JSON_Data.Value.Type.String);
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_Timestamp = KJV_FACTORY.create("[SaveGame]...<Timestamp>")
+				.add("timestamp", JSON_Data.Value.Type.String);
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES__EMPTY_OBJECT = KJV_FACTORY.create();
+		
+		@SuppressWarnings("unused")
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_SslValue = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave.SslValue")
+				.add("saveTime"                , JSON_Data.Value.Type.Object)
+				.add("gameTime"                , JSON_Data.Value.Type.Float)
+				.add("isHardMode"              , JSON_Data.Value.Type.Bool)
+				.add("worldConfiguration"      , JSON_Data.Value.Type.String)
+				.add("persistentProfileData"   , JSON_Data.Value.Type.Object)
+				.add("garagesData"             , JSON_Data.Value.Type.Object)
+				.add("levelGarageStatuses"     , JSON_Data.Value.Type.Object)
+				.add("visitedLevels"           , JSON_Data.Value.Type.Array)
+				
+				.add("birthVersion"            , JSON_Data.Value.Type.Integer)
+				.add("cargoLoadingCounts"      , JSON_Data.Value.Type.Object) // unparsed
+				.add("discoveredObjectives"    , JSON_Data.Value.Type.Array) // unparsed
+				.add("discoveredObjects"       , JSON_Data.Value.Type.Array) // unparsed
+				.add("finishedObjs"            , JSON_Data.Value.Type.Array) // unparsed
+				.add("forcedModelStates"       , JSON_Data.Value.Type.Object) // empty object
+				.add("gameDifficultyMode"      , JSON_Data.Value.Type.Integer)
+				.add("gameDifficultySettings"  , JSON_Data.Value.Type.Object) // unparsed
+				.add("gameStat"                , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+//				.add("garagesData"             , JSON_Data.Value.Type.Object) // unparsed
+				;
 	
 		public final String fileName;
 		public final String indexStr;
 		public final JSON_Data.Value<NV, V> data;
+		
+		// basic values
 		public final long saveTime;
 		public final double gameTime;
 		public final boolean isHardMode;
 		public final String worldConfiguration;
+		
+		// complex values
 		public final PersistentProfileData ppd;
-		public final HashMap<String, Garage> garages;
+		public final HashMap<String, MapInfos> _maps;
+		public final HashMap<String, Contest > _contests;
+		public final HashMap<String, Addon   > _addons;
+		
+		// currently not shown data
+		public final long _birthVersion;
+		public final Long _gameDifficultyMode;
 
 		private SaveGame(String fileName, String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
 			if (data==null)
@@ -109,34 +163,62 @@ public class SaveGameData {
 			this.fileName = fileName;
 			this.indexStr = indexStr;
 			this.data = data;
+			_maps     = new HashMap<>();
+			_contests = new HashMap<>();
+			_addons   = new HashMap<>();
 			
-			JSON_Data.Value<NV, V> sslValue = JSON_Data.getSubNode(this.data, "CompleteSave"+indexStr, "SslValue");
+			JSON_Object<NV, V> rootObject      = JSON_Data.getObjectValue(this.data      ,                          "SaveGame.<root>");
+			JSON_Object<NV, V> complSaveObject = JSON_Data.getObjectValue(rootObject     , "CompleteSave"+indexStr, "SaveGame.<root>");
+			JSON_Object<NV, V> sslValueObj     = JSON_Data.getObjectValue(complSaveObject, "SslValue"             , "SaveGame.<root>.CompleteSave"+indexStr);
+			KNOWN_JSON_VALUES_Root.add("CompleteSave"+indexStr, JSON_Data.Value.Type.Object); // adding known fields dynamically :)
+			KNOWN_JSON_VALUES_Root        .scanUnexpectedValues(rootObject     );
+			KNOWN_JSON_VALUES_CompleteSave.scanUnexpectedValues(complSaveObject);
 			
 			String debugOutputPrefixStr = "CompleteSave"+indexStr+".SslValue";
-			JSON_Object<NV, V> sslValueObj = JSON_Data.getObjectValue(sslValue, debugOutputPrefixStr);
+			JSON_Object<NV, V> garagesData, forcedModelStates, levelGarageStatuses;
+			JSON_Array<NV, V> visitedLevels;
+			JSON_Data.Null levelGarageStatuses_Null;
+			saveTime                 = parseTimestamp             (sslValueObj, "saveTime"             , debugOutputPrefixStr);
+			gameTime                 = JSON_Data.getFloatValue    (sslValueObj, "gameTime"             , debugOutputPrefixStr);
+			isHardMode               = JSON_Data.getBoolValue     (sslValueObj, "isHardMode"           , debugOutputPrefixStr);
+			worldConfiguration       = JSON_Data.getStringValue   (sslValueObj, "worldConfiguration"   , debugOutputPrefixStr);
+			ppd                      = PersistentProfileData.parse(sslValueObj, "persistentProfileData", debugOutputPrefixStr, this);
+			garagesData              = JSON_Data.getObjectValue   (sslValueObj, "garagesData"          , debugOutputPrefixStr);
+			levelGarageStatuses      = JSON_Data.getObjectValue   (sslValueObj, "levelGarageStatuses"  , false, true, debugOutputPrefixStr);
+			levelGarageStatuses_Null = JSON_Data.getNullValue     (sslValueObj, "levelGarageStatuses"  , false, true, debugOutputPrefixStr);
+			visitedLevels            = JSON_Data.getArrayValue    (sslValueObj, "visitedLevels"        , debugOutputPrefixStr);
 			
-			JSON_Object<NV, V> garagesData;
-			saveTime           = parseTimestamp             (sslValueObj, "saveTime"             , debugOutputPrefixStr);
-			gameTime           = JSON_Data.getFloatValue    (sslValueObj, "gameTime"             , debugOutputPrefixStr);
-			isHardMode         = JSON_Data.getBoolValue     (sslValueObj, "isHardMode"           , debugOutputPrefixStr);
-			worldConfiguration = JSON_Data.getStringValue   (sslValueObj, "worldConfiguration"   , debugOutputPrefixStr);
-			ppd                = PersistentProfileData.parse(sslValueObj, "persistentProfileData", debugOutputPrefixStr);
-			garagesData        = JSON_Data.getObjectValue   (sslValueObj, "garagesData"          , debugOutputPrefixStr);
+			_birthVersion            = JSON_Data.getIntegerValue  (sslValueObj, "birthVersion"         , debugOutputPrefixStr);
+			forcedModelStates        = JSON_Data.getObjectValue   (sslValueObj, "forcedModelStates"    , debugOutputPrefixStr);
+			_gameDifficultyMode      = JSON_Data.getIntegerValue  (sslValueObj, "gameDifficultyMode"   , true, false, debugOutputPrefixStr);
+			// TODO: parse more values in SaveGame
 			
-			garages = new HashMap<String, Garage>();
-			for (JSON_Data.NamedValue<NV, V> nv : garagesData)
-			{
-				String local_debugOutputPrefixStr = debugOutputPrefixStr+".garagesData."+nv.name;
-				JSON_Object<NV, V> object = JSON_Data.getObjectValue(nv.value, local_debugOutputPrefixStr);
-				garages.put(nv.name, new Garage(object, nv.name, local_debugOutputPrefixStr));
-			}
+			/*
+				unpased:
+					cargoLoadingCounts, discoveredObjectives, discoveredObjects, finishedObjs, gameDifficultySettings, gameStat
+					
+				unparsed, but interesting:
+					
+				empty:
+					forcedModelStates
+			 */
+			//KNOWN_JSON_VALUES_SslValue.scanUnexpectedValues(sslValueObj);
+			KNOWN_JSON_VALUES__EMPTY_OBJECT.scanUnexpectedValues(forcedModelStates, debugOutputPrefixStr+".forcedModelStates");
+			
+			if (levelGarageStatuses==null && levelGarageStatuses_Null==null)
+				throw new TraverseException("%s.levelGarageStatuses isn't a ObjectValue or Null", debugOutputPrefixStr);
+			
+			MapInfos.parseGaragesData        (_maps, garagesData        , debugOutputPrefixStr+".garagesData"        );
+			MapInfos.parseLevelGarageStatuses(_maps, levelGarageStatuses, debugOutputPrefixStr+".levelGarageStatuses");
+			MapInfos.parseVisitedLevels      (_maps, visitedLevels      , debugOutputPrefixStr+".visitedLevels"      );
 		}
 		
-		private static long parseTimestamp(JSON_Object<NV, V> object, String subValueName, String debugOutputPrefixStr)
-				throws TraverseException
+		private static long parseTimestamp(JSON_Object<NV, V> object, String subValueName, String debugOutputPrefixStr) throws TraverseException
 		{
 			JSON_Object<NV, V> saveTime = JSON_Data.getObjectValue(object, subValueName, debugOutputPrefixStr);
 			String timestampStr = JSON_Data.getStringValue(saveTime, "timestamp", debugOutputPrefixStr+".saveTime");
+			KNOWN_JSON_VALUES_Timestamp.scanUnexpectedValues(saveTime);
+			
 			if (!timestampStr.startsWith("0x"))
 				throw new JSON_Data.TraverseException("Unexpected string value in %s: %s", debugOutputPrefixStr+".saveTime.timestamp", timestampStr);
 			
@@ -189,25 +271,26 @@ public class SaveGameData {
 
 		public int getTrucksInGarage(Truck truck, TextOutput textOutput) {
 			if (truck==null      ) { if (textOutput!=null) textOutput.printf("No truck defined.%n"); return 0; }
-			if (garages.isEmpty()) { if (textOutput!=null) textOutput.printf("No garages found in SaveGame.%n"); return 0; }
+			//if (garages.isEmpty()) { if (textOutput!=null) textOutput.printf("No garages found in SaveGame.%n"); return 0; }
 			
 			if (textOutput!=null)
-				textOutput.printf("<%s> Trucks in garage?%n", truck.id);
+				textOutput.printf("<%s> Trucks in garages?%n", truck.id);
 			
 			int count = 0;
-			for (String garageName : garages.keySet())
+			for (MapInfos map : _maps.values())
 			{
-				Garage garage = garages.get(garageName);
-				for (int i=0; i<garage.garageSlots.length; i++)
-				{
-					TruckDesc truckInSlot = garage.garageSlots[i];
-					if (truckInSlot!=null && truckInSlot.type.equals(truck.id))
+				Garage garage = map.garage;
+				if (garage!=null)
+					for (int i=0; i<garage.garageSlots.length; i++)
 					{
-						count++;
-						if (textOutput!=null)
-							textOutput.printf("    Truck <%s> found in garage \"%s\", slot %d.%n", truck.id, garageName, i+1);
+						TruckDesc truckInSlot = garage.garageSlots[i];
+						if (truckInSlot!=null && truckInSlot.type.equals(truck.id))
+						{
+							count++;
+							if (textOutput!=null)
+								textOutput.printf("    Truck <%s> found in garage \"%s\", slot %d.%n", truck.id, garage.name, i+1);
+						}
 					}
-				}
 			}
 			
 			if (textOutput!=null && count==0)
@@ -218,35 +301,94 @@ public class SaveGameData {
 		
 		public static class PersistentProfileData
 		{
+			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(PersistentProfileData.class)
+					.add("experience"              , JSON_Data.Value.Type.Integer)
+					.add("money"                   , JSON_Data.Value.Type.Integer)
+					.add("rank"                    , JSON_Data.Value.Type.Integer)
+					.add("ownedTrucks"             , JSON_Data.Value.Type.Object )
+					.add("trucksInWarehouse"       , JSON_Data.Value.Type.Array  )
+					.add("ownedTrucks"             , JSON_Data.Value.Type.Object )
+					.add("contestAttempts"         , JSON_Data.Value.Type.Object )
+					.add("contestLastTimes"        , JSON_Data.Value.Type.Object )
+					.add("contestTimes"            , JSON_Data.Value.Type.Object )
+					.add("addons"                  , JSON_Data.Value.Type.Object )
+					.add("customizationRefundMoney", JSON_Data.Value.Type.Integer)
+					.add("damagableAddons"         , JSON_Data.Value.Type.Object )
+					.add("discoveredTrucks"        , JSON_Data.Value.Type.Object )
+					.add("discoveredUpgrades"      , JSON_Data.Value.Type.Object )
+					.add("distance"                , JSON_Data.Value.Type.Object ) // unparsed
+					.add("dlcNotes"                , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("knownRegions"            , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("newTrucks"               , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("refundGarageTruckDescs"  , JSON_Data.Value.Type.Array  ) // empty array
+					.add("refundMoney"             , JSON_Data.Value.Type.Integer)
+					.add("refundTruckDescs"        , JSON_Data.Value.Type.Object ) // empty object
+					.add("unlockedItemNames"       , JSON_Data.Value.Type.Object ) // unparsed
+					.add("userId"                  , JSON_Data.Value.Type.Object ) // empty object
+					;
+			
 			public final long money;
 			public final long experience;
 			public final long rank;
 			public final HashMap<String, Integer> ownedTrucks;
 			public final Vector<TruckDesc> trucksInWarehouse;
 			
-			private static PersistentProfileData parse(JSON_Object<NV, V> object, String subValueName, String debugOutputPrefixStr) throws TraverseException
+			public final Long _customizationRefundMoney;
+			public final long _refundMoney;
+			
+			private static PersistentProfileData parse(JSON_Object<NV, V> object, String subValueName, String debugOutputPrefixStr, SaveGame saveGame) throws TraverseException
 			{
-				JSON_Object<NV, V> persistentProfileData      = JSON_Data.getObjectValue(object, "persistentProfileData", false, true, debugOutputPrefixStr);
-				JSON_Data.Null     persistentProfileData_Null = JSON_Data.getNullValue  (object, "persistentProfileData", false, true, debugOutputPrefixStr);
+				JSON_Object<NV, V> data      = JSON_Data.getObjectValue(object, subValueName, false, true, debugOutputPrefixStr);
+				JSON_Data.Null     data_Null = JSON_Data.getNullValue  (object, subValueName, false, true, debugOutputPrefixStr);
 				
-				if (persistentProfileData==null && persistentProfileData_Null==null)
-					throw new JSON_Data.TraverseException("Unexpected type of <persistentProfileData>");
+				if (data==null && data_Null==null)
+					throw new JSON_Data.TraverseException("Unexpected type of <%s>", subValueName);
 				
-				if (persistentProfileData!=null)
-					return new PersistentProfileData(persistentProfileData, debugOutputPrefixStr+".persistentProfileData");
+				if (data!=null)
+					return new PersistentProfileData(saveGame, data, debugOutputPrefixStr+"."+subValueName);
 				
 				return null;
 			}
 			
-			private PersistentProfileData(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			private PersistentProfileData(SaveGame saveGame, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
-				JSON_Object<NV, V> ownedTrucks;
-				JSON_Array<NV, V> trucksInWarehouse;
-				experience        = JSON_Data.getIntegerValue(object, "experience"       , debugOutputPrefixStr);
-				money             = JSON_Data.getIntegerValue(object, "money"            , debugOutputPrefixStr);
-				rank              = JSON_Data.getIntegerValue(object, "rank"             , debugOutputPrefixStr);
-				ownedTrucks       = JSON_Data.getObjectValue (object, "ownedTrucks"      , debugOutputPrefixStr);
-				trucksInWarehouse = JSON_Data.getArrayValue  (object, "trucksInWarehouse", debugOutputPrefixStr);
+				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons, discoveredTrucks, discoveredUpgrades, refundTruckDescs, userId;
+				JSON_Array<NV, V> trucksInWarehouse, refundGarageTruckDescs;
+				experience                = JSON_Data.getIntegerValue(object, "experience"              , debugOutputPrefixStr);
+				money                     = JSON_Data.getIntegerValue(object, "money"                   , debugOutputPrefixStr);
+				rank                      = JSON_Data.getIntegerValue(object, "rank"                    , debugOutputPrefixStr);
+				ownedTrucks               = JSON_Data.getObjectValue (object, "ownedTrucks"             , debugOutputPrefixStr);
+				trucksInWarehouse         = JSON_Data.getArrayValue  (object, "trucksInWarehouse"       , debugOutputPrefixStr);
+				contestAttempts           = JSON_Data.getObjectValue (object, "contestAttempts"         , debugOutputPrefixStr);
+				contestLastTimes          = JSON_Data.getObjectValue (object, "contestLastTimes"        , true, false, debugOutputPrefixStr);
+				contestTimes              = JSON_Data.getObjectValue (object, "contestTimes"            , debugOutputPrefixStr);
+				addons                    = JSON_Data.getObjectValue (object, "addons"                  , debugOutputPrefixStr);
+				_customizationRefundMoney = JSON_Data.getIntegerValue(object, "customizationRefundMoney", true, false, debugOutputPrefixStr);
+				damagableAddons           = JSON_Data.getObjectValue (object, "damagableAddons"         , debugOutputPrefixStr);
+				discoveredTrucks          = JSON_Data.getObjectValue (object, "discoveredTrucks"        , debugOutputPrefixStr);
+				discoveredUpgrades        = JSON_Data.getObjectValue (object, "discoveredUpgrades"      , debugOutputPrefixStr);
+				refundGarageTruckDescs    = JSON_Data.getArrayValue  (object, "refundGarageTruckDescs"  , debugOutputPrefixStr);
+				_refundMoney              = JSON_Data.getIntegerValue(object, "refundMoney"             , debugOutputPrefixStr);
+				refundTruckDescs          = JSON_Data.getObjectValue (object, "refundTruckDescs"        , debugOutputPrefixStr);
+				userId                    = JSON_Data.getObjectValue (object, "userId"                  , debugOutputPrefixStr);
+				/*
+					unpased:
+						distance, dlcNotes, newTrucks
+						
+					unparsed, but interesting:
+						knownRegions
+						unlockedItemNames -> differentiate addons from trucks
+						
+					empty:
+						refundGarageTruckDescs, refundTruckDescs, userId
+				 */
+				
+				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+				KNOWN_JSON_VALUES__EMPTY_OBJECT.scanUnexpectedValues(refundTruckDescs, debugOutputPrefixStr+".refundTruckDescs");
+				KNOWN_JSON_VALUES__EMPTY_OBJECT.scanUnexpectedValues(userId          , debugOutputPrefixStr+".userId"          );
+				
+				if (!refundGarageTruckDescs.isEmpty())
+					System.err.printf("Array %s.refundGarageTruckDescs is not empty as expected in file \"%s\".%n", debugOutputPrefixStr, saveGame.fileName);
 				
 				this.ownedTrucks = new HashMap<>();
 				for (JSON_Data.NamedValue<NV, V> nv : ownedTrucks)
@@ -262,6 +404,15 @@ public class SaveGameData {
 					JSON_Object<NV, V> obj = JSON_Data.getObjectValue(trucksInWarehouse.get(i), local_debugOutputPrefixStr);
 					this.trucksInWarehouse.add(new TruckDesc(obj,local_debugOutputPrefixStr));
 				}
+				
+				MapInfos.parseDiscoveredTrucks  (saveGame._maps , discoveredTrucks  , debugOutputPrefixStr+".discoveredTrucks"  );
+				MapInfos.parseDiscoveredUpgrades(saveGame._maps , discoveredUpgrades, debugOutputPrefixStr+".discoveredUpgrades");
+				Contest.parseContestAttempts (saveGame._contests, contestAttempts   , debugOutputPrefixStr+".contestAttempts"   );
+				Contest.parseContestLastTimes(saveGame._contests, contestLastTimes  , debugOutputPrefixStr+".contestLastTimes"  );
+				Contest.parseContestTimes    (saveGame._contests, contestTimes      , debugOutputPrefixStr+".contestTimes"      );
+				Addon.parseOwned          (saveGame._addons     , addons            , debugOutputPrefixStr+".addons"            );
+				Addon.parseDamagableAddons(saveGame._addons     , damagableAddons   , debugOutputPrefixStr+".damagableAddons"   );
+				
 			}
 		}
 		
@@ -359,8 +510,231 @@ public class SaveGameData {
 				isPacked      = JSON_Data.getBoolValue  (object, "isPacked"     , debugOutputPrefixStr);
 				isUnlocked    = JSON_Data.getBoolValue  (object, "isUnlocked"   , debugOutputPrefixStr);
 				fuel          = JSON_Data.getFloatValue (object, "fuel"         , debugOutputPrefixStr);
-				
 				//KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+				// TODO: parse more values in PersistentProfileData
+				
+			}
+		}
+		
+		public static class SpreadedValuesHelper<ValueType>
+		{
+			private final Function<String, ValueType> constructor;
+
+			SpreadedValuesHelper(Function<String,ValueType> constructor)
+			{
+				this.constructor = constructor;
+			}
+			
+			ValueType get(HashMap<String, ValueType> valueMap, String valueID)
+			{
+				ValueType value = valueMap.get(valueID);
+				if (value==null) valueMap.put(valueID, value = constructor.apply(valueID));
+				return value;
+			}
+			
+			private interface Action<ValueType>
+			{
+				void parseValues(ValueType value, JSON_Data.NamedValue<NV,V> nv) throws TraverseException;
+			}
+			
+			void forEachNV(HashMap<String, ValueType> maps, JSON_Object<NV, V> object, Action<ValueType> parseValues) throws TraverseException
+			{
+				if (object!=null)
+					for (JSON_Data.NamedValue<NV,V> nv : object)
+					{
+						String mapId = nv.name;
+						ValueType map = get(maps, mapId);
+						parseValues.parseValues(map, nv);
+					}
+			}
+		}
+		
+		public static class Addon
+		{
+			private static final SpreadedValuesHelper<Addon> helper = new SpreadedValuesHelper<>(Addon::new);
+			
+			public final String addonId;
+			public Long owned = null;
+			public DamagableData damagable = null;
+			
+			private Addon(String addonId)
+			{
+				this.addonId = addonId;
+			}
+
+			private static void parseOwned(HashMap<String, Addon> addons, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(addons, object, (addon,nv) -> {
+					addon.owned = JSON_Data.getIntegerValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+				});
+			}
+
+			public static void parseDamagableAddons(HashMap<String, Addon> addons, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(addons, object, (addon,nv) -> {
+					JSON_Object<NV, V> datObj = JSON_Data.getObjectValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+					addon.damagable = new DamagableData(datObj, debugOutputPrefixStr+"."+nv.name);
+				});
+			}
+			
+			public static class DamagableData
+			{
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(DamagableData.class)
+						.add("itemsDamage", JSON_Data.Value.Type.Array);
+				
+				public final long[][] itemsDamage;
+				
+				private DamagableData(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+				{
+					//optionalValues.scan(object, "Addon.DamagableData");
+					
+					JSON_Array<NV, V> itemsDamage = JSON_Data.getArrayValue(object, "itemsDamage", debugOutputPrefixStr);
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+					
+					Vector<Vector<Long>> itemsDamage_parsed = new Vector<>();
+					for (int i=0; i<itemsDamage.size(); i++)
+					{
+						String prefixStr1 = debugOutputPrefixStr+"["+i+"]";
+						JSON_Array<NV, V> array_unparsed = JSON_Data.getArrayValue(itemsDamage.get(i), prefixStr1);
+						Vector<Long> vector_parsed = new Vector<>();
+						itemsDamage_parsed.add(vector_parsed);
+						for (int j=0; j<array_unparsed.size(); j++)
+						{
+							JSON_Data.Value<NV,V> v1 = array_unparsed.get(j);
+							long value = JSON_Data.getIntegerValue(v1, prefixStr1+"["+j+"]");
+							vector_parsed.add(value);
+						}
+					}
+					
+					this.itemsDamage = new long[itemsDamage_parsed.size()][];
+					for (int i=0; i<itemsDamage_parsed.size(); i++)
+					{
+						Vector<Long> vec1 = itemsDamage_parsed.get(i);
+						this.itemsDamage[i] = new long[vec1.size()];
+						for (int j=0; j<vec1.size(); j++)
+						{
+							Long value = vec1.get(j);
+							this.itemsDamage[i][j] = value;
+						}
+					}
+				}
+			}
+		}
+		
+		public static class Contest
+		{
+			private static final SpreadedValuesHelper<Contest> helper = new SpreadedValuesHelper<>(Contest::new);
+			
+			public final String contestId;
+			public Long attempts = null;
+			public Long lastTimes = null;
+			public Long times = null;
+			
+			private Contest(String contestId)
+			{
+				this.contestId = contestId;
+			}
+
+			private static void parseContestAttempts(HashMap<String, Contest> contests, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(contests, object, (contest,nv) -> {
+					contest.attempts  = JSON_Data.getIntegerValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+				});
+			}
+
+			private static void parseContestLastTimes(HashMap<String, Contest> contests, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(contests, object, (contest,nv) -> {
+					contest.lastTimes = JSON_Data.getIntegerValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+				});
+			}
+
+			private static void parseContestTimes(HashMap<String, Contest> contests, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(contests, object, (contest,nv) -> {
+					contest.times     = JSON_Data.getIntegerValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+				});
+			}
+		}
+		
+		public static class MapInfos
+		{
+			private static final SpreadedValuesHelper<MapInfos> helper = new SpreadedValuesHelper<>(MapInfos::new);
+			
+			public final String mapId;
+			public Long garageStatus = null;
+			public boolean wasVisited = false;
+			public Garage garage = null;
+			public DiscoveredObjects discoveredTrucks = null;
+			public DiscoveredObjects discoveredUpgrades = null;
+			
+			private MapInfos(String mapId)
+			{
+				this.mapId = mapId;
+			}
+			
+			private static void parseGaragesData(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(maps, object, (map,nv) -> {
+					JSON_Object<NV, V> garageObject = JSON_Data.getObjectValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+					if (map.garage!=null) System.err.printf("Found more than 1 garage on 1 map: %s%n", nv.name);
+					else map.garage = new Garage(garageObject, nv.name, debugOutputPrefixStr+"."+nv.name);
+				});
+			}
+
+			private static void parseLevelGarageStatuses(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(maps, object, (map,nv) -> {
+					map.garageStatus = JSON_Data.getIntegerValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+				});
+			}
+
+			private static void parseVisitedLevels(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
+			{
+				for (int i=0; i<array.size(); i++)
+				{
+					JSON_Data.Value<NV,V> value = array.get(i);
+					String mapId = JSON_Data.getStringValue(value, debugOutputPrefixStr+"["+i+"]");
+					MapInfos map = helper.get(maps, mapId);
+					map.wasVisited = true;
+				}
+			}
+
+			private static void parseDiscoveredTrucks(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredTrucks = dobs, object, debugOutputPrefixStr);
+			}
+
+			private static void parseDiscoveredUpgrades(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredUpgrades = dobs, object, debugOutputPrefixStr);
+			}
+
+			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, BiConsumer<MapInfos,DiscoveredObjects> setValue, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.forEachNV(maps, object, (map,nv) -> {
+					JSON_Object<NV, V> dataObj = JSON_Data.getObjectValue(nv.value, debugOutputPrefixStr+"."+nv.name);
+					setValue.accept(map, new DiscoveredObjects(dataObj, debugOutputPrefixStr+"."+nv.name));
+				});
+			}
+			
+			public static class DiscoveredObjects
+			{
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(DiscoveredObjects.class)
+						.add("all"    , JSON_Data.Value.Type.Integer)
+						.add("current", JSON_Data.Value.Type.Integer);
+				
+				public final long all;
+				public final long current;
+				
+				private DiscoveredObjects(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+				{
+					//optionalValues.scan(object, "MapInfos.DiscoveredObjects");
+					
+					all     = JSON_Data.getIntegerValue(object, "all"    , debugOutputPrefixStr);
+					current = JSON_Data.getIntegerValue(object, "current", debugOutputPrefixStr);
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+				}
 			}
 		}
 	}

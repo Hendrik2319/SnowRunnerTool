@@ -20,6 +20,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Garage;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
@@ -210,13 +211,18 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			Vector<Row> rows = new Vector<>();
 			if (saveGame!=null)
 			{
-				for (Garage garage : saveGame.garages.values())
-					for (int i=0; i<garage.garageSlots.length; i++)
-					{
-						TruckDesc truckDesc = garage.garageSlots[i];
-						if (truckDesc!=null)
-							rows.add(Row.createGarageTruck(truckDesc, garage, i));
-					}
+				for (MapInfos map : saveGame._maps.values())
+				{
+					Garage garage = map.garage;
+					if (garage!=null)
+						for (int i=0; i<garage.garageSlots.length; i++)
+						{
+							TruckDesc truckDesc = garage.garageSlots[i];
+							if (truckDesc!=null)
+								rows.add(Row.createGarageTruck(truckDesc, map.mapId, garage.name, i));
+						}
+					
+				}
 				
 				if (saveGame.ppd!=null)
 					for (int i=0; i<saveGame.ppd.trucksInWarehouse.size(); i++)
@@ -236,10 +242,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 		private record Row(String name, String mapID, TruckDesc truckDesc)
 		{
-			static Row createGarageTruck(TruckDesc truckDesc, Garage garage, int slotIndex)
+			static Row createGarageTruck(TruckDesc truckDesc, String mapId, String garageName, int slotIndex)
 			{
-				String name = String.format("Garage <%s> Slot %d", garage.name, slotIndex+1);
-				return new Row(name, garage.name, truckDesc);
+				String name = String.format("Garage \"%s\" Slot %d", garageName, slotIndex+1);
+				return new Row(name, mapId, truckDesc);
 			}
 
 			static Row createWarehouseTruck(TruckDesc truckDesc, int index)
