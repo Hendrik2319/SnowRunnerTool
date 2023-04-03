@@ -95,13 +95,15 @@ public class SaveGameData {
 	public static class SaveGame {
 		
 		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_Root = KJV_FACTORY.create("[SaveGame]<root>")
-		//		.add("CompleteSave"   , JSON_Data.Value.Type.Object)
+		//		.add("CompleteSave#"  , JSON_Data.Value.Type.Object)
 				.add("cfg_version"    , JSON_Data.Value.Type.Integer);
 		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_CompleteSave = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave")
 				.add("SslValue"       , JSON_Data.Value.Type.Object)
 				.add("SslType"        , JSON_Data.Value.Type.String);
-		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_Timestamp = KJV_FACTORY.create("[SaveGame]...<Timestamp>")
-				.add("timestamp", JSON_Data.Value.Type.String);
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_Timestamp = KJV_FACTORY.create()
+				.add("timestamp"      , JSON_Data.Value.Type.String);
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_NameValue = KJV_FACTORY.create()
+				.add("name"           , JSON_Data.Value.Type.String );
 		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES__EMPTY_OBJECT = KJV_FACTORY.create();
 		
 		@SuppressWarnings("unused")
@@ -194,7 +196,7 @@ public class SaveGameData {
 			// TODO: parse more values in SaveGame
 			
 			/*
-				unpased:
+				unparsed:
 					cargoLoadingCounts, discoveredObjectives, discoveredObjects, finishedObjs, gameDifficultySettings, gameStat
 					
 				unparsed, but interesting:
@@ -205,24 +207,48 @@ public class SaveGameData {
 			//KNOWN_JSON_VALUES_SslValue.scanUnexpectedValues(sslValueObj);
 			KNOWN_JSON_VALUES__EMPTY_OBJECT.scanUnexpectedValues(forcedModelStates, debugOutputPrefixStr+".forcedModelStates");
 			
-			if (levelGarageStatuses==null && levelGarageStatuses_Null==null)
-				throw new TraverseException("%s.levelGarageStatuses isn't a ObjectValue or Null", debugOutputPrefixStr);
+			checkObjectOrNull(levelGarageStatuses, levelGarageStatuses_Null, "levelGarageStatuses", debugOutputPrefixStr);
 			
 			MapInfos.parseGaragesData        (_maps, garagesData        , debugOutputPrefixStr+".garagesData"        );
 			MapInfos.parseLevelGarageStatuses(_maps, levelGarageStatuses, debugOutputPrefixStr+".levelGarageStatuses");
 			MapInfos.parseVisitedLevels      (_maps, visitedLevels      , debugOutputPrefixStr+".visitedLevels"      );
 		}
 		
+		private static void checkObjectOrNull(JSON_Object<NV, V> object, JSON_Data.Null null_, String fieldName, String debugOutputPrefixStr) throws TraverseException
+		{
+			if (object==null && null_==null)
+				throw new TraverseException("%s.%s isn't a ObjectValue or Null", debugOutputPrefixStr, fieldName);
+		}
+		
+		private static void checkEmptyArray(JSON_Array<NV, V> array, String fieldName, String debugOutputPrefixStr, String fileName)
+		{
+			if (array!=null && !array.isEmpty())
+				System.err.printf("Array %s.%s is not empty as expected in file \"%s\".%n", debugOutputPrefixStr, fieldName, fileName);
+		}
+
+		private static void checkEmptyObject(JSON_Object<NV, V> object, String fieldName, String debugOutputPrefixStr)
+		{
+			KNOWN_JSON_VALUES__EMPTY_OBJECT.scanUnexpectedValues(object, debugOutputPrefixStr+"."+fieldName);
+		}
+
 		private static long parseTimestamp(JSON_Object<NV, V> object, String subValueName, String debugOutputPrefixStr) throws TraverseException
 		{
 			JSON_Object<NV, V> saveTime = JSON_Data.getObjectValue(object, subValueName, debugOutputPrefixStr);
 			String timestampStr = JSON_Data.getStringValue(saveTime, "timestamp", debugOutputPrefixStr+".saveTime");
-			KNOWN_JSON_VALUES_Timestamp.scanUnexpectedValues(saveTime);
+			KNOWN_JSON_VALUES_Timestamp.scanUnexpectedValues(saveTime, debugOutputPrefixStr+".saveTime");
 			
 			if (!timestampStr.startsWith("0x"))
 				throw new JSON_Data.TraverseException("Unexpected string value in %s: %s", debugOutputPrefixStr+".saveTime.timestamp", timestampStr);
 			
 			return Long.parseUnsignedLong(timestampStr.substring(2), 16);
+		}
+
+		private static String parseNameValue(JSON_Object<NV, V> object, String fieldName, String debugOutputPrefixStr) throws TraverseException
+		{
+			JSON_Object<NV, V> obj2 = JSON_Data.getObjectValue(object, fieldName, debugOutputPrefixStr              );
+			String             str  = JSON_Data.getStringValue(obj2  , "name"   , debugOutputPrefixStr+"."+fieldName);
+			KNOWN_JSON_VALUES_NameValue.scanUnexpectedValues(obj2, debugOutputPrefixStr+"."+fieldName);
+			return str;
 		}
 
 		public int getOwnedTruckCount(Truck truck) {
@@ -372,7 +398,7 @@ public class SaveGameData {
 				refundTruckDescs          = JSON_Data.getObjectValue (object, "refundTruckDescs"        , debugOutputPrefixStr);
 				userId                    = JSON_Data.getObjectValue (object, "userId"                  , debugOutputPrefixStr);
 				/*
-					unpased:
+					unparsed:
 						distance, dlcNotes, newTrucks
 						
 					unparsed, but interesting:
@@ -384,11 +410,10 @@ public class SaveGameData {
 				 */
 				
 				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
-				KNOWN_JSON_VALUES__EMPTY_OBJECT.scanUnexpectedValues(refundTruckDescs, debugOutputPrefixStr+".refundTruckDescs");
-				KNOWN_JSON_VALUES__EMPTY_OBJECT.scanUnexpectedValues(userId          , debugOutputPrefixStr+".userId"          );
 				
-				if (!refundGarageTruckDescs.isEmpty())
-					System.err.printf("Array %s.refundGarageTruckDescs is not empty as expected in file \"%s\".%n", debugOutputPrefixStr, saveGame.fileName);
+				checkEmptyObject(refundTruckDescs      , "refundTruckDescs"      , debugOutputPrefixStr);
+				checkEmptyObject(userId                , "userId"                , debugOutputPrefixStr);
+				checkEmptyArray (refundGarageTruckDescs, "refundGarageTruckDescs", debugOutputPrefixStr, saveGame.fileName);
 				
 				this.ownedTrucks = new HashMap<>();
 				for (JSON_Data.NamedValue<NV, V> nv : ownedTrucks)
@@ -486,32 +511,152 @@ public class SaveGameData {
 			public final boolean isInvalid;
 			public final boolean isPacked;
 			public final boolean isUnlocked;
-			public final double fuel;
+			public final Vector<InstalledAddon> addons;
+			public final long    damage;
+			public final String  engine;
+			public final long    engineDamage;
+			public final double  fuel;
+			public final long    fuelTankDamage;
+			public final String  gearbox;
+			public final long    gearboxDamage;
+			public final String  itemForObjectiveId;
+			public final boolean needToInstallDefaultAddons;
+			public final long    phantomMode;
+			public final long    repairs;
+			public final String  rims;
+			public final String  suspension;
+			public final long    suspensionDamage;
+			public final String  tires;
+			public final String  trailerGlobalId;
+			public final Long    truckCRC;
+			public final long    wheelRepairs;
+			public final double  wheelsScale;
+			public final String  wheels;
+			public final String  winch;
 
-			//private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(TruckDesc.class)
-			//		.add("type"      , JSON_Data.Value.Type.String)
-			//		.add("globalId"  , JSON_Data.Value.Type.String)
-			//		.add("id"        , JSON_Data.Value.Type.String)
-			//		.add("isInvalid" , JSON_Data.Value.Type.Bool  )
-			//		.add("isPacked"  , JSON_Data.Value.Type.Bool  )
-			//		.add("isUnlocked", JSON_Data.Value.Type.Bool  )
-			//		.add("fuel"      , JSON_Data.Value.Type.Float )
-			//		;
+			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(TruckDesc.class)
+					.add("type"                      , JSON_Data.Value.Type.String )
+					.add("globalId"                  , JSON_Data.Value.Type.String )
+					.add("id"                        , JSON_Data.Value.Type.String )
+					.add("retainedMapId"             , JSON_Data.Value.Type.String )
+					.add("isInvalid"                 , JSON_Data.Value.Type.Bool   )
+					.add("isPacked"                  , JSON_Data.Value.Type.Bool   )
+					.add("isUnlocked"                , JSON_Data.Value.Type.Bool   )
+					                                 
+					.add("addons"                    , JSON_Data.Value.Type.Array  )
+					.add("constraints"               , JSON_Data.Value.Type.Array  )
+					.add("controlConstrPosition"     , JSON_Data.Value.Type.Array  )
+					.add("customizationPreset"       , JSON_Data.Value.Type.Object )
+					.add("damage"                    , JSON_Data.Value.Type.Integer)
+					.add("damageDecals"              , JSON_Data.Value.Type.Array  )
+					.add("engine"                    , JSON_Data.Value.Type.Object )
+					.add("engineDamage"              , JSON_Data.Value.Type.Integer)
+					.add("fuel"                      , JSON_Data.Value.Type.Float  )
+					.add("fuelTankDamage"            , JSON_Data.Value.Type.Integer)
+					.add("gearbox"                   , JSON_Data.Value.Type.Object )
+					.add("gearboxDamage"             , JSON_Data.Value.Type.Integer)
+					.add("isPoweredEngaged"          , JSON_Data.Value.Type.Array  )
+					.add("itemForObjectiveId"        , JSON_Data.Value.Type.String )
+					.add("needToInstallDefaultAddons", JSON_Data.Value.Type.Bool   )
+					.add("phantomMode"               , JSON_Data.Value.Type.Integer)
+					.add("repairs"                   , JSON_Data.Value.Type.Integer)
+					.add("rims"                      , JSON_Data.Value.Type.String )
+					.add("suspension"                , JSON_Data.Value.Type.String )
+					.add("suspensionDamage"          , JSON_Data.Value.Type.Integer)
+					.add("tires"                     , JSON_Data.Value.Type.String )
+					.add("tmBodies"                  , JSON_Data.Value.Type.Array  )
+					.add("trailerGlobalId"           , JSON_Data.Value.Type.String )
+					.add("truckCRC"                  , JSON_Data.Value.Type.Integer)
+					.add("wheelRepairs"              , JSON_Data.Value.Type.Integer)
+					.add("wheelsDamage"              , JSON_Data.Value.Type.Array  )
+					.add("wheelsScale"               , JSON_Data.Value.Type.Float  )
+					.add("wheelsSuspHeight"          , JSON_Data.Value.Type.Array  )
+					.add("wheelsType"                , JSON_Data.Value.Type.String )
+					.add("winchUpgrade"              , JSON_Data.Value.Type.Object )
+					;
 		
 			private TruckDesc(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				//optionalValues.scan(object, "TruckDesc");
 				
-				type          = JSON_Data.getStringValue(object, "type"         , debugOutputPrefixStr);
-				globalId      = JSON_Data.getStringValue(object, "globalId"     , debugOutputPrefixStr);
-				id            = JSON_Data.getStringValue(object, "id"           , debugOutputPrefixStr);
-				retainedMapId = JSON_Data.getStringValue(object, "retainedMapId", debugOutputPrefixStr);
-				isInvalid     = JSON_Data.getBoolValue  (object, "isInvalid"    , debugOutputPrefixStr);
-				isPacked      = JSON_Data.getBoolValue  (object, "isPacked"     , debugOutputPrefixStr);
-				isUnlocked    = JSON_Data.getBoolValue  (object, "isUnlocked"   , debugOutputPrefixStr);
-				fuel          = JSON_Data.getFloatValue (object, "fuel"         , debugOutputPrefixStr);
-				//KNOWN_JSON_VALUES.scanUnexpectedValues(object);
-				// TODO: parse more values in PersistentProfileData
+				//JSON_Object<NV, V> engine;
+				JSON_Array<NV, V> addons, constraints, controlConstrPosition, isPoweredEngaged, tmBodies;
+				type                       = JSON_Data.getStringValue (object, "type"                      , debugOutputPrefixStr);
+				globalId                   = JSON_Data.getStringValue (object, "globalId"                  , debugOutputPrefixStr);
+				id                         = JSON_Data.getStringValue (object, "id"                        , debugOutputPrefixStr);
+				retainedMapId              = JSON_Data.getStringValue (object, "retainedMapId"             , debugOutputPrefixStr);
+				isInvalid                  = JSON_Data.getBoolValue   (object, "isInvalid"                 , debugOutputPrefixStr);
+				isPacked                   = JSON_Data.getBoolValue   (object, "isPacked"                  , debugOutputPrefixStr);
+				isUnlocked                 = JSON_Data.getBoolValue   (object, "isUnlocked"                , debugOutputPrefixStr);
+				                                                                                           
+				addons                     = JSON_Data.getArrayValue  (object, "addons"                    , debugOutputPrefixStr);
+				constraints                = JSON_Data.getArrayValue  (object, "constraints"               , debugOutputPrefixStr);
+				controlConstrPosition      = JSON_Data.getArrayValue  (object, "controlConstrPosition"     , true, false, debugOutputPrefixStr);
+				damage                     = JSON_Data.getIntegerValue(object, "damage"                    , debugOutputPrefixStr);
+				engine                     = parseNameValue           (object, "engine"                    , debugOutputPrefixStr);
+				engineDamage               = JSON_Data.getIntegerValue(object, "engineDamage"              , debugOutputPrefixStr);
+				fuel                       = JSON_Data.getFloatValue  (object, "fuel"                      , debugOutputPrefixStr);
+				fuelTankDamage             = JSON_Data.getIntegerValue(object, "fuelTankDamage"            , debugOutputPrefixStr);
+				gearbox                    = parseNameValue           (object, "gearbox"                   , debugOutputPrefixStr);
+				gearboxDamage              = JSON_Data.getIntegerValue(object, "gearboxDamage"             , debugOutputPrefixStr);
+				isPoweredEngaged           = JSON_Data.getArrayValue  (object, "isPoweredEngaged"          , debugOutputPrefixStr);
+				itemForObjectiveId         = JSON_Data.getStringValue (object, "itemForObjectiveId"        , debugOutputPrefixStr);
+				needToInstallDefaultAddons = JSON_Data.getBoolValue   (object, "needToInstallDefaultAddons", debugOutputPrefixStr);
+				phantomMode                = JSON_Data.getIntegerValue(object, "phantomMode"               , debugOutputPrefixStr);
+				repairs                    = JSON_Data.getIntegerValue(object, "repairs"                   , debugOutputPrefixStr);
+				rims                       = JSON_Data.getStringValue (object, "rims"                      , debugOutputPrefixStr);
+				suspension                 = JSON_Data.getStringValue (object, "suspension"                , debugOutputPrefixStr);
+				suspensionDamage           = JSON_Data.getIntegerValue(object, "suspensionDamage"          , debugOutputPrefixStr);
+				tires                      = JSON_Data.getStringValue (object, "tires"                     , debugOutputPrefixStr);
+				tmBodies                   = JSON_Data.getArrayValue  (object, "tmBodies"                  , debugOutputPrefixStr);
+				trailerGlobalId            = JSON_Data.getStringValue (object, "trailerGlobalId"           , debugOutputPrefixStr);
+				truckCRC                   = JSON_Data.getIntegerValue(object, "truckCRC"                  , true, false, debugOutputPrefixStr);
+				wheelRepairs               = JSON_Data.getIntegerValue(object, "wheelRepairs"              , debugOutputPrefixStr);
+			//	wheelsDamage               = JSON_Data.getArrayValue  (object, "wheelsDamage"              , debugOutputPrefixStr);
+				wheelsScale                = JSON_Data.getFloatValue  (object, "wheelsScale"               , debugOutputPrefixStr);
+				wheels                     = JSON_Data.getStringValue (object, "wheelsType"                , debugOutputPrefixStr);
+				winch                      = parseNameValue           (object, "winchUpgrade"              , debugOutputPrefixStr);
+				/*
+					unparsed:
+						customizationPreset, damageDecals, wheelsSuspHeight
+						
+					unparsed, but interesting:
+						wheelsDamage
+						
+					empty:
+						constraints, controlConstrPosition, isPoweredEngaged, tmBodies
+				 */
+
+				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+				checkEmptyArray (constraints          , "constraints"          , debugOutputPrefixStr, "<fileName>");
+				checkEmptyArray (controlConstrPosition, "controlConstrPosition", debugOutputPrefixStr, "<fileName>");
+				checkEmptyArray (isPoweredEngaged     , "isPoweredEngaged"     , debugOutputPrefixStr, "<fileName>");
+				checkEmptyArray (tmBodies             , "tmBodies"             , debugOutputPrefixStr, "<fileName>");
+				
+				this.addons = new Vector<>();
+				for (int i=0; i<addons.size(); i++)
+				{
+					String local_debugOutputPrefixStr = debugOutputPrefixStr+".addons["+i+"]";
+					JSON_Object<NV, V> obj = JSON_Data.getObjectValue(addons.get(i), local_debugOutputPrefixStr);
+					this.addons.add(new InstalledAddon(obj,local_debugOutputPrefixStr));
+				}
+			}
+			
+			public static class InstalledAddon
+			{
+				@SuppressWarnings("unused")
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(TruckDesc.class)
+//						.add("fuel"      , JSON_Data.Value.Type.Float )
+						;
+				
+				public final String id;
+
+				public InstalledAddon(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+				{
+					id          = JSON_Data.getStringValue(object, "name"         , debugOutputPrefixStr);
+					// TODO: parse more values in InstalledAddon
+					//KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+				}
 				
 			}
 		}
@@ -618,6 +763,14 @@ public class SaveGameData {
 						}
 					}
 				}
+
+				@Override
+				public String toString()
+				{
+					Function<long[],List<String>> convert1 = arr->Arrays.stream(arr).mapToObj(n->Long.toString(n)).toList();
+					Function<List<String>,String> toString = list->String.format("[%s]", String.join(",", list));
+					return toString.apply( Arrays.stream(itemsDamage).map( arr->toString.apply( convert1.apply(arr) ) ).toList() );
+				}
 			}
 		}
 		
@@ -662,9 +815,9 @@ public class SaveGameData {
 			private static final SpreadedValuesHelper<MapInfos> helper = new SpreadedValuesHelper<>(MapInfos::new);
 			
 			public final String mapId;
-			public Long garageStatus = null;
 			public boolean wasVisited = false;
 			public Garage garage = null;
+			public Long garageStatus = null;
 			public DiscoveredObjects discoveredTrucks = null;
 			public DiscoveredObjects discoveredUpgrades = null;
 			
@@ -735,6 +888,14 @@ public class SaveGameData {
 					current = JSON_Data.getIntegerValue(object, "current", debugOutputPrefixStr);
 					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 				}
+
+				@Override
+				public String toString()
+				{
+					return String.format("%d / %d", current, all);
+				}
+				
+				
 			}
 		}
 	}

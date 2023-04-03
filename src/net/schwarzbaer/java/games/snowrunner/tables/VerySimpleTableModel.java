@@ -1811,6 +1811,51 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		public boolean hasVerboseValueFcn() {
 			return getValue_verbose!=null || getValueL_verbose!=null || getValueT_verbose!=null;
 		}
+		
+		public interface GetFunction_MDLR<ResultType, ModelType, RowType>
+		{
+			ResultType get(ModelType model, Data data, Language language, RowType row);
+		}
+		
+		public interface GetFunction_MLR<ResultType, ModelType, RowType>
+		{
+			ResultType get(ModelType model, Language language, RowType row);
+		}
+		
+		public static <ResultType, ModelType extends VerySimpleTableModel<RowType>, RowType>
+			TableModelBasedBuilder<ResultType>
+			get(
+					Class<ModelType> modelClass,
+					Class<RowType> rowClass,
+					Function<ModelType,Data> getData,
+					GetFunction_MDLR<ResultType, ModelType, RowType> getFunction
+			)
+		{
+			return (row_,model_) -> {
+				if (  row_==null || !  rowClass.isAssignableFrom(  row_.getClass())) return null;
+				if (model_==null || !modelClass.isAssignableFrom(model_.getClass())) return null;
+				RowType   row   =   rowClass.cast(  row_);
+				ModelType model = modelClass.cast(model_);
+				return getFunction.get(model, getData.apply(model), model.language, row);
+			};
+		}
+		
+		public static <ResultType, ModelType extends VerySimpleTableModel<RowType>, RowType>
+			TableModelBasedBuilder<ResultType>
+			get(
+					Class<ModelType> modelClass,
+					Class<RowType> rowClass,
+					GetFunction_MLR<ResultType, ModelType, RowType> getFunction
+			)
+		{
+			return (row_,model_) -> {
+				if (  row_==null || !  rowClass.isAssignableFrom(  row_.getClass())) return null;
+				if (model_==null || !modelClass.isAssignableFrom(model_.getClass())) return null;
+				RowType   row   =   rowClass.cast(  row_);
+				ModelType model = modelClass.cast(model_);
+				return getFunction.get(model, model.language, row);
+			};
+		}
 	}
 	
 	public static abstract class TextOutputSourceTableModel<RowType> extends VerySimpleTableModel<RowType> {

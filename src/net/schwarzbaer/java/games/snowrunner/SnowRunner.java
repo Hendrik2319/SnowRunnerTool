@@ -121,6 +121,7 @@ public class SnowRunner {
 	private HashMap<String,String> truckToDLCAssignments;
 	private SaveGameData saveGameData;
 	private SaveGame selectedSaveGame;
+	private File loadedInitialPAK;
 	private final StandardMainWindow mainWindow;
 	private final JMenu languageMenu;
 	private final Controllers controllers;
@@ -135,6 +136,7 @@ public class SnowRunner {
 		truckToDLCAssignments = null;
 		saveGameData = null;
 		selectedSaveGame = null;
+		loadedInitialPAK = null;
 		userDefinedValues = new UserDefinedValues();
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
@@ -227,7 +229,7 @@ public class SnowRunner {
 		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
 		controllers.truckToDLCAssignmentListeners.setTruckToDLCAssignments(truckToDLCAssignments);
 		
-		if (loadInitialPAK    ()) updateAfterDataChange();
+		if (loadInitialPAK()) updateAfterDataChange();
 		reloadSaveGameData();
 		
 	}
@@ -308,9 +310,11 @@ public class SnowRunner {
 			});
 			if (newData!=null) {
 				data = newData;
+				loadedInitialPAK = initialPAK;
 				return true;
 			}
 		}
+		loadedInitialPAK = null;
 		return false;
 	}
 	
@@ -396,6 +400,15 @@ public class SnowRunner {
 		settings.putFile(AppSettings.ValueKey.InitialPAK, initialPAK);
 		return initialPAK;
 	}
+	
+	private void updateWindowTitle() {
+		String title = "SnowRunner Tool";
+		if (selectedSaveGame!=null)
+			title += "   -   "+selectedSaveGame.fileName;
+		if (loadedInitialPAK!=null)
+			title += "   -   "+loadedInitialPAK.getAbsolutePath();
+		mainWindow.setTitle(title);
+	}
 
 	public interface SaveGameListener {
 		void setSaveGame(SaveGame saveGame);
@@ -403,6 +416,7 @@ public class SnowRunner {
 	
 	private void updateAfterSaveGameChange() {
 		controllers.saveGameListeners.setSaveGame(selectedSaveGame);
+		updateWindowTitle();
 	}
 
 	public interface DataReceiver {
@@ -436,6 +450,8 @@ public class SnowRunner {
 			String message = wrapWords(65, "Their are no special TruckAddons like " + missingObjects + " defined or found in loaded data. Please select these via context menu in any TruckAddon table.");
 			JOptionPane.showMessageDialog(mainWindow, message, "Please define special TruckAddons", JOptionPane.INFORMATION_MESSAGE);
 		}
+		
+		updateWindowTitle();
 	}
 	
 	private static String wrapWords(int maxLength, String text) {
@@ -474,17 +490,33 @@ public class SnowRunner {
 		
 		controllers.languageListeners.setLanguage(language);
 	}
+
+	public static String getTruckLabel(Truck truck, Language language) {
+		return solveStringID_nonNull(truck, language);
+	}
+
+	public static String solveStringID_nonNull(Data.HasNameAndID namedToken, Language language) {
+		return namedToken==null ? "<null>" : SnowRunner.solveStringID(namedToken, language, "<null>");
+	}
 	
 	public static String solveStringID(Data.HasNameAndID namedToken, Language language) {
+		return solveStringID(namedToken, language, null);
+	}
+	
+	private static String solveStringID(Data.HasNameAndID namedToken, Language language, String defaultStrIfIdAndNameStringIdIsNull) {
 		if (namedToken==null) return null;
 		String id = namedToken.getID();
-		return solveStringID(namedToken, id, language);
+		return solveStringID(namedToken, id, language, defaultStrIfIdAndNameStringIdIsNull);
 	}
 
 	public static String solveStringID(Data.HasNameAndID namedToken, String id, Language language) {
+		return solveStringID(namedToken, id, language, null);
+	}
+
+	private static String solveStringID(Data.HasNameAndID namedToken, String id, Language language, String defaultStrIfIdAndNameStringIdIsNull) {
 		String name_StringID = namedToken==null ? null : namedToken.getName_StringID();
-		if (name_StringID==null && id==null) return null;
-		return solveStringID(name_StringID, language, "<"+id+">");
+		String defaultStr = id!=null ? "<"+id+">" : name_StringID!=null ? "<"+name_StringID+">" : defaultStrIfIdAndNameStringIdIsNull;
+		return solveStringID(name_StringID, language, defaultStr);
 	}
 	
 	public static String solveStringID(String strID, Language language) {
@@ -493,11 +525,9 @@ public class SnowRunner {
 	}
 	
 	public static String solveStringID(String strID, Language language, String defaultStr) {
-		if (strID==null) strID = defaultStr;
-		String str = null;
-		if (language!=null) str = language.dictionary.get(strID);
-		if (str==null) str = defaultStr;
-		return str;
+		String str = language==null ? null : language.dictionary.get(strID);
+		if (str != null) return str;
+		return defaultStr;
 	}
 	
 	public static String getReducedString(String str, int maxLength) {
@@ -656,10 +686,6 @@ public class SnowRunner {
 		} else
 			throw new IllegalArgumentException();
 		return comp;
-	}
-
-	public static String getTruckLabel(Truck truck, Language language) {
-		return truck==null ? "<null>" : SnowRunner.solveStringID(truck, language);
 	}
 
 	public static String[][] getNamesFromIDs(String[][] idLists, Function<String, String> getName_StringID, Language language) {
