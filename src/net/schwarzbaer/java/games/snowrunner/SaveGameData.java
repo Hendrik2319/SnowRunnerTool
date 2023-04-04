@@ -9,6 +9,7 @@ import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
@@ -281,8 +282,8 @@ public class SaveGameData {
 					if (textOutput!=null)
 					{
 						textOutput.printf("    Truck <%s> found in warehouse at position %d.", truck.id, i+1);
-						if (!truckInSlot.retainedMapId.isBlank())
-							textOutput.printf(" (Map: %s)%n", truckInSlot.retainedMapId);
+						if (!truckInSlot.retainedMap.mapID().isBlank())
+							textOutput.printf(" (Map: %s)%n", truckInSlot.retainedMap.mapID());
 						else
 							textOutput.printf("%n");
 					}
@@ -507,7 +508,7 @@ public class SaveGameData {
 			public final String type;
 			public final String globalId;
 			public final String id;
-			public final String retainedMapId;
+			public final MapIndex retainedMap;
 			public final boolean isInvalid;
 			public final boolean isPacked;
 			public final boolean isUnlocked;
@@ -581,6 +582,7 @@ public class SaveGameData {
 				
 				//JSON_Object<NV, V> engine;
 				JSON_Array<NV, V> addons, constraints, controlConstrPosition, isPoweredEngaged, tmBodies;
+				String retainedMapId;
 				type                       = JSON_Data.getStringValue (object, "type"                      , debugOutputPrefixStr);
 				globalId                   = JSON_Data.getStringValue (object, "globalId"                  , debugOutputPrefixStr);
 				id                         = JSON_Data.getStringValue (object, "id"                        , debugOutputPrefixStr);
@@ -632,6 +634,8 @@ public class SaveGameData {
 				checkEmptyArray (controlConstrPosition, "controlConstrPosition", debugOutputPrefixStr, "<fileName>");
 				checkEmptyArray (isPoweredEngaged     , "isPoweredEngaged"     , debugOutputPrefixStr, "<fileName>");
 				checkEmptyArray (tmBodies             , "tmBodies"             , debugOutputPrefixStr, "<fileName>");
+				
+				retainedMap = MapIndex.parse(retainedMapId);
 				
 				this.addons = new Vector<>();
 				for (int i=0; i<addons.size(); i++)
@@ -814,16 +818,17 @@ public class SaveGameData {
 		{
 			private static final SpreadedValuesHelper<MapInfos> helper = new SpreadedValuesHelper<>(MapInfos::new);
 			
-			public final String mapId;
+			public final MapIndex map;
 			public boolean wasVisited = false;
 			public Garage garage = null;
 			public Long garageStatus = null;
 			public DiscoveredObjects discoveredTrucks = null;
 			public DiscoveredObjects discoveredUpgrades = null;
+
 			
 			private MapInfos(String mapId)
 			{
-				this.mapId = mapId;
+				this.map = MapIndex.parse(mapId);
 			}
 			
 			private static void parseGaragesData(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException

@@ -18,6 +18,7 @@ import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.zip.ZipFile;
 
 import net.schwarzbaer.gui.ValueListOutput;
@@ -46,10 +47,10 @@ public class Data {
 	final StringVectorMap<Truck> socketIDsUsedByTrucks;
 	final StringVectorMap<Trailer> socketIDsUsedByTrailers;
 	final StringVectorMap<TruckAddon> socketIDsUsedByTruckAddons;
-	public final TruckComponentSets<Engine    > engines;
-	public final TruckComponentSets<Gearbox   > gearboxes;
+	public final TruckComponentSets<Engine    > engines    ;
+	public final TruckComponentSets<Gearbox   > gearboxes  ;
 	public final TruckComponentSets<Suspension> suspensions;
-	public final TruckComponentSets<Winch     > winches;
+	public final TruckComponentSets<Winch     > winches    ;
 
 	Data(XMLTemplateStructure rawdata) {
 		this.rawdata = rawdata;
@@ -468,9 +469,61 @@ public class Data {
 		}
 	}
 	
-	public static class RegionNames
+	public record MapIndex(String country, Integer region, Integer map, String mapID, String extra)
 	{
 		private static final String[] countries = new String[] {"US","RU"};
+		
+		public boolean isMap    () { return country!=null && region!=null && map!=null; }
+		public boolean isRegion () { return country!=null && region!=null && map==null; }
+		public boolean isCountry() { return country!=null && region==null && map==null; }
+		
+		public static MapIndex parse(String mapID)
+		{
+			// mapID: level_ru_02_03
+			String  country     = null;
+			Integer regionIndex = null;
+			Integer mapIndex    = null;
+			String  extra       = null;
+			
+			if (mapID==null)
+				return new MapIndex(null, null, null, null, null);
+			
+			if (mapID.toLowerCase().startsWith("level_"))
+				mapID = mapID.substring("level_".length());
+			
+			String[] parts = mapID.split("_");
+			int lastParsedPart = -1;
+			
+			for (String str : countries)
+				if (parts[0].equalsIgnoreCase(str))
+				{
+					country = str;
+					lastParsedPart = 0;
+				}
+			
+			if (country!=null && parts.length>1)
+			{
+				regionIndex = parseInt(parts[1]);
+				if (regionIndex!=null)
+					lastParsedPart = 1;
+			}
+			
+			if (regionIndex!=null && parts.length>2)
+			{
+				mapIndex = parseInt(parts[2]);
+				if (mapIndex!=null)
+					lastParsedPart = 2;
+			}
+			
+			if (parts.length > lastParsedPart+2)
+				extra = String.join("_", Arrays.copyOfRange(parts, lastParsedPart+1, parts.length));
+			
+			return new MapIndex(country, regionIndex, mapIndex, mapID, extra);
+		}
+	}
+	
+	public static class RegionNames
+	{
 		private static final int maxRegion = 16;
 		private static final int maxMap    = 6;
 		private final HashMap<String, NameDesc[][]> data;
@@ -478,37 +531,27 @@ public class Data {
 		private RegionNames() {
 			data = new HashMap<>();
 		}
-	
-		public String getNameForMap(String mapID)
+
+		public String getNameForMap(MapIndex mapIndex)
 		{
-			// mapID: level_ru_02_03
-			String  country     = null;
-			Integer regionIndex = null;
-			Integer mapIndex    = null;
-			
-			if (mapID.toLowerCase().startsWith("level_"))
-				mapID = mapID.substring("level_".length());
-			
-			String[] parts = mapID.split("_");
-			
-			for (String str : countries)
-				if (parts[0].equalsIgnoreCase(str))
-					country = str;
-			
-			if (parts.length>1)
-				regionIndex = parseInt(parts[1]);
-			
-			if (parts.length>2)
-				mapIndex = parseInt(parts[2]);
-			
-			if (country!=null && regionIndex!=null && mapIndex!=null)
-			 {
-				String name = getNameForMap(country, regionIndex.intValue(), mapIndex.intValue());
+			Supplier<String> getDefaultForNoName = ()->String.format("No Name for Map (%s,%02d,%02d)", mapIndex.country, mapIndex.region, mapIndex.map);
+			Supplier<String> getDefaultForNoMap  = ()->String.format("No Name for Map \"%s\"", mapIndex.mapID);
+			return getNameForMap( mapIndex, getDefaultForNoName, getDefaultForNoMap );
+		}
+
+		public String getNameForMap(
+				MapIndex mapIndex,
+				Supplier<String> getDefaultForNoName,
+				Supplier<String> getDefaultForNoMap)
+		{
+			if (mapIndex.isMap())
+			{
+				String name = getNameForMap(mapIndex.country, mapIndex.region.intValue(), mapIndex.map.intValue());
 				if (name != null) return name;
-				return String.format("No Name for Map(%s,%02d,%02d)", country, regionIndex, mapIndex);
+				return getDefaultForNoName.get();
 			}
 
-			return String.format("No Name for Map(%s)", mapID);
+			return getDefaultForNoMap.get();
 		}
 
 		public String getNameForMap(String country, int regionIndex, int mapIndex)
@@ -535,7 +578,7 @@ public class Data {
 
 		private void scanRegionNames(Language language, boolean verbose)
 		{
-			for (String country : countries) {
+			for (String country : MapIndex.countries) {
 				if (verbose) System.out.printf("Country: %s%n", country);
 				
 				NameDesc[][] names = new NameDesc[maxRegion][maxMap+1];
@@ -899,7 +942,7 @@ public class Data {
 		return resultList;
 	}
 
-	interface HasNameAndID {
+	public interface HasNameAndID {
 		String getName_StringID();
 		String getID();
 	}
@@ -1428,8 +1471,19 @@ public class Data {
 			else
 				set.put(instance.id, instance);
 		}
-	
+		
+		public Instance findInstance(String instanceID)
+		{
+			String[] setIDs = data.keySet().toArray(String[]::new);
+			return getInstance(instanceID, setIDs, false);
+		}
+		
 		private Instance getInstance(String instanceID, String[] setIDs)
+		{
+			return getInstance(instanceID, setIDs, true);
+		}
+	
+		private Instance getInstance(String instanceID, String[] setIDs, boolean exceptionIfNotFound)
 		{
 			for (String setID : setIDs)
 			{
@@ -1439,8 +1493,10 @@ public class Data {
 				if (instance!=null)
 					return instance;
 			}
-			throw new IllegalStateException();
-			//return null;
+			if (exceptionIfNotFound)
+				throw new IllegalStateException();
+			else
+				return null;
 		}
 	
 		private Collection<Instance> getInstancesFromSets(String[] setIDs)

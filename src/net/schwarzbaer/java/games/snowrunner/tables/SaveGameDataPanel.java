@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.awt.Window;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -19,8 +20,8 @@ import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
+import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
-import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Addon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Contest;
@@ -85,7 +86,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			updateTextOutput();
 			truckTableModel  .setData(data);
 		//	mapTableModel    .setData(data);
-			addonTableModel  .setData(data);
+			addonTableModel  .setData(data, saveGame);
 		//	contestTableModel.setData(data);
 		});
 		
@@ -95,7 +96,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			updateTextOutput();
 			truckTableModel  .setData(saveGame);
 			mapTableModel    .setData(saveGame);
-			addonTableModel  .setData(saveGame);
+			addonTableModel  .setData(data, saveGame);
 			contestTableModel.setData(saveGame);
 		});
 	}
@@ -145,17 +146,13 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		textArea.setText(out.generateOutput());
 	}
 	
-	private static String getMapName(String mapID, Language lang)
+	private static String getMapName(MapIndex mapIndex, Language lang, boolean nullIfNoName)
 	{
 		if (lang==null || lang.regionNames==null) return null;
-		return lang.regionNames.getNameForMap(mapID);
-	}
-
-	private static String getAddonName(String addonId, Data data, Language lang)
-	{
-		TruckAddon truckAddon = data==null ? null : data.truckAddons.get(addonId);
-		if (truckAddon==null) return "<"+addonId+">";
-		return SnowRunner.solveStringID_nonNull(truckAddon, lang);
+		if (nullIfNoName)
+			return lang.regionNames.getNameForMap(mapIndex, ()->null, ()->null);
+		else
+			return lang.regionNames.getNameForMap(mapIndex);
 	}
 
 	private record TruckName(String id, String name)
@@ -185,8 +182,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		{
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("Name"       ,"Name"                        ,  String .class, 175,   null,      null, false, row->((Row)row).name ),
-					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).mapID),
-					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, get((model, data, lang, row)->getMapName(row.mapID,lang))),
+					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).map.mapID()),
+					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, get((model, data, lang, row)->getMapName(row.map,lang, true))),
 					new ColumnID("TrType"     ,"type"                        ,  String .class, 170,   null,      null, false, get((model, data, lang, row)->row.truckDesc.type         )),
 					new ColumnID("Truck"      ,"Truck"                       ,  String .class, 160,   null,      null, false, get((model, data, lang, row)->TruckName.getTruckLabel(row.truckDesc.type, data, lang))),
 					new ColumnID("TrDamage"   ,"Damage"                      ,  Long   .class,  50,   null,      null, false, row->((Row)row).truckDesc.damage                    ),
@@ -213,7 +210,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrItmfObjId","<itemForObjectiveId>"        ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.itemForObjectiveId        ),
 					new ColumnID("TrGlobalID" ,"<globalId>"                  ,  String .class, 250,   null,      null, false, row->((Row)row).truckDesc.globalId                  ),
 					new ColumnID("TrID"       ,"<id>"                        ,  String .class,  50,   null,      null, false, row->((Row)row).truckDesc.id                        ),
-					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.retainedMapId             ),
+					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.retainedMap.mapID()       ),
 					new ColumnID("TrInvalid"  ,"<isInvalid>"                 ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isInvalid                 ),
 					new ColumnID("TrPacked"   ,"<isPacked>"                  ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isPacked                  ),
 					new ColumnID("TrUnlocked" ,"<isUnlocked>"                ,  Boolean.class,  80,   null,      null, false, row->((Row)row).truckDesc.isUnlocked                ),
@@ -265,7 +262,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 						{
 							TruckDesc truckDesc = garage.garageSlots[i];
 							if (truckDesc!=null)
-								rows.add(Row.createGarageTruck(truckDesc, map.mapId, garage.name, i));
+								rows.add(Row.createGarageTruck(truckDesc, map.map, garage.name, i));
 						}
 					
 				}
@@ -286,18 +283,18 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			return row==null ? null : row.name;
 		}
 	
-		private record Row(String name, String mapID, TruckDesc truckDesc)
+		private record Row(String name, MapIndex map, TruckDesc truckDesc)
 		{
-			static Row createGarageTruck(TruckDesc truckDesc, String mapId, String garageName, int slotIndex)
+			static Row createGarageTruck(TruckDesc truckDesc, MapIndex map, String garageName, int slotIndex)
 			{
 				String name = String.format("Garage \"%s\" Slot %d", garageName, slotIndex+1);
-				return new Row(name, mapId, truckDesc);
+				return new Row(name, map, truckDesc);
 			}
 	
 			static Row createWarehouseTruck(TruckDesc truckDesc, int index)
 			{
 				String name = String.format("Warehouse Slot %02d", index+1);
-				return new Row(name, truckDesc.retainedMapId, truckDesc);
+				return new Row(name, truckDesc.retainedMap, truckDesc);
 			}
 		}
 	}
@@ -307,8 +304,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		MapTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("MapID"     ,"Map ID"             ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).mapId),
-					new ColumnID("Name"      ,"Name"               ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.mapId,lang))),
+					new ColumnID("MapID"     ,"Map ID"             ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.mapID()),
+					new ColumnID("Name"      ,"Name"               ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
 					new ColumnID("Visited"   ,"Visited"            ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).wasVisited),
 					new ColumnID("Garage"    ,"Garage"             ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).garage!=null),
 					new ColumnID("GarageStat","Garage Status"      ,  Long                      .class,  85, CENTER, null, false, row->((MapInfos)row).garageStatus),
@@ -329,43 +326,66 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			setRowData(mapIDs.stream().map(saveGame._maps::get).toList());
 		}
 
-		@Override protected String getRowName(MapInfos row) { return row==null ? null : row.mapId; }
+		@Override protected String getRowName(MapInfos row) { return row==null ? null : row.map.mapID(); }
 	}
 
-	private static class AddonTableModel extends VerySimpleTableModel<Addon>
+	private static class AddonTableModel extends VerySimpleTableModel<AddonTableModel.Row>
 	{
 		private Data data;
 		
 		AddonTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("ID"       ,"ID"       , String             .class, 250,   null, null, false, row->((Addon)row).addonId),
-					new ColumnID("Name"     ,"Name"     , String             .class, 320,   null, null, false, get((model, data, lang, row)->getAddonName(row.addonId,data,lang))),
-					new ColumnID("Owned"    ,"Owned"    , Long               .class,  50, CENTER, null, false, row->((Addon)row).owned),
-					new ColumnID("Damagable","Damagable", Addon.DamagableData.class, 180,   null, null, false, row->((Addon)row).damagable),
+					new ColumnID("ID"       ,"ID"       , String             .class, 300,   null, null, false, row->((Row)row).addon.addonId),
+					new ColumnID("Type"     ,"Type"     , AddonType          .class,  80,   null, null, false, row->((Row)row).type),
+					new ColumnID("Name"     ,"Name"     , String             .class, 180,   null, null, false, get((model, data, lang, row)->SnowRunner.solveStringID(row.item, lang))),
+					new ColumnID("Owned"    ,"Owned"    , Long               .class,  50, CENTER, null, false, row->((Row)row).addon.owned),
+					new ColumnID("Damagable","Damagable", Addon.DamagableData.class, 350,   null, null, false, row->((Row)row).addon.damagable),
 			});
 			data = null;
 		}
 		
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,AddonTableModel,Addon> getFunction)
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,AddonTableModel,Row> getFunction)
 		{
-			return ColumnID.get(AddonTableModel.class, Addon.class, m->m.data, getFunction);
+			return ColumnID.get(AddonTableModel.class, Row.class, m->m.data, getFunction);
 		}
 		
-		void setData(Data data)
+		private enum AddonType { TruckAddon, Trailer, Engine, Gearbox, Suspensions, Winch }
+		
+		private record Row(Addon addon, Data.HasNameAndID item, AddonType type)
 		{
-			this.data = data;
-			fireTableUpdate();
+			static Row create(Addon addon, Data data)
+			{
+				Data.HasNameAndID item = null;
+				AddonType type = null;
+				if (data!=null)
+				{
+					if (item == null) { item = data.truckAddons.get         (addon.addonId); type = AddonType.TruckAddon ; }
+					if (item == null) { item = data.trailers   .get         (addon.addonId); type = AddonType.Trailer    ; }
+					if (item == null) { item = data.engines    .findInstance(addon.addonId); type = AddonType.Engine     ; }
+					if (item == null) { item = data.gearboxes  .findInstance(addon.addonId); type = AddonType.Gearbox    ; }
+					if (item == null) { item = data.suspensions.findInstance(addon.addonId); type = AddonType.Suspensions; }
+					if (item == null) { item = data.winches    .findInstance(addon.addonId); type = AddonType.Winch      ; }
+					if (item == null) type = null;
+				}
+				
+				return new Row(addon, item, type);
+			}
 		}
-	
-		void setData(SaveGame saveGame)
+		
+		void setData(Data data, SaveGame saveGame)
 		{
-			Vector<String> mapIDs = new Vector<>(saveGame._addons.keySet());
-			mapIDs.sort(null);
-			setRowData(mapIDs.stream().map(saveGame._addons::get).toList());
+			List<Row> rows = null;
+			if (saveGame != null)
+			{
+				Vector<String> addonIDs = new Vector<>(saveGame._addons.keySet());
+				addonIDs.sort(null);
+				rows = addonIDs.stream().map(addonID -> Row.create(saveGame._addons.get(addonID), data)).toList();
+			}
+			setRowData(rows);
 		}
 
-		@Override protected String getRowName(Addon row) { return row==null ? null : row.addonId; }
+		@Override protected String getRowName(Row row) { return row==null ? null : row.addon.addonId; }
 	}
 
 	private static class ContestTableModel extends VerySimpleTableModel<Contest>
