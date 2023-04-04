@@ -24,7 +24,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Addon;
-import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Contest;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Garage;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
@@ -39,10 +39,6 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	
 	private final Finalizer finalizer;
 	private final JTextArea textArea;
-	private final TruckTableModel truckTableModel;
-	private final MapTableModel mapTableModel;
-	private final AddonTableModel addonTableModel;
-	private final ContestTableModel contestTableModel;
 	private Data data;
 	private SaveGame saveGame;
 	private Language language;
@@ -57,19 +53,17 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		
 		textArea = new JTextArea();
 		textArea.setEditable(false);
-		textArea.setWrapStyleWord(true);
-		textArea.setLineWrap(true);
+		textArea.setWrapStyleWord(false);
+		textArea.setLineWrap(false);
 		JScrollPane textAreaScrollPane = new JScrollPane(textArea);
 		textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Save Game"));
 		textAreaScrollPane.setPreferredSize(new Dimension(400,100));
 		
 		JTabbedPane tableTabPanel = new JTabbedPane();
-		
-		addTab(finalizer, tableTabPanel, "Trucks"  ,   truckTableModel = new   TruckTableModel(mainWindow, controllers));
-		addTab(finalizer, tableTabPanel, "Maps"    ,     mapTableModel = new     MapTableModel(mainWindow, controllers));
-		addTab(finalizer, tableTabPanel, "Addons"  ,   addonTableModel = new   AddonTableModel(mainWindow, controllers));
-		addTab(finalizer, tableTabPanel, "Contests", contestTableModel = new ContestTableModel(mainWindow, controllers));
-		
+		    TruckTableModel     truckTableModel = addTab(finalizer, tableTabPanel, "Trucks"    , new     TruckTableModel(mainWindow, controllers));
+		      MapTableModel       mapTableModel = addTab(finalizer, tableTabPanel, "Maps"      , new       MapTableModel(mainWindow, controllers));
+		    AddonTableModel     addonTableModel = addTab(finalizer, tableTabPanel, "Addons"    , new     AddonTableModel(mainWindow, controllers));
+		ObjectiveTableModel objectiveTableModel = addTab(finalizer, tableTabPanel, "Objectives", new ObjectiveTableModel(mainWindow, controllers));
 		
 		setLeftComponent(textAreaScrollPane);
 		setRightComponent(tableTabPanel);
@@ -84,28 +78,29 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		finalizer.addDataReceiver(data_->{
 			data = data_;
 			updateTextOutput();
-			truckTableModel  .setData(data);
-		//	mapTableModel    .setData(data);
-			addonTableModel  .setData(data, saveGame);
-		//	contestTableModel.setData(data);
+			truckTableModel    .setData(data);
+		//	mapTableModel      .setData(data);
+			addonTableModel    .setData(data, saveGame);
+		//	objectiveTableModel.setData(data);
 		});
 		
 		saveGame = null;
 		finalizer.addSaveGameListener(saveGame_->{
 			saveGame = saveGame_;
 			updateTextOutput();
-			truckTableModel  .setData(saveGame);
-			mapTableModel    .setData(saveGame);
-			addonTableModel  .setData(data, saveGame);
-			contestTableModel.setData(saveGame);
+			truckTableModel    .setData(saveGame);
+			mapTableModel      .setData(saveGame);
+			addonTableModel    .setData(data, saveGame);
+			objectiveTableModel.setData(saveGame);
 		});
 	}
 	
-	private static <ModelType extends Tables.SimplifiedTableModel<?> & Finalizable> void addTab(Finalizer finalizer, JTabbedPane tableTabPanel, String title, ModelType tableModel)
+	private static <ModelType extends Tables.SimplifiedTableModel<?> & Finalizable> ModelType addTab(Finalizer finalizer, JTabbedPane tableTabPanel, String title, ModelType tableModel)
 	{
 		finalizer.addSubComp(tableModel);
 		JComponent container = TableSimplifier.create(tableModel);
 		tableTabPanel.addTab(title, container);
+		return tableModel;
 	}
 	
 	@Override public void prepareRemovingFromGUI() {
@@ -120,18 +115,24 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(0, "<No SaveGame>");
 		else
 		{
-			out.add(0, "File Name"  , saveGame.fileName  );
-			out.add(0, "Is HardMode", saveGame.isHardMode);
-			out.add(0, "Save Time"  , saveGame.saveTime  );
-			out.add(0, null         , "%s", SnowRunner.dateTimeFormatter.getTimeStr(saveGame.saveTime, false, true, false, true, false));
-			out.add(0, "Game Time"  , saveGame.gameTime  );
-			out.add(0, "World Configuration", saveGame.worldConfiguration);
+			out.add(0, "File Name"             , saveGame.fileName  );
+			out.add(0, "Save Time"             , saveGame.saveTime  );
+			out.add(0, null                    , "%s", SnowRunner.dateTimeFormatter.getTimeStr(saveGame.saveTime, false, true, false, true, false));
+			out.add(0, "Game Time"             , saveGame.gameTime  );
+			out.add(0, "Is HardMode"           , saveGame.isHardMode, "Yes", "False");
+			out.add(0, "World Configuration"   , saveGame.worldConfiguration);
+			out.add(0, "<Birth Version>"       , saveGame.birthVersion);
+			out.add(0, "<Game Difficulty Mode>", saveGame.gameDifficultyMode);
 			
 			if (saveGame.ppd!=null)
 			{
 				out.add(0, "Experience", saveGame.ppd.experience);	
-				out.add(0, "Money"     , saveGame.ppd.money);	
 				out.add(0, "Rank"      , saveGame.ppd.rank);
+				out.addEmptyLine();
+				out.add(0, "Money"                     , saveGame.ppd.money);	
+				out.add(0, "<RefundMoney>"             , saveGame.ppd.refundMoney);	
+				out.add(0, "<CustomizationRefundMoney>", saveGame.ppd.customizationRefundMoney);	
+				out.addEmptyLine();
 				
 				TruckName[] truckNames = TruckName.getNames(saveGame.ppd.ownedTrucks.keySet(), data, language);
 				if (truckNames.length>0)
@@ -254,7 +255,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			Vector<Row> rows = new Vector<>();
 			if (saveGame!=null)
 			{
-				for (MapInfos map : saveGame._maps.values())
+				for (MapInfos map : saveGame.maps.values())
 				{
 					Garage garage = map.garage;
 					if (garage!=null)
@@ -321,9 +322,14 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 		void setData(SaveGame saveGame)
 		{
-			Vector<String> mapIDs = new Vector<>(saveGame._maps.keySet());
-			mapIDs.sort(null);
-			setRowData(mapIDs.stream().map(saveGame._maps::get).toList());
+			if (saveGame!=null)
+			{
+				Vector<String> mapIDs = new Vector<>(saveGame.maps.keySet());
+				mapIDs.sort(null);
+				setRowData(mapIDs.stream().map(saveGame.maps::get).toList());
+			}
+			else
+				setRowData(null);
 		}
 
 		@Override protected String getRowName(MapInfos row) { return row==null ? null : row.map.mapID(); }
@@ -378,9 +384,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			List<Row> rows = null;
 			if (saveGame != null)
 			{
-				Vector<String> addonIDs = new Vector<>(saveGame._addons.keySet());
+				Vector<String> addonIDs = new Vector<>(saveGame.addons.keySet());
 				addonIDs.sort(null);
-				rows = addonIDs.stream().map(addonID -> Row.create(saveGame._addons.get(addonID), data)).toList();
+				rows = addonIDs.stream().map(addonID -> Row.create(saveGame.addons.get(addonID), data)).toList();
 			}
 			setRowData(rows);
 		}
@@ -388,17 +394,20 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override protected String getRowName(Row row) { return row==null ? null : row.addon.addonId; }
 	}
 
-	private static class ContestTableModel extends VerySimpleTableModel<Contest>
+	private static class ObjectiveTableModel extends VerySimpleTableModel<Objective>
 	{
 		//private Data data;
 		
-		ContestTableModel(Window mainWindow, Controllers controllers)
+		ObjectiveTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("ID"       ,"ID"        ,  String .class, 250,  null, null, false, row->((Contest)row).contestId),
-					new ColumnID("Attempts" ,"Attempts"  ,  Long   .class,  60,  null, null, false, row->((Contest)row).attempts ),
-					new ColumnID("Times"    ,"Times"     ,  Long   .class,  60,  null, null, false, row->((Contest)row).times    ),
-					new ColumnID("LastTimes","Last Times",  Long   .class,  60,  null, null, false, row->((Contest)row).lastTimes),
+					new ColumnID("ID"        ,"ID"                     ,  String .class, 320,  null, null, false, row->((Objective)row).objectiveId        ),
+					new ColumnID("Attempts"  ,"Attempts"               ,  Long   .class,  60,  null, null, false, row->((Objective)row).attempts         ),
+					new ColumnID("Times"     ,"Times"                  ,  Long   .class,  40,  null, null, false, row->((Objective)row).times            ),
+					new ColumnID("LastTimes" ,"Last Times"             ,  Long   .class,  60,  null, null, false, row->((Objective)row).lastTimes        ),
+					new ColumnID("Discovered","Discovered"             ,  Boolean.class,  65,  null, null, false, row->((Objective)row).discovered       ),
+					new ColumnID("Finished"  ,"Finished"               ,  Boolean.class,  55,  null, null, false, row->((Objective)row).finished         ),
+					new ColumnID("ViewdUnact","Viewed, but Unactivated",  Boolean.class, 130,  null, null, false, row->((Objective)row).viewedUnactivated),
 			});
 			//data = null;
 		}
@@ -416,11 +425,16 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	
 		void setData(SaveGame saveGame)
 		{
-			Vector<String> mapIDs = new Vector<>(saveGame._contests.keySet());
-			mapIDs.sort(null);
-			setRowData(mapIDs.stream().map(saveGame._contests::get).toList());
+			if (saveGame!=null)
+			{
+				Vector<String> mapIDs = new Vector<>(saveGame.objectives.keySet());
+				mapIDs.sort(null);
+				setRowData(mapIDs.stream().map(saveGame.objectives::get).toList());
+			}
+			else
+				setRowData(null);
 		}
 
-		@Override protected String getRowName(Contest row) { return row==null ? null : row.contestId; }
+		@Override protected String getRowName(Objective row) { return row==null ? null : row.objectiveId; }
 	}
 }

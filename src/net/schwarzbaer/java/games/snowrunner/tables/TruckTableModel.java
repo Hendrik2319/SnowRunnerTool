@@ -68,7 +68,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
-				new ColumnID( "Owned"    , "Owned"                ,              Integer.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount(row,model)),
+				new ColumnID( "Owned"    , "Owned"                ,                 Long.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount(row,model)),
 				new ColumnID( "InWareHs" , "In Warehouse"         ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
 				new ColumnID( "InGarage" , "In Garage"            ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, null), (row, model, textOutput) -> getTrucksInGarage   (row, model, textOutput)),
 				new ColumnID( "DLData"   , "DiffLock (from Data)" ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
@@ -244,7 +244,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		});
 	}
 	
-	private static Integer getOwnedCount(Object row, VerySimpleTableModel<?> model)
+	private static Long getOwnedCount(Object row, VerySimpleTableModel<?> model)
 	{
 		return castNCall(row, model, (truck_, model_) -> {
 			if (model_.saveGame==null) return null;
