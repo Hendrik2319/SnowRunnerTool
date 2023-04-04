@@ -115,7 +115,7 @@ public class SaveGameData {
 				.add("birthVersion"                      , JSON_Data.Value.Type.Integer)
 				.add("cargoLoadingCounts"                , JSON_Data.Value.Type.Object )
 				.add("discoveredObjectives"              , JSON_Data.Value.Type.Array  )
-				.add("discoveredObjects"                 , JSON_Data.Value.Type.Array  ) // empty
+				.add("discoveredObjects"                 , JSON_Data.Value.Type.Array  )
 				.add("finishedObjs"                      , JSON_Data.Value.Type.Array  )
 				.add("forcedModelStates"                 , JSON_Data.Value.Type.Object ) // empty
 				.add("gameDifficultyMode"                , JSON_Data.Value.Type.Integer)
@@ -277,9 +277,8 @@ public class SaveGameData {
 			checkObjectOrNull(persistentProfileData, persistentProfileData_Null, debugOutputPrefixStr+".persistentProfileData");
 			checkObjectOrNull(tutorialStates       , tutorialStates_Null       , debugOutputPrefixStr+".tutorialStates"       );
 			checkObjectOrNull(watchPointsData      , watchPointsData_Null      , debugOutputPrefixStr+".watchPointsData"      );
-			checkEmptyArray  (discoveredObjects        , debugOutputPrefixStr+".discoveredObjects"        , this.fileName);
 			checkEmptyObject (forcedModelStates        , debugOutputPrefixStr+".forcedModelStates"        );
-			checkEmptyArray  (givenTrialRewards        , debugOutputPrefixStr+".givenTrialRewards"        , this.fileName);
+			checkEmptyArray  (givenTrialRewards        , debugOutputPrefixStr+".givenTrialRewards"        );
 			checkEmptyObject (justDiscoveredObjects    , debugOutputPrefixStr+".justDiscoveredObjects"    );
 			checkEmptyObject (modTruckRefundValues     , debugOutputPrefixStr+".modTruckRefundValues"     );
 			checkEmptyObject (modTruckTypesRefundValues, debugOutputPrefixStr+".modTruckTypesRefundValues");
@@ -307,12 +306,13 @@ public class SaveGameData {
 				KNOWN_JSON_VALUES_watchPointsData.scanUnexpectedValues(watchPointsData, debugOutputPrefixStr+".watchPointsData");
 			}
 			
+			MapInfos .parseCargoLoadingCounts                (maps      , cargoLoadingCounts                , debugOutputPrefixStr+".cargoLoadingCounts"                );
+			MapInfos .parseDiscoveredObjects                 (maps      , discoveredObjects                 , debugOutputPrefixStr+".discoveredObjects"                 );
 			MapInfos .parseGaragesData                       (maps      , garagesData                       , debugOutputPrefixStr+".garagesData"                       );
 			MapInfos .parseLevelGarageStatuses               (maps      , levelGarageStatuses               , debugOutputPrefixStr+".levelGarageStatuses"               );
-			MapInfos .parseVisitedLevels                     (maps      , visitedLevels                     , debugOutputPrefixStr+".visitedLevels"                     );
-			MapInfos .parseCargoLoadingCounts                (maps      , cargoLoadingCounts                , debugOutputPrefixStr+".cargoLoadingCounts"                );
 			MapInfos .parseModTruckOnLevels                  (maps      , modTruckOnLevels                  , debugOutputPrefixStr+".modTruckOnLevels"                  );
 			MapInfos .parseUpgradesGiverData                 (maps      , upgradesGiverData                 , debugOutputPrefixStr+".upgradesGiverData"                 );
+			MapInfos .parseVisitedLevels                     (maps      , visitedLevels                     , debugOutputPrefixStr+".visitedLevels"                     );
 			MapInfos .parseWatchPoints                       (maps      , watchPointsData_data              , debugOutputPrefixStr+".watchPointsData.data"              );
 			MapInfos .parseWaypoints                         (maps      , waypoints                         , debugOutputPrefixStr+".waypoints"                         );
 			Objective.parseDiscoveredObjectives              (objectives, discoveredObjectives              , debugOutputPrefixStr+".discoveredObjectives"              );
@@ -353,10 +353,10 @@ public class SaveGameData {
 				throw new TraverseException("%s isn't a ObjectValue or Null", debugOutputPrefixStr);
 		}
 		
-		private static void checkEmptyArray(JSON_Array<NV, V> array, String debugOutputPrefixStr, String fileName)
+		private static void checkEmptyArray(JSON_Array<NV, V> array, String debugOutputPrefixStr)
 		{
 			if (array!=null && !array.isEmpty())
-				System.err.printf("Array %s is not empty as expected in file \"%s\".%n", debugOutputPrefixStr, fileName);
+				System.err.printf("Array %s is not empty as expected.%n", debugOutputPrefixStr);
 		}
 
 		private static void checkEmptyObject(JSON_Object<NV, V> object, String debugOutputPrefixStr)
@@ -458,6 +458,26 @@ public class SaveGameData {
 			return count;
 		}
 		
+		public static class Coord3F
+		{
+			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Coord3F.class)
+					.add("x", JSON_Data.Value.Type.Float)
+					.add("y", JSON_Data.Value.Type.Float)
+					.add("z", JSON_Data.Value.Type.Float);
+			
+			public final double x;
+			public final double y;
+			public final double z;
+			
+			private Coord3F(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				x = JSON_Data.getFloatValue(object, "x", debugOutputPrefixStr);
+				y = JSON_Data.getFloatValue(object, "y", debugOutputPrefixStr);
+				z = JSON_Data.getFloatValue(object, "z", debugOutputPrefixStr);
+				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+			}
+		}
+
 		public static class PersistentProfileData
 		{
 			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(PersistentProfileData.class)
@@ -531,7 +551,7 @@ public class SaveGameData {
 				
 				checkEmptyObject(refundTruckDescs      , debugOutputPrefixStr+".refundTruckDescs"      );
 				checkEmptyObject(userId                , debugOutputPrefixStr+".userId"                );
-				checkEmptyArray (refundGarageTruckDescs, debugOutputPrefixStr+".refundGarageTruckDescs", saveGame.fileName);
+				checkEmptyArray (refundGarageTruckDescs, debugOutputPrefixStr+".refundGarageTruckDescs");
 				
 				this.ownedTrucks = new HashMap<>();
 				parseObject(ownedTrucks, debugOutputPrefixStr+".ownedTrucks", (value, name, local_debugOutputPrefixStr) -> {
@@ -744,10 +764,10 @@ public class SaveGameData {
 				 */
 
 				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
-				checkEmptyArray (constraints          , debugOutputPrefixStr+".constraints"          , "<fileName>");
-				checkEmptyArray (controlConstrPosition, debugOutputPrefixStr+".controlConstrPosition", "<fileName>");
-				checkEmptyArray (isPoweredEngaged     , debugOutputPrefixStr+".isPoweredEngaged"     , "<fileName>");
-				checkEmptyArray (tmBodies             , debugOutputPrefixStr+".tmBodies"             , "<fileName>");
+				checkEmptyArray (constraints          , debugOutputPrefixStr+".constraints"          );
+				checkEmptyArray (controlConstrPosition, debugOutputPrefixStr+".controlConstrPosition");
+				checkEmptyArray (isPoweredEngaged     , debugOutputPrefixStr+".isPoweredEngaged"     );
+				checkEmptyArray (tmBodies             , debugOutputPrefixStr+".tmBodies"             );
 				
 				retainedMap = MapIndex.parse(retainedMapId);
 				
@@ -802,6 +822,16 @@ public class SaveGameData {
 				});
 			}
 			
+			<Name extends SplittedName> void parseStringArray(HashMap<String, ValueType> valueMap, JSON_Array<NV, V> array, String debugOutputPrefixStr, Function<String,Name> splitName, BiConsumer<ValueType, Name> setValue) throws TraverseException
+			{
+				parseArray(array, debugOutputPrefixStr, (jsonValue, i, local_debugOutputPrefixStr) -> {
+					String str = JSON_Data.getStringValue(jsonValue, local_debugOutputPrefixStr);
+					Name name = splitName.apply(str);
+					ValueType value = get(valueMap, name.valueID);
+					setValue.accept(value,name);
+				});
+			}
+			
 			private interface Action<ValueType>
 			{
 				void parseValues(ValueType value, JSON_Data.Value<NV,V> jsonValue, String local_debugOutputPrefixStr) throws TraverseException;
@@ -821,6 +851,28 @@ public class SaveGameData {
 				SplittedName(String valueID)
 				{
 					this.valueID = valueID;
+				}
+				
+				static class TwoOrSplitName extends SpreadedValuesHelper.SplittedName
+				{
+					private final String originalStr;
+					private final String secondPart;
+				
+					TwoOrSplitName(String originalStr, String valueId, String secondPart)
+					{
+						super(valueId);
+						this.originalStr = originalStr;
+						this.secondPart = secondPart;
+					}
+					
+					static TwoOrSplitName split(String fieldName)
+					{
+						// "level_us_03_01 || US_03_01_CR_WD_01"
+						// "level_ru_02_01_crop || RU_02_01_BLD_GAS"
+						String[] parts = fieldName.split(" \\|\\| ", 2);
+						if (parts.length == 2) return new TwoOrSplitName(fieldName, parts[0], parts[1]);
+						return new TwoOrSplitName(fieldName, parts[0], null);
+					}
 				}
 			}
 			
@@ -976,7 +1028,7 @@ public class SaveGameData {
 			{
 				helper.parseObject(objectives, object, debugOutputPrefixStr, (objective, value, local) -> {
 					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
-					checkEmptyArray(array, local, "<filename>");
+					checkEmptyArray(array, local);
 				});
 			}
 
@@ -1045,6 +1097,8 @@ public class SaveGameData {
 			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>(); // TODO: show MapInfos.cargoLoadingCounts
 			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>(); // TODO: show MapInfos.upgradesGiverData
 			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>(); // TODO: show MapInfos.watchPoints
+			public final Vector<Waypoint> waypoints         = new Vector<>();  // TODO: show MapInfos.waypoints
+			public final Vector<String  > discoveredObjects = new Vector<>();  // TODO: show MapInfos.discoveredObjects
 			
 			private MapInfos(String mapId)
 			{
@@ -1053,17 +1107,28 @@ public class SaveGameData {
 			
 			private static void parseCargoLoadingCounts(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, CargoLoadingCounts.Name::split, (map, name, value, local_debugOutputPrefixStr) -> {
+				helper.parseObject(maps, object, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name, value, local_debugOutputPrefixStr) -> {
 					
 					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
-					CargoLoadingCounts station = new CargoLoadingCounts(object2, name.stationName, local_debugOutputPrefixStr);
+					CargoLoadingCounts station = new CargoLoadingCounts(object2, name.secondPart, local_debugOutputPrefixStr);
 					
-					if (name.stationName==null)
-						System.err.printf("[CargoLoadingCounts] Found more than a station with no name on 1 map: %s%n", local_debugOutputPrefixStr);
-					else if (map.cargoLoadingCounts.containsKey(name.stationName))
+					if (name.secondPart==null)
+						System.err.printf("[CargoLoadingCounts] Found a station with no name on 1 map: %s%n", local_debugOutputPrefixStr);
+					else if (map.cargoLoadingCounts.containsKey(name.secondPart))
 						System.err.printf("[CargoLoadingCounts] Found more than 1 station with same name on 1 map: %s%n", local_debugOutputPrefixStr);
 					else
-						map.cargoLoadingCounts.put(name.stationName, station);
+						map.cargoLoadingCounts.put(name.secondPart, station);
+				});
+			}
+
+			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
+			{
+				// "level_us_03_01 || US_03_01_CR_WD_01"
+				helper.parseStringArray(maps, array, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name) -> {
+					if (name.secondPart==null)
+						System.err.printf("[DiscoveredObjects] Found a discovered object (\"%s\") with no name: %s%n", name.originalStr, debugOutputPrefixStr);
+					else
+						map.discoveredObjects.add(name.secondPart);
 				});
 			}
 
@@ -1110,7 +1175,7 @@ public class SaveGameData {
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
 					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
-					checkEmptyArray(array, local, "<filename>");
+					checkEmptyArray(array, local);
 				});
 			}
 
@@ -1155,10 +1220,44 @@ public class SaveGameData {
 
 			private static void parseWaypoints(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
-					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
-					checkEmptyArray(array, local, "<filename>");
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value1, local1) -> {
+					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value1, local1);
+					if (!map.waypoints.isEmpty())
+						System.err.printf("[Waypoints] Array MapInfos.waypoints is not empty as expected, because more than 1 waypoint list is stored in SaveGame: %s%n", debugOutputPrefixStr);
+					else
+					{
+						parseArray(array, local1, (value2, i, local2) -> {
+							JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value2, local2);
+							Waypoint waypoint = new Waypoint(object2, local2);
+							map.waypoints.add(waypoint);
+						});
+					}
 				});
+			}
+
+			public static class Waypoint
+			{
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Waypoint.class)
+						.add("modelHeightBounds", JSON_Data.Value.Type.Null   )
+						.add("point"            , JSON_Data.Value.Type.Object )
+						.add("type"             , JSON_Data.Value.Type.Integer);
+				
+				public final long type;
+				public final Coord3F point;
+
+				private Waypoint(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+				{
+					//optionalValues.scan(object, "MapInfos.DiscoveredObjects");
+					@SuppressWarnings("unused")
+					JSON_Data.Null modelHeightBounds;
+					JSON_Object<NV, V> point;
+					modelHeightBounds = JSON_Data.getNullValue   (object, "modelHeightBounds", debugOutputPrefixStr);
+					point             = JSON_Data.getObjectValue (object, "point"            , debugOutputPrefixStr);
+					type              = JSON_Data.getIntegerValue(object, "type"             , debugOutputPrefixStr);
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+					
+					this.point = new Coord3F(point, debugOutputPrefixStr+".point");
+				}
 			}
 
 			public static class DiscoveredObjects
@@ -1198,25 +1297,6 @@ public class SaveGameData {
 						else
 							counts.put(cargoType, count);
 					});
-				}
-			
-				private static class Name extends SpreadedValuesHelper.SplittedName
-				{
-					private final String stationName;
-				
-					Name(String contestId, String stationName)
-					{
-						super(contestId);
-						this.stationName = stationName;
-					}
-					
-					static Name split(String fieldName)
-					{
-						// "level_ru_02_01_crop || RU_02_01_BLD_GAS"
-						String[] parts = fieldName.split(" \\|\\| ", 2);
-						if (parts.length == 2) return new Name(parts[0], parts[1]);
-						return new Name(parts[0], null);
-					}
 				}
 			}
 		}
