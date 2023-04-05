@@ -469,7 +469,7 @@ public class Data {
 		}
 	}
 	
-	public record MapIndex(String country, Integer region, Integer map, String mapID, String extra)
+	public record MapIndex(String country, Integer region, Integer map, String originalMapID, String extra)
 	{
 		private static final String[] countries = new String[] {"US","RU"};
 		
@@ -484,6 +484,7 @@ public class Data {
 			Integer regionIndex = null;
 			Integer mapIndex    = null;
 			String  extra       = null;
+			String  original    = mapID;
 			
 			if (mapID==null)
 				return new MapIndex(null, null, null, null, null);
@@ -518,7 +519,7 @@ public class Data {
 			if (parts.length > lastParsedPart+2)
 				extra = String.join("_", Arrays.copyOfRange(parts, lastParsedPart+1, parts.length));
 			
-			return new MapIndex(country, regionIndex, mapIndex, mapID, extra);
+			return new MapIndex(country, regionIndex, mapIndex, original, extra);
 		}
 	}
 	
@@ -535,8 +536,15 @@ public class Data {
 		public String getNameForMap(MapIndex mapIndex)
 		{
 			Supplier<String> getDefaultForNoName = ()->String.format("No Name for Map (%s,%02d,%02d)", mapIndex.country, mapIndex.region, mapIndex.map);
-			Supplier<String> getDefaultForNoMap  = ()->String.format("No Name for Map \"%s\"", mapIndex.mapID);
+			Supplier<String> getDefaultForNoMap  = ()->String.format("No Name for Map \"%s\"", mapIndex.originalMapID);
 			return getNameForMap( mapIndex, getDefaultForNoName, getDefaultForNoMap );
+		}
+
+		public String getNameForMap(
+				MapIndex mapIndex,
+				Supplier<String> getDefault)
+		{
+			return getNameForMap(mapIndex, getDefault, getDefault);
 		}
 
 		public String getNameForMap(

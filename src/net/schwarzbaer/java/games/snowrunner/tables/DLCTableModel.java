@@ -1,6 +1,5 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
 
@@ -10,24 +9,26 @@ import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 
 public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements Finalizable {
 
-	private Language language;
-	private final Vector<RowItem> rows;
-	private HashMap<String, String> truckToDLCAssignments;
-	private Data data;
 	private final Finalizer finalizer;
+	private final Vector<RowItem> rows;
+	private Language language;
+	private SnowRunner.DLCs dlcs;
+	private Data data;
+	private SaveGame savegame;
 
 	public DLCTableModel(Controllers controllers) {
 		super(ColumnID.values());
 		language = null;
-		truckToDLCAssignments = null;
+		dlcs = null;
 		data = null;
 		rows = new Vector<>();
 		
@@ -36,17 +37,21 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 			this.language = language;
 			fireTableUpdate();
 		});
-		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
-			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-				DLCTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
+		finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+			@Override public void setDLCs(SnowRunner.DLCs dlcs) {
+				DLCTableModel.this.dlcs = dlcs;
 				rebuildRows();
 			}
-			@Override public void updateAfterAssignmentsChange() {
+			@Override public void updateAfterChange() {
 				rebuildRows();
 			}
 		});
 		finalizer.addDataReceiver(data->{
 			this.data = data;
+			rebuildRows();
+		});
+		finalizer.addSaveGameListener(savegame->{
+			this.savegame = savegame;
 			rebuildRows();
 		});
 	}
@@ -57,30 +62,36 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	
 	private void rebuildRows() {
 		HashSet<String> truckIDs = new HashSet<>();
-		if (truckToDLCAssignments!=null) truckIDs.addAll(truckToDLCAssignments.keySet());
-		if (data                 !=null) truckIDs.addAll(data.trucks          .keySet());
+		if (dlcs!=null) truckIDs.addAll(dlcs.getTruckIDs());
+		if (data!=null) truckIDs.addAll(data.trucks.keySet());
+		Vector<String> sortedTruckIDs = new Vector<>(truckIDs);
+		sortedTruckIDs.sort(null);
+		
+		HashSet<String> mapIDs = new HashSet<>();
+		if (dlcs    !=null) mapIDs.addAll(dlcs.getMapIDs());
+		if (savegame!=null) mapIDs.addAll(savegame.maps.keySet());
+		Vector<String> sortedMapIDs = new Vector<>(mapIDs);
+		sortedMapIDs.sort(null);
 		
 		rows.clear();
-		for (String truckID:truckIDs) {
+		for (String truckID : sortedTruckIDs) {
 			Truck truck = data==null ? null : data.trucks.get(truckID);
 			String updateLevel = truck==null ? null : truck.updateLevel==null ? "<Launch>" : truck.updateLevel;
-			String dlc = truckToDLCAssignments==null ? null : truckToDLCAssignments.get(truckID);
+			String dlc = dlcs==null ? null : dlcs.getDLCofTruck(truckID);
 			if ((updateLevel!=null && !updateLevel.equals("<Launch>")) || dlc!=null)
-				rows.add(new RowItem(updateLevel, dlc, truckID));
+				rows.add(new RowItem(updateLevel, dlc, truckID, null));
+		}
+		for (String mapID : sortedMapIDs) {
+			//SaveGame.MapInfos map = savegame==null ? null : savegame.maps.get(mapID);
+			String updateLevel = null;
+			String dlc = dlcs==null ? null : dlcs.getDLCofMap(mapID);
+			if (dlc!=null)
+				rows.add(new RowItem(updateLevel, dlc, null, Data.MapIndex.parse(mapID)));
 		}
 		fireTableUpdate();
 	}
 
-	private static class RowItem {
-		final String updateLevel;
-		final String officialDLC;
-		final String truckID;
-		private RowItem(String internalDLC, String officialDLC, String truckID) {
-			this.updateLevel = internalDLC;
-			this.officialDLC = officialDLC;
-			this.truckID = truckID;
-		}
-	}
+	private record RowItem(String updateLevel, String dlc, String truckID, Data.MapIndex mapIndex) {}
 
 
 	@Override public int getRowCount() {
@@ -91,12 +102,15 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		if (rowIndex<0 || rowIndex>=rows.size()) return null;
 		RowItem row = rows.get(rowIndex);
 		switch (columnID) {
-		case UpdateLevel: return row.updateLevel;
-		case OfficialDLC: return row.officialDLC;
-		case Truck:
-			Truck truck = data==null || row.truckID==null ? null : data.trucks.get(row.truckID);
-			if (truck == null) return String.format("<%s>", row.truckID);
-			return SnowRunner.getTruckLabel(truck, language);
+			case UpdateLevel: return row.updateLevel;
+			case OfficialDLC: return row.dlc;
+			case Truck:
+				Truck truck = data==null || row.truckID==null ? null : data.trucks.get(row.truckID);
+				if (truck == null) return String.format("<%s>", row.truckID);
+				return SnowRunner.getTruckLabel(truck, language);
+			case Map:
+				if (row.mapIndex==null) return null;
+				return language.regionNames.getNameForMap(row.mapIndex, ()->"<"+row.mapIndex.originalMapID()+">");
 		}
 		return null;
 	}
@@ -105,6 +119,7 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		UpdateLevel ("Update Level", String .class, 100),
 		OfficialDLC ("Official DLC", String .class, 200),
 		Truck       ("Truck"       , String .class, 200),
+		Map         ("Map"         , String .class, 200),
 		;
 	
 		private final SimplifiedColumnConfig config;

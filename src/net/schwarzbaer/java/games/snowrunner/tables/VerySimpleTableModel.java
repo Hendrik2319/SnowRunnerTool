@@ -545,6 +545,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		return columnID.getValue(row, language, this);
 	}
 	
+	protected void fireTableColumnUpdate(String id)
+	{
+		int colV = findColumnByID("DLC");
+		if (colV>=0) fireTableColumnUpdate(colV);
+	}
+	
 	protected int findColumnByID(String id) {
 		if (id==null) throw new IllegalArgumentException();
 		for (int i=0; i<super.columns.length; i++)

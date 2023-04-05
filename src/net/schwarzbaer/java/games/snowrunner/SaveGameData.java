@@ -422,8 +422,8 @@ public class SaveGameData {
 					if (textOutput!=null)
 					{
 						textOutput.printf("    Truck <%s> found in warehouse at position %d.", truck.id, i+1);
-						if (!truckInSlot.retainedMap.mapID().isBlank())
-							textOutput.printf(" (Map: %s)%n", truckInSlot.retainedMap.mapID());
+						if (!truckInSlot.retainedMap.originalMapID().isBlank())
+							textOutput.printf(" (Map: %s)%n", truckInSlot.retainedMap.originalMapID());
 						else
 							textOutput.printf("%n");
 					}
@@ -1163,7 +1163,7 @@ public class SaveGameData {
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
 					
 					JSON_Object<NV, V> garageObject = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
-					Garage             garage       = new Garage(garageObject, map.map.mapID(), local_debugOutputPrefixStr);
+					Garage             garage       = new Garage(garageObject, map.map.originalMapID(), local_debugOutputPrefixStr);
 					
 					if (map.garage!=null)
 						System.err.printf("[GaragesData] Found more than 1 garage on 1 map: %s%n", local_debugOutputPrefixStr);

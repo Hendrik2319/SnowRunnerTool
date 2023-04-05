@@ -5,7 +5,6 @@ import java.awt.Point;
 import java.awt.Window;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
 import java.util.function.BiFunction;
@@ -29,8 +28,8 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
-import net.schwarzbaer.java.games.snowrunner.TruckAssignToDLCDialog;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.VerboseTableModelBasedBuilder;
 
@@ -52,11 +51,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private static final String ID_ShortLogs = "ShortLogs";
 	private static final String ID_MedLogsB  = "MedLogsB" ;
 	
-	private SaveGame saveGame;
-	private Truck clickedItem;
-	private HashMap<String, String> truckToDLCAssignments;
-	private final UserDefinedValues userDefinedValues;
 	private Data data;
+	private SaveGame saveGame;
+	private SnowRunner.DLCs dlcs;
+	private Truck clickedItem;
+	private final UserDefinedValues userDefinedValues;
 	private final SpecialTruckAddons specialTruckAddons;
 	private Function<Truck, Color> colorizeTrucksByTrailers;
 
@@ -112,6 +111,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		//		new ColumnID( "Recall"   , "Recallable"           ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable_obsolete),
 		});
 		this.specialTruckAddons = specialTruckAddons;
+		this.dlcs = null;
 		this.userDefinedValues = udv;
 		this.data = null;
 		this.saveGame = null;
@@ -171,13 +171,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				fireTableColumnUpdate(findColumnByID(id));
 		});
 		
-		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
-			@Override public void updateAfterAssignmentsChange() {
-				int colV = findColumnByID("DLC");
-				if (colV>=0) fireTableColumnUpdate(colV);
+		finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+			@Override public void updateAfterChange() {
+				fireTableColumnUpdate("DLC");
 			}
-			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-				TruckTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
+			@Override public void setDLCs(SnowRunner.DLCs dlcs) {
+				TruckTableModel.this.dlcs = dlcs;
+				fireTableColumnUpdate("DLC");
 			}
 		});
 		
@@ -239,8 +239,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private static String getDLC(Object row, VerySimpleTableModel<?> model)
 	{
 		return castNCall(row, model, (truck_, model_) -> {
-			if (model_.truckToDLCAssignments==null) return null;
-			return model_.truckToDLCAssignments.get(truck_.id);
+			if (model_.dlcs==null) return null;
+			return model_.dlcs.getDLCofTruck(truck_.id);
 		});
 	}
 	
@@ -408,11 +408,17 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		contextMenu.addSeparator();
 		
 		JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign truck to an official DLC", true, e->{
-			if (clickedItem==null || truckToDLCAssignments==null) return;
-			TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
+			if (clickedItem==null || dlcs==null) return;
+			AssignToDLCDialog dlg = new AssignToDLCDialog(
+					mainWindow,
+					SnowRunner.DLCs.ItemType.Truck,
+					clickedItem.id,
+					SnowRunner.getTruckLabel(clickedItem,language),
+					dlcs
+			);
 			boolean assignmentsChanged = dlg.showDialog();
 			if (assignmentsChanged)
-				finalizer.getControllers().truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
+				finalizer.getControllers().dlcAssignmentListeners.updateAfterChange();
 		}));
 		
 		contextMenu.addSeparator();
@@ -435,7 +441,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
 			clickedItem = rowM<0 ? null : getRow(rowM);
 			
-			miAssignToDLC.setEnabled(clickedItem!=null && truckToDLCAssignments!=null);
+			miAssignToDLC.setEnabled(clickedItem!=null && dlcs!=null);
 			
 			miAssignToDLC.setText(
 				clickedItem==null

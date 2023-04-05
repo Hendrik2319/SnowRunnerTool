@@ -1,6 +1,7 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
 import java.awt.Dimension;
+import java.awt.Point;
 import java.awt.Window;
 import java.util.Collection;
 import java.util.Comparator;
@@ -11,25 +12,30 @@ import java.util.function.Function;
 
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
+import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.ValueListOutput;
+import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Addon;
-import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Garage;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 
@@ -183,7 +189,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		{
 			super(mainWindow, controllers, new ColumnID[] {
 					new ColumnID("Name"       ,"Name"                        ,  String .class, 175,   null,      null, false, row->((Row)row).name ),
-					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).map.mapID()),
+					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).map.originalMapID()),
 					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, get((model, data, lang, row)->getMapName(row.map,lang, true))),
 					new ColumnID("TrType"     ,"type"                        ,  String .class, 170,   null,      null, false, get((model, data, lang, row)->row.truckDesc.type         )),
 					new ColumnID("Truck"      ,"Truck"                       ,  String .class, 160,   null,      null, false, get((model, data, lang, row)->TruckName.getTruckLabel(row.truckDesc.type, data, lang))),
@@ -211,7 +217,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrItmfObjId","<itemForObjectiveId>"        ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.itemForObjectiveId        ),
 					new ColumnID("TrGlobalID" ,"<globalId>"                  ,  String .class, 250,   null,      null, false, row->((Row)row).truckDesc.globalId                  ),
 					new ColumnID("TrID"       ,"<id>"                        ,  String .class,  50,   null,      null, false, row->((Row)row).truckDesc.id                        ),
-					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.retainedMap.mapID()       ),
+					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.retainedMap.originalMapID()),
 					new ColumnID("TrInvalid"  ,"<isInvalid>"                 ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isInvalid                 ),
 					new ColumnID("TrPacked"   ,"<isPacked>"                  ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isPacked                  ),
 					new ColumnID("TrUnlocked" ,"<isUnlocked>"                ,  Boolean.class,  80,   null,      null, false, row->((Row)row).truckDesc.isUnlocked                ),
@@ -302,22 +308,45 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class MapTableModel extends VerySimpleTableModel<MapInfos>
 	{
+		private MapInfos clickedItem;
+		protected DLCs dlcs;
+
 		MapTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("MapID"     ,"Map ID"             ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.mapID()),
+					new ColumnID("MapID"     ,"Map ID"             ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
 					new ColumnID("Name"      ,"Name"               ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
+					new ColumnID("DLC"       ,"DLC"                ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row,model))),
 					new ColumnID("Visited"   ,"Visited"            ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).wasVisited),
 					new ColumnID("Garage"    ,"Garage"             ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).garage!=null),
 					new ColumnID("GarageStat","Garage Status"      ,  Long                      .class,  85, CENTER, null, false, row->((MapInfos)row).garageStatus),
 					new ColumnID("DiscTrucks","Discovered Trucks"  ,  MapInfos.DiscoveredObjects.class, 100, CENTER, null, false, row->((MapInfos)row).discoveredTrucks),
 					new ColumnID("DiscUpgrds","Discovered Upgrades",  MapInfos.DiscoveredObjects.class, 115, CENTER, null, false, row->((MapInfos)row).discoveredUpgrades),
 			});
+			clickedItem = null;
+			
+			finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+				@Override public void updateAfterChange() {
+					fireTableColumnUpdate("DLC");
+				}
+				@Override public void setDLCs(SnowRunner.DLCs dlcs) {
+					MapTableModel.this.dlcs = dlcs;
+					fireTableColumnUpdate("DLC");
+				}
+			});
 		}
 		
 		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,MapTableModel,MapInfos> getFunction)
 		{
 			return ColumnID.get(MapTableModel.class, MapInfos.class, getFunction);
+		}
+
+		private static String getDLC(MapInfos row, MapTableModel model)
+		{
+			if (row==null) return null;
+			if (model==null) return null;
+			if (model.dlcs==null) return null;
+			return model.dlcs.getDLCofMap(row.map.originalMapID());
 		}
 
 		void setData(SaveGame saveGame)
@@ -332,7 +361,45 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				setRowData(null);
 		}
 
-		@Override protected String getRowName(MapInfos row) { return row==null ? null : row.map.mapID(); }
+		@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
+			super.modifyTableContextMenu(table_, contextMenu);
+			
+			
+			contextMenu.addSeparator();
+			
+			JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign map to an official DLC", true, e->{
+				if (clickedItem==null || dlcs==null) return;
+				
+				String label = language.regionNames.getNameForMap(clickedItem.map, ()->"<"+clickedItem.map.originalMapID()+">");
+				AssignToDLCDialog dlg = new AssignToDLCDialog(
+						mainWindow,
+						SnowRunner.DLCs.ItemType.Map,
+						clickedItem.map.originalMapID(),
+						label,
+						dlcs
+				);
+				boolean assignmentsChanged = dlg.showDialog();
+				if (assignmentsChanged)
+					finalizer.getControllers().dlcAssignmentListeners.updateAfterChange();
+			}));
+			
+			contextMenu.addContextMenuInvokeListener((table, x, y) -> {
+				Point p = x==null || y==null ? null : new Point(x,y);
+				int rowV = p==null ? -1 : table.rowAtPoint(p);
+				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
+				clickedItem = rowM<0 ? null : getRow(rowM);
+				
+				miAssignToDLC.setEnabled(clickedItem!=null && dlcs!=null);
+				
+				miAssignToDLC.setText(
+					clickedItem==null
+					? "Assign map to an official DLC"
+					: String.format("Assign \"%s\" to an official DLC", language.regionNames.getNameForMap(clickedItem.map, ()->"<"+clickedItem.map.originalMapID()+">"))
+				);
+			});
+		}
+
+		@Override protected String getRowName(MapInfos row) { return row==null ? null : row.map.originalMapID(); }
 	}
 
 	private static class AddonTableModel extends VerySimpleTableModel<AddonTableModel.Row>

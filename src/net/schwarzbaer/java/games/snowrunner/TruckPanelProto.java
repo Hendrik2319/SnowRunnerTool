@@ -69,7 +69,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckToDLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
@@ -93,13 +93,13 @@ class TruckPanelProto implements Finalizable {
 	private Language language;
 	private Truck truck;
 	private SaveGame saveGame;
-	private HashMap<String, String> truckToDLCAssignments;
 	private AddonCategories addonCategories;
+	private SnowRunner.DLCs dlcs;
 
 	TruckPanelProto(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 		language = null;
 		truck = null;
-		truckToDLCAssignments = null;
+		dlcs = null;
 		saveGame = null;
 		finalizer = controllers.createNewFinalizer();
 		
@@ -127,12 +127,12 @@ class TruckPanelProto implements Finalizable {
 			this.saveGame = saveGame;
 			updateOutput();
 		});
-		finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
-			@Override public void updateAfterAssignmentsChange() {
+		finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+			@Override public void updateAfterChange() {
 				updateOutput();
 			}
-			@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-				TruckPanelProto.this.truckToDLCAssignments = truckToDLCAssignments;
+			@Override public void setDLCs(SnowRunner.DLCs dlcs) {
+				TruckPanelProto.this.dlcs = dlcs;
 				updateOutput();
 			}
 		});
@@ -203,8 +203,8 @@ class TruckPanelProto implements Finalizable {
 		if (truck.updateLevel!=null)
 			outTop.add(0, "Update Level", truck.updateLevel);
 		
-		if (truckToDLCAssignments!=null && truck.id!=null) {
-			String dlc = truckToDLCAssignments.get(truck.id);
+		if (dlcs!=null && truck.id!=null) {
+			String dlc = dlcs.getDLCofTruck(truck.id);
 			if (dlc!=null)
 				outTop.add(0, "DLC", dlc);
 		}
