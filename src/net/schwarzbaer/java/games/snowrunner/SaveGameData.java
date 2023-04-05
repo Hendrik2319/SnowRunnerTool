@@ -384,6 +384,14 @@ public class SaveGameData {
 			return str;
 		}
 
+		public String getGameTimeStr()
+		{
+			int h = (int) Math.floor(  gameTime            );
+			int m = (int) Math.floor( (gameTime-h)*60      );
+			int s = (int) Math.floor(((gameTime-h)*60-m)*60);
+			return String.format("%d:%02d:%02d", h,m,s);
+		}
+
 		public long getOwnedTruckCount(Truck truck) {
 			if (truck==null) return 0;
 			if (ppd==null) return 0;

@@ -116,9 +116,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		else
 		{
 			out.add(0, "File Name"             , saveGame.fileName  );
-			out.add(0, "Save Time"             , saveGame.saveTime  );
-			out.add(0, null                    , "%s", SnowRunner.dateTimeFormatter.getTimeStr(saveGame.saveTime, false, true, false, true, false));
-			out.add(0, "Game Time"             , saveGame.gameTime  );
+		//	out.add(0, "Save Time"             , saveGame.saveTime  );
+			out.add(0, "Save Time"             , "%s", SnowRunner.dateTimeFormatter.getTimeStr(saveGame.saveTime, false, true, false, true, false));
+			out.add(0, "Game Time"             , "%s", saveGame.getGameTimeStr() );
 			out.add(0, "Is HardMode"           , saveGame.isHardMode, "Yes", "False");
 			out.add(0, "World Configuration"   , saveGame.worldConfiguration);
 			out.add(0, "<Birth Version>"       , saveGame.birthVersion);
