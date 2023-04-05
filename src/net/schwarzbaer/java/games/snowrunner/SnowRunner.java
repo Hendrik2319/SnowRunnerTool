@@ -12,8 +12,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -26,6 +28,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -96,11 +99,11 @@ import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
 
-	public static final String TruckToDLCAssignmentsFile = "SnowRunner - TruckToDLCAssignments.dat";
-	public static final String UserDefinedValuesFile     = "SnowRunner - UserDefinedValues.dat";
-	public static final String FilterRowsPresetsFile     = "SnowRunner - FilterRowsPresets.dat";
-	public static final String ColumnHidePresetsFile     = "SnowRunner - ColumnHidePresets.dat";
-	public static final String SpecialTruckAddonsFile    = "SnowRunner - SpecialTruckAddons.dat";
+	public static final String DLCAssignmentsFile     = "SnowRunner - DLCAssignments.dat";
+	public static final String UserDefinedValuesFile  = "SnowRunner - UserDefinedValues.dat";
+	public static final String FilterRowsPresetsFile  = "SnowRunner - FilterRowsPresets.dat";
+	public static final String ColumnHidePresetsFile  = "SnowRunner - ColumnHidePresets.dat";
+	public static final String SpecialTruckAddonsFile = "SnowRunner - SpecialTruckAddons.dat";
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
@@ -118,7 +121,7 @@ public class SnowRunner {
 
 	private Data data;
 	private final UserDefinedValues userDefinedValues;
-	private HashMap<String,String> truckToDLCAssignments;
+	private final DLCs dlcs;
 	private SaveGameData saveGameData;
 	private SaveGame selectedSaveGame;
 	private File loadedInitialPAK;
@@ -133,11 +136,11 @@ public class SnowRunner {
 	
 	SnowRunner() {
 		data = null;
-		truckToDLCAssignments = null;
 		saveGameData = null;
 		selectedSaveGame = null;
 		loadedInitialPAK = null;
 		userDefinedValues = new UserDefinedValues();
+		dlcs = new DLCs();
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
 		controllers = new Controllers();
@@ -219,15 +222,15 @@ public class SnowRunner {
 		settings.registerAppWindow(mainWindow);
 	}
 
-	public interface TruckToDLCAssignmentListener {
-		void setTruckToDLCAssignments(HashMap<String, String> assignments);
-		void updateAfterAssignmentsChange();
+	public interface DLCAssignmentListener {
+		void setDLCs(DLCs dlcs);
+		void updateAfterChange();
 	}
 	
 	private void initialize() {
 		userDefinedValues.read();
-		truckToDLCAssignments = TruckAssignToDLCDialog.loadStoredData();
-		controllers.truckToDLCAssignmentListeners.setTruckToDLCAssignments(truckToDLCAssignments);
+		dlcs.loadStoredData();
+		controllers.dlcAssignmentListeners.setDLCs(dlcs);
 		
 		if (loadInitialPAK()) updateAfterDataChange();
 		reloadSaveGameData();
@@ -859,6 +862,129 @@ public class SnowRunner {
 		return pos;
 	}
 	
+	public static class DLCs
+	{
+		public enum ItemType {
+			Truck(dlcs->dlcs.trucks),
+			Map  (dlcs->dlcs.maps  );
+			private Function<DLCs, HashMap<String,String>> getAssignments;
+			private ItemType(Function<DLCs, HashMap<String,String>> getAssignments)
+			{
+				this.getAssignments = Objects.requireNonNull(getAssignments);
+			}
+		}
+		
+		private final HashMap<String,String> trucks = new HashMap<>();
+		private final HashMap<String,String> maps   = new HashMap<>();
+		
+		public Vector<String> getAllDLCs()
+		{
+			HashSet<String> dlcSet = new HashSet<>();
+			dlcSet.addAll(trucks.values());
+			dlcSet.addAll(maps  .values());
+			
+			Vector<String> sortedDLCs = new Vector<>(dlcSet);
+			sortedDLCs.sort(null);
+			
+			return sortedDLCs;
+		}
+		public void   setDLC(String id, ItemType type, String dlc) {        type.getAssignments.apply(this).put(id, dlc); }
+		public String getDLC(String id, ItemType type            ) { return type.getAssignments.apply(this).get(id     ); }
+		
+		public String getDLCofTruck(String truckID) { return trucks.get(truckID); }
+		public String getDLCofMap  (String   mapID) { return maps  .get(  mapID); }
+
+		public Collection<String> getTruckIDs() { return trucks.keySet(); }
+		public Collection<String> getMapIDs  () { return maps  .keySet(); }
+		
+		private static HashMap<String,Vector<String>> getReversedMap(HashMap<String,String> assignments)
+		{
+			HashMap<String,Vector<String>> reversedMap = new HashMap<>();
+			assignments.forEach((item,dlc)->{
+				Vector<String> items = reversedMap.get(dlc);
+				if (items==null) reversedMap.put(dlc, items = new Vector<>());
+				items.add(item);
+			});
+			reversedMap.forEach((dlc,items)->items.sort(null));
+			return reversedMap;
+		}
+		
+		void saveData() {
+			File file = new File(SnowRunner.DLCAssignmentsFile);
+			System.out.printf("Write DLCs to file ...%n   \"%s\"%n", file.getAbsolutePath());
+			
+			HashMap<String,Vector<String>> reversedTruckMap = getReversedMap(trucks);
+			HashMap<String,Vector<String>> reversedMapMap   = getReversedMap(maps);
+			
+			HashSet<String> dlcs = new HashSet<>();
+			dlcs.addAll(reversedTruckMap.keySet());
+			dlcs.addAll(reversedMapMap  .keySet());
+			Vector<String> sortedDLCs = new Vector<>(dlcs);
+			sortedDLCs.sort(null);
+			
+			try (PrintWriter out = new PrintWriter( new OutputStreamWriter( new FileOutputStream( file ), StandardCharsets.UTF_8) )) {
+				
+				for (String dlc : sortedDLCs) {
+					out.printf("[DLC]%n");
+					out.printf("name = %s%n", dlc);
+					
+					Vector<String> trucks = reversedTruckMap.get(dlc);
+					if (trucks!=null)
+						for (String truck : trucks)
+							out.printf("truck = %s%n", truck);
+					
+					Vector<String> maps = reversedMapMap.get(dlc);
+					if (maps!=null)
+						for (String map : maps)
+							out.printf("map = %s%n", map);
+					
+					out.println();
+				}
+				
+				
+			} catch (FileNotFoundException e) {
+			}
+			
+			System.out.printf("... done%n");
+		}
+
+		void loadStoredData() {
+			File file = new File(SnowRunner.DLCAssignmentsFile);
+			System.out.printf("Read DLCs from file ...%n   \"%s\"%n", file.getAbsolutePath());
+			
+			trucks.clear();
+			maps  .clear();
+			
+			try (BufferedReader in = new BufferedReader( new InputStreamReader( new FileInputStream( file ), StandardCharsets.UTF_8) )) {
+				
+				String line, value, lastDLC=null;
+				while ( (line=in.readLine())!=null ) {
+					
+					if (line.equals("[DLC]"))
+						lastDLC = null;
+					
+					if ( (value = Data.getLineValue(line, "name = "))!=null )
+						lastDLC = value;
+					
+					if ( (value = Data.getLineValue(line, "truck = "))!=null && lastDLC!=null)
+						trucks.put(value, lastDLC);
+					
+					if ( (value = Data.getLineValue(line, "map = "))!=null && lastDLC!=null)
+						maps  .put(value, lastDLC);
+				}
+				
+				
+			} catch (FileNotFoundException e) {
+				//e.printStackTrace();
+			} catch (IOException e) {
+				System.err.printf("IOException while reading DLCs: %s%n", e.getMessage());
+				//e.printStackTrace();
+			}
+			
+			System.out.printf("... done%n");
+		}
+	}
+	
 	public static class SpecialTruckAddons {
 
 		private static final String ValuePrefix = "$ ";
@@ -1188,14 +1314,14 @@ public class SnowRunner {
 		private final JList<Truck> truckList;
 		private final Finalizer finalizer;
 		private final StandardMainWindow mainWindow;
-		private HashMap<String, String> truckToDLCAssignments;
+		private DLCs dlcs;
 		private Data data;
 		
 		TrucksListPanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
 			this.finalizer = controllers.createNewFinalizer();
-			this.truckToDLCAssignments = null;
+			this.dlcs = null;
 			this.data = null;
 			setResizeWeight(0);
 			
@@ -1226,10 +1352,10 @@ public class SnowRunner {
 			setLeftComponent(truckListScrollPane);
 			setRightComponent(splitPaneFromTruckPanel);
 			
-			finalizer.addTruckToDLCAssignmentListener(new TruckToDLCAssignmentListener() {
-				@Override public void updateAfterAssignmentsChange() {}
-				@Override public void setTruckToDLCAssignments(HashMap<String, String> truckToDLCAssignments) {
-					TrucksListPanel.this.truckToDLCAssignments = truckToDLCAssignments;
+			finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+				@Override public void updateAfterChange() {}
+				@Override public void setDLCs(DLCs dlcs) {
+					TrucksListPanel.this.dlcs = dlcs;
 				}
 			});
 		}
@@ -1253,11 +1379,17 @@ public class SnowRunner {
 				addTo(truckList);
 				
 				JMenuItem miAssignToDLC = add(createMenuItem("Assign truck to an official DLC", true, e->{
-					if (clickedItem==null) return;
-					TruckAssignToDLCDialog dlg = new TruckAssignToDLCDialog(mainWindow, clickedItem, language, truckToDLCAssignments);
+					if (clickedItem==null || dlcs==null) return;
+					AssignToDLCDialog dlg = new AssignToDLCDialog(
+							mainWindow,
+							DLCs.ItemType.Truck,
+							clickedItem.id,
+							getTruckLabel(clickedItem,language),
+							dlcs
+					);
 					boolean assignmentsChanged = dlg.showDialog();
 					if (assignmentsChanged)
-						finalizer.getControllers().truckToDLCAssignmentListeners.updateAfterAssignmentsChange();
+						finalizer.getControllers().dlcAssignmentListeners.updateAfterChange();
 				}));
 				
 				addContextMenuInvokeListener((comp, x, y) -> {
@@ -1328,18 +1460,18 @@ public class SnowRunner {
 
 	public static class Controllers {
 		
-		public final LanguageListenerController languageListeners;
+		public final LanguageController languageListeners;
 		public final DataReceiverController dataReceivers;
-		public final SaveGameListenerController saveGameListeners;
-		public final TruckToDLCAssignmentListenerController truckToDLCAssignmentListeners;
+		public final SaveGameController saveGameListeners;
+		public final DLCAssignmentController dlcAssignmentListeners;
 		public final SpecialTruckAddOnsController specialTruckAddonsListeners;
 		public final FilterTrucksByTrailersController filterTrucksByTrailersListeners;
 		
 		Controllers() {
-			languageListeners               = new LanguageListenerController();
+			languageListeners               = new LanguageController();
 			dataReceivers                   = new DataReceiverController();
-			saveGameListeners               = new SaveGameListenerController();
-			truckToDLCAssignmentListeners   = new TruckToDLCAssignmentListenerController();
+			saveGameListeners               = new SaveGameController();
+			dlcAssignmentListeners          = new DLCAssignmentController();
 			specialTruckAddonsListeners     = new SpecialTruckAddOnsController();
 			filterTrucksByTrailersListeners = new FilterTrucksByTrailersController();
 		}
@@ -1351,7 +1483,7 @@ public class SnowRunner {
 			languageListeners              .showListeners(indent, "LanguageListeners"              );
 			dataReceivers                  .showListeners(indent, "DataReceivers"                  );
 			saveGameListeners              .showListeners(indent, "SaveGameListeners"              );
-			truckToDLCAssignmentListeners  .showListeners(indent, "TruckToDLCAssignmentListeners"  );
+			dlcAssignmentListeners         .showListeners(indent, "DLCAssignmentListeners"         );
 			specialTruckAddonsListeners    .showListeners(indent, "SpecialTruckAddOnsListeners"    );
 			filterTrucksByTrailersListeners.showListeners(indent, "FilterTrucksByTrailersListeners");
 		}
@@ -1395,7 +1527,7 @@ public class SnowRunner {
 				languageListeners              .removeListenersOfSource(this);
 				dataReceivers                  .removeListenersOfSource(this);
 				saveGameListeners              .removeListenersOfSource(this);
-				truckToDLCAssignmentListeners  .removeListenersOfSource(this);
+				dlcAssignmentListeners         .removeListenersOfSource(this);
 				specialTruckAddonsListeners    .removeListenersOfSource(this);
 				filterTrucksByTrailersListeners.removeListenersOfSource(this);
 			}
@@ -1411,7 +1543,7 @@ public class SnowRunner {
 			public void addLanguageListener              (LanguageListener l                               ) { languageListeners              .add(this,l); }
 			public void addDataReceiver                  (DataReceiver l                                   ) { dataReceivers                  .add(this,l); }
 			public void addSaveGameListener              (SaveGameListener l                               ) { saveGameListeners              .add(this,l); }
-			public void addTruckToDLCAssignmentListener  (TruckToDLCAssignmentListener l                   ) { truckToDLCAssignmentListeners  .add(this,l); }
+			public void addDLCAssignmentListener         (DLCAssignmentListener l                          ) { dlcAssignmentListeners         .add(this,l); }
 			public void addSpecialTruckAddonsListener    (SpecialTruckAddons.Listener l                    ) { specialTruckAddonsListeners    .add(this,l); }
 			public void addFilterTrucksByTrailersListener(TruckTableModel.FilterTrucksByTrailersListener l ) { filterTrucksByTrailersListeners.add(this,l); }
 		}
@@ -1446,7 +1578,7 @@ public class SnowRunner {
 			}
 		}
 		
-		public static class LanguageListenerController extends AbstractController<LanguageListener> implements LanguageListener {
+		public static class LanguageController extends AbstractController<LanguageListener> implements LanguageListener {
 			@Override public void setLanguage(Language language) {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setLanguage(language);
@@ -1460,7 +1592,7 @@ public class SnowRunner {
 			}
 		}
 
-		public static class SaveGameListenerController extends AbstractController<SaveGameListener> implements SaveGameListener {
+		public static class SaveGameController extends AbstractController<SaveGameListener> implements SaveGameListener {
 			@Override public void setSaveGame(SaveGame saveGame) {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setSaveGame(saveGame);
@@ -1474,15 +1606,15 @@ public class SnowRunner {
 			}
 		}
 
-		public static class TruckToDLCAssignmentListenerController extends AbstractController<TruckToDLCAssignmentListener> implements TruckToDLCAssignmentListener {
+		public static class DLCAssignmentController extends AbstractController<DLCAssignmentListener> implements DLCAssignmentListener {
 			
-			@Override public void setTruckToDLCAssignments(HashMap<String, String> assignments) {
+			@Override public void setDLCs(DLCs dlcs) {
 				for (int i=0; i<listeners.size(); i++)
-					listeners.get(i).setTruckToDLCAssignments(assignments);
+					listeners.get(i).setDLCs(dlcs);
 			}
-			@Override public void updateAfterAssignmentsChange() {
+			@Override public void updateAfterChange() {
 				for (int i=0; i<listeners.size(); i++)
-					listeners.get(i).updateAfterAssignmentsChange();
+					listeners.get(i).updateAfterChange();
 			}
 		}
 
