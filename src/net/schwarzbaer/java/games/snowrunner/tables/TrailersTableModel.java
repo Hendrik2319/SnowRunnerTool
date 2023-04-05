@@ -37,6 +37,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 				new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
 				new ColumnID("Name"     ,"Name"                 ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.name_StringID), 
 				new ColumnID("UpdateLvl","Update Level"         ,  String.class,  80,   null,      null, false, row->((Trailer)row).updateLevel),
+				new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 				new ColumnID("InstallSk","Install Socket"       ,  String.class, 130,   null,      null, false, row->((Trailer)row).gameData.installSocket),
 				new ColumnID("CargoSlts","Cargo Slots"          , Integer.class,  70, CENTER,      null, false, row->((Trailer)row).gameData.cargoSlots),
 				new ColumnID("Repairs"  ,"Repairs"              , Integer.class,  50,  RIGHT,    "%d R", false, row->((Trailer)row).repairsCapacity),
@@ -76,6 +77,19 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModel2<Trailer> {
 		});
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
+	}
+	private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,TrailersTableModel,Trailer> getFunction)
+	{
+		return ColumnID.get(TrailersTableModel.class, Trailer.class, getFunction);
+	}
+	
+	private static Long getOwnedCount(TrailersTableModel model, Trailer row)
+	{
+		if (row==null) return null;
+		if (model==null) return null;
+		if (model.saveGame==null) return null;
+		SaveGame.Addon addon = model.saveGame.addons.get(row.id);
+		return addon==null ? null : addon.owned;
 	}
 
 	private void setExtraData(Data data) {

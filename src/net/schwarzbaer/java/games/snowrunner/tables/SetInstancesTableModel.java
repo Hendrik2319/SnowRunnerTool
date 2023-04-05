@@ -41,6 +41,15 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		return SnowRunner.solveStringID(row, language);
 	}
 	
+	protected static <RowType extends TruckComponent> Long getOwnedCount(SetInstancesTableModel<RowType> model, RowType row)
+	{
+		if (row==null) return null;
+		if (model==null) return null;
+		if (model.saveGame==null) return null;
+		SaveGame.Addon addon = model.saveGame.addons.get(row.id);
+		return addon==null ? null : addon.owned;
+	}
+
 	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {
 	
 		public EnginesTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, SaveGame saveGame) {
@@ -53,6 +62,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 130,   null,      null,  true, row->((Engine)row).gameData.name_StringID),
 					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, row->((Engine)row).gameData.description_StringID),
 					new ColumnID("Price"    ,"Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Engine)row).gameData.price),
+					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Engine)row).gameData.unlockByExploration),
 					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Engine)row).gameData.unlockByRank),
 					new ColumnID("Torque"   ,"Torque"               , Integer.class,  70,   null,      null, false, row->((Engine)row).torque),
@@ -64,6 +74,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.engines.getAllInstances());
+		}
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,EnginesTableModel,Engine> getFunction)
+		{
+			return ColumnID.get(EnginesTableModel.class, Engine.class, getFunction);
 		}
 	}
 
@@ -79,6 +93,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, row->((Gearbox)row).gameData.name_StringID),
 					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, row->((Gearbox)row).gameData.description_StringID),
 					new ColumnID("Price"    ,"Price"                , Integer.class,  60,   null,   "%d Cr", false, row->((Gearbox)row).gameData.price),
+					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Gearbox)row).gameData.unlockByExploration),
 					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Gearbox)row).gameData.unlockByRank),
 					new ColumnID("GearH"    ,"(H)"                  , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsHighGear),
@@ -95,6 +110,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.gearboxes.getAllInstances());
 		}
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,GearboxesTableModel,Gearbox> getFunction)
+		{
+			return ColumnID.get(GearboxesTableModel.class, Gearbox.class, getFunction);
+		}
 	}
 
 	public static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
@@ -110,6 +129,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, row->((Suspension)row).gameData.name_StringID),
 					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, row->((Suspension)row).gameData.description_StringID),
 					new ColumnID("Price"    ,"Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Suspension)row).gameData.price),
+					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Suspension)row).gameData.unlockByExploration),
 					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Suspension)row).gameData.unlockByRank),
 					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, row->((Suspension)row).damageCapacity),
@@ -117,6 +137,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.suspensions.getAllInstances());
+		}
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,SuspensionsTableModel,Suspension> getFunction)
+		{
+			return ColumnID.get(SuspensionsTableModel.class, Suspension.class, getFunction);
 		}
 	}
 
@@ -132,6 +156,7 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 					new ColumnID("Name"     ,"Name"                    ,  String.class, 150,   null,      null,  true, row->((Winch)row).gameData.name_StringID),
 					new ColumnID("Desc"     ,"Description"             ,  String.class, 150,   null,      null,  true, row->((Winch)row).gameData.description_StringID),
 					new ColumnID("Price"    ,"Price"                   , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Winch)row).gameData.price),
+					new ColumnID("Owned"    ,"Owned"                   ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 					new ColumnID("UnlExpl"  ,"Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, row->((Winch)row).gameData.unlockByExploration),
 					new ColumnID("UnlRank"  ,"Unlock By Rank"          , Integer.class,  85, CENTER, "Rank %d", false, row->((Winch)row).gameData.unlockByRank),
 					new ColumnID("RequEngI" ,"Requires Engine Ignition", Boolean.class, 130,   null,      null, false, row->((Winch)row).isEngineIgnitionRequired),
@@ -141,6 +166,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.winches.getAllInstances());
+		}
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,WinchesTableModel,Winch> getFunction)
+		{
+			return ColumnID.get(WinchesTableModel.class, Winch.class, getFunction);
 		}
 	}
 }

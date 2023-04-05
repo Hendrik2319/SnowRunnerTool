@@ -47,6 +47,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 				new ColumnID("UpdateLvl", "Update Level"           ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).updateLevel),
 				new ColumnID("Category" ,"Category"                ,  String.class, 150,   null,      null, false, row->((TruckAddon)row).gameData.category),
 				new ColumnID("Name"     ,"Name"                    ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.gameData.name_StringID!=null ? row.gameData.name_StringID : row.gameData.cargoName_StringID; }), 
+				new ColumnID("Owned"    ,"Owned"                   ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 				new ColumnID("InstallSk","Install Socket"          ,  String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.installSocket),
 				new ColumnID("Original" ,"Original Addon"          ,  String.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.originalAddon),
 				new ColumnID("CargoSlts","Cargo Slots"             , Integer.class,  70, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoSlots),
@@ -122,6 +123,20 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModel2<TruckAd
 		
 		Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 		setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.gameData.category,string_nullsLast).thenComparing(row->row.id));
+	}
+	
+	private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,TruckAddonsTableModel,TruckAddon> getFunction)
+	{
+		return ColumnID.get(TruckAddonsTableModel.class, TruckAddon.class, getFunction);
+	}
+	
+	private static Long getOwnedCount(TruckAddonsTableModel model, TruckAddon row)
+	{
+		if (row==null) return null;
+		if (model==null) return null;
+		if (model.saveGame==null) return null;
+		SaveGame.Addon addon = model.saveGame.addons.get(row.id);
+		return addon==null ? null : addon.owned;
 	}
 	
 	private static String getAssignedSpecialAddonList(SpecialTruckAddons specialTruckAddons, TruckAddon addon)
