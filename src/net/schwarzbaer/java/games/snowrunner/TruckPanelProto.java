@@ -196,8 +196,9 @@ class TruckPanelProto implements Finalizable {
 		outTop.add(0, "Country", truck.gameData.country==null ? null : truck.gameData.country.toString());
 		outTop.add(0, "Price"  , truck.gameData.price);
 		outTop.add(0, "Type"   , truck.type==null ? null : truck.type.toString());
-		outTop.add(0, "Unlock By Exploration", truck.gameData.unlockByExploration);
+		outTop.add(0, "Unlock By Exploration", truck.gameData.unlockByExploration, "yes", "no");
 		outTop.add(0, "Unlock By Rank"       , truck.gameData.unlockByRank);
+		outTop.add(0, "Unlock By Objective"  , truck.gameData.unlockByObjective);
 		outTop.add(0, "XML file"             , truck.xmlName);
 		
 		if (truck.updateLevel!=null)

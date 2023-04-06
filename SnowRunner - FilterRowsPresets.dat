@@ -1,4 +1,9 @@
 [Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel
+Preset=Gargo Only
+Filter=IsCargo:true:false:BoolFilter:true
+
+[Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
 Preset=Owned Offroad Truck
 Filter=AWDUser:true:true:EnumFilter:ItemStat:Able,Installed,Permanent

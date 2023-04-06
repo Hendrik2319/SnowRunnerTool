@@ -1274,12 +1274,14 @@ public class Data {
 			public final Truck.Country country;
 			public final String[] excludeAddons;
 			public final Boolean recallable_obsolete;
+			public final String unlockByObjective;
 
 			GameDataTruck(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 				super(gameDataNode, debugOutputPrefix);
 				country       = parseEnum                ( gameDataNode.attributes.get("Country"), "Country", Truck.Country.values());
 				excludeAddons = splitColonSeparatedIDList( gameDataNode.attributes.get("ExcludeAddons") );
 				recallable_obsolete    = parseBool                ( gameDataNode.attributes.get("Recallable") );
+				unlockByObjective = gameDataNode.attributes.get("UnlockByObjective");
 				//showAttr("[General]", null, "ExcludeAddons", excludeAddons);
 				//   [General] <GameData ExcludeAddons="####">
 				//      ford_clt9000_top_fender, semitrailer_m747
