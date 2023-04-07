@@ -36,6 +36,9 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 
@@ -306,7 +309,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 
-	private static class MapTableModel extends VerySimpleTableModel<MapInfos>
+	private static class MapTableModel extends ExtendedVerySimpleTableModelTAOS<MapInfos> implements SplitPaneConfigurator
 	{
 		private MapInfos clickedItem;
 		protected DLCs dlcs;
@@ -400,6 +403,14 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 
 		@Override protected String getRowName(MapInfos row) { return row==null ? null : row.map.originalMapID(); }
+		@Override public boolean createSplitPane() { return true; }
+		@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
+
+		@Override protected String getTextForRow(MapInfos row)
+		{
+			// TODO Auto-generated method stub
+			return "<TEXT>";
+		}
 	}
 
 	private static class AddonTableModel extends VerySimpleTableModel<AddonTableModel.Row>
@@ -461,7 +472,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override protected String getRowName(Row row) { return row==null ? null : row.addon.addonId; }
 	}
 
-	private static class ObjectiveTableModel extends VerySimpleTableModel<Objective>
+	private static class ObjectiveTableModel extends ExtendedVerySimpleTableModelTAOS<Objective> implements SplitPaneConfigurator
 	{
 		//private Data data;
 		
@@ -503,5 +514,13 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 
 		@Override protected String getRowName(Objective row) { return row==null ? null : row.objectiveId; }
+		@Override public boolean createSplitPane() { return true; }
+		@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
+
+		@Override protected String getTextForRow(Objective row)
+		{
+			// TODO Auto-generated method stub
+			return "<TEXT>";
+		}
 	}
 }

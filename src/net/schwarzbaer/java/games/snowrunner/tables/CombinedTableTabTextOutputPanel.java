@@ -85,28 +85,25 @@ public abstract class CombinedTableTabTextOutputPanel extends JSplitPane {
 	
 	protected <TableModel extends Tables.SimplifiedTableModel<?> & TableSimplifier.TextPaneOutputSource> void addTab(String title, TableModel tableModel, JTextPane textPane) {
 		int tabIndex = tabbedPane.getTabCount();
-		JComponent panel = TableSimplifier.createTPOS(tableModel, textPane, updateMethod->{
-			Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
-			if (tabbedPane.getTabCount()!=updateMethods.size())
-				throw new IllegalStateException();
-			updateMethods.add(modifiedUpdateMethod);
-			return modifiedUpdateMethod;
-		});
+		JComponent panel = TableSimplifier.createTPOS(tableModel, textPane, false, null, updateMethod->modifyUpdateMethod(tabIndex, updateMethod));
 		tabbedPane.addTab(title, panel);
 	}
-	
+
 	protected <TableModel extends Tables.SimplifiedTableModel<?> & TableSimplifier.TextAreaOutputSource> void addTab(String title, TableModel tableModel, JTextArea textArea) {
 		int tabIndex = tabbedPane.getTabCount();
-		JComponent panel = TableSimplifier.createTAOS(tableModel, textArea, updateMethod->{
-			Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
-			if (tabbedPane.getTabCount()!=updateMethods.size())
-				throw new IllegalStateException();
-			updateMethods.add(modifiedUpdateMethod);
-			return modifiedUpdateMethod;
-		});
+		JComponent panel = TableSimplifier.createTAOS(tableModel, textArea, false, null, updateMethod->modifyUpdateMethod(tabIndex, updateMethod));
 		tabbedPane.addTab(title, panel);
 	}
 	
+	private Runnable modifyUpdateMethod(int tabIndex, Runnable updateMethod)
+	{
+		Runnable modifiedUpdateMethod = ()->{ if (selectedTab==tabIndex) updateMethod.run(); };
+		if (tabbedPane.getTabCount()!=updateMethods.size())
+			throw new IllegalStateException();
+		updateMethods.add(modifiedUpdateMethod);
+		return modifiedUpdateMethod;
+	}
+
 	protected void removeAllTabs() {
 		tabbedPane.removeAll();
 		updateMethods.clear();

@@ -9,10 +9,8 @@ import java.util.Comparator;
 import java.util.Vector;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import javax.swing.JComponent;
-import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
@@ -155,57 +153,64 @@ public class TableSimplifier {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
+			boolean createSplitPane = true;
+			SplitOrientation splitOrientation = SplitOrientation.VERTICAL_SPLIT;
+			if (tableModel instanceof SplitPaneConfigurator)
+			{
+				SplitPaneConfigurator configurator = (SplitPaneConfigurator) tableModel;
+				createSplitPane = configurator.createSplitPane();
+				splitOrientation = configurator.getSplitOrientation();
+			}
+			
 			if (tableModel instanceof TextAreaOutputSource)
-				return createTAOS(tableModel, null, null, modifyContextMenu);
+				return createTAOS(tableModel, null, createSplitPane, splitOrientation, null, modifyContextMenu);
 			
 			if (tableModel instanceof TextPaneOutputSource)
-				return createTPOS(tableModel, null, null, modifyContextMenu);
+				return createTPOS(tableModel, null, createSplitPane, splitOrientation, null, modifyContextMenu);
 			
-			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
-			if (modifyContextMenu!=null) modifyContextMenu.accept(tableSimplifier.tableContextMenu);
-			return tableSimplifier.tableScrollPane;
+			return create(tableModel, null, null, modifyContextMenu, null, false, null);
 		}
 
-		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
-			return createTAOS(tableModel, outputObj, modifyUpdateMethod, null);
+		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return createTAOS(tableModel, outputObj, createSplitPane, splitOrientation, modifyUpdateMethod, null);
 		}
-		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
-			if (tableModel instanceof TextAreaOutputSource) {
-				return create(
-						tableModel, (TextAreaOutputSource) tableModel,
-						modifyUpdateMethod, modifyContextMenu, outputObj,
-						()->{
-							JTextArea outObj = new JTextArea();
-							outObj.setEditable(false);
-							outObj.setWrapStyleWord(true);
-							outObj.setLineWrap(true);
-							return outObj;
-						});
+			if (!(tableModel instanceof TextAreaOutputSource))
+				throw new IllegalArgumentException();
+			
+			if (outputObj==null && createSplitPane){
+				outputObj = new JTextArea();
+				outputObj.setEditable(false);
+				outputObj.setWrapStyleWord(true);
+				outputObj.setLineWrap(true);
 			}
-			throw new IllegalArgumentException();
+			
+			return create(
+					tableModel, (TextAreaOutputSource) tableModel,
+					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, splitOrientation);
 		}
 
-		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
-			return createTPOS(tableModel, outputObj, modifyUpdateMethod, null);
+		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return createTPOS(tableModel, outputObj, createSplitPane, splitOrientation, modifyUpdateMethod, null);
 		}
-		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
-			if (tableModel instanceof TextPaneOutputSource) {
-				return create(
-						tableModel, (TextPaneOutputSource) tableModel,
-						modifyUpdateMethod, null, outputObj,
-						()->{
-							JTextPane outObj = new JTextPane();
-							outObj.setEditable(false);
-							return outObj;
-						});
+			if (!(tableModel instanceof TextPaneOutputSource))
+				throw new IllegalArgumentException();
+			
+			if (outputObj==null && createSplitPane) {
+				outputObj = new JTextPane();
+				outputObj.setEditable(false);
 			}
-			throw new IllegalArgumentException();
+			
+			return create(
+					tableModel, (TextPaneOutputSource) tableModel,
+					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, splitOrientation);
 		}
 
 		public static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
@@ -217,9 +222,8 @@ public class TableSimplifier {
 					arbitraryOutputSource,
 					arbitraryOutputSource::modifyUpdateMethod,
 					modifyContextMenu,
-					new JLabel(), // dummy
-					null // is not needed, because JLabel was given as existing but never used OutputObject
-			); 
+					null, false, null
+			);
 		}
 
 		public static <OutputObject extends Component> JComponent create(
@@ -228,11 +232,9 @@ public class TableSimplifier {
 				Function<Runnable,Runnable> modifyUpdateMethod,
 				Consumer<ContextMenu> modifyContextMenu,
 				OutputObject output,
-				Supplier<OutputObject> createOutputObject) {
+				boolean createSplitPane, SplitOrientation splitOrientation) {
 			
 			if (tableModel==null)
-				throw new IllegalArgumentException();
-			if (outputSource==null)
 				throw new IllegalArgumentException();
 			
 			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
@@ -240,21 +242,18 @@ public class TableSimplifier {
 				modifyContextMenu.accept(tableSimplifier.tableContextMenu);
 			
 			
-			JComponent result;
-			if (output != null)
-				result = tableSimplifier.tableScrollPane;
-			
-			else {
-				if (createOutputObject==null)
+			JComponent result = tableSimplifier.tableScrollPane;
+			if (createSplitPane)
+			{
+				if (output==null)
+					throw new IllegalArgumentException();
+				if (splitOrientation==null)
 					throw new IllegalArgumentException();
 				
-				output = createOutputObject.get();
-				
 				JScrollPane outputScrollPane = new JScrollPane(output);
-				//outputScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));
-				outputScrollPane.setPreferredSize(new Dimension(400,50));
+				outputScrollPane.setPreferredSize(new Dimension(100,100));
 				
-				JSplitPane panel = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
+				JSplitPane panel = new JSplitPane(splitOrientation.value, true);
 				panel.setResizeWeight(1);
 				panel.setTopComponent(tableSimplifier.tableScrollPane);
 				panel.setBottomComponent(outputScrollPane);
@@ -262,26 +261,39 @@ public class TableSimplifier {
 			}
 			
 			
-			OutputObject output_final = output;
-			Runnable outputUpdateMethod = ()->{
-				int selectedRow = -1;
-				int rowV = tableSimplifier.table.getSelectedRow();
-				if (rowV>=0) {
-					int rowM = tableSimplifier.table.convertRowIndexToModel(rowV);
-					selectedRow = rowM<0 ? -1 : rowM;
-				}
-				outputSource.setContentForRow(output_final, selectedRow);
-				//textArea_.setText(rowTextTableModel.getTextForRow(selectedRow));
-			};
-			if (modifyUpdateMethod!=null)
-				outputUpdateMethod = modifyUpdateMethod.apply(outputUpdateMethod);
-			outputSource.setOutputUpdateMethod(outputUpdateMethod);
-			
-			Runnable outputUpdateMethod_final = outputUpdateMethod;
-			tableSimplifier.table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			tableSimplifier.table.getSelectionModel().addListSelectionListener(e->outputUpdateMethod_final.run());
+			if (outputSource!=null)
+			{
+				Runnable outputUpdateMethod = ()->{
+					int selectedRow = -1;
+					int rowV = tableSimplifier.table.getSelectedRow();
+					if (rowV>=0) {
+						int rowM = tableSimplifier.table.convertRowIndexToModel(rowV);
+						selectedRow = rowM<0 ? -1 : rowM;
+					}
+					outputSource.setContentForRow(output, selectedRow);
+				};
+				if (modifyUpdateMethod!=null)
+					outputUpdateMethod = modifyUpdateMethod.apply(outputUpdateMethod);
+				outputSource.setOutputUpdateMethod(outputUpdateMethod);
+				
+				Runnable outputUpdateMethod_final = outputUpdateMethod;
+				tableSimplifier.table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+				tableSimplifier.table.getSelectionModel().addListSelectionListener(e->outputUpdateMethod_final.run());
+			}
 			
 			return result;
+		}
+
+		public enum SplitOrientation {
+			  VERTICAL_SPLIT(JSplitPane.  VERTICAL_SPLIT),
+			HORIZONTAL_SPLIT(JSplitPane.HORIZONTAL_SPLIT);
+			private final int value;
+			SplitOrientation(int value) { this.value = value; }
+		}
+
+		interface SplitPaneConfigurator {
+			boolean createSplitPane();
+			SplitOrientation getSplitOrientation();
 		}
 
 		static class TableSimplifierRowSorter extends Tables.SimplifiedRowSorter {
