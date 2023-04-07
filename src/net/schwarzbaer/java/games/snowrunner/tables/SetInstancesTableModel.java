@@ -14,9 +14,9 @@ import net.schwarzbaer.java.games.snowrunner.Data.Winch;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
-import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 
-public class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModel2<RowType> {
+public class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModelTPOS<RowType> {
 
 	protected SaveGame saveGame;
 

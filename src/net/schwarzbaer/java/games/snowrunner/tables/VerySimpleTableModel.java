@@ -1887,9 +1887,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		}
 	}
 	
-	public static abstract class ExtendedVerySimpleTableModel2<RowType> extends TextOutputSourceTableModel<RowType> implements TextPaneOutputSource {
+	public static abstract class ExtendedVerySimpleTableModelTPOS<RowType> extends TextOutputSourceTableModel<RowType> implements TextPaneOutputSource {
 
-		protected ExtendedVerySimpleTableModel2(Window mainWindow, Controllers controllers, ColumnID[] columns) {
+		protected ExtendedVerySimpleTableModelTPOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 			super(mainWindow, controllers, columns);
 		}
 
@@ -1903,9 +1903,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		protected abstract void setContentForRow(StyledDocumentInterface doc, RowType row);
 	}
 	
-	public static abstract class ExtendedVerySimpleTableModel1<RowType> extends TextOutputSourceTableModel<RowType> implements TextAreaOutputSource {
+	public static abstract class ExtendedVerySimpleTableModelTAOS<RowType> extends TextOutputSourceTableModel<RowType> implements TextAreaOutputSource {
 
-		protected ExtendedVerySimpleTableModel1(Window mainWindow, Controllers controllers, ColumnID[] columns) {
+		protected ExtendedVerySimpleTableModelTAOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 			super(mainWindow, controllers, columns);
 		}
 		

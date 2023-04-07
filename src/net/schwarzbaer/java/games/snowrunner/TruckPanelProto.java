@@ -79,7 +79,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModel2;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 
 class TruckPanelProto implements Finalizable {
 	
@@ -363,11 +363,11 @@ class TruckPanelProto implements Finalizable {
 //			return isDefault;
 //		}
 
-		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, Supplier<ExtendedVerySimpleTableModel2<ItemType>> constructor) {
+		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, Supplier<ExtendedVerySimpleTableModelTPOS<ItemType>> constructor) {
 			if (!usableItems.isEmpty()) {
 				Tab tab = new Tab(category, usableItems.size());
 				currentTabs.add(tab);
-				ExtendedVerySimpleTableModel2<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems
+				ExtendedVerySimpleTableModelTPOS<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems
 				finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab("##", tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);

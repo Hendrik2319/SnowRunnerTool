@@ -654,7 +654,7 @@ public class SaveGameData {
 			public final boolean isInvalid;
 			public final boolean isPacked;
 			public final boolean isUnlocked;
-			public final Vector<InstalledAddon> addons; // TODO: show TruckDesc.addons
+			public final Vector<InstalledAddon> addons; // TODO: show TruckDesc.addons -> table (below)
 			public final long    damage;
 			public final String  engine;
 			public final long    engineDamage;
@@ -797,8 +797,9 @@ public class SaveGameData {
 
 				public InstalledAddon(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 				{
+					//optionalValues.scan(object, "SaveGame.TruckDesc.InstalledAddon");
 					id          = JSON_Data.getStringValue(object, "name"         , debugOutputPrefixStr);
-					// TODO: parse more values in InstalledAddon
+					// TODO: parse more values in SaveGame.TruckDesc.InstalledAddon
 					//KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 				}
 				
@@ -988,9 +989,9 @@ public class SaveGameData {
 			public Long times     = null;
 			public boolean discovered = false;
 			public boolean finished   = false;
-			public final HashSet<String> savedCargoNeedToBeRemovedOnRestart = new HashSet<>(); // TODO: show Contest.savedCargoNeedToBeRemovedOnRestart
+			public final HashSet<String> savedCargoNeedToBeRemovedOnRestart = new HashSet<>(); // TODO: show Objective.savedCargoNeedToBeRemovedOnRestart -> textarea (vertical)
 			public boolean viewedUnactivated = false;
-			public ObjectiveStates objectiveStates = null; // TODO: show Contest.objectiveStates
+			public ObjectiveStates objectiveStates = null; // TODO: show Objective.objectiveStates -> columns in ObjectiveTableModel
 			
 			private Objective(String contestId)
 			{
@@ -1084,9 +1085,9 @@ public class SaveGameData {
 
 				private ObjectiveStates(JSON_Object<NV, V> object, String debugOutputPrefixStr)
 				{
-					//optionalValues.scan(object, "SaveGame.Contest.ObjectiveStates");
+					//optionalValues.scan(object, "SaveGame.Objective.ObjectiveStates");
 					//id          = JSON_Data.getStringValue(object, "name"         , debugOutputPrefixStr);
-					// TODO: parse more values in ObjectiveStates
+					// TODO: parse values in SaveGame.Objective.ObjectiveStates
 					//KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 				}
 			}
@@ -1102,11 +1103,11 @@ public class SaveGameData {
 			public Long garageStatus = null;
 			public DiscoveredObjects discoveredTrucks = null;
 			public DiscoveredObjects discoveredUpgrades = null;
-			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>(); // TODO: show MapInfos.cargoLoadingCounts
-			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>(); // TODO: show MapInfos.upgradesGiverData
-			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>(); // TODO: show MapInfos.watchPoints
-			public final Vector<Waypoint> waypoints         = new Vector<>();  // TODO: show MapInfos.waypoints
-			public final Vector<String  > discoveredObjects = new Vector<>();  // TODO: show MapInfos.discoveredObjects
+			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>(); // TODO: show MapInfos.cargoLoadingCounts -> textarea (vertical)
+			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>(); // TODO: show MapInfos.upgradesGiverData -> textarea (vertical)
+			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>(); // TODO: show MapInfos.watchPoints -> textarea (vertical)
+			public final Vector<Waypoint> waypoints         = new Vector<>();  // TODO: show MapInfos.waypoints -> textarea (vertical)
+			public final Vector<String  > discoveredObjects = new Vector<>();  // TODO: show MapInfos.discoveredObjects -> textarea (vertical)
 			
 			private MapInfos(String mapId)
 			{

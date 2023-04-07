@@ -156,20 +156,20 @@ public class TableSimplifier {
 				throw new IllegalArgumentException();
 			
 			if (tableModel instanceof TextAreaOutputSource)
-				return create(tableModel, (JTextArea)null, null, modifyContextMenu);
+				return createTAOS(tableModel, null, null, modifyContextMenu);
 			
 			if (tableModel instanceof TextPaneOutputSource)
-				return create(tableModel, (JTextPane)null, null, modifyContextMenu);
+				return createTPOS(tableModel, null, null, modifyContextMenu);
 			
 			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
 			if (modifyContextMenu!=null) modifyContextMenu.accept(tableSimplifier.tableContextMenu);
 			return tableSimplifier.tableScrollPane;
 		}
 
-		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
-			return create(tableModel, outputObj, modifyUpdateMethod, null);
+		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return createTAOS(tableModel, outputObj, modifyUpdateMethod, null);
 		}
-		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
@@ -185,19 +185,13 @@ public class TableSimplifier {
 							return outObj;
 						});
 			}
-			
-			if (outputObj!=null)
-				System.err.printf("SimplifiedTablePanel.create: JTextArea!=null but no TextAreaOutputSource implementing TableModel given: %s%n", tableModel.getClass());
-			
-			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
-			if (modifyContextMenu!=null) modifyContextMenu.accept(tableSimplifier.tableContextMenu);
-			return tableSimplifier.tableScrollPane;
+			throw new IllegalArgumentException();
 		}
 
-		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
-			return create(tableModel, outputObj, modifyUpdateMethod, null);
+		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return createTPOS(tableModel, outputObj, modifyUpdateMethod, null);
 		}
-		public static JComponent create(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
@@ -211,13 +205,7 @@ public class TableSimplifier {
 							return outObj;
 						});
 			}
-			
-			if (outputObj!=null)
-				System.err.printf("SimplifiedTablePanel.create: JTextPane!=null but no TextPaneOutputSource implementing TableModel given: %s%n", tableModel.getClass());
-			
-			TableSimplifier tableSimplifier = new TableSimplifier(tableModel);
-			if (modifyContextMenu!=null) modifyContextMenu.accept(tableSimplifier.tableContextMenu);
-			return tableSimplifier.tableScrollPane;
+			throw new IllegalArgumentException();
 		}
 
 		public static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
