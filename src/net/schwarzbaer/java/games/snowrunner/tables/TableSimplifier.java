@@ -13,6 +13,7 @@ import java.util.function.Function;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
@@ -20,6 +21,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SortOrder;
+import javax.swing.SwingUtilities;
 import javax.swing.text.DefaultStyledDocument;
 
 import net.schwarzbaer.gui.StyledDocumentInterface;
@@ -186,16 +188,18 @@ public class TableSimplifier {
 			if (!(tableModel instanceof TextAreaOutputSource))
 				throw new IllegalArgumentException();
 			
-			if (outputObj==null && createSplitPane){
+			TextAreaOutputSource outputSource = (TextAreaOutputSource) tableModel;
+			
+			if (outputObj==null && createSplitPane) {
 				outputObj = new JTextArea();
 				outputObj.setEditable(false);
 				outputObj.setWrapStyleWord(true);
-				outputObj.setLineWrap(true);
-				putOutputInScrollPane = true; 
+				outputObj.setLineWrap(outputSource.useLineWrap());
+				putOutputInScrollPane = true;
 			}
 			
 			return create(
-					tableModel, (TextAreaOutputSource) tableModel,
+					tableModel, outputSource,
 					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, putOutputInScrollPane, splitOrientation);
 		}
 
@@ -209,6 +213,8 @@ public class TableSimplifier {
 			if (!(tableModel instanceof TextPaneOutputSource))
 				throw new IllegalArgumentException();
 			
+			TextPaneOutputSource outputSource = (TextPaneOutputSource) tableModel;
+			
 			if (outputObj==null && createSplitPane) {
 				outputObj = new JTextPane();
 				outputObj.setEditable(false);
@@ -216,7 +222,7 @@ public class TableSimplifier {
 			}
 			
 			return create(
-					tableModel, (TextPaneOutputSource) tableModel,
+					tableModel, outputSource,
 					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, putOutputInScrollPane, splitOrientation);
 		}
 
@@ -252,6 +258,7 @@ public class TableSimplifier {
 				modifyContextMenu.accept(tableSimplifier.tableContextMenu);
 			
 			
+			JScrollPane outputScrollPane = null;
 			JComponent result = tableSimplifier.tableScrollPane;
 			if (createSplitPane)
 			{
@@ -269,7 +276,7 @@ public class TableSimplifier {
 				
 				if (putOutputInScrollPane)
 				{
-					JScrollPane outputScrollPane = new JScrollPane(output);
+					outputScrollPane = new JScrollPane(output);
 					outputScrollPane.setPreferredSize(new Dimension(100,100));
 					panel.setBottomComponent(outputScrollPane);
 				}
@@ -282,6 +289,7 @@ public class TableSimplifier {
 			
 			if (outputSource!=null)
 			{
+				JScrollPane outputScrollPane_final = outputScrollPane;
 				Runnable outputUpdateMethod = ()->{
 					int selectedRow = -1;
 					int rowV = tableSimplifier.table.getSelectedRow();
@@ -289,7 +297,7 @@ public class TableSimplifier {
 						int rowM = tableSimplifier.table.convertRowIndexToModel(rowV);
 						selectedRow = rowM<0 ? -1 : rowM;
 					}
-					outputSource.setOutputContentForRow(output, selectedRow);
+					outputSource.setOutputContentForRow(output, outputScrollPane_final, selectedRow);
 				};
 				if (modifyUpdateMethod!=null)
 					outputUpdateMethod = modifyUpdateMethod.apply(outputUpdateMethod);
@@ -349,12 +357,12 @@ public class TableSimplifier {
 
 		interface OutputSource<OutputObject extends Component> {
 			void setOutputUpdateMethod(Runnable outputUpdateMethod);
-			void setOutputContentForRow(OutputObject outputObject, int rowIndex);
+			void setOutputContentForRow(OutputObject outputObject, JScrollPane outputScrollPane, int rowIndex);
 		}
 
 		public interface UnspecificOutputSource extends OutputSource<Component>, SplitPaneConfigurator {
 			@Override default void setOutputUpdateMethod(Runnable outputUpdateMethod) {}
-			@Override default void setOutputContentForRow(Component dummy, int rowIndex) { setOutputContentForRow(rowIndex); }
+			@Override default void setOutputContentForRow(Component dummy, JScrollPane outputScrollPane, int rowIndex) { setOutputContentForRow(rowIndex); }
 			void setOutputContentForRow(int rowIndex);
 			default Runnable modifyUpdateMethod(Runnable updateMethod) { return updateMethod; }
 			default Component createOutputComp() { return null; }
@@ -364,21 +372,65 @@ public class TableSimplifier {
 		}
 
 		interface TextAreaOutputSource extends OutputSource<JTextArea> {
-			@Override default void setOutputContentForRow(JTextArea textArea, int rowIndex) {
+			@Override default void setOutputContentForRow(JTextArea textArea, JScrollPane outputScrollPane, int rowIndex) {
+				ScrollValues scrollPos = ScrollValues.getVertical(outputScrollPane);
 				if (rowIndex<0)
 					textArea.setText("");
 				else
 					textArea.setText(getOutputTextForRow(rowIndex));
+				if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(outputScrollPane));
 			}
 			String getOutputTextForRow(int rowIndex);
+			default boolean useLineWrap() { return true; }
 		}
 
 		interface TextPaneOutputSource extends OutputSource<JTextPane> {
-			@Override default void setOutputContentForRow(JTextPane textPane, int rowIndex) {
+			@Override default void setOutputContentForRow(JTextPane textPane, JScrollPane outputScrollPane, int rowIndex) {
+				ScrollValues scrollPos = ScrollValues.getVertical(outputScrollPane);
 				DefaultStyledDocument doc = new DefaultStyledDocument();
 				if (rowIndex>=0) setOutputContentForRow(new StyledDocumentInterface(doc, "TextPaneOutput", null, 12), rowIndex);
 				textPane.setStyledDocument(doc);
+				if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(outputScrollPane));
 			}
 			void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex);
+		}
+		
+		private record ScrollValues(int min, int max, int ext, int val) {
+			
+			static ScrollValues get(JScrollBar scrollBar)
+			{
+				int min = scrollBar.getMinimum();
+				int max = scrollBar.getMaximum();
+				int ext = scrollBar.getVisibleAmount();
+				int val = scrollBar.getValue();
+				return new ScrollValues(min, max, ext, val);
+			}
+
+			static ScrollValues getVertical(JScrollPane scrollPane)
+			{
+				if (scrollPane==null) return null;
+				return get(scrollPane.getVerticalScrollBar());
+			}
+
+			void setVertical(JScrollPane scrollPane)
+			{
+				if (scrollPane==null) return;
+				JScrollBar scrollBar = scrollPane.getVerticalScrollBar();
+				ScrollValues newValues = get(scrollBar);
+				//System.err.printf("scroll pos: %s -> %s%n", this, newValues);
+				
+				if (val==0) // start of page -> start of page
+					scrollBar.setValue(val);
+				
+				else if (val+ext >= max) // end of page -> end of page
+					scrollBar.setValue(newValues.max-newValues.ext);
+				
+				else if (val+newValues.ext >= newValues.max) // old val > max -> end of page
+					scrollBar.setValue(newValues.max-newValues.ext);
+				
+				else
+					scrollBar.setValue(val);
+			}
+
 		}
 	}

@@ -7,6 +7,7 @@ import java.awt.Window;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -27,10 +28,14 @@ import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
+import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Addon;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Coord3F;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Garage;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos.CargoLoadingCounts;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos.Waypoint;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.InstalledAddon;
@@ -42,8 +47,8 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
-import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelUOS;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelUOS;
 
 public class SaveGameDataPanel extends JSplitPane implements Finalizable
 {
@@ -91,9 +96,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			data = data_;
 			updateTextOutput();
 			truckTableModel    .setData(data);
-		//	mapTableModel      .setData(data);
+			mapTableModel      .setData(data);
 			addonTableModel    .setData(data, saveGame);
-		//	objectiveTableModel.setData(data);
+			objectiveTableModel.setData(data);
 		});
 		
 		saveGame = null;
@@ -168,6 +173,32 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			return lang.regionNames.getNameForMap(mapIndex);
 	}
 
+	private static Vector<String> getSorted(Collection<String> list)
+	{
+		Vector<String> vector = new Vector<>(list);
+		vector.sort(null);
+		return vector;
+	}
+
+	private static String getNameOfCargoType(String cargoType, Data data, Language language)
+	{
+		if (data!=null)
+			for (TruckAddon addon : data.truckAddons.values())
+				if (addon.gameData.isCargo && cargoType.equals(addon.gameData.cargoType))
+				{
+					String name = SnowRunner.solveStringID_Null(addon, language);
+					if (name!=null && !name.isBlank())
+						return name;
+				}
+		return null;
+	}
+
+	private static String toString(Coord3F p)
+	{
+		if (p==null) return "<null>";
+		return String.format(Locale.ENGLISH, "( %1.3f, %1.3f, %1.3f )", p.x, p.y, p.z);
+	}
+
 	private record TruckName(String id, String name)
 	{
 		static TruckName[] getNames(Collection<String> truckIDs, Data data, Language language)
@@ -195,12 +226,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			});
 		}
 
-		@Override
-		protected String getRowName(InstalledAddon row)
-		{
-			// TODO Auto-generated method stub
-			return null;
-		}
+		@Override protected String getRowName(InstalledAddon row) { return row.id; }
 	}
 
 	private static class TruckTableModel extends ExtendedVerySimpleTableModelUOS<TruckTableModel.Row>
@@ -349,6 +375,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	{
 		private MapInfos clickedItem;
 		protected DLCs dlcs;
+		private Data data;
 
 		MapTableModel(Window mainWindow, Controllers controllers)
 		{
@@ -363,6 +390,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("DiscUpgrds","Discovered Upgrades",  MapInfos.DiscoveredObjects.class, 115, CENTER, null, false, row->((MapInfos)row).discoveredUpgrades),
 			});
 			clickedItem = null;
+			data = null;
 			
 			finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
 				@Override public void updateAfterChange() {
@@ -386,6 +414,12 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			if (model==null) return null;
 			if (model.dlcs==null) return null;
 			return model.dlcs.getDLCofMap(row.map.originalMapID());
+		}
+
+		void setData(Data data)
+		{
+			this.data = data;
+			updateOutput();
 		}
 
 		void setData(SaveGame saveGame)
@@ -442,11 +476,74 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override public boolean createSplitPane() { return true; }
 		@Override public Boolean putOutputInScrollPane() { return true; }
 		@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
+		@Override public boolean useLineWrap() { return false; }
 
 		@Override protected String getOutputTextForRow(int rowIndex, MapInfos row)
 		{
-			// TODO Auto-generated method stub
-			return "<TEXT>";
+			StringBuilder sb = new StringBuilder();
+			ValueListOutput out = new ValueListOutput();
+			
+			if (!row.waypoints.isEmpty())
+			{
+				if (!sb.isEmpty()) out.addEmptyLine();
+				out.add(0, "Waypoints:");
+				for (Waypoint wp : row.waypoints)
+					out.add(1, String.format("[%d]", wp.type), "%s", SaveGameDataPanel.toString(wp.point));
+				sb.append(out.generateOutput());
+				out.clear();
+			}
+			
+			if (!row.watchPoints.isEmpty())
+			{
+				if (!sb.isEmpty()) out.addEmptyLine();
+				out.add(0, "WatchPoints:");
+				for (String key : getSorted(row.watchPoints.keySet()))
+					out.add(1, key, row.watchPoints.get(key));
+				sb.append(out.generateOutput());
+				out.clear();
+			}
+			
+			if (!row.upgradesGiverData.isEmpty())
+			{
+				if (!sb.isEmpty()) out.addEmptyLine();
+				out.add(0, "Upgrades:");
+				for (String key : getSorted(row.upgradesGiverData.keySet()))
+					out.add(1, key, row.upgradesGiverData.get(key));
+				sb.append(out.generateOutput());
+				out.clear();
+			}
+			
+			if (!row.discoveredObjects.isEmpty())
+			{
+				if (!sb.isEmpty()) out.addEmptyLine();
+				out.add(0, "Discovered Objects:");
+				for (String obj : getSorted(row.discoveredObjects))
+					out.add(1, obj);
+				sb.append(out.generateOutput());
+				out.clear();
+			}
+			
+			if (!row.cargoLoadingCounts.isEmpty())
+			{
+				if (!sb.isEmpty()) out.addEmptyLine();
+				out.add(0, "Cargo Loading Counts:");
+				for (String key : getSorted(row.cargoLoadingCounts.keySet()))
+				{
+					CargoLoadingCounts clc = row.cargoLoadingCounts.get(key);
+					out.add(1, clc.stationName);
+					for (String cargoType : getSorted(clc.counts.keySet()))
+					{
+						out.add(2, String.format("<%s>", cargoType), clc.counts.get(cargoType));
+						String name = getNameOfCargoType(cargoType, data, language);
+						if (name!=null)
+							out.add(3, name);
+					}
+				}
+				sb.append(out.generateOutput());
+				out.clear();
+			}
+			
+			return sb.toString();
 		}
 	}
 
@@ -511,20 +608,21 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class ObjectiveTableModel extends ExtendedVerySimpleTableModelTAOS<Objective> implements SplitPaneConfigurator
 	{
-		//private Data data;
+		private Data data;
 		
 		ObjectiveTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("ID"        ,"ID"                     ,  String .class, 320,  null, null, false, row->((Objective)row).objectiveId        ),
-					new ColumnID("Attempts"  ,"Attempts"               ,  Long   .class,  60,  null, null, false, row->((Objective)row).attempts         ),
-					new ColumnID("Times"     ,"Times"                  ,  Long   .class,  40,  null, null, false, row->((Objective)row).times            ),
-					new ColumnID("LastTimes" ,"Last Times"             ,  Long   .class,  60,  null, null, false, row->((Objective)row).lastTimes        ),
-					new ColumnID("Discovered","Discovered"             ,  Boolean.class,  65,  null, null, false, row->((Objective)row).discovered       ),
-					new ColumnID("Finished"  ,"Finished"               ,  Boolean.class,  55,  null, null, false, row->((Objective)row).finished         ),
-					new ColumnID("ViewdUnact","Viewed, but Unactivated",  Boolean.class, 130,  null, null, false, row->((Objective)row).viewedUnactivated),
+					new ColumnID("ID"        ,"ID"                                       ,  String .class, 320,   null, null, false, row->((Objective)row).objectiveId        ),
+					new ColumnID("Attempts"  ,"Attempts"                                 ,  Long   .class,  60,   null, null, false, row->((Objective)row).attempts         ),
+					new ColumnID("Times"     ,"Times"                                    ,  Long   .class,  40,   null, null, false, row->((Objective)row).times            ),
+					new ColumnID("LastTimes" ,"Last Times"                               ,  Long   .class,  60,   null, null, false, row->((Objective)row).lastTimes        ),
+					new ColumnID("Discovered","Discovered"                               ,  Boolean.class,  65,   null, null, false, row->((Objective)row).discovered       ),
+					new ColumnID("Finished"  ,"Finished"                                 ,  Boolean.class,  55,   null, null, false, row->((Objective)row).finished         ),
+					new ColumnID("ViewdUnact","Viewed, but Unactivated"                  ,  Boolean.class, 130,   null, null, false, row->((Objective)row).viewedUnactivated),
+					new ColumnID("SCNtbRoR"  ,"Saved Cargo Need To Be Removed On Restart",  Integer.class,  50, CENTER, null, false, row->((Objective)row).savedCargoNeedToBeRemovedOnRestart.size()),
 			});
-			//data = null;
+			data = null;
 		}
 		
 		//private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunctionMDLR<ResultType,ContestTableModel,Contest> getFunction)
@@ -532,11 +630,12 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		//	return ColumnID.get(ContestTableModel.class, Contest.class, m->m.data, getFunction);
 		//}
 		
-		//void setData(Data data)
-		//{
-		//	this.data = data;
-		//	fireTableUpdate();
-		//}
+		void setData(Data data)
+		{
+			this.data = data;
+			fireTableUpdate();
+			updateOutput();
+		}
 	
 		void setData(SaveGame saveGame)
 		{
@@ -554,11 +653,23 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override public boolean createSplitPane() { return true; }
 		@Override public Boolean putOutputInScrollPane() { return true; }
 		@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
+		@Override public boolean useLineWrap() { return false; }
 
 		@Override protected String getOutputTextForRow(int rowIndex, Objective row)
 		{
-			// TODO Auto-generated method stub
-			return "<TEXT>";
+			ValueListOutput out = new ValueListOutput();
+			if (!row.savedCargoNeedToBeRemovedOnRestart.isEmpty())
+			{
+				out.add(0, "Saved Cargo Need To Be Removed On Restart:");
+				for (String cargoType : getSorted(row.savedCargoNeedToBeRemovedOnRestart))
+				{
+					out.add(1, String.format("<%s>", cargoType));
+					String name = getNameOfCargoType(cargoType, data, language);
+					if (name!=null)
+						out.add(2, name);
+				}
+			}
+			return out.generateOutput();
 		}
 	}
 }

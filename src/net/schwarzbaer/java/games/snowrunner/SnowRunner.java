@@ -533,6 +533,14 @@ public class SnowRunner {
 		return defaultStr;
 	}
 	
+	public static String solveStringID_Null(Data.HasNameAndID namedToken, Language language) {
+		if (language==null) return null;
+		if (namedToken==null) return null;
+		String name_StringID = namedToken.getName_StringID();
+		if (name_StringID==null) return null;
+		return language.dictionary.get(name_StringID);
+	}
+	
 	public static String getReducedString(String str, int maxLength) {
 		if (str==null) return null;
 		if (str.length() > maxLength-4)

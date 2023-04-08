@@ -654,7 +654,7 @@ public class SaveGameData {
 			public final boolean isInvalid;
 			public final boolean isPacked;
 			public final boolean isUnlocked;
-			public final Vector<InstalledAddon> addons; // TODO: show TruckDesc.addons -> table (below)
+			public final Vector<InstalledAddon> addons;
 			public final long    damage;
 			public final String  engine;
 			public final long    engineDamage;
@@ -989,7 +989,7 @@ public class SaveGameData {
 			public Long times     = null;
 			public boolean discovered = false;
 			public boolean finished   = false;
-			public final HashSet<String> savedCargoNeedToBeRemovedOnRestart = new HashSet<>(); // TODO: show Objective.savedCargoNeedToBeRemovedOnRestart -> textarea (vertical)
+			public final HashSet<String> savedCargoNeedToBeRemovedOnRestart = new HashSet<>();
 			public boolean viewedUnactivated = false;
 			public ObjectiveStates objectiveStates = null; // TODO: show Objective.objectiveStates -> columns in ObjectiveTableModel
 			
@@ -1103,11 +1103,11 @@ public class SaveGameData {
 			public Long garageStatus = null;
 			public DiscoveredObjects discoveredTrucks = null;
 			public DiscoveredObjects discoveredUpgrades = null;
-			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>(); // TODO: show MapInfos.cargoLoadingCounts -> textarea (vertical)
-			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>(); // TODO: show MapInfos.upgradesGiverData -> textarea (vertical)
-			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>(); // TODO: show MapInfos.watchPoints -> textarea (vertical)
-			public final Vector<Waypoint> waypoints         = new Vector<>();  // TODO: show MapInfos.waypoints -> textarea (vertical)
-			public final Vector<String  > discoveredObjects = new Vector<>();  // TODO: show MapInfos.discoveredObjects -> textarea (vertical)
+			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>();
+			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>();
+			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>();
+			public final Vector<Waypoint> waypoints         = new Vector<>();
+			public final Vector<String  > discoveredObjects = new Vector<>();
 			
 			private MapInfos(String mapId)
 			{
