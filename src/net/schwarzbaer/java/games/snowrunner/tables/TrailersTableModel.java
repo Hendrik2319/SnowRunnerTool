@@ -68,12 +68,12 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		else
 			finalizer.addDataReceiver(data -> {
 				setExtraData(data);
-				updateTextOutput();
+				updateOutput();
 			});
 		
 		finalizer.addSaveGameListener(saveGame->{
 			this.saveGame = saveGame;
-			updateTextOutput();
+			updateOutput();
 		});
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
@@ -97,7 +97,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		trailers    = data==null ? null : data.trailers;
 	}
 
-	@Override protected void setContentForRow(StyledDocumentInterface doc, Trailer row) {
+	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, Trailer row) {
 		String description_StringID = row.gameData.description_StringID;
 		String[][] requiredAddons   = row.gameData.requiredAddons;
 		String[] excludedCargoTypes = row.gameData.excludedCargoTypes;

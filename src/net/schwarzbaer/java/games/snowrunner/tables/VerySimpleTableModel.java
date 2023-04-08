@@ -64,6 +64,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.UnspecificOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContextMenuModifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextPaneOutputSource;
@@ -1864,57 +1865,72 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		}
 	}
 	
-	public static abstract class TextOutputSourceTableModel<RowType> extends VerySimpleTableModel<RowType> {
+	public static abstract class OutputSourceTableModel<RowType> extends VerySimpleTableModel<RowType> {
 		
-		protected Runnable textOutputUpdateMethod;
+		protected Runnable outputUpdateMethod;
 
-		protected TextOutputSourceTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
+		protected OutputSourceTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 			super(mainWindow, controllers, columns);
-			textOutputUpdateMethod = null;
+			outputUpdateMethod = null;
 		}
 		
-		public void setOutputUpdateMethod(Runnable textOutputUpdateMethod) {
-			this.textOutputUpdateMethod = textOutputUpdateMethod;
+		public void setOutputUpdateMethod(Runnable outputUpdateMethod) {
+			this.outputUpdateMethod = outputUpdateMethod;
 		}
 
 		@Override protected void extraUpdate() {
-			updateTextOutput();
+			updateOutput();
 		}
 
-		void updateTextOutput() {
-			if (textOutputUpdateMethod!=null)
-				textOutputUpdateMethod.run();
+		void updateOutput() {
+			if (outputUpdateMethod!=null)
+				outputUpdateMethod.run();
 		}
 	}
 	
-	public static abstract class ExtendedVerySimpleTableModelTPOS<RowType> extends TextOutputSourceTableModel<RowType> implements TextPaneOutputSource {
+	public static abstract class ExtendedVerySimpleTableModelUOS<RowType> extends OutputSourceTableModel<RowType> implements UnspecificOutputSource {
+		protected ExtendedVerySimpleTableModelUOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
+			super(mainWindow, controllers, columns);
+		}
+
+		@Override public void setOutputContentForRow(int rowIndex)
+		{
+			RowType row = getRow(rowIndex);
+			if (row!=null)
+				setContentForRow(rowIndex, row);
+		}
+
+		protected abstract void setContentForRow(int rowIndex, RowType row);
+	}
+	
+	public static abstract class ExtendedVerySimpleTableModelTPOS<RowType> extends OutputSourceTableModel<RowType> implements TextPaneOutputSource {
 
 		protected ExtendedVerySimpleTableModelTPOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 			super(mainWindow, controllers, columns);
 		}
 
 		@Override
-		public void setContentForRow(StyledDocumentInterface doc, int rowIndex) {
+		public void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex) {
 			RowType row = getRow(rowIndex);
 			if (row!=null)
-				setContentForRow(doc, row);
+				setOutputContentForRow(doc, rowIndex, row);
 		}
 
-		protected abstract void setContentForRow(StyledDocumentInterface doc, RowType row);
+		protected abstract void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, RowType row);
 	}
 	
-	public static abstract class ExtendedVerySimpleTableModelTAOS<RowType> extends TextOutputSourceTableModel<RowType> implements TextAreaOutputSource {
+	public static abstract class ExtendedVerySimpleTableModelTAOS<RowType> extends OutputSourceTableModel<RowType> implements TextAreaOutputSource {
 
 		protected ExtendedVerySimpleTableModelTAOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
 			super(mainWindow, controllers, columns);
 		}
 		
-		@Override public String getTextForRow(int rowIndex) {
+		@Override public String getOutputTextForRow(int rowIndex) {
 			RowType row = getRow(rowIndex);
 			if (row==null) return "";
-			return getTextForRow(row);
+			return getOutputTextForRow(rowIndex, row);
 		}
 
-		protected abstract String getTextForRow(RowType row);
+		protected abstract String getOutputTextForRow(int rowIndex, RowType row);
 	}
 }

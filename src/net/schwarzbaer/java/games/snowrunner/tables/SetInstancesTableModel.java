@@ -26,11 +26,11 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		setInitialRowOrder(Comparator.<RowType,String>comparing(e->e.setID).thenComparing(e->e.id));
 		finalizer.addSaveGameListener(saveGame_->{
 			this.saveGame = saveGame_;
-			updateTextOutput();
+			updateOutput();
 		});
 	}
 
-	@Override protected void setContentForRow(StyledDocumentInterface doc, RowType row) {
+	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, RowType row) {
 		String description_StringID = row.gameData.description_StringID;
 		Vector<Truck> usableBy = row.usableBy;
 		TruckAddonsTableModel.generateText(doc, description_StringID, null, null, usableBy, language, null, null, saveGame);

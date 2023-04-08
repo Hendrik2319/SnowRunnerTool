@@ -85,13 +85,13 @@ public abstract class CombinedTableTabTextOutputPanel extends JSplitPane {
 	
 	protected <TableModel extends Tables.SimplifiedTableModel<?> & TableSimplifier.TextPaneOutputSource> void addTab(String title, TableModel tableModel, JTextPane textPane) {
 		int tabIndex = tabbedPane.getTabCount();
-		JComponent panel = TableSimplifier.createTPOS(tableModel, textPane, false, null, updateMethod->modifyUpdateMethod(tabIndex, updateMethod));
+		JComponent panel = TableSimplifier.createTPOS(tableModel, textPane, false, null, null, updateMethod->modifyUpdateMethod(tabIndex, updateMethod));
 		tabbedPane.addTab(title, panel);
 	}
 
 	protected <TableModel extends Tables.SimplifiedTableModel<?> & TableSimplifier.TextAreaOutputSource> void addTab(String title, TableModel tableModel, JTextArea textArea) {
 		int tabIndex = tabbedPane.getTabCount();
-		JComponent panel = TableSimplifier.createTAOS(tableModel, textArea, false, null, updateMethod->modifyUpdateMethod(tabIndex, updateMethod));
+		JComponent panel = TableSimplifier.createTAOS(tableModel, textArea, false, null, null, updateMethod->modifyUpdateMethod(tabIndex, updateMethod));
 		tabbedPane.addTab(title, panel);
 	}
 	

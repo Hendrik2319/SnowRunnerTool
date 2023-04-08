@@ -1,5 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Window;
@@ -32,15 +33,17 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Garage;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.InstalledAddon;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelUOS;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 
 public class SaveGameDataPanel extends JSplitPane implements Finalizable
 {
@@ -183,10 +186,27 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 
-	private static class TruckTableModel extends VerySimpleTableModel<TruckTableModel.Row>
+	private static class InstalledAddonTableModel extends VerySimpleTableModel<InstalledAddon>
 	{
-		
+		InstalledAddonTableModel(Window mainWindow, Controllers controllers)
+		{
+			super(mainWindow, controllers, new ColumnID[] {
+					new ColumnID("ID"       ,"ID"                        ,  String .class, 175,   null,      null, false, row->((InstalledAddon)row).id ),
+			});
+		}
+
+		@Override
+		protected String getRowName(InstalledAddon row)
+		{
+			// TODO Auto-generated method stub
+			return null;
+		}
+	}
+
+	private static class TruckTableModel extends ExtendedVerySimpleTableModelUOS<TruckTableModel.Row>
+	{
 		private Data data;
+		private final InstalledAddonTableModel installedAddonTableModel;
 	
 		TruckTableModel(Window mainWindow, Controllers controllers)
 		{
@@ -227,6 +247,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, row->((Row)row).truckDesc.needToInstallDefaultAddons),
 			});
 			data = null;
+			installedAddonTableModel = new InstalledAddonTableModel(mainWindow, controllers);
 		}
 	
 		private static <ResultType,V1,V2> ResultType getNonNull2(V1 value1, V2 value2, BiFunction<V1,V2,ResultType> computeValue)
@@ -285,14 +306,29 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					}
 			}
 			setRowData(rows);
+			installedAddonTableModel.setRowData(null);
 		}
+	
+		@Override protected String getRowName(Row row) { return row==null ? null : row.name; }
 	
 		@Override
-		protected String getRowName(Row row)
+		protected void setContentForRow(int rowIndex, Row row)
 		{
-			return row==null ? null : row.name;
+			if (row!=null && row.truckDesc!=null && row.truckDesc.addons!=null)
+				installedAddonTableModel.setRowData(row.truckDesc.addons);
+			else
+				installedAddonTableModel.setRowData(null);
 		}
-	
+
+		@Override public Component createOutputComp() {
+			JComponent comp = TableSimplifier.create(installedAddonTableModel);
+			comp.setBorder(BorderFactory.createTitledBorder("Installed Addons"));
+			return comp;
+		}
+		@Override public boolean          createSplitPane      () { return true; }
+		@Override public Boolean          putOutputInScrollPane() { return false; }
+		@Override public SplitOrientation getSplitOrientation  () { return SplitOrientation.VERTICAL_SPLIT; }
+
 		private record Row(String name, MapIndex map, TruckDesc truckDesc)
 		{
 			static Row createGarageTruck(TruckDesc truckDesc, MapIndex map, String garageName, int slotIndex)
@@ -404,9 +440,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 		@Override protected String getRowName(MapInfos row) { return row==null ? null : row.map.originalMapID(); }
 		@Override public boolean createSplitPane() { return true; }
+		@Override public Boolean putOutputInScrollPane() { return true; }
 		@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
 
-		@Override protected String getTextForRow(MapInfos row)
+		@Override protected String getOutputTextForRow(int rowIndex, MapInfos row)
 		{
 			// TODO Auto-generated method stub
 			return "<TEXT>";
@@ -515,9 +552,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 		@Override protected String getRowName(Objective row) { return row==null ? null : row.objectiveId; }
 		@Override public boolean createSplitPane() { return true; }
+		@Override public Boolean putOutputInScrollPane() { return true; }
 		@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
 
-		@Override protected String getTextForRow(Objective row)
+		@Override protected String getOutputTextForRow(int rowIndex, Objective row)
 		{
 			// TODO Auto-generated method stub
 			return "<TEXT>";

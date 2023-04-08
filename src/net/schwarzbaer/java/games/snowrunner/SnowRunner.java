@@ -1297,7 +1297,7 @@ public class SnowRunner {
 			finalizer.addSubComp(truckTableModel);
 			JComponent truckTableScrollPane = TableSimplifier.create(
 					truckTableModel,
-					(TableSimplifier.ArbitraryOutputSource) rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex),data));
+					(TableSimplifier.UnspecificOutputSource) rowIndex -> truckPanelProto.setTruck(truckTableModel.getRow(rowIndex),data));
 			
 			setTopComponent(truckTableScrollPane);
 			setBottomComponent(tabbedPaneFromTruckPanel);

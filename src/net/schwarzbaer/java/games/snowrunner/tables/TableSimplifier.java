@@ -154,27 +154,32 @@ public class TableSimplifier {
 				throw new IllegalArgumentException();
 			
 			boolean createSplitPane = true;
+			Boolean putOutputInScrollPane = true;
 			SplitOrientation splitOrientation = SplitOrientation.VERTICAL_SPLIT;
 			if (tableModel instanceof SplitPaneConfigurator)
 			{
 				SplitPaneConfigurator configurator = (SplitPaneConfigurator) tableModel;
-				createSplitPane = configurator.createSplitPane();
-				splitOrientation = configurator.getSplitOrientation();
+				createSplitPane       = configurator.createSplitPane();
+				putOutputInScrollPane = configurator.putOutputInScrollPane();
+				splitOrientation      = configurator.getSplitOrientation();
 			}
 			
 			if (tableModel instanceof TextAreaOutputSource)
-				return createTAOS(tableModel, null, createSplitPane, splitOrientation, null, modifyContextMenu);
+				return createTAOS(tableModel, null, createSplitPane, putOutputInScrollPane, splitOrientation, null, modifyContextMenu);
 			
 			if (tableModel instanceof TextPaneOutputSource)
-				return createTPOS(tableModel, null, createSplitPane, splitOrientation, null, modifyContextMenu);
+				return createTPOS(tableModel, null, createSplitPane, putOutputInScrollPane, splitOrientation, null, modifyContextMenu);
 			
-			return create(tableModel, null, null, modifyContextMenu, null, false, null);
+			if (tableModel instanceof UnspecificOutputSource)
+				return create(tableModel, (UnspecificOutputSource) tableModel, modifyContextMenu);
+			
+			return create(tableModel, null, null, modifyContextMenu, null, false, null, null);
 		}
 
-		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod) {
-			return createTAOS(tableModel, outputObj, createSplitPane, splitOrientation, modifyUpdateMethod, null);
+		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, boolean createSplitPane, Boolean putOutputInScrollPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return createTAOS(tableModel, outputObj, createSplitPane, putOutputInScrollPane, splitOrientation, modifyUpdateMethod, null);
 		}
-		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent createTAOS(SimplifiedTableModel<?> tableModel, JTextArea outputObj, boolean createSplitPane, Boolean putOutputInScrollPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
@@ -186,17 +191,18 @@ public class TableSimplifier {
 				outputObj.setEditable(false);
 				outputObj.setWrapStyleWord(true);
 				outputObj.setLineWrap(true);
+				putOutputInScrollPane = true; 
 			}
 			
 			return create(
 					tableModel, (TextAreaOutputSource) tableModel,
-					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, splitOrientation);
+					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, putOutputInScrollPane, splitOrientation);
 		}
 
-		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod) {
-			return createTPOS(tableModel, outputObj, createSplitPane, splitOrientation, modifyUpdateMethod, null);
+		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, boolean createSplitPane, Boolean putOutputInScrollPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod) {
+			return createTPOS(tableModel, outputObj, createSplitPane, putOutputInScrollPane, splitOrientation, modifyUpdateMethod, null);
 		}
-		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, boolean createSplitPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent createTPOS(SimplifiedTableModel<?> tableModel, JTextPane outputObj, boolean createSplitPane, Boolean putOutputInScrollPane, SplitOrientation splitOrientation, Function<Runnable,Runnable> modifyUpdateMethod, Consumer<ContextMenu> modifyContextMenu) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			
@@ -206,23 +212,27 @@ public class TableSimplifier {
 			if (outputObj==null && createSplitPane) {
 				outputObj = new JTextPane();
 				outputObj.setEditable(false);
+				putOutputInScrollPane = true;
 			}
 			
 			return create(
 					tableModel, (TextPaneOutputSource) tableModel,
-					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, splitOrientation);
+					modifyUpdateMethod, modifyContextMenu, outputObj, createSplitPane, putOutputInScrollPane, splitOrientation);
 		}
 
-		public static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource) {
-			return create(tableModel, arbitraryOutputSource, null);
+		public static JComponent create(SimplifiedTableModel<?> tableModel, UnspecificOutputSource unspecificOutputSource) {
+			return create(tableModel, unspecificOutputSource, null);
 		}
-		public static JComponent create(SimplifiedTableModel<?> tableModel, ArbitraryOutputSource arbitraryOutputSource, Consumer<ContextMenu> modifyContextMenu) {
+		public static JComponent create(SimplifiedTableModel<?> tableModel, UnspecificOutputSource unspecificOutputSource, Consumer<ContextMenu> modifyContextMenu) {
 			return create(
 					tableModel,
-					arbitraryOutputSource,
-					arbitraryOutputSource::modifyUpdateMethod,
+					unspecificOutputSource,
+					unspecificOutputSource::modifyUpdateMethod,
 					modifyContextMenu,
-					null, false, null
+					unspecificOutputSource.createOutputComp(),
+					unspecificOutputSource.createSplitPane(),
+					unspecificOutputSource.putOutputInScrollPane(),
+					unspecificOutputSource.getSplitOrientation()
 			);
 		}
 
@@ -232,7 +242,7 @@ public class TableSimplifier {
 				Function<Runnable,Runnable> modifyUpdateMethod,
 				Consumer<ContextMenu> modifyContextMenu,
 				OutputObject output,
-				boolean createSplitPane, SplitOrientation splitOrientation) {
+				boolean createSplitPane, Boolean putOutputInScrollPane, SplitOrientation splitOrientation) {
 			
 			if (tableModel==null)
 				throw new IllegalArgumentException();
@@ -247,16 +257,25 @@ public class TableSimplifier {
 			{
 				if (output==null)
 					throw new IllegalArgumentException();
+				if (putOutputInScrollPane==null)
+					throw new IllegalArgumentException();
 				if (splitOrientation==null)
 					throw new IllegalArgumentException();
 				
-				JScrollPane outputScrollPane = new JScrollPane(output);
-				outputScrollPane.setPreferredSize(new Dimension(100,100));
 				
 				JSplitPane panel = new JSplitPane(splitOrientation.value, true);
 				panel.setResizeWeight(1);
 				panel.setTopComponent(tableSimplifier.tableScrollPane);
-				panel.setBottomComponent(outputScrollPane);
+				
+				if (putOutputInScrollPane)
+				{
+					JScrollPane outputScrollPane = new JScrollPane(output);
+					outputScrollPane.setPreferredSize(new Dimension(100,100));
+					panel.setBottomComponent(outputScrollPane);
+				}
+				else
+					panel.setBottomComponent(output);
+				
 				result = panel;
 			}
 			
@@ -270,7 +289,7 @@ public class TableSimplifier {
 						int rowM = tableSimplifier.table.convertRowIndexToModel(rowV);
 						selectedRow = rowM<0 ? -1 : rowM;
 					}
-					outputSource.setContentForRow(output, selectedRow);
+					outputSource.setOutputContentForRow(output, selectedRow);
 				};
 				if (modifyUpdateMethod!=null)
 					outputUpdateMethod = modifyUpdateMethod.apply(outputUpdateMethod);
@@ -293,6 +312,7 @@ public class TableSimplifier {
 
 		interface SplitPaneConfigurator {
 			boolean createSplitPane();
+			Boolean putOutputInScrollPane();
 			SplitOrientation getSplitOrientation();
 		}
 
@@ -329,32 +349,36 @@ public class TableSimplifier {
 
 		interface OutputSource<OutputObject extends Component> {
 			void setOutputUpdateMethod(Runnable outputUpdateMethod);
-			void setContentForRow(OutputObject outputObject, int rowIndex);
+			void setOutputContentForRow(OutputObject outputObject, int rowIndex);
 		}
 
-		public interface ArbitraryOutputSource extends OutputSource<Component>{
+		public interface UnspecificOutputSource extends OutputSource<Component>, SplitPaneConfigurator {
 			@Override default void setOutputUpdateMethod(Runnable outputUpdateMethod) {}
-			@Override default void setContentForRow(Component dummy, int rowIndex) { setContentForRow(rowIndex); }
-			void setContentForRow(int rowIndex);
+			@Override default void setOutputContentForRow(Component dummy, int rowIndex) { setOutputContentForRow(rowIndex); }
+			void setOutputContentForRow(int rowIndex);
 			default Runnable modifyUpdateMethod(Runnable updateMethod) { return updateMethod; }
+			default Component createOutputComp() { return null; }
+			@Override default boolean createSplitPane() { return false; }
+			@Override default Boolean putOutputInScrollPane() { return null; }
+			@Override default SplitOrientation getSplitOrientation() { return null; }
 		}
 
 		interface TextAreaOutputSource extends OutputSource<JTextArea> {
-			@Override default void setContentForRow(JTextArea textArea, int rowIndex) {
+			@Override default void setOutputContentForRow(JTextArea textArea, int rowIndex) {
 				if (rowIndex<0)
 					textArea.setText("");
 				else
-					textArea.setText(getTextForRow(rowIndex));
+					textArea.setText(getOutputTextForRow(rowIndex));
 			}
-			String getTextForRow(int rowIndex);
+			String getOutputTextForRow(int rowIndex);
 		}
 
 		interface TextPaneOutputSource extends OutputSource<JTextPane> {
-			@Override default void setContentForRow(JTextPane textPane, int rowIndex) {
+			@Override default void setOutputContentForRow(JTextPane textPane, int rowIndex) {
 				DefaultStyledDocument doc = new DefaultStyledDocument();
-				if (rowIndex>=0) setContentForRow(new StyledDocumentInterface(doc, "TextPaneOutput", null, 12), rowIndex);
+				if (rowIndex>=0) setOutputContentForRow(new StyledDocumentInterface(doc, "TextPaneOutput", null, 12), rowIndex);
 				textPane.setStyledDocument(doc);
 			}
-			void setContentForRow(StyledDocumentInterface doc, int rowIndex);
+			void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex);
 		}
 	}

@@ -99,12 +99,12 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		else
 			finalizer.addDataReceiver(data -> {
 				setExtraData(data);
-				updateTextOutput();
+				updateOutput();
 			});
 		
 		finalizer.addSaveGameListener(saveGame->{
 			this.saveGame = saveGame;
-			updateTextOutput();
+			updateOutput();
 		});
 		
 		coloring.addBackgroundRowColorizer(addon->{
@@ -234,7 +234,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		return SnowRunner.solveStringID(row, language);
 	}
 
-	@Override protected void setContentForRow(StyledDocumentInterface doc, TruckAddon row) {
+	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, TruckAddon row) {
 		String description_StringID = SnowRunner.selectNonNull( row.gameData.description_StringID, row.gameData.cargoDescription_StringID );
 		String[][] requiredAddons   = row.gameData.requiredAddons;
 		String[] excludedCargoTypes = row.gameData.excludedCargoTypes;
