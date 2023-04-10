@@ -211,7 +211,7 @@ public class SnowRunner {
 		optionsMenu.addSeparator();
 		optionsMenu.add(languageMenu = new JMenu("Language"));
 		
-		JMenu testingMenu = menuBar.add(new JMenu("Testing"));
+		JMenu testingMenu = menuBar.add(new JMenu("Debug"));
 		testingMenu.add(createMenuItem("Show Event Listeners", true, e->{
 			controllers.showListeners();
 		}));

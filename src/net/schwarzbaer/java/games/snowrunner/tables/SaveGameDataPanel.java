@@ -193,9 +193,27 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		return null;
 	}
 
+	private static String toString(Collection<Boolean> boolCollection)
+	{
+		int nulls = 0;
+		int trues = 0;
+		for (Boolean b : boolCollection)
+		{
+			if (b==null)
+				nulls++;
+			else if (b)
+				trues++;
+		}
+		if (nulls>0)
+			return String.format("%d / %d (%d nulls)", trues, boolCollection.size(), nulls);
+		else
+			return String.format("%d / %d"           , trues, boolCollection.size());
+	}
+
 	private static String toString(Coord3F p)
 	{
-		if (p==null) return "<null>";
+		if (p==null   ) return "<null>";
+		if (p.isZero()) return "(0,0,0)";
 		return String.format(Locale.ENGLISH, "( %1.3f, %1.3f, %1.3f )", p.x, p.y, p.z);
 	}
 
@@ -217,16 +235,51 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 
-	private static class InstalledAddonTableModel extends VerySimpleTableModel<InstalledAddon>
+	private static class InstalledAddonTableModel extends ExtendedVerySimpleTableModelTAOS<InstalledAddon> implements SplitPaneConfigurator
 	{
 		InstalledAddonTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("ID"       ,"ID"                        ,  String .class, 175,   null,      null, false, row->((InstalledAddon)row).id ),
+					new ColumnID("Name"       , "Name"             ,  String .class, 280,   null, null, false, row->((InstalledAddon)row).name              ),
+					
+					new ColumnID("Fuel"       , "Fuel"             ,  Double .class,  50,   null, null, false, row->((InstalledAddon)row).fuel              ),
+					new ColumnID("Water"      , "Water"            ,  Double .class,  45,   null, null, false, row->((InstalledAddon)row).water             ),
+					new ColumnID("Repairs"    , "Repairs"          ,  Long   .class,  55, CENTER, null, false, row->((InstalledAddon)row).repairs           ),
+					new ColumnID("WheelReps"  , "WheelRepairs"     ,  Long   .class,  85, CENTER, null, false, row->((InstalledAddon)row).wheelRepairs      ),
+					
+					new ColumnID("IsInCockpit", "Is in Cockpit"    ,  Boolean.class,  75,   null, null, false, row->((InstalledAddon)row).isInCockpit       ),
+					new ColumnID("Position"   , "Position"         ,  String .class, 130,   null, null, false, row->SaveGameDataPanel.toString(((InstalledAddon)row).position   )),
+					new ColumnID("EulerAngles", "Euler Angles"     ,  String .class, 130,   null, null, false, row->SaveGameDataPanel.toString(((InstalledAddon)row).eulerAngles)),
+					
+					new ColumnID("AddonCRC"   , "Addon CRC"        ,  Long   .class,  70, CENTER, null, false, row->((InstalledAddon)row).addonCRC          ),
+					new ColumnID("FirstSlot"  , "First Slot"       ,  Long   .class,  55, CENTER, null, false, row->((InstalledAddon)row).firstSlot         ),
+					new ColumnID("OverrideMat", "Override Material",  String .class, 100,   null, null, false, row->((InstalledAddon)row).overrideMaterial  ),
+					new ColumnID("ParentAddTp", "Parent Addon Type",  String .class, 110,   null, null, false, row->((InstalledAddon)row).parentAddonType   ),
+					new ColumnID("ParentFrame", "Parent Frame"     ,  String .class, 100,   null, null, false, row->((InstalledAddon)row).parentFrame       ),
+					new ColumnID("ExtrParents", "Extra Parents"    ,  Integer.class,  80, CENTER, null, false, row->((InstalledAddon)row).extraParents.size()),
 			});
 		}
 
-		@Override protected String getRowName(InstalledAddon row) { return row.id; }
+		@Override protected String getRowName(InstalledAddon row) { return row.name; }
+		@Override public boolean createSplitPane() { return true; }
+		@Override public Boolean putOutputInScrollPane() { return true; }
+		@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
+		@Override public boolean useLineWrap() { return false; }
+
+		@Override protected String getOutputTextForRow(int rowIndex, InstalledAddon row)
+		{
+			ValueListOutput out = new ValueListOutput();
+			
+			out.add(0, "Extra Parents", row.extraParents.size());
+			for (InstalledAddon.ExtraParent exp : row.extraParents)
+			{
+				out.add(1, exp.frame);
+				out.add(2, "posistion"   , "%s", SaveGameDataPanel.toString(exp.position));
+				out.add(2, "euler angles", "%s", SaveGameDataPanel.toString(exp.eulerAngles));
+			}
+				
+			return out.generateOutput();
+		}
 	}
 
 	private static class TruckTableModel extends ExtendedVerySimpleTableModelUOS<TruckTableModel.Row>
@@ -380,14 +433,15 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		MapTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("MapID"     ,"Map ID"             ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
-					new ColumnID("Name"      ,"Name"               ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
-					new ColumnID("DLC"       ,"DLC"                ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row,model))),
-					new ColumnID("Visited"   ,"Visited"            ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).wasVisited),
-					new ColumnID("Garage"    ,"Garage"             ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).garage!=null),
-					new ColumnID("GarageStat","Garage Status"      ,  Long                      .class,  85, CENTER, null, false, row->((MapInfos)row).garageStatus),
-					new ColumnID("DiscTrucks","Discovered Trucks"  ,  MapInfos.DiscoveredObjects.class, 100, CENTER, null, false, row->((MapInfos)row).discoveredTrucks),
-					new ColumnID("DiscUpgrds","Discovered Upgrades",  MapInfos.DiscoveredObjects.class, 115, CENTER, null, false, row->((MapInfos)row).discoveredUpgrades),
+					new ColumnID("MapID"     ,"Map ID"                ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
+					new ColumnID("Name"      ,"Name"                  ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
+					new ColumnID("DLC"       ,"DLC"                   ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row,model))),
+					new ColumnID("Visited"   ,"Visited"               ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).wasVisited),
+					new ColumnID("Garage"    ,"Garage"                ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).garage!=null),
+					new ColumnID("GarageStat","Garage Status"         ,  Long                      .class,  85, CENTER, null, false, row->((MapInfos)row).garageStatus),
+					new ColumnID("DiscTrucks","Discovered Trucks"     ,  MapInfos.DiscoveredObjects.class, 100, CENTER, null, false, row->((MapInfos)row).discoveredTrucks),
+					new ColumnID("DiscUpgrds","Discovered Upgrades"   ,  MapInfos.DiscoveredObjects.class, 115, CENTER, null, false, row->((MapInfos)row).discoveredUpgrades),
+					new ColumnID("DiscWatchP","Discovered WatchPoints",  String                    .class, 130, CENTER, null, false, row->SaveGameDataPanel.toString(((MapInfos)row).watchPoints.values())),
 			});
 			clickedItem = null;
 			data = null;
@@ -488,7 +542,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				if (!sb.isEmpty()) out.addEmptyLine();
 				out.add(0, "Waypoints:");
 				for (Waypoint wp : row.waypoints)
-					out.add(1, String.format("[%d]", wp.type), "%s", SaveGameDataPanel.toString(wp.point));
+					out.add(1, String.format("<Type %d>", wp.type), "%s", SaveGameDataPanel.toString(wp.point));
 				sb.append(out.generateOutput());
 				out.clear();
 			}
