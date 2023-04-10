@@ -174,6 +174,15 @@ public class SaveGameData {
 		return targetCollection;
 	}
 	
+	private static <TargetCollection extends Collection<String>> TargetCollection parseArray_String(JSON_Array<NV, V> array, String debugOutputPrefixStr, TargetCollection targetCollection) throws TraverseException
+	{
+		parseArray(array, debugOutputPrefixStr, (value,i,localPrefixStr) -> {
+			String str = JSON_Data.getStringValue(value, localPrefixStr);
+			targetCollection.add(str);
+		});
+		return targetCollection;
+	}
+	
 	private static void checkObjectOrNull(JSON_Object<NV, V> object, JSON_Data.Null null_, String debugOutputPrefixStr) throws TraverseException
 	{
 		if (object==null && null_==null)
@@ -1142,11 +1151,11 @@ public class SaveGameData {
 			public boolean finished   = false;
 			public final HashSet<String> savedCargoNeedToBeRemovedOnRestart = new HashSet<>();
 			public boolean viewedUnactivated = false;
-			public ObjectiveStates objectiveStates = null; // TODO: show Objective.objectiveStates -> columns in ObjectiveTableModel
+			public ObjectiveStates objectiveStates = null;
 			
-			private Objective(String contestId)
+			private Objective(String objectiveId)
 			{
-				this.objectiveId = contestId;
+				this.objectiveId = objectiveId;
 			}
 
 			private static void parseContestAttempts(HashMap<String, Objective> objectives, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
@@ -1229,94 +1238,423 @@ public class SaveGameData {
 			
 			public static class ObjectiveStates
 			{
-				@SuppressWarnings("unused")
 				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(ObjectiveStates.class)
-				//		.add("name"      , JSON_Data.Value.Type.String)
+						.add("failReasons"            , JSON_Data.Value.Type.Object)
+						.add("id"                     , JSON_Data.Value.Type.String)
+						.add("isFinished"             , JSON_Data.Value.Type.Bool  )
+						.add("isTimerStarted"         , JSON_Data.Value.Type.Bool  )
+						.add("spentTime"              , JSON_Data.Value.Type.Float )
+						.add("stagesState"            , JSON_Data.Value.Type.Array )
+						.add("wasCompletedAtLeastOnce", JSON_Data.Value.Type.Bool  )
 						;
 				/*
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates]" [7]
-        failReasons:Object
-        id:String
-        isFinished:Bool
-        isTimerStarted:[Bool, <unset>]
-        spentTime:Float
-        stagesState:Array
-        stagesState[]:Object
-        wasCompletedAtLeastOnce:[Bool, <unset>]
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].failReasons" [0]
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[]" [9]
-        cargoDeliveryActions:Array
-        cargoDeliveryActions[]:Object or empty array
-        cargoSpawnState:Array
-        cargoSpawnState[]:Object or empty array
-        changeTruckState:Null
-        farmingState:[Null, <unset>]
-        livingAreaState:Null
-        makeActionInZone:Null
-        truckDeliveryStates:Array
-        truckDeliveryStates[]:Object or empty array
-        truckRepairStates:Array
-        truckRepairStates[]:Object or empty array
-        visitAllZonesState:[Object, Null]
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].cargoDeliveryActions[]" [8]
-        cargoState:Object
-        isNeedVisitOnTruck:Bool
-        map:String
-        modelBuildingTag:String
-        platformId:String
-        truckUid:String
-        unloadingMode:Integer
-        zones:Array
-        zones[]:String
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].cargoDeliveryActions[].cargoState" [3]
-        aimValue:Integer
-        curValue:Integer
-        type:String
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].cargoSpawnState[]" [4]
-        cargos:Array
-        cargos[]:Object
-        needToBeDiscoveredByMetallodetector:Bool
-        spawned:Bool
-        zone:Object
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].cargoSpawnState[].cargos[]" [2]
-        count:Integer
-        name:String
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].cargoSpawnState[].zone" [4]
-        cached:Bool
-        globalZoneId:String
-        map:String
-        zoneLocal:String
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].truckDeliveryStates[]" [4]
-        deliveryZones:Array
-        deliveryZones[]:String
-        isDelivered:Bool
-        mapDelivery:String
-        truckId:String
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].truckRepairStates[]" [3]
-        isRefueled:Bool
-        isRepaired:Bool
-        truckId:String
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].visitAllZonesState" [2]
-        map:String
-        zoneStates:Array
-        zoneStates[]:Object
-    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].stagesState[].visitAllZonesState.zoneStates[]" [4]
-        isVisitWithCertainTruck:Bool
-        isVisited:Bool
-        truckUid:String
-        zone:String
+				    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates]" [7]
+				        failReasons            :  Object
+				        id                     :  String
+				        isFinished             :  Bool
+				        isTimerStarted         : [Bool  , <unset>]
+				        spentTime              :  Float
+				        stagesState            :  Array
+				        wasCompletedAtLeastOnce: [Bool  , <unset>]
+				        stagesState[]:Object
+				    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates].failReasons" [0]
 				 */
+				public final String  id;
+				public final boolean isFinished;
+				public final Boolean isTimerStarted;
+				public final double  spentTime;
+				public final Boolean wasCompletedAtLeastOnce;
+				public final Vector<StagesState> stagesState;
 
-				private ObjectiveStates(JSON_Object<NV, V> object, String debugOutputPrefixStr)
+				private ObjectiveStates(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 				{
 					// scanJSON(object, this);
-					//id          = JSON_Data.getStringValue(object, "name"         , debugOutputPrefixStr);
-					// TODO: parse values in SaveGame.Objective.ObjectiveStates
-					//KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+					
+					JSON_Object<NV, V> failReasons;
+					JSON_Array<NV, V> stagesState;
+					
+					failReasons            = JSON_Data.getObjectValue(object, "failReasons"            , debugOutputPrefixStr);
+					id                     = JSON_Data.getStringValue(object, "id"                     , debugOutputPrefixStr);
+					isFinished             = JSON_Data.getBoolValue  (object, "isFinished"             , debugOutputPrefixStr);
+					isTimerStarted         = JSON_Data.getBoolValue  (object, "isTimerStarted"         , true, false, debugOutputPrefixStr);
+					spentTime              = JSON_Data.getFloatValue (object, "spentTime"              , debugOutputPrefixStr);
+					stagesState            = JSON_Data.getArrayValue (object, "stagesState"            , debugOutputPrefixStr);
+					wasCompletedAtLeastOnce= JSON_Data.getBoolValue  (object, "wasCompletedAtLeastOnce", true, false, debugOutputPrefixStr);
+					
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+					
+					checkEmptyObject(failReasons, debugOutputPrefixStr+".failReasons");
+					
+					this.stagesState = parseArray_Object(stagesState, debugOutputPrefixStr+".stagesState", StagesState::new, new Vector<>());
+				}
+				
+				public static class StagesState
+				{
+					private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(StagesState.class)
+							.add("cargoDeliveryActions", JSON_Data.Value.Type.Array )
+							.add("cargoSpawnState"     , JSON_Data.Value.Type.Array )
+							.add("changeTruckState"    , JSON_Data.Value.Type.Null  )
+							.add("farmingState"        , JSON_Data.Value.Type.Null  )
+							.add("livingAreaState"     , JSON_Data.Value.Type.Null  )
+							.add("makeActionInZone"    , JSON_Data.Value.Type.Null  )
+							.add("truckDeliveryStates" , JSON_Data.Value.Type.Array )
+							.add("truckRepairStates"   , JSON_Data.Value.Type.Array )
+							.add("visitAllZonesState"  , JSON_Data.Value.Type.Object)
+							.add("visitAllZonesState"  , JSON_Data.Value.Type.Null  )
+							;
+					/*
+					    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState]" [9]
+					        cargoDeliveryActions: Array 
+					        cargoSpawnState     : Array 
+					        changeTruckState    : Null  
+					        farmingState        :[Null  , <unset>]
+					        livingAreaState     : Null  
+					        makeActionInZone    : Null  
+					        truckDeliveryStates : Array 
+					        truckRepairStates   : Array 
+					        visitAllZonesState  :[Object, Null]  ->  VisitAllZonesState
+					        
+					        cargoDeliveryActions[] : Object or empty array  ->  CargoDeliveryAction
+					        cargoSpawnState     [] : Object or empty array  ->  CargoSpawnState
+					        truckDeliveryStates [] : Object or empty array  ->  TruckDeliveryState
+					        truckRepairStates   [] : Object or empty array  ->  TruckRepairState
+					 */
+					
+					public final VisitAllZonesState visitAllZonesState;
+					public final Vector<CargoDeliveryAction> cargoDeliveryActions;
+					public final Vector<CargoSpawnState> cargoSpawnState;
+					public final Vector<TruckDeliveryState> truckDeliveryStates;
+					public final Vector<TruckRepairState> truckRepairStates;
+					
+					private StagesState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+					{
+						//scanJSON(object, this);
+						
+						@SuppressWarnings("unused")
+						JSON_Data.Null changeTruckState, farmingState, livingAreaState, makeActionInZone, visitAllZonesState_Null;
+						JSON_Object<NV, V> visitAllZonesState;
+						JSON_Array<NV, V> cargoDeliveryActions, cargoSpawnState, truckDeliveryStates, truckRepairStates;
+						
+						cargoDeliveryActions    = JSON_Data.getArrayValue (object, "cargoDeliveryActions", debugOutputPrefixStr);
+						cargoSpawnState         = JSON_Data.getArrayValue (object, "cargoSpawnState"     , debugOutputPrefixStr);
+						changeTruckState        = JSON_Data.getNullValue  (object, "changeTruckState"    , debugOutputPrefixStr);
+						farmingState            = JSON_Data.getNullValue  (object, "farmingState"        , true, false, debugOutputPrefixStr);
+						livingAreaState         = JSON_Data.getNullValue  (object, "livingAreaState"     , debugOutputPrefixStr);
+						makeActionInZone        = JSON_Data.getNullValue  (object, "makeActionInZone"    , debugOutputPrefixStr);
+						truckDeliveryStates     = JSON_Data.getArrayValue (object, "truckDeliveryStates" , debugOutputPrefixStr);
+						truckRepairStates       = JSON_Data.getArrayValue (object, "truckRepairStates"   , debugOutputPrefixStr);
+						visitAllZonesState      = JSON_Data.getObjectValue(object, "visitAllZonesState"  , false, true, debugOutputPrefixStr);
+						visitAllZonesState_Null = JSON_Data.getNullValue  (object, "visitAllZonesState"  , false, true, debugOutputPrefixStr);
+						
+						KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+						
+						if (visitAllZonesState!=null)
+							this.visitAllZonesState = new VisitAllZonesState(visitAllZonesState, debugOutputPrefixStr+".visitAllZonesState");
+						else
+							this.visitAllZonesState = null;
+						
+						this.cargoDeliveryActions = parseArray_Object(cargoDeliveryActions, debugOutputPrefixStr+".cargoDeliveryActions", CargoDeliveryAction::new, new Vector<>());
+						this.cargoSpawnState      = parseArray_Object(cargoSpawnState     , debugOutputPrefixStr+".cargoSpawnState"     , CargoSpawnState    ::new, new Vector<>());
+						this.truckDeliveryStates  = parseArray_Object(truckDeliveryStates , debugOutputPrefixStr+".truckDeliveryStates" , TruckDeliveryState ::new, new Vector<>());
+						this.truckRepairStates    = parseArray_Object(truckRepairStates   , debugOutputPrefixStr+".truckRepairStates"   , TruckRepairState   ::new, new Vector<>());
+					}
+					
+					public static class VisitAllZonesState
+					{
+						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(VisitAllZonesState.class)
+								.add("map"       , JSON_Data.Value.Type.String)
+								.add("zoneStates", JSON_Data.Value.Type.Array )
+								;
+						/*
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.VisitAllZonesState]" [2]
+						        map       :String
+						        zoneStates:Array
+						        
+						        zoneStates[]:Object  ->  ZoneState
+						 */
+						public final String map;
+						public final Vector<ZoneState> zoneStates;
+						
+						private VisitAllZonesState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+						{
+							//scanJSON(object, this);
+							JSON_Array<NV, V> zoneStates;
+							map        = JSON_Data.getStringValue(object, "map"       , debugOutputPrefixStr);
+							zoneStates = JSON_Data.getArrayValue (object, "zoneStates", debugOutputPrefixStr);
+							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							this.zoneStates = parseArray_Object(zoneStates, debugOutputPrefixStr+".zoneStates", ZoneState::new, new Vector<>());
+						}
+						
+						public static class ZoneState
+						{
+							private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(ZoneState.class)
+									.add("isVisitWithCertainTruck", JSON_Data.Value.Type.Bool  )
+									.add("isVisited"              , JSON_Data.Value.Type.Bool  )
+									.add("truckUid"               , JSON_Data.Value.Type.String)
+									.add("zone"                   , JSON_Data.Value.Type.String)
+									;
+							/*
+							    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.VisitAllZonesState.ZoneState]" [4]
+							        isVisitWithCertainTruck:Bool
+							        isVisited              :Bool
+							        truckUid               :String
+							        zone                   :String
+							 */
+							public final boolean isVisitWithCertainTruck;
+							public final boolean isVisited;
+							public final String truckUid;
+							public final String zone;
+							
+							private ZoneState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+							{
+								//scanJSON(object, this);
+								isVisitWithCertainTruck = JSON_Data.getBoolValue  (object, "isVisitWithCertainTruck", debugOutputPrefixStr);
+								isVisited               = JSON_Data.getBoolValue  (object, "isVisited"              , debugOutputPrefixStr);
+								truckUid                = JSON_Data.getStringValue(object, "truckUid"               , debugOutputPrefixStr);
+								zone                    = JSON_Data.getStringValue(object, "zone"                   , debugOutputPrefixStr);
+								KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							}
+						}
+					}
+					
+					public static class CargoDeliveryAction
+					{
+						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(CargoDeliveryAction.class)
+								.add("cargoState"        , JSON_Data.Value.Type.Object )
+								.add("isNeedVisitOnTruck", JSON_Data.Value.Type.Bool   )
+								.add("map"               , JSON_Data.Value.Type.String )
+								.add("modelBuildingTag"  , JSON_Data.Value.Type.String )
+								.add("platformId"        , JSON_Data.Value.Type.String )
+								.add("truckUid"          , JSON_Data.Value.Type.String )
+								.add("unloadingMode"     , JSON_Data.Value.Type.Integer)
+								.add("zones"             , JSON_Data.Value.Type.Array  )
+								;
+						/*
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction]" [8]
+						        cargoState        :Object  ->  CargoState
+						        isNeedVisitOnTruck:Bool
+						        map               :String
+						        modelBuildingTag  :String
+						        platformId        :String
+						        truckUid          :String
+						        unloadingMode     :Integer
+						        zones             :Array
+						        
+						        zones[]:String
+						 */
+						public final CargoState cargoState;
+						public final boolean isNeedVisitOnTruck;
+						public final String map;
+						public final String modelBuildingTag;
+						public final String platformId;
+						public final String truckUid;
+						public final long unloadingMode;
+						public final Vector<String> zones;
+						
+						private CargoDeliveryAction(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+						{
+							//scanJSON(object, this);
+							JSON_Object<NV, V> cargoState;
+							JSON_Array<NV, V> zones;
+							cargoState         = JSON_Data.getObjectValue (object, "cargoState"        , debugOutputPrefixStr);
+							isNeedVisitOnTruck = JSON_Data.getBoolValue   (object, "isNeedVisitOnTruck", debugOutputPrefixStr);
+							map                = JSON_Data.getStringValue (object, "map"               , debugOutputPrefixStr);
+							modelBuildingTag   = JSON_Data.getStringValue (object, "modelBuildingTag"  , debugOutputPrefixStr);
+							platformId         = JSON_Data.getStringValue (object, "platformId"        , debugOutputPrefixStr);
+							truckUid           = JSON_Data.getStringValue (object, "truckUid"          , debugOutputPrefixStr);
+							unloadingMode      = JSON_Data.getIntegerValue(object, "unloadingMode"     , debugOutputPrefixStr);
+							zones              = JSON_Data.getArrayValue  (object, "zones"             , debugOutputPrefixStr);
+							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							
+							this.cargoState = new CargoState   (cargoState, debugOutputPrefixStr+".cargoState");
+							this.zones      = parseArray_String(zones     , debugOutputPrefixStr+".zones", new Vector<>());
+						}
+						
+						public static class CargoState
+						{
+							private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(CargoState.class)
+									.add("aimValue", JSON_Data.Value.Type.Integer)
+									.add("curValue", JSON_Data.Value.Type.Integer)
+									.add("type"    , JSON_Data.Value.Type.String )
+									;
+							/*
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction.CargoState]" [3]
+						        aimValue:Integer
+						        curValue:Integer
+						        type    :String
+							 */
+							public final long aimValue;
+							public final long curValue;
+							public final String type;
+							
+							private CargoState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+							{
+								//scanJSON(object, this);
+								aimValue = JSON_Data.getIntegerValue(object, "aimValue", debugOutputPrefixStr);
+								curValue = JSON_Data.getIntegerValue(object, "curValue", debugOutputPrefixStr);
+								type     = JSON_Data.getStringValue (object, "type"    , debugOutputPrefixStr);
+								KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							}
+						}
+					}
+					
+					public static class CargoSpawnState
+					{
+						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(CargoSpawnState.class)
+								.add("cargos"                             , JSON_Data.Value.Type.Array )
+								.add("needToBeDiscoveredByMetallodetector", JSON_Data.Value.Type.Bool  )
+								.add("spawned"                            , JSON_Data.Value.Type.Bool  )
+								.add("zone"                               , JSON_Data.Value.Type.Object)
+								;
+						/*
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoSpawnState]" [4]
+						        cargos                             :Array
+						        needToBeDiscoveredByMetallodetector:Bool
+						        spawned                            :Bool
+						        zone                               :Object   ->  Zone
+						        
+						        cargos[]:Object   ->  Cargo
+						 */
+						public final Vector<Cargo> cargos;
+						public final boolean needToBeDiscoveredByMetallodetector;
+						public final boolean spawned;
+						public final Zone zone;
+						
+						private CargoSpawnState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+						{
+							//scanJSON(object, this);
+							JSON_Object<NV, V> zone;
+							JSON_Array<NV, V> cargos;
+							cargos                              = JSON_Data.getArrayValue (object, "cargos"                             , debugOutputPrefixStr);
+							needToBeDiscoveredByMetallodetector = JSON_Data.getBoolValue  (object, "needToBeDiscoveredByMetallodetector", debugOutputPrefixStr);
+							spawned                             = JSON_Data.getBoolValue  (object, "spawned"                            , debugOutputPrefixStr);
+							zone                                = JSON_Data.getObjectValue(object, "zone"                               , debugOutputPrefixStr);
+							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							this.cargos = parseArray_Object(cargos, debugOutputPrefixStr+".cargos", Cargo::new, new Vector<>());
+							this.zone   = new Zone         (zone  , debugOutputPrefixStr+".zone"  );
+						}
+						
+						public static class Cargo
+						{
+							private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Cargo.class)
+									.add("count", JSON_Data.Value.Type.Integer)
+									.add("name" , JSON_Data.Value.Type.String )
+									;
+							/*
+							    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoSpawnState.Cargo]" [2]
+							        count:Integer
+							        name :String
+							 */
+							public final long count;
+							public final String name;
+							
+							private Cargo(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+							{
+								//scanJSON(object, this);
+								count = JSON_Data.getIntegerValue(object, "count", debugOutputPrefixStr);
+								name  = JSON_Data.getStringValue (object, "name" , debugOutputPrefixStr);
+								KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							}
+						}
+						
+						public static class Zone
+						{
+							private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Zone.class)
+									.add("cached"      , JSON_Data.Value.Type.Bool  )
+									.add("globalZoneId", JSON_Data.Value.Type.String)
+									.add("map"         , JSON_Data.Value.Type.String)
+									.add("zoneLocal"   , JSON_Data.Value.Type.String)
+									;
+							/*
+							    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoSpawnState.Zone]" [4]
+							        cached      :Bool
+							        globalZoneId:String
+							        map         :String
+							        zoneLocal   :String
+							 */
+							public final boolean cached;
+							public final String globalZoneId;
+							public final String map;
+							public final String zoneLocal;
+							
+							private Zone(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+							{
+								//scanJSON(object, this);
+								cached       = JSON_Data.getBoolValue  (object, "cached"      , debugOutputPrefixStr);
+								globalZoneId = JSON_Data.getStringValue(object, "globalZoneId", debugOutputPrefixStr);
+								map          = JSON_Data.getStringValue(object, "map"         , debugOutputPrefixStr);
+								zoneLocal    = JSON_Data.getStringValue(object, "zoneLocal"   , debugOutputPrefixStr);
+								KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							}
+						}
+					}
+					
+					public static class TruckDeliveryState
+					{
+						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(TruckDeliveryState.class)
+								.add("deliveryZones", JSON_Data.Value.Type.Array )
+								.add("isDelivered"  , JSON_Data.Value.Type.Bool  )
+								.add("mapDelivery"  , JSON_Data.Value.Type.String)
+								.add("truckId"      , JSON_Data.Value.Type.String)
+								;
+						/*
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.TruckDeliveryState]" [4]
+						        deliveryZones : Array
+						        isDelivered   : Bool
+						        mapDelivery   : String
+						        truckId       : String
+						        
+						        deliveryZones[]:String
+						 */
+						public final boolean isDelivered;
+						public final String mapDelivery;
+						public final String truckId;
+						public final Vector<String> deliveryZones;
+						
+						private TruckDeliveryState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+						{
+							//scanJSON(object, this);
+							JSON_Array<NV, V> deliveryZones;
+							deliveryZones = JSON_Data.getArrayValue (object, "deliveryZones", debugOutputPrefixStr);
+							isDelivered   = JSON_Data.getBoolValue  (object, "isDelivered"  , debugOutputPrefixStr);
+							mapDelivery   = JSON_Data.getStringValue(object, "mapDelivery"  , debugOutputPrefixStr);
+							truckId       = JSON_Data.getStringValue(object, "truckId"      , debugOutputPrefixStr);
+							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+							
+							this.deliveryZones = parseArray_String(deliveryZones, debugOutputPrefixStr+".deliveryZones", new Vector<>());
+						}
+					}
+					
+					public static class TruckRepairState
+					{
+						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(TruckRepairState.class)
+								.add("isRefueled", JSON_Data.Value.Type.Bool  )
+								.add("isRepaired", JSON_Data.Value.Type.Bool  )
+								.add("truckId"   , JSON_Data.Value.Type.String)
+								;
+						/*
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.TruckRepairState]" [3]
+						        isRefueled : Bool
+						        isRepaired : Bool
+						        truckId    : String
+						 */
+						public final boolean isRefueled;
+						public final boolean isRepaired;
+						public final String truckId;
+						
+						private TruckRepairState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+						{
+							//scanJSON(object, this);
+							isRefueled = JSON_Data.getBoolValue  (object, "isRefueled", debugOutputPrefixStr);
+							isRepaired = JSON_Data.getBoolValue  (object, "isRepaired", debugOutputPrefixStr);
+							truckId    = JSON_Data.getStringValue(object, "truckId"   , debugOutputPrefixStr);
+							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+						}
+					}
 				}
 			}
 		}
-		
+
 		public static class MapInfos
 		{
 			private static final SpreadedValuesHelper<MapInfos> helper = new SpreadedValuesHelper<>(MapInfos::new);
@@ -1353,7 +1691,7 @@ public class SaveGameData {
 						map.cargoLoadingCounts.put(name.secondPart, station);
 				});
 			}
-
+		
 			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
 			{
 				// "level_us_03_01 || US_03_01_CR_WD_01"
@@ -1364,17 +1702,17 @@ public class SaveGameData {
 						map.discoveredObjects.add(name.secondPart);
 				});
 			}
-
+		
 			private static void parseDiscoveredTrucks(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredTrucks = dobs, object, debugOutputPrefixStr);
 			}
-
+		
 			private static void parseDiscoveredUpgrades(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredUpgrades = dobs, object, debugOutputPrefixStr);
 			}
-
+		
 			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, BiConsumer<MapInfos,DiscoveredObjects> setValue, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
@@ -1396,14 +1734,14 @@ public class SaveGameData {
 						map.garage = garage;
 				});
 			}
-
+		
 			private static void parseLevelGarageStatuses(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
 					map.garageStatus = JSON_Data.getIntegerValue(value, local);
 				});
 			}
-
+		
 			private static void parseModTruckOnLevels(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
@@ -1411,7 +1749,7 @@ public class SaveGameData {
 					checkEmptyArray(array, local);
 				});
 			}
-
+		
 			private static void parseUpgradesGiverData(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
@@ -1427,14 +1765,14 @@ public class SaveGameData {
 					});
 				});
 			}
-
+		
 			private static void parseVisitedLevels(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
 			{
 				helper.parseStringArray(maps, array, debugOutputPrefixStr, map -> {
 					map.wasVisited = true;
 				});
 			}
-
+		
 			private static void parseWatchPoints(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
@@ -1450,7 +1788,7 @@ public class SaveGameData {
 					});
 				});
 			}
-
+		
 			private static void parseWaypoints(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value1, local1) -> {
@@ -1461,7 +1799,7 @@ public class SaveGameData {
 						parseArray_Object(array, local1, Waypoint::new, map.waypoints);
 				});
 			}
-
+		
 			public static class Waypoint
 			{
 				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Waypoint.class)
@@ -1471,7 +1809,7 @@ public class SaveGameData {
 				
 				public final long type;
 				public final Coord3F point;
-
+		
 				private Waypoint(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 				{
 					// scanJSON(object, this);
@@ -1486,7 +1824,7 @@ public class SaveGameData {
 					this.point = new Coord3F(point, debugOutputPrefixStr+".point");
 				}
 			}
-
+		
 			public static class DiscoveredObjects
 			{
 				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(DiscoveredObjects.class)
@@ -1506,7 +1844,7 @@ public class SaveGameData {
 			
 				@Override public String toString() { return String.format("%d / %d", current, all); }
 			}
-
+		
 			public static class CargoLoadingCounts
 			{
 				public final String stationName;

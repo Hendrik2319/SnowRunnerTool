@@ -216,6 +216,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		if (p.isZero()) return "(0,0,0)";
 		return String.format(Locale.ENGLISH, "( %1.3f, %1.3f, %1.3f )", p.x, p.y, p.z);
 	}
+	
+	private static <ObjectType, ResultType> ResultType ifNotNull(ObjectType obj, Function<ObjectType,ResultType> getValue)
+	{
+		return obj==null ? null : getValue.apply(obj);
+	}
 
 	private record TruckName(String id, String name)
 	{
@@ -667,14 +672,20 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		ObjectiveTableModel(Window mainWindow, Controllers controllers)
 		{
 			super(mainWindow, controllers, new ColumnID[] {
-					new ColumnID("ID"        ,"ID"                                       ,  String .class, 320,   null, null, false, row->((Objective)row).objectiveId        ),
-					new ColumnID("Attempts"  ,"Attempts"                                 ,  Long   .class,  60,   null, null, false, row->((Objective)row).attempts         ),
-					new ColumnID("Times"     ,"Times"                                    ,  Long   .class,  40,   null, null, false, row->((Objective)row).times            ),
-					new ColumnID("LastTimes" ,"Last Times"                               ,  Long   .class,  60,   null, null, false, row->((Objective)row).lastTimes        ),
-					new ColumnID("Discovered","Discovered"                               ,  Boolean.class,  65,   null, null, false, row->((Objective)row).discovered       ),
-					new ColumnID("Finished"  ,"Finished"                                 ,  Boolean.class,  55,   null, null, false, row->((Objective)row).finished         ),
-					new ColumnID("ViewdUnact","Viewed, but Unactivated"                  ,  Boolean.class, 130,   null, null, false, row->((Objective)row).viewedUnactivated),
-					new ColumnID("SCNtbRoR"  ,"Saved Cargo Need To Be Removed On Restart",  Integer.class,  50, CENTER, null, false, row->((Objective)row).savedCargoNeedToBeRemovedOnRestart.size()),
+					new ColumnID("ID"        ,"ID"                                       ,  String .class, 320,   null,    null, false, row->((Objective)row).objectiveId      ),
+					new ColumnID("Attempts"  ,"Attempts"                                 ,  Long   .class,  60,   null,    null, false, row->((Objective)row).attempts         ),
+					new ColumnID("Times"     ,"Times"                                    ,  Long   .class,  40,   null,    null, false, row->((Objective)row).times            ),
+					new ColumnID("LastTimes" ,"Last Times"                               ,  Long   .class,  60,   null,    null, false, row->((Objective)row).lastTimes        ),
+					new ColumnID("Discovered","Discovered"                               ,  Boolean.class,  65,   null,    null, false, row->((Objective)row).discovered       ),
+					new ColumnID("Finished"  ,"Finished"                                 ,  Boolean.class,  55,   null,    null, false, row->((Objective)row).finished         ),
+					new ColumnID("ViewdUnact","Viewed, but Unactivated"                  ,  Boolean.class, 130,   null,    null, false, row->((Objective)row).viewedUnactivated),
+					new ColumnID("SCNtbRoR"  ,"Saved Cargo Need To Be Removed On Restart",  Integer.class,  50, CENTER,    null, false, row->((Objective)row).savedCargoNeedToBeRemovedOnRestart.size()),
+					new ColumnID("ID2"       ,"ID[2]"                                    ,  String .class, 200,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.id                     )),
+					new ColumnID("Stages"    ,"Stages"                                   ,  Integer.class,  45, CENTER,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.stagesState.size()     )),
+					new ColumnID("SpentTime" ,"Spent Time"                               ,  Double .class,  75,   null, "%1.4f", false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.spentTime              )),
+					new ColumnID("IsFinished","Is Finished"                              ,  Boolean.class,  65,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.isFinished             )),
+					new ColumnID("TimrStartd","Is Timer Started"                         ,  Boolean.class,  90,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.isTimerStarted         )),
+					new ColumnID("ComplOnce" ,"Was Completed At Least Once"              ,  Boolean.class, 160,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.wasCompletedAtLeastOnce)),
 			});
 			data = null;
 		}
