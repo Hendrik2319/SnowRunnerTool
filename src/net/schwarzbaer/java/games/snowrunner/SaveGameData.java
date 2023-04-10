@@ -1061,6 +1061,217 @@ public class SaveGameData {
 			}
 		}
 		
+		public static class MapInfos
+		{
+			private static final SpreadedValuesHelper<MapInfos> helper = new SpreadedValuesHelper<>(MapInfos::new);
+			
+			public final MapIndex map;
+			public boolean wasVisited = false;
+			public Garage garage = null;
+			public Long garageStatus = null;
+			public DiscoveredObjects discoveredTrucks = null;
+			public DiscoveredObjects discoveredUpgrades = null;
+			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>();
+			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>();
+			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>();
+			public final Vector<Waypoint> waypoints         = new Vector<>();
+			public final Vector<String  > discoveredObjects = new Vector<>();
+			
+			private MapInfos(String mapId)
+			{
+				this.map = MapIndex.parse(mapId);
+			}
+			
+			private static void parseCargoLoadingCounts(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name, value, local_debugOutputPrefixStr) -> {
+					
+					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
+					CargoLoadingCounts station = new CargoLoadingCounts(object2, name.secondPart, local_debugOutputPrefixStr);
+					
+					if (name.secondPart==null)
+						System.err.printf("[CargoLoadingCounts] Found a station with no name on 1 map: %s%n", local_debugOutputPrefixStr);
+					else if (map.cargoLoadingCounts.containsKey(name.secondPart))
+						System.err.printf("[CargoLoadingCounts] Found more than 1 station with same name on 1 map: %s%n", local_debugOutputPrefixStr);
+					else
+						map.cargoLoadingCounts.put(name.secondPart, station);
+				});
+			}
+		
+			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
+			{
+				// "level_us_03_01 || US_03_01_CR_WD_01"
+				helper.parseStringArray(maps, array, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name) -> {
+					if (name.secondPart==null)
+						System.err.printf("[DiscoveredObjects] Found a discovered object (\"%s\") with no name: %s%n", name.originalStr, debugOutputPrefixStr);
+					else
+						map.discoveredObjects.add(name.secondPart);
+				});
+			}
+		
+			private static void parseDiscoveredTrucks(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredTrucks = dobs, object, debugOutputPrefixStr);
+			}
+		
+			private static void parseDiscoveredUpgrades(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredUpgrades = dobs, object, debugOutputPrefixStr);
+			}
+		
+			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, BiConsumer<MapInfos,DiscoveredObjects> setValue, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
+					JSON_Object<NV, V> dataObj = JSON_Data.getObjectValue(value, local);
+					setValue.accept(map, new DiscoveredObjects(dataObj, local));
+				});
+			}
+			
+			private static void parseGaragesData(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
+					
+					JSON_Object<NV, V> garageObject = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
+					Garage             garage       = new Garage(garageObject, map.map.originalMapID(), local_debugOutputPrefixStr);
+					
+					if (map.garage!=null)
+						System.err.printf("[GaragesData] Found more than 1 garage on 1 map: %s%n", local_debugOutputPrefixStr);
+					else
+						map.garage = garage;
+				});
+			}
+		
+			private static void parseLevelGarageStatuses(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
+					map.garageStatus = JSON_Data.getIntegerValue(value, local);
+				});
+			}
+		
+			private static void parseModTruckOnLevels(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
+					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
+					checkEmptyArray(array, local);
+				});
+			}
+		
+			private static void parseUpgradesGiverData(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
+					
+					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
+					parseObject(object2, local_debugOutputPrefixStr, (value2, upgrade, local2_debugOutputPrefixStr) -> {
+						
+						long state = JSON_Data.getIntegerValue(value2, local2_debugOutputPrefixStr);
+						if (map.upgradesGiverData.containsKey(upgrade))
+							System.err.printf("[UpgradesGiverData] Found more than 1 entry with same upgrade name in map: %s%n", local2_debugOutputPrefixStr);
+						else
+							map.upgradesGiverData.put(upgrade, state);
+					});
+				});
+			}
+		
+			private static void parseVisitedLevels(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseStringArray(maps, array, debugOutputPrefixStr, map -> {
+					map.wasVisited = true;
+				});
+			}
+		
+			private static void parseWatchPoints(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
+					
+					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
+					parseObject(object2, local_debugOutputPrefixStr, (value2, watchPointName, local2_debugOutputPrefixStr) -> {
+						
+						boolean state = JSON_Data.getBoolValue(value2, local2_debugOutputPrefixStr);
+						if (map.watchPoints.containsKey(watchPointName))
+							System.err.printf("[WatchPoints] Found more than 1 entry with same watchPoint name in map: %s%n", local2_debugOutputPrefixStr);
+						else
+							map.watchPoints.put(watchPointName, state);
+					});
+				});
+			}
+		
+			private static void parseWaypoints(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value1, local1) -> {
+					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value1, local1);
+					if (!map.waypoints.isEmpty())
+						System.err.printf("[Waypoints] Array MapInfos.waypoints is not empty as expected, because more than 1 waypoint list is stored in SaveGame: %s%n", debugOutputPrefixStr);
+					else
+						parseArray_Object(array, local1, Waypoint::new, map.waypoints);
+				});
+			}
+		
+			public static class Waypoint
+			{
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Waypoint.class)
+						.add("modelHeightBounds", JSON_Data.Value.Type.Null   )
+						.add("point"            , JSON_Data.Value.Type.Object )
+						.add("type"             , JSON_Data.Value.Type.Integer);
+				
+				public final long type;
+				public final Coord3F point;
+		
+				private Waypoint(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+				{
+					// scanJSON(object, this);
+					@SuppressWarnings("unused")
+					JSON_Data.Null modelHeightBounds;
+					JSON_Object<NV, V> point;
+					modelHeightBounds = JSON_Data.getNullValue   (object, "modelHeightBounds", debugOutputPrefixStr);
+					point             = JSON_Data.getObjectValue (object, "point"            , debugOutputPrefixStr);
+					type              = JSON_Data.getIntegerValue(object, "type"             , debugOutputPrefixStr);
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+					
+					this.point = new Coord3F(point, debugOutputPrefixStr+".point");
+				}
+			}
+		
+			public static class DiscoveredObjects
+			{
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(DiscoveredObjects.class)
+						.add("all"    , JSON_Data.Value.Type.Integer)
+						.add("current", JSON_Data.Value.Type.Integer);
+				
+				public final long all;
+				public final long current;
+				
+				private DiscoveredObjects(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+				{
+					// scanJSON(object, this);
+					all     = JSON_Data.getIntegerValue(object, "all"    , debugOutputPrefixStr);
+					current = JSON_Data.getIntegerValue(object, "current", debugOutputPrefixStr);
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+				}
+			
+				@Override public String toString() { return String.format("%d / %d", current, all); }
+			}
+		
+			public static class CargoLoadingCounts
+			{
+				public final String stationName;
+				public final HashMap<String, Long> counts;
+			
+				private CargoLoadingCounts(JSON_Object<NV, V> object, String stationName, String debugOutputPrefixStr) throws TraverseException
+				{
+					this.stationName = stationName;
+					this.counts = new HashMap<>();
+					
+					parseObject(object, debugOutputPrefixStr, (value, cargoType, local) -> {
+						long count = JSON_Data.getIntegerValue(value, local);
+						if (counts.containsKey(cargoType))
+							System.err.printf("[CargoLoadingCounts] Found more than 1 count entry with same cargoType in 1 station: %s%n", local);
+						else
+							counts.put(cargoType, count);
+					});
+				}
+			}
+		}
+
 		public static class Addon
 		{
 			private static final SpreadedValuesHelper<Addon> helper = new SpreadedValuesHelper<>(Addon::new);
@@ -1651,217 +1862,6 @@ public class SaveGameData {
 							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 						}
 					}
-				}
-			}
-		}
-
-		public static class MapInfos
-		{
-			private static final SpreadedValuesHelper<MapInfos> helper = new SpreadedValuesHelper<>(MapInfos::new);
-			
-			public final MapIndex map;
-			public boolean wasVisited = false;
-			public Garage garage = null;
-			public Long garageStatus = null;
-			public DiscoveredObjects discoveredTrucks = null;
-			public DiscoveredObjects discoveredUpgrades = null;
-			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>();
-			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>();
-			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>();
-			public final Vector<Waypoint> waypoints         = new Vector<>();
-			public final Vector<String  > discoveredObjects = new Vector<>();
-			
-			private MapInfos(String mapId)
-			{
-				this.map = MapIndex.parse(mapId);
-			}
-			
-			private static void parseCargoLoadingCounts(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name, value, local_debugOutputPrefixStr) -> {
-					
-					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
-					CargoLoadingCounts station = new CargoLoadingCounts(object2, name.secondPart, local_debugOutputPrefixStr);
-					
-					if (name.secondPart==null)
-						System.err.printf("[CargoLoadingCounts] Found a station with no name on 1 map: %s%n", local_debugOutputPrefixStr);
-					else if (map.cargoLoadingCounts.containsKey(name.secondPart))
-						System.err.printf("[CargoLoadingCounts] Found more than 1 station with same name on 1 map: %s%n", local_debugOutputPrefixStr);
-					else
-						map.cargoLoadingCounts.put(name.secondPart, station);
-				});
-			}
-		
-			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
-			{
-				// "level_us_03_01 || US_03_01_CR_WD_01"
-				helper.parseStringArray(maps, array, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name) -> {
-					if (name.secondPart==null)
-						System.err.printf("[DiscoveredObjects] Found a discovered object (\"%s\") with no name: %s%n", name.originalStr, debugOutputPrefixStr);
-					else
-						map.discoveredObjects.add(name.secondPart);
-				});
-			}
-		
-			private static void parseDiscoveredTrucks(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredTrucks = dobs, object, debugOutputPrefixStr);
-			}
-		
-			private static void parseDiscoveredUpgrades(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				parseDiscoveredObjects(maps, (map,dobs)->map.discoveredUpgrades = dobs, object, debugOutputPrefixStr);
-			}
-		
-			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, BiConsumer<MapInfos,DiscoveredObjects> setValue, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
-					JSON_Object<NV, V> dataObj = JSON_Data.getObjectValue(value, local);
-					setValue.accept(map, new DiscoveredObjects(dataObj, local));
-				});
-			}
-			
-			private static void parseGaragesData(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
-					
-					JSON_Object<NV, V> garageObject = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
-					Garage             garage       = new Garage(garageObject, map.map.originalMapID(), local_debugOutputPrefixStr);
-					
-					if (map.garage!=null)
-						System.err.printf("[GaragesData] Found more than 1 garage on 1 map: %s%n", local_debugOutputPrefixStr);
-					else
-						map.garage = garage;
-				});
-			}
-		
-			private static void parseLevelGarageStatuses(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
-					map.garageStatus = JSON_Data.getIntegerValue(value, local);
-				});
-			}
-		
-			private static void parseModTruckOnLevels(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
-					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
-					checkEmptyArray(array, local);
-				});
-			}
-		
-			private static void parseUpgradesGiverData(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
-					
-					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
-					parseObject(object2, local_debugOutputPrefixStr, (value2, upgrade, local2_debugOutputPrefixStr) -> {
-						
-						long state = JSON_Data.getIntegerValue(value2, local2_debugOutputPrefixStr);
-						if (map.upgradesGiverData.containsKey(upgrade))
-							System.err.printf("[UpgradesGiverData] Found more than 1 entry with same upgrade name in map: %s%n", local2_debugOutputPrefixStr);
-						else
-							map.upgradesGiverData.put(upgrade, state);
-					});
-				});
-			}
-		
-			private static void parseVisitedLevels(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseStringArray(maps, array, debugOutputPrefixStr, map -> {
-					map.wasVisited = true;
-				});
-			}
-		
-			private static void parseWatchPoints(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local_debugOutputPrefixStr) -> {
-					
-					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
-					parseObject(object2, local_debugOutputPrefixStr, (value2, watchPointName, local2_debugOutputPrefixStr) -> {
-						
-						boolean state = JSON_Data.getBoolValue(value2, local2_debugOutputPrefixStr);
-						if (map.watchPoints.containsKey(watchPointName))
-							System.err.printf("[WatchPoints] Found more than 1 entry with same watchPoint name in map: %s%n", local2_debugOutputPrefixStr);
-						else
-							map.watchPoints.put(watchPointName, state);
-					});
-				});
-			}
-		
-			private static void parseWaypoints(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value1, local1) -> {
-					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value1, local1);
-					if (!map.waypoints.isEmpty())
-						System.err.printf("[Waypoints] Array MapInfos.waypoints is not empty as expected, because more than 1 waypoint list is stored in SaveGame: %s%n", debugOutputPrefixStr);
-					else
-						parseArray_Object(array, local1, Waypoint::new, map.waypoints);
-				});
-			}
-		
-			public static class Waypoint
-			{
-				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Waypoint.class)
-						.add("modelHeightBounds", JSON_Data.Value.Type.Null   )
-						.add("point"            , JSON_Data.Value.Type.Object )
-						.add("type"             , JSON_Data.Value.Type.Integer);
-				
-				public final long type;
-				public final Coord3F point;
-		
-				private Waypoint(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-				{
-					// scanJSON(object, this);
-					@SuppressWarnings("unused")
-					JSON_Data.Null modelHeightBounds;
-					JSON_Object<NV, V> point;
-					modelHeightBounds = JSON_Data.getNullValue   (object, "modelHeightBounds", debugOutputPrefixStr);
-					point             = JSON_Data.getObjectValue (object, "point"            , debugOutputPrefixStr);
-					type              = JSON_Data.getIntegerValue(object, "type"             , debugOutputPrefixStr);
-					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
-					
-					this.point = new Coord3F(point, debugOutputPrefixStr+".point");
-				}
-			}
-		
-			public static class DiscoveredObjects
-			{
-				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(DiscoveredObjects.class)
-						.add("all"    , JSON_Data.Value.Type.Integer)
-						.add("current", JSON_Data.Value.Type.Integer);
-				
-				public final long all;
-				public final long current;
-				
-				private DiscoveredObjects(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-				{
-					// scanJSON(object, this);
-					all     = JSON_Data.getIntegerValue(object, "all"    , debugOutputPrefixStr);
-					current = JSON_Data.getIntegerValue(object, "current", debugOutputPrefixStr);
-					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
-				}
-			
-				@Override public String toString() { return String.format("%d / %d", current, all); }
-			}
-		
-			public static class CargoLoadingCounts
-			{
-				public final String stationName;
-				public final HashMap<String, Long> counts;
-			
-				private CargoLoadingCounts(JSON_Object<NV, V> object, String stationName, String debugOutputPrefixStr) throws TraverseException
-				{
-					this.stationName = stationName;
-					this.counts = new HashMap<>();
-					
-					parseObject(object, debugOutputPrefixStr, (value, cargoType, local) -> {
-						long count = JSON_Data.getIntegerValue(value, local);
-						if (counts.containsKey(cargoType))
-							System.err.printf("[CargoLoadingCounts] Found more than 1 count entry with same cargoType in 1 station: %s%n", local);
-						else
-							counts.put(cargoType, count);
-					});
 				}
 			}
 		}

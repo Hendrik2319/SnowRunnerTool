@@ -37,6 +37,7 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos.CargoLoadingCounts;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos.Waypoint;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.InstalledAddon;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
@@ -723,6 +724,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override protected String getOutputTextForRow(int rowIndex, Objective row)
 		{
 			ValueListOutput out = new ValueListOutput();
+			
 			if (!row.savedCargoNeedToBeRemovedOnRestart.isEmpty())
 			{
 				out.add(0, "Saved Cargo Need To Be Removed On Restart:");
@@ -734,7 +736,157 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 						out.add(2, name);
 				}
 			}
+			
+			if (row.objectiveStates!=null)
+			{
+				out.addEmptyLine();
+				writeArray(out, 0, "Stages", row.objectiveStates.stagesState, "Stage", this::write);
+			}
+			
 			return out.generateOutput();
+		}
+
+		private interface WriteArrayItemFcn<ValueType>
+		{
+			void write(ValueListOutput out, int indentLevel, int index, ValueType value);
+		}
+
+		private interface WriteArrayItemFcn2<ValueType>
+		{
+			void write(ValueListOutput out, int indentLevel, String label, ValueType value);
+		}
+
+		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, List<ValueType> array, WriteArrayItemFcn<ValueType> writeFcn)
+		{
+			writeArray(out, indentLevel, label, false, array, writeFcn);
+		}
+
+		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, boolean showEmptyArrays, List<ValueType> array, WriteArrayItemFcn<ValueType> writeFcn)
+		{
+			if (array==null) return;
+			if (!showEmptyArrays && array.isEmpty()) return;
+			out.add(indentLevel, label, array.size());
+			for (int i=0; i<array.size(); i++)
+				writeFcn.write(out, indentLevel+1, i, array.get(i));
+		}
+
+		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, List<ValueType> array, String itemLabel, WriteArrayItemFcn2<ValueType> writeFcn)
+		{
+			writeArray(out, indentLevel, label, false, array, itemLabel, writeFcn);
+		}
+
+		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, boolean showEmptyArrays, List<ValueType> array, String itemLabel, WriteArrayItemFcn2<ValueType> writeFcn)
+		{
+			if (array==null) return;
+			if (!showEmptyArrays && array.isEmpty()) return;
+			out.add(indentLevel, label, array.size());
+			for (int i=0; i<array.size(); i++)
+				writeFcn.write(out, indentLevel+1, String.format("%d. %s", i+1, itemLabel), array.get(i));
+		}
+
+		private static void write(ValueListOutput out, int indentLevel, int index, String str)
+		{
+			out.add(indentLevel, String.format("[%d]", index+1), str);
+		}
+
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState stage)
+		{
+			if (stage==null) return;
+			
+			out.add   (     indentLevel  , label);
+			write     (out, indentLevel+1, "VisitAllZonesState"  , stage.visitAllZonesState);
+			writeArray(out, indentLevel+1, "CargoDeliveryActions", stage.cargoDeliveryActions, "CargoDeliveryAction", this::write);
+			writeArray(out, indentLevel+1, "CargoSpawnStates"    , stage.cargoSpawnState     , "CargoSpawnState"    , this::write);
+			writeArray(out, indentLevel+1, "TruckDeliveryStates" , stage.truckDeliveryStates , "TruckDeliveryState" , this::write);
+			writeArray(out, indentLevel+1, "TruckRepairStates"   , stage.truckRepairStates   , "TruckRepairState"   , this::write);
+		}
+		
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState data)
+		{
+			if (data==null) return;
+			
+			out.add   (     indentLevel  , label);
+			out.add   (     indentLevel+1, "Map"       , data.map);
+			writeArray(out, indentLevel+1, "ZoneStates", data.zoneStates, "ZoneState", this::write);
+		}
+		
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState.ZoneState data)
+		{
+			if (data==null) return;
+			
+			out.add(indentLevel  , label);
+			out.add(indentLevel+1, "Zone"                       , data.zone                   );
+			out.add(indentLevel+1, "Truck UID"                  , data.truckUid               );
+			out.add(indentLevel+1, "Is Visited"                 , data.isVisited              , "Yes", "No");
+			out.add(indentLevel+1, "Is Visit With Certain Truck", data.isVisitWithCertainTruck, "Yes", "No");
+		}
+		
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction data)
+		{
+			if (data==null) return;
+			
+			out.add   (     indentLevel  , label);
+			out.add   (     indentLevel+1, "Map"               , data.map               );
+			out.add   (     indentLevel+1, "Platform ID"       , data.platformId        );
+			out.add   (     indentLevel+1, "Truck UID"         , data.truckUid          );
+			out.add   (     indentLevel+1, "Visit On Truck"    , data.isNeedVisitOnTruck, "Needed", "Not Needed");
+			out.add   (     indentLevel+1, "Model Building Tag", data.modelBuildingTag  );
+			out.add   (     indentLevel+1, "Unloading Mode"    , data.unloadingMode     );
+			writeArray(out, indentLevel+1, "Zones"             , data.zones, ObjectiveTableModel::write);
+			write     (out, indentLevel+1, "CargoState"        , data.cargoState);
+		}
+		
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction.CargoState data)
+		{
+			if (data==null) return;
+			out.add(indentLevel  , label);
+			out.add(indentLevel+1, String.format("%d/%d <%s>", data.curValue, data.aimValue, data.type));
+		}
+		
+
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState data)
+		{
+			if (data==null) return;
+			out.add   (     indentLevel  , label);
+			out.add   (     indentLevel+1, "Spawned", data.spawned, "Yes", "No");
+			out.add   (     indentLevel+1, "Metall Detector", data.needToBeDiscoveredByMetallodetector, "Needed", "Not Needed");
+			writeArray(out, indentLevel+1, "Cargos" , data.cargos , this::write);
+			write     (out, indentLevel+1, "Zone"   , data.zone   );
+		}
+
+		private void write(ValueListOutput out, int indentLevel, int index, StagesState.CargoSpawnState.Cargo data)
+		{
+			if (data==null) return;
+			out.add(indentLevel  , String.format("%dx <%s>", data.count, data.name));
+		}
+
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState.Zone data)
+		{
+			if (data==null) return;
+			out.add(indentLevel  , label);
+			out.add(indentLevel+1, "Map"           , data.map         );
+			out.add(indentLevel+1, "Zone Local"    , data.zoneLocal   );
+			out.add(indentLevel+1, "Cached"        , data.cached      , "Yes", "No");
+			out.add(indentLevel+1, "Global Zone ID", data.globalZoneId);
+		}
+
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckDeliveryState data)
+		{
+			if (data==null) return;
+			out.add   (     indentLevel  , label);
+			out.add   (     indentLevel+1, "Map"           , data.mapDelivery  );
+			out.add   (     indentLevel+1, "Truck ID"      , data.truckId      );
+			out.add   (     indentLevel+1, "Is Delivered"  , data.isDelivered  , "Yes", "No");
+			writeArray(out, indentLevel+1, "Delivery Zones", data.deliveryZones, ObjectiveTableModel::write);
+		}
+
+		private void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckRepairState data)
+		{
+			if (data==null) return;
+			out.add(indentLevel  , label);
+			out.add(indentLevel+1, "Truck ID"   , data.truckId   );
+			out.add(indentLevel+1, "Is Repaired", data.isRepaired, "Yes", "No");
+			out.add(indentLevel+1, "Is Refueled", data.isRefueled, "Yes", "No");
 		}
 	}
 }
