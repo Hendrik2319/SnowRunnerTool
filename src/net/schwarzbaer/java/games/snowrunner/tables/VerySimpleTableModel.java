@@ -1236,7 +1236,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						if (filter instanceof Filter.NumberFilter) {
 							Filter.NumberFilter<?> numberFilter = (Filter.NumberFilter<?>) filter;
 							if (this.filter.valueClass!=numberFilter.valueClass)
-								throw new IllegalStateException();
+								throw new IllegalStateException(String.format("filter.valueClass(%s) != numberFilter.valueClass(%s)", this.filter.valueClass, numberFilter.valueClass));
 							this.filter.min = this.filter.valueClass.cast(numberFilter.min);
 							this.filter.max = this.filter.valueClass.cast(numberFilter.max);
 							fldMin.setText(toString.apply(this.filter.min));

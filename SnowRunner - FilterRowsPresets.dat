@@ -8,5 +8,5 @@ TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
 Preset=Owned Offroad Truck
 Filter=AWDUser:true:true:EnumFilter:ItemStat:Able,Installed,Permanent
 Filter=DLUser:true:true:EnumFilter:ItemStat:Able,Installed,Permanent
-Filter=Owned:true:false:NumberFilter:Integer:1:10000
+Filter=Owned:true:false:NumberFilter:Long:1:10000
 
