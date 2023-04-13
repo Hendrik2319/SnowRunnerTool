@@ -70,7 +70,6 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckImages;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
@@ -96,14 +95,12 @@ class TruckPanelProto implements Finalizable {
 	private Truck truck;
 	private SaveGame saveGame;
 	private AddonCategories addonCategories;
-	private SnowRunner.DLCs dlcs;
-	private final TruckImages truckImages;
+	private final GlobalFinalDataStructures gfds;
 
 	TruckPanelProto(Window mainWindow, GlobalFinalDataStructures gfds) {
-		this.truckImages = gfds.truckImages;
+		this.gfds = gfds;
 		language = null;
 		truck = null;
-		dlcs = null;
 		saveGame = null;
 		finalizer = gfds.controllers.createNewFinalizer();
 		
@@ -133,16 +130,10 @@ class TruckPanelProto implements Finalizable {
 			this.saveGame = saveGame;
 			updateOutput();
 		});
-		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
-			@Override public void updateAfterChange() {
-				updateOutput();
-			}
-			@Override public void setDLCs(SnowRunner.DLCs dlcs) {
-				TruckPanelProto.this.dlcs = dlcs;
-				updateOutput();
-			}
-		});
-		finalizer.addDataReceiver(data->{
+		finalizer.addDLCListener(() ->
+			updateOutput()
+		);
+		finalizer.addDataReceiver(data -> {
 			addonCategories = data==null ? null : data.addonCategories;
 			updateOutput();
 		});
@@ -200,7 +191,7 @@ class TruckPanelProto implements Finalizable {
 
 	private void updateTruckImage()
 	{
-		BufferedImage image = truck==null ? null : truckImages.get(truck.id);
+		BufferedImage image = truck==null ? null : gfds.truckImages.get(truck.id);
 		truckImageView.setImage(image);
 		truckImageView.setZoom(1);
 	}
@@ -225,8 +216,8 @@ class TruckPanelProto implements Finalizable {
 		if (truck.updateLevel!=null)
 			outTop.add(0, "Update Level", truck.updateLevel);
 		
-		if (dlcs!=null && truck.id!=null) {
-			String dlc = dlcs.getDLCofTruck(truck.id);
+		if (truck.id!=null) {
+			String dlc = gfds.dlcs.getDLCofTruck(truck.id);
 			if (dlc!=null)
 				outTop.add(0, "DLC", dlc);
 		}

@@ -35,7 +35,6 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
 	private TruckAddon clickedItem;
-	private final SpecialTruckAddons specialTruckAddons;
 	private SaveGame saveGame;
 	
 	public TruckAddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData) {
@@ -84,7 +83,6 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				new ColumnID("CargSType","Cargo Addon SubType"     ,  String.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.cargoAddonSubtype),
 				new ColumnID("UsableBy" ,"Usable By"               ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((TruckAddon)row).usableBy, lang)),
 		}));
-		this.specialTruckAddons = gfds.specialTruckAddons;
 		
 		clickedItem = null;
 		truckAddons = null;
@@ -111,7 +109,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		coloring.addBackgroundRowColorizer(addon->{
 			if (enableSpecialTruckAddonsHighlighting)
 				for (SpecialTruckAddons.AddonCategory listID : SpecialTruckAddons.AddonCategory.values()) {
-					SpecialTruckAddonList list = this.specialTruckAddons.getList(listID);
+					SpecialTruckAddonList list = gfds.specialTruckAddons.getList(listID);
 					if (list.contains(addon)) return COLOR_SPECIALTRUCKADDON;
 				}
 			return null;
@@ -189,7 +187,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			
 			JCheckBoxMenuItem  mi = SnowRunner.createCheckBoxMenuItem(listLabel, false, null, true, ()->{
 				if (clickedItem==null) return;
-				SpecialTruckAddonList addonList = specialTruckAddons.getList(list);
+				SpecialTruckAddonList addonList = gfds.specialTruckAddons.getList(list);
 				if (addonList.contains(clickedItem))
 					addonList.remove(clickedItem);
 				else
@@ -215,7 +213,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			
 			if (clickedItem!=null)
 				menuItems.forEach((list,mi)->{
-					SpecialTruckAddonList addonList = specialTruckAddons.getList(list);
+					SpecialTruckAddonList addonList = gfds.specialTruckAddons.getList(list);
 					mi.setSelected(addonList.contains(clickedItem));
 					mi.setEnabled(list.isAllowed==null || list.isAllowed.test(clickedItem));
 				});

@@ -25,13 +25,11 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
-import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckImages;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.VerboseTableModelBasedBuilder;
 import net.schwarzbaer.system.ClipboardTools;
@@ -57,22 +55,18 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	
 	private Data data;
 	private SaveGame saveGame;
-	private SnowRunner.DLCs dlcs;
 	private Truck clickedItem;
-	private final UserDefinedValues userDefinedValues;
-	private final SpecialTruckAddons specialTruckAddons;
 	private Function<Truck, Color> colorizeTrucksByTrailers;
-	private final TruckImages truckImages;
 
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
 		super(mainWindow, gfds, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "UpdateLvl", "Update Level"         ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
-				new ColumnID( "DLC"      , "DLC"                  ,               String.class, 170,             null,   null,      null, false, (row,model) -> getDLC(row,model)),
+				new ColumnID( "DLC"      , "DLC"                  ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLCofTruck(((Truck)row).id)),
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
-				new ColumnID(ID_HasImage , "Image"                ,              Boolean.class,  40,             null,   null,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.truckImages.contains(truck_.id))),
+				new ColumnID(ID_HasImage , "Image"                ,              Boolean.class,  40,             null,   null,      null, false, (row,model) -> gfds.truckImages.contains(((Truck)row).id)),
 				new ColumnID( "OwnedBool", "Owned"                ,              Boolean.class,  45,             null,   null,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null : 0 < model_.saveGame.getOwnedTruckCount(truck_))),
 				new ColumnID( "Owned"    , "Owned"                ,                 Long.class,  45,             null, CENTER,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null :     model_.saveGame.getOwnedTruckCount(truck_))),
 				new ColumnID( "InWareHs" , "In Warehouse"         ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
@@ -120,10 +114,6 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "ExclAddon", "Exclude Addons"       ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludeAddons,true)),
 		//		new ColumnID( "Recall"   , "Recallable"           ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable_obsolete),
 		});
-		this.specialTruckAddons = gfds.specialTruckAddons;
-		this.truckImages = gfds.truckImages;
-		this.dlcs = null; // TODO: dlcs
-		this.userDefinedValues = gfds.userDefinedValues;
 		this.data = null;
 		this.saveGame = null;
 		colorizeTrucksByTrailers = null;
@@ -182,16 +172,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				fireTableColumnUpdate(findColumnByID(id));
 		});
 		
-		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
-			@Override public void updateAfterChange() {
-				fireTableColumnUpdate("DLC");
-			}
-			@Override public void setDLCs(SnowRunner.DLCs dlcs) {
-				TruckTableModel.this.dlcs = dlcs;
-				fireTableColumnUpdate("DLC");
-			}
-		});
-		
+		finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
 		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
 	}
 
@@ -230,20 +211,18 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private static TableModelBasedBuilder<Data.Capability> createIsCapableFcn(SpecialTruckAddons.AddonCategory listID) {
 		return (row,model) -> castNCall(row, model, (truck_, model_) -> {
 			if (model_.data==null) return null;
-			if (model_.specialTruckAddons==null) return null;
 			if (listID==null) return null;
 			
-			return model_.data.isCapable(truck_, listID, model_.specialTruckAddons, null);
+			return model_.data.isCapable(truck_, listID, model_.gfds.specialTruckAddons, null);
 		});
 	}
 
 	private static VerboseTableModelBasedBuilder<Data.Capability> createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory listID) {
 		return (row,model,textOutput) -> castNCall(row, model, (truck_, model_) -> {
 			if (model_.data==null) return null;
-			if (model_.specialTruckAddons==null) return null;
 			if (listID==null) return null;
 			
-			return model_.data.isCapable(truck_, listID, model_.specialTruckAddons, textOutput);
+			return model_.data.isCapable(truck_, listID, model_.gfds.specialTruckAddons, textOutput);
 		});
 	}
 
@@ -252,25 +231,17 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		return castNCall(row, model, (truck_, model_) -> {
 			if (truck_.gameData.isCargoCarrier)
 			{
-				Data.Capability canMiniCrane = model_.data.isCapable(truck_, SpecialTruckAddons.AddonCategory.MiniCrane, model_.specialTruckAddons, null);
+				Data.Capability canMiniCrane = model_.data.isCapable(truck_, SpecialTruckAddons.AddonCategory.MiniCrane, model_.gfds.specialTruckAddons, null);
 				return canMiniCrane==null ? null : canMiniCrane.isCapable;
 			}
 			
-			SpecialTruckAddons.SpecialTruckAddonList list = model_.specialTruckAddons.getList(SpecialTruckAddons.AddonCategory.MiniCrane);
+			SpecialTruckAddons.SpecialTruckAddonList list = model_.gfds.specialTruckAddons.getList(SpecialTruckAddons.AddonCategory.MiniCrane);
 			Vector<String> miniCraneIDs = new Vector<>();
 			list.forEach(miniCraneIDs::add);
 			return model_.data.canTruckCombineWithCompatibleAddon(truck_, miniCraneIDs, addon -> addon.gameData.isCargoCarrier);
 		});
 	}
 
-	private static String getDLC(Object row, VerySimpleTableModel<?> model)
-	{
-		return castNCall(row, model, (truck_, model_) -> {
-			if (model_.dlcs==null) return null;
-			return model_.dlcs.getDLCofTruck(truck_.id);
-		});
-	}
-	
 	private static Integer getTrucksInWarehouse(Object row, VerySimpleTableModel<?> model, TextOutput textOutput)
 	{
 		return castNCall(row, model, (truck_, model_) -> {
@@ -401,14 +372,14 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		Truck row = getRow(rowIndex);
 		if (row==null) return;
 		
-		Truck.UDV values = userDefinedValues.getOrCreateTruckValues(row.id);
+		Truck.UDV values = gfds.userDefinedValues.getOrCreateTruckValues(row.id);
 		
 		switch (columnID.editMarker) {
 		case UD_AWD     : values.realAWD      = (Truck.UDV.ItemState)aValue; break;
 		case UD_DiffLock: values.realDiffLock = (Truck.UDV.ItemState)aValue; break;
 		}
 		
-		userDefinedValues.write();
+		gfds.userDefinedValues.write();
 	}
 
 	@Override protected String getRowName(Truck row)
@@ -427,13 +398,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		contextMenu.addSeparator();
 		
 		JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign truck to an official DLC", true, e->{
-			if (clickedItem==null || dlcs==null) return;
+			if (clickedItem==null) return;
 			AssignToDLCDialog dlg = new AssignToDLCDialog(
 					mainWindow,
 					SnowRunner.DLCs.ItemType.Truck,
 					clickedItem.id,
 					SnowRunner.getTruckLabel(clickedItem,language),
-					dlcs
+					gfds.dlcs
 			);
 			boolean assignmentsChanged = dlg.showDialog();
 			if (assignmentsChanged)
@@ -448,7 +419,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			else
 			{
 				String truckID = clickedItem.id;
-				truckImages.set(truckID, image);
+				gfds.truckImages.set(truckID, image);
 				gfds.controllers.truckImagesListeners.imageHasChanged(truckID);
 				fireTableColumnUpdate(ID_HasImage);
 			}
@@ -474,7 +445,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
 			clickedItem = rowM<0 ? null : getRow(rowM);
 			
-			miAssignToDLC.setEnabled(clickedItem!=null && dlcs!=null);
+			miAssignToDLC.setEnabled(clickedItem!=null);
 			miAssignToDLC.setText(
 				clickedItem==null
 				? "Assign truck to an official DLC"

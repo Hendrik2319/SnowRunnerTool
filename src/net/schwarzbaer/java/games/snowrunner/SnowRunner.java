@@ -246,7 +246,6 @@ public class SnowRunner {
 		gfds.userDefinedValues.read();
 		gfds.specialTruckAddons.readFromFile();
 		gfds.dlcs.loadStoredData();
-		gfds.controllers.dlcListeners.setDLCs(gfds.dlcs);
 		
 		if (loadInitialPAK()) updateAfterDataChange();
 		reloadSaveGameData();
@@ -1006,7 +1005,6 @@ public class SnowRunner {
 	public static class DLCs extends Initializable
 	{
 		public interface Listener {
-			void setDLCs(DLCs dlcs);
 			void updateAfterChange();
 		}
 		
@@ -1466,18 +1464,18 @@ public class SnowRunner {
 		private final JList<Truck> truckList;
 		private final Finalizer finalizer;
 		private final StandardMainWindow mainWindow;
-		private DLCs dlcs;
 		private Data data;
+		private final GlobalFinalDataStructures gfds;
 		
 		TrucksListPanel(StandardMainWindow mainWindow, GlobalFinalDataStructures gfds) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
-			this.finalizer = gfds.controllers.createNewFinalizer();
-			this.dlcs = null;
+			this.gfds = gfds;
+			this.finalizer = this.gfds.controllers.createNewFinalizer();
 			this.data = null;
 			setResizeWeight(0);
 			
-			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, gfds);
+			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, this.gfds);
 			finalizer.addSubComp(truckPanelProto);
 			JSplitPane splitPaneFromTruckPanel = truckPanelProto.createSplitPane();
 			splitPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
@@ -1493,7 +1491,7 @@ public class SnowRunner {
 				truckList.setListData(items);
 			});
 			
-			TruckListContextMenu truckListContextMenu = new TruckListContextMenu(gfds);
+			TruckListContextMenu truckListContextMenu = new TruckListContextMenu();
 			finalizer.addLanguageListener(truckListContextMenu);
 			
 			TruckListCellRenderer truckListCellRenderer = new TruckListCellRenderer(truckList);
@@ -1503,13 +1501,6 @@ public class SnowRunner {
 			
 			setLeftComponent(truckListScrollPane);
 			setRightComponent(splitPaneFromTruckPanel);
-			
-			finalizer.addDLCListener(new DLCs.Listener() {
-				@Override public void updateAfterChange() {}
-				@Override public void setDLCs(DLCs dlcs) {
-					TrucksListPanel.this.dlcs = dlcs;
-				}
-			});
 		}
 		
 		@Override public void prepareRemovingFromGUI() {
@@ -1523,7 +1514,7 @@ public class SnowRunner {
 			private Truck clickedItem;
 			private Language language;
 		
-			TruckListContextMenu(GlobalFinalDataStructures gfds) {
+			TruckListContextMenu() {
 				clickedIndex = -1;
 				clickedItem = null;
 				language = null;
@@ -1531,13 +1522,13 @@ public class SnowRunner {
 				addTo(truckList);
 				
 				JMenuItem miAssignToDLC = add(createMenuItem("Assign truck to an official DLC", true, e->{
-					if (clickedItem==null || dlcs==null) return;
+					if (clickedItem==null) return;
 					AssignToDLCDialog dlg = new AssignToDLCDialog(
 							mainWindow,
 							DLCs.ItemType.Truck,
 							clickedItem.id,
 							getTruckLabel(clickedItem,language),
-							dlcs
+							gfds.dlcs
 					);
 					boolean assignmentsChanged = dlg.showDialog();
 					if (assignmentsChanged)
@@ -1767,11 +1758,6 @@ public class SnowRunner {
 		}
 
 		public static class DLCAssignmentController extends AbstractController<DLCs.Listener> implements DLCs.Listener {
-			
-			@Override public void setDLCs(DLCs dlcs) {
-				for (int i=0; i<listeners.size(); i++)
-					listeners.get(i).setDLCs(dlcs);
-			}
 			@Override public void updateAfterChange() {
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).updateAfterChange();

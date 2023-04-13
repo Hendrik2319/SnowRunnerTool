@@ -61,7 +61,6 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
@@ -120,11 +119,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					case Data    : break; // --> connectToGlobalData
 					case Language: break; // --> some lines above :)
 					case DLCAssignment:
-						finalizer.addDLCListener(new DLCs.Listener()
-						{
-							@Override public void updateAfterChange() { clearCacheOfColumns(ColumnID.Update.DLCAssignment); }
-							@Override public void setDLCs(DLCs dlcs) { clearCacheOfColumns(ColumnID.Update.DLCAssignment); }
-						});
+						finalizer.addDLCListener(() ->
+							clearCacheOfColumns(ColumnID.Update.DLCAssignment)
+						);
 						break;
 					case SaveGame:
 						finalizer.addSaveGameListener(savegame -> {
@@ -132,8 +129,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						});
 						break;
 					case SpecialTruckAddons:
-						finalizer.addSpecialTruckAddonsListener((category, change) ->
-						{
+						finalizer.addSpecialTruckAddonsListener((category, change) -> {
 							clearCacheOfColumns(ColumnID.Update.SpecialTruckAddons);
 						});
 						break;

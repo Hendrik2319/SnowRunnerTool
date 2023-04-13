@@ -20,14 +20,14 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	private final Finalizer finalizer;
 	private final Vector<RowItem> rows;
 	private Language language;
-	private SnowRunner.DLCs dlcs;
 	private Data data;
 	private SaveGame savegame;
+	private final GlobalFinalDataStructures gfds;
 
 	public DLCTableModel(GlobalFinalDataStructures gfds) {
 		super(ColumnID.values());
+		this.gfds = gfds;
 		language = null;
-		dlcs = null;
 		data = null;
 		rows = new Vector<>();
 		
@@ -36,15 +36,9 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 			this.language = language;
 			fireTableUpdate();
 		});
-		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
-			@Override public void setDLCs(SnowRunner.DLCs dlcs) {
-				DLCTableModel.this.dlcs = dlcs;
-				rebuildRows();
-			}
-			@Override public void updateAfterChange() {
-				rebuildRows();
-			}
-		});
+		finalizer.addDLCListener(() ->
+			rebuildRows()
+		);
 		finalizer.addDataReceiver(data->{
 			this.data = data;
 			rebuildRows();
@@ -61,13 +55,13 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	
 	private void rebuildRows() {
 		HashSet<String> truckIDs = new HashSet<>();
-		if (dlcs!=null) truckIDs.addAll(dlcs.getTruckIDs());
+		truckIDs.addAll(gfds.dlcs.getTruckIDs());
 		if (data!=null) truckIDs.addAll(data.trucks.keySet());
 		Vector<String> sortedTruckIDs = new Vector<>(truckIDs);
 		sortedTruckIDs.sort(null);
 		
 		HashSet<String> mapIDs = new HashSet<>();
-		if (dlcs    !=null) mapIDs.addAll(dlcs.getMapIDs());
+		mapIDs.addAll(gfds.dlcs.getMapIDs());
 		if (savegame!=null) mapIDs.addAll(savegame.maps.keySet());
 		Vector<String> sortedMapIDs = new Vector<>(mapIDs);
 		sortedMapIDs.sort(null);
@@ -76,14 +70,14 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		for (String truckID : sortedTruckIDs) {
 			Truck truck = data==null ? null : data.trucks.get(truckID);
 			String updateLevel = truck==null ? null : truck.updateLevel==null ? "<Launch>" : truck.updateLevel;
-			String dlc = dlcs==null ? null : dlcs.getDLCofTruck(truckID);
+			String dlc = gfds.dlcs.getDLCofTruck(truckID);
 			if ((updateLevel!=null && !updateLevel.equals("<Launch>")) || dlc!=null)
 				rows.add(new RowItem(updateLevel, dlc, truckID, null));
 		}
 		for (String mapID : sortedMapIDs) {
 			//SaveGame.MapInfos map = savegame==null ? null : savegame.maps.get(mapID);
 			String updateLevel = null;
-			String dlc = dlcs==null ? null : dlcs.getDLCofMap(mapID);
+			String dlc = gfds.dlcs.getDLCofMap(mapID);
 			if (dlc!=null)
 				rows.add(new RowItem(updateLevel, dlc, null, Data.MapIndex.parse(mapID)));
 		}

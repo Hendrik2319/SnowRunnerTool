@@ -43,7 +43,6 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.Ins
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
@@ -432,7 +431,6 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	private static class MapTableModel extends ExtendedVerySimpleTableModelTAOS<MapInfos> implements SplitPaneConfigurator
 	{
 		private MapInfos clickedItem;
-		protected DLCs dlcs;
 		private Data data;
 
 		MapTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
@@ -451,15 +449,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			clickedItem = null;
 			data = null;
 			
-			finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
-				@Override public void updateAfterChange() {
-					fireTableColumnUpdate("DLC");
-				}
-				@Override public void setDLCs(SnowRunner.DLCs dlcs) {
-					MapTableModel.this.dlcs = dlcs;
-					fireTableColumnUpdate("DLC");
-				}
-			});
+			finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
 		}
 		
 		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,MapTableModel,MapInfos> getFunction)
@@ -471,8 +461,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		{
 			if (row==null) return null;
 			if (model==null) return null;
-			if (model.dlcs==null) return null;
-			return model.dlcs.getDLCofMap(row.map.originalMapID());
+			return model.gfds.dlcs.getDLCofMap(row.map.originalMapID());
 		}
 
 		void setData(Data data)
@@ -500,7 +489,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			contextMenu.addSeparator();
 			
 			JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign map to an official DLC", true, e->{
-				if (clickedItem==null || dlcs==null) return;
+				if (clickedItem==null) return;
 				
 				String label = language.regionNames.getNameForMap(clickedItem.map, ()->"<"+clickedItem.map.originalMapID()+">");
 				AssignToDLCDialog dlg = new AssignToDLCDialog(
@@ -508,7 +497,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 						SnowRunner.DLCs.ItemType.Map,
 						clickedItem.map.originalMapID(),
 						label,
-						dlcs
+						gfds.dlcs
 				);
 				boolean assignmentsChanged = dlg.showDialog();
 				if (assignmentsChanged)
@@ -521,7 +510,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
 				clickedItem = rowM<0 ? null : getRow(rowM);
 				
-				miAssignToDLC.setEnabled(clickedItem!=null && dlcs!=null);
+				miAssignToDLC.setEnabled(clickedItem!=null);
 				
 				miAssignToDLC.setText(
 					clickedItem==null
