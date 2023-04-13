@@ -44,7 +44,6 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
@@ -452,7 +451,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			clickedItem = null;
 			data = null;
 			
-			finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+			finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
 				@Override public void updateAfterChange() {
 					fireTableColumnUpdate("DLC");
 				}
@@ -513,7 +512,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				);
 				boolean assignmentsChanged = dlg.showDialog();
 				if (assignmentsChanged)
-					finalizer.getControllers().dlcAssignmentListeners.updateAfterChange();
+					finalizer.getControllers().dlcListeners.updateAfterChange();
 			}));
 			
 			contextMenu.addContextMenuInvokeListener((table, x, y) -> {

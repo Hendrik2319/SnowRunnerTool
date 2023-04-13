@@ -14,7 +14,6 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 
 public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements Finalizable {
 
@@ -37,7 +36,7 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 			this.language = language;
 			fireTableUpdate();
 		});
-		finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
 			@Override public void setDLCs(SnowRunner.DLCs dlcs) {
 				DLCTableModel.this.dlcs = dlcs;
 				rebuildRows();

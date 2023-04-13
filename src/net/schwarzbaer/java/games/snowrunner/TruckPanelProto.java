@@ -17,6 +17,7 @@ import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.Window;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -45,6 +46,7 @@ import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
+import net.schwarzbaer.gui.ImageView;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnIDInterface;
@@ -69,7 +71,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckImages;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
@@ -84,6 +86,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.Extende
 class TruckPanelProto implements Finalizable {
 	
 	private final Finalizer finalizer;
+	private final ImageView truckImageView;
 	private final JTextArea truckInfoTextArea;
 	private final JScrollPane truckInfoTextAreaScrollPane;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
@@ -95,13 +98,17 @@ class TruckPanelProto implements Finalizable {
 	private SaveGame saveGame;
 	private AddonCategories addonCategories;
 	private SnowRunner.DLCs dlcs;
+	private final TruckImages truckImages;
 
-	TruckPanelProto(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+	TruckPanelProto(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, TruckImages truckImages) {
+		this.truckImages = truckImages;
 		language = null;
 		truck = null;
 		dlcs = null;
 		saveGame = null;
 		finalizer = controllers.createNewFinalizer();
+		
+		truckImageView = new ImageView(300,300);
 		
 		truckInfoTextArea = new JTextArea();
 		truckInfoTextArea.setEditable(false);
@@ -127,7 +134,7 @@ class TruckPanelProto implements Finalizable {
 			this.saveGame = saveGame;
 			updateOutput();
 		});
-		finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
 			@Override public void updateAfterChange() {
 				updateOutput();
 			}
@@ -140,8 +147,14 @@ class TruckPanelProto implements Finalizable {
 			addonCategories = data==null ? null : data.addonCategories;
 			updateOutput();
 		});
+		finalizer.addTruckImagesListener(truckID ->  {
+			if (truck==null) return;
+			if (!truck.id.equals(truckID)) return;
+			updateTruckImage();
+		});
 		
 		updateOutput();
+		updateTruckImage();
 	}
 	
 	@Override public void prepareRemovingFromGUI() {
@@ -152,6 +165,7 @@ class TruckPanelProto implements Finalizable {
 		
 		JTabbedPane tabbedPanel = new JTabbedPane();
 		tabbedPanel.addTab("General Infos", truckInfoTextAreaScrollPane);
+		tabbedPanel.addTab("Image", truckImageView);
 		addStandardTabsTo(tabbedPanel);
 		
 		return tabbedPanel;
@@ -181,7 +195,15 @@ class TruckPanelProto implements Finalizable {
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
 		addonsPanel2         .setData(truck, data);
+		updateTruckImage();
 		updateOutput();
+	}
+
+	private void updateTruckImage()
+	{
+		BufferedImage image = truck==null ? null : truckImages.get(truck.id);
+		truckImageView.setImage(image);
+		truckImageView.setZoom(1);
 	}
 
 	private void updateOutput() {

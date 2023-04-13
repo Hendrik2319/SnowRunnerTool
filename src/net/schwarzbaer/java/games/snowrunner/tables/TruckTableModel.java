@@ -3,6 +3,7 @@ package net.schwarzbaer.java.games.snowrunner.tables;
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.Window;
+import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -12,6 +13,7 @@ import java.util.function.Function;
 
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JTable;
 
 import net.schwarzbaer.gui.Tables;
@@ -27,11 +29,12 @@ import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckImages;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.VerboseTableModelBasedBuilder;
+import net.schwarzbaer.system.ClipboardTools;
 
 public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
@@ -40,7 +43,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
 	private static boolean enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
-	private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);  
+	private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);
+	private static final String ID_HasImage  = "HasImage" ;
 	private static final String ID_MetalD    = "MetalD"   ;
 	private static final String ID_Seismic   = "Seismic"  ;
 	private static final String ID_BigCrane  = "BigCrane" ;
@@ -58,8 +62,9 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private final UserDefinedValues userDefinedValues;
 	private final SpecialTruckAddons specialTruckAddons;
 	private Function<Truck, Color> colorizeTrucksByTrailers;
+	private final TruckImages truckImages;
 
-	public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv) {
+	public TruckTableModel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddons, UserDefinedValues udv, TruckImages truckImages) {
 		super(mainWindow, controllers, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                   ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "UpdateLvl", "Update Level"         ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
@@ -67,8 +72,9 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
-				new ColumnID( "OwnedBool", "Owned"                ,              Boolean.class,  50,             null,   null,      null, false, (row,model) -> isOwned(row,model)),
-				new ColumnID( "Owned"    , "Owned"                ,                 Long.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount(row,model)),
+				new ColumnID(ID_HasImage , "Image"                ,              Boolean.class,  40,             null,   null,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.truckImages.contains(truck_.id))),
+				new ColumnID( "OwnedBool", "Owned"                ,              Boolean.class,  45,             null,   null,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null : 0 < model_.saveGame.getOwnedTruckCount(truck_))),
+				new ColumnID( "Owned"    , "Owned"                ,                 Long.class,  45,             null, CENTER,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null :     model_.saveGame.getOwnedTruckCount(truck_))),
 				new ColumnID( "InWareHs" , "In Warehouse"         ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
 				new ColumnID( "InGarage" , "In Garage"            ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, null), (row, model, textOutput) -> getTrucksInGarage   (row, model, textOutput)),
 				new ColumnID( "DLData"   , "DiffLock (from Data)" ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
@@ -115,6 +121,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		//		new ColumnID( "Recall"   , "Recallable"           ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable_obsolete),
 		});
 		this.specialTruckAddons = specialTruckAddons;
+		this.truckImages = truckImages;
 		this.dlcs = null;
 		this.userDefinedValues = udv;
 		this.data = null;
@@ -175,7 +182,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				fireTableColumnUpdate(findColumnByID(id));
 		});
 		
-		finalizer.addDLCAssignmentListener(new DLCAssignmentListener() {
+		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
 			@Override public void updateAfterChange() {
 				fireTableColumnUpdate("DLC");
 			}
@@ -261,23 +268,6 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		return castNCall(row, model, (truck_, model_) -> {
 			if (model_.dlcs==null) return null;
 			return model_.dlcs.getDLCofTruck(truck_.id);
-		});
-	}
-	
-	private static Boolean isOwned(Object row, VerySimpleTableModel<?> model)
-	{
-		return castNCall(row, model, (truck_, model_) -> {
-			if (model_.saveGame==null) return null;
-			long n = model_.saveGame.getOwnedTruckCount(truck_);
-			return n>0;
-		});
-	}
-	
-	private static Long getOwnedCount(Object row, VerySimpleTableModel<?> model)
-	{
-		return castNCall(row, model, (truck_, model_) -> {
-			if (model_.saveGame==null) return null;
-			return model_.saveGame.getOwnedTruckCount(truck_);
 		});
 	}
 	
@@ -447,7 +437,21 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			);
 			boolean assignmentsChanged = dlg.showDialog();
 			if (assignmentsChanged)
-				finalizer.getControllers().dlcAssignmentListeners.updateAfterChange();
+				finalizer.getControllers().dlcListeners.updateAfterChange();
+		}));
+		
+		JMenuItem miSetTruckImage = contextMenu.add(SnowRunner.createMenuItem("Set image of truck", true, e->{
+			if (clickedItem==null) return;
+			BufferedImage image = ClipboardTools.getImageFromClipBoard();
+			if (image==null)
+				JOptionPane.showMessageDialog(mainWindow, "Sorry, found no image in clipboard.", "No Image", JOptionPane.ERROR_MESSAGE);
+			else
+			{
+				String truckID = clickedItem.id;
+				truckImages.set(truckID, image);
+				finalizer.getControllers().truckImagesListeners.imageHasChanged(truckID);
+				fireTableColumnUpdate(ID_HasImage);
+			}
 		}));
 		
 		contextMenu.addSeparator();
@@ -471,12 +475,19 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			clickedItem = rowM<0 ? null : getRow(rowM);
 			
 			miAssignToDLC.setEnabled(clickedItem!=null && dlcs!=null);
-			
 			miAssignToDLC.setText(
 				clickedItem==null
 				? "Assign truck to an official DLC"
 				: String.format("Assign \"%s\" to an official DLC", SnowRunner.getTruckLabel(clickedItem,language))
 			);
+			
+			miSetTruckImage.setEnabled(clickedItem!=null);
+			miSetTruckImage.setText(
+				clickedItem==null
+				? "Copy image of truck from clipboard"
+				: String.format("Copy image of \"%s\" from clipboard", SnowRunner.getTruckLabel(clickedItem,language))
+			);
+			
 			miEnableOwnedTrucksHighlighting.setSelected(enableOwnedTrucksHighlighting);
 			miEnableDLCTrucksHighlighting  .setSelected(enableDLCTrucksHighlighting  );
 		});
