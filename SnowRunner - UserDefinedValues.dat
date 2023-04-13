@@ -64,6 +64,11 @@ AWD=None
 DiffLock=Permanent
 
 [Truck]
+id=paystar_5600ts
+AWD=Able
+DiffLock=Able
+
+[Truck]
 id=royal_bm17
 AWD=Installed
 DiffLock=None

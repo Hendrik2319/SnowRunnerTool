@@ -62,12 +62,14 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
-import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.UnspecificOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContextMenuModifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextPaneOutputSource;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.UnspecificOutputSource;
 
 public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, TableContextMenuModifier, Finalizable {
 	
@@ -105,8 +107,37 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		clickedRow = null;
 		coloring = new Coloring<>(this);
 		
-		finalizer.addLanguageListener(this);
+		finalizer.addLanguageListener(lang->{
+			clearCacheOfColumns(ColumnID.Update.Language);
+			setLanguage(lang);
+		});
 		
+		for (ColumnID.Update event : ColumnID.Update.values())
+			if (exitsColumnWithUpdateEvent(event))
+				switch (event)
+				{
+					case Data    : break; // --> connectToGlobalData
+					case Language: break; // --> some lines above :)
+					case DLCAssignment:
+						finalizer.addDLCAssignmentListener(new DLCAssignmentListener()
+						{
+							@Override public void updateAfterChange() { clearCacheOfColumns(ColumnID.Update.DLCAssignment); }
+							@Override public void setDLCs(DLCs dlcs) { clearCacheOfColumns(ColumnID.Update.DLCAssignment); }
+						});
+						break;
+					case SaveGame:
+						finalizer.addSaveGameListener(savegame -> {
+							clearCacheOfColumns(ColumnID.Update.SaveGame);
+						});
+						break;
+					case SpecialTruckAddons:
+						finalizer.addSpecialTruckAddonsListener((category, change) ->
+						{
+							clearCacheOfColumns(ColumnID.Update.SpecialTruckAddons);
+						});
+						break;
+				}
+			
 		coloring.setBackgroundColumnColoring(true, Boolean.class, b -> b ? COLOR_BG_TRUE : COLOR_BG_FALSE);
 		
 		HashSet<String> columnIDIDs = new HashSet<>();
@@ -116,6 +147,21 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				throw new IllegalStateException(String.format("Found a non unique column ID \"%s\" in column %d in TableModel \"%s\"", columnID.id, i, this.getClass()));
 			columnIDIDs.add(columnID.id);
 		}
+	}
+
+	private boolean exitsColumnWithUpdateEvent(ColumnID.Update event)
+	{
+		for (ColumnID columnID : originalColumns)
+			if (columnID.cacheUpdateEvents.contains(event))
+				return true;
+		return false;
+	}
+
+	protected void clearCacheOfColumns(ColumnID.Update event)
+	{
+		for (ColumnID columnID : originalColumns)
+			if (columnID.cacheUpdateEvents.contains(event))
+				columnID.valueCache.clear();
 	}
 
 	@Override public void prepareRemovingFromGUI() {
@@ -249,6 +295,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	protected void connectToGlobalData(boolean forwardNulls, Function<Data,Collection<RowType>> getData) {
 		if (getData!=null)
 			finalizer.addDataReceiver(data -> {
+				clearCacheOfColumns(ColumnID.Update.Data);
 				if (!forwardNulls)
 					setRowData(data==null ? null : getData.apply(data));
 				else
@@ -455,11 +502,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			if (clickedRow   ==null) return;
 			boolean writeToConsole = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.Tables_WriteCalculationDetailsToConsole, true);
 			if (writeToConsole)
-				clickedColumn.getValue_verbose(clickedRow, language, this, new TextOutput.SystemOut());
+				clickedColumn.showValueComputation(clickedRow, language, this, new TextOutput.SystemOut());
 			else
 			{
 				TextOutput.Collector textOutput = new TextOutput.Collector();
-				clickedColumn.getValue_verbose(clickedRow, language, this, textOutput);
+				clickedColumn.showValueComputation(clickedRow, language, this, textOutput);
 				TextAreaDialog.showText(mainWindow, "Calculation Details", 300, 400, false, false, textOutput.toString(), null, dialog -> {
 					SnowRunner.settings.registerExtraWindow(dialog,
 						SnowRunner.AppSettings.ValueKey.Tables_CalcDetailsDialog_WindowX,
@@ -499,7 +546,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				: String.format(  "Activate special coloring for column \"%s\"", clickedColumn.config.name)
 			);
 			
-			miShowCalculationPath.setEnabled(clickedColumn!=null && clickedColumn.hasVerboseValueFcn());
+			miShowCalculationPath.setEnabled(clickedColumn!=null && clickedColumn.hasShowValueComputationFcn());
 			
 			String columnLabel = null;
 			if (columnLabel==null && clickedColumn!=null && !clickedColumn.config.name.isBlank())
@@ -539,11 +586,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
 		RowType row = getRow(rowIndex);
 		if (row==null) return null;
-		return getValue(columnID, row);
+		return getValue(columnID, rowIndex, row);
 	}
 	
-	Object getValue(ColumnID columnID, RowType row) {
-		return columnID.getValue(row, language, this);
+	Object getValue(ColumnID columnID, int rowIndex, RowType row) {
+		return columnID.getValue(rowIndex, row, language, this);
 	}
 	
 	protected void fireTableColumnUpdate(String id)
@@ -627,16 +674,23 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 			return preset;
 		}
+		
+		interface GetValue<RowType>
+		{
+			Object getValue(ColumnID columnID, int rowIndex, RowType row);
+		}
 
-		static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, ColumnID[] originalColumns, BiFunction<ColumnID,RowType,Object> getValue) {
+		static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, ColumnID[] originalColumns, GetValue<RowType> getValue) {
 			Vector<RowType> filteredRows = new Vector<>();
-			for (RowType row : originalRows) {
+			for (int rowIndex=0; rowIndex<originalRows.size(); rowIndex++)
+			{
+				RowType row = originalRows.get(rowIndex);
 				boolean meetsFilter = true;
 				for (ColumnID columnID : originalColumns) {
 					if (columnID.filter==null || !columnID.filter.active)
 						continue;
 					
-					Object value = getValue.apply(columnID, row);
+					Object value = getValue.getValue(columnID, rowIndex, row);
 					if (!columnID.filter.valueMeetsFilter(value)) {
 						meetsFilter = false;
 						break;
@@ -1716,9 +1770,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private final Function<Object, ?> getValue;
 		private final LanguageBasedStringBuilder getValueL;
 		private final TableModelBasedBuilder<?> getValueT;
-		private final BiFunction<Object,TextOutput,?> getValue_verbose;
-		private final VerboseLanguageBasedStringBuilder getValueL_verbose;
-		private final VerboseTableModelBasedBuilder<?> getValueT_verbose;
+		private final BiFunction<Object,TextOutput,?> showValueComputation;
+		private final VerboseLanguageBasedStringBuilder showValueComputationL;
+		private final VerboseTableModelBasedBuilder<?> showValueComputationT;
 		private final boolean useValueAsStringID;
 		private final Integer horizontalAlignment;
 		private final Color foreground;
@@ -1726,6 +1780,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private final String format;
 		private boolean isVisible;
 		private FilterRowsDialog.Filter filter;
+		private final EnumSet<Update> cacheUpdateEvents;
+		private final HashMap<Integer, Object> valueCache;
 		
 		public              ColumnID(String ID, String name, Class<String    > columnClass, int prefWidth,                                     Integer horizontalAlignment, String format,                             LanguageBasedStringBuilder         getValue) {
 			this(ID, name, columnClass, prefWidth, null, null, horizontalAlignment, format, false            , null, getValue, null, null, null, null);
@@ -1745,19 +1801,19 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue) {
 			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue, null, null, null);
 		}
-		public              ColumnID(String ID, String name, Class<String    > columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format,                             LanguageBasedStringBuilder         getValue, VerboseLanguageBasedStringBuilder         getValue_verbose) {
-			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false             , null, getValue, null, null, getValue_verbose, null);
+		public              ColumnID(String ID, String name, Class<String    > columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format,                             LanguageBasedStringBuilder         getValue, VerboseLanguageBasedStringBuilder         showValueComputation) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, false             , null, getValue, null, null, showValueComputation, null);
 		}
-		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType>        getValue, BiFunction<Object,TextOutput,ColumnType>  getValue_verbose) {
-			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null, null, getValue_verbose, null, null);
+		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, Function<Object,ColumnType>        getValue, BiFunction<Object,TextOutput,ColumnType>  showValueComputation) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, getValue, null, null, showValueComputation, null, null);
 		}
-		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue, VerboseTableModelBasedBuilder<ColumnType> getValue_verbose) {
-			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue, null, null, getValue_verbose);
+		public <ColumnType> ColumnID(String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID, TableModelBasedBuilder<ColumnType> getValue, VerboseTableModelBasedBuilder<ColumnType> showValueComputation) {
+			this(ID, name, columnClass, prefWidth, foreground, background, horizontalAlignment, format, useValueAsStringID, null, null, getValue, null, null, showValueComputation);
 		}
 		private <ColumnType> ColumnID(
 				String ID, String name, Class<ColumnType> columnClass, int prefWidth, Color foreground, Color background, Integer horizontalAlignment, String format, boolean useValueAsStringID,
-				Function  <Object,           ColumnType> getValue        ,        LanguageBasedStringBuilder getValueL        ,        TableModelBasedBuilder<ColumnType> getValueT        ,
-				BiFunction<Object,TextOutput,ColumnType> getValue_verbose, VerboseLanguageBasedStringBuilder getValueL_verbose, VerboseTableModelBasedBuilder<ColumnType> getValueT_verbose
+				Function  <Object,           ColumnType> getValue            ,        LanguageBasedStringBuilder getValueL            ,        TableModelBasedBuilder<ColumnType> getValueT            ,
+				BiFunction<Object,TextOutput,ColumnType> showValueComputation, VerboseLanguageBasedStringBuilder showValueComputationL, VerboseTableModelBasedBuilder<ColumnType> showValueComputationT
 		) {
 			this.isVisible = true;
 			this.filter = null;
@@ -1773,13 +1829,39 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			this.config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
 			if (useValueAsStringID && columnClass!=String.class)
 				throw new IllegalStateException();
-			this.getValue_verbose = getValue_verbose;
-			this.getValueL_verbose = getValueL_verbose;
-			this.getValueT_verbose = getValueT_verbose;
+			this.showValueComputation = showValueComputation;
+			this.showValueComputationL = showValueComputationL;
+			this.showValueComputationT = showValueComputationT;
+			
+			cacheUpdateEvents = EnumSet.noneOf(Update.class);
+			valueCache = new HashMap<>();
 		}
 		@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 		
-		public Object getValue(Object row, Language language, VerySimpleTableModel<?> tableModel) {
+		public enum Update { Data, Language, SaveGame, DLCAssignment, SpecialTruckAddons }
+		
+		public ColumnID configureCaching(Update... updateEvents)
+		{
+			this.cacheUpdateEvents.addAll(Arrays.asList(updateEvents));
+			return this;
+		}
+		
+		public Object getValue(int rowIndex, Object row, Language language, VerySimpleTableModel<?> tableModel)
+		{
+			boolean useCaching = !cacheUpdateEvents.isEmpty();
+			
+			if (useCaching && valueCache.containsKey(rowIndex))
+				return valueCache.get(rowIndex);
+			
+			Object value = getValue_uncached(row, language, tableModel);
+			
+			if (useCaching)
+				valueCache.put(rowIndex, value);
+			
+			return value;
+		}
+		
+		private Object getValue_uncached(Object row, Language language, VerySimpleTableModel<?> tableModel) {
 			if (getValue!=null) {
 				if (useValueAsStringID) {
 					String stringID = (String) getValue.apply(row);
@@ -1797,26 +1879,26 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			return null;
 		}
 		
-		public Object getValue_verbose(Object row, Language language, VerySimpleTableModel<?> tableModel, TextOutput textOutput) {
-			if (getValue_verbose!=null) {
+		public Object showValueComputation(Object row, Language language, VerySimpleTableModel<?> tableModel, TextOutput textOutput) {
+			if (showValueComputation!=null) {
 				if (useValueAsStringID) {
-					String stringID = (String) getValue_verbose.apply(row, textOutput);
+					String stringID = (String) showValueComputation.apply(row, textOutput);
 					return SnowRunner.solveStringID(stringID, language);
 				}
-				return getValue_verbose.apply(row, textOutput);
+				return showValueComputation.apply(row, textOutput);
 			}
-			if (getValueL_verbose!=null) {
-				return getValueL_verbose.getValue(row,language,textOutput);
+			if (showValueComputationL!=null) {
+				return showValueComputationL.getValue(row,language,textOutput);
 			}
-			if (getValueT_verbose!=null) {
-				return getValueT_verbose.getValue(row,(VerySimpleTableModel<?>) tableModel,textOutput);
+			if (showValueComputationT!=null) {
+				return showValueComputationT.getValue(row,(VerySimpleTableModel<?>) tableModel,textOutput);
 			}
 			
 			return null;
 		}
 		
-		public boolean hasVerboseValueFcn() {
-			return getValue_verbose!=null || getValueL_verbose!=null || getValueT_verbose!=null;
+		public boolean hasShowValueComputationFcn() {
+			return showValueComputation!=null || showValueComputationL!=null || showValueComputationT!=null;
 		}
 		
 		public interface GetFunction_MDLR<ResultType, ModelType, RowType>
