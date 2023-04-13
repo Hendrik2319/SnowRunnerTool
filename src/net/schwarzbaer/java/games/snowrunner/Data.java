@@ -266,8 +266,9 @@ public class Data {
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
 	
-	public static class UserDefinedValues {
-		final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
+	public static class UserDefinedValues extends SnowRunner.Initializable
+	{
+		private final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
 
 		void read() {
 			System.out.printf("Read UserDefinedValues from file \"%s\" ...%n", SnowRunner.UserDefinedValuesFile);
@@ -304,9 +305,11 @@ public class Data {
 			}
 			//showValues();
 			System.out.printf("... done%n");
+			setInitialized();
 		}
 		
 		public void write() {
+			checkInitialized();
 			System.out.printf("Write UserDefinedValues to file \"%s\" ...%n", SnowRunner.UserDefinedValuesFile);
 			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
 				
@@ -331,6 +334,7 @@ public class Data {
 
 		@SuppressWarnings("unused")
 		private void showValues() {
+			checkInitialized();
 			System.out.printf("   TruckValues: [%d]%n", truckValues.size());
 			Vector<String> keys = new Vector<>(truckValues.keySet());
 			keys.sort(null);
@@ -339,12 +343,14 @@ public class Data {
 		}
 
 		public Truck.UDV getOrCreateTruckValues(String id) {
+			checkInitialized();
 			Truck.UDV values = truckValues.get(id);
 			if (values==null) truckValues.put(id, values = new Truck.UDV());
 			return values;
 		}
 
 		public Truck.UDV getTruckValues(String id) {
+			checkInitialized();
 			Truck.UDV values = truckValues.get(id);
 			if (values==null) values = new Truck.UDV();
 			return values ;

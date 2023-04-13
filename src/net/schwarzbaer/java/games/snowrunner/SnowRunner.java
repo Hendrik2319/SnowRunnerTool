@@ -124,12 +124,22 @@ public class SnowRunner {
 		
 		new SnowRunner().initialize();
 	}
+	
+	public static class GlobalFinalDataStructures
+	{
+		
+		GlobalFinalDataStructures()
+		{
+			
+		}
+	}
 
-
-	private Data data;
 	private final UserDefinedValues userDefinedValues;
 	private final DLCs dlcs;
 	private final TruckImages truckImages;
+	private final SpecialTruckAddons specialTruckAddons;
+	
+	private Data data;
 	private SaveGameData saveGameData;
 	private SaveGame selectedSaveGame;
 	private File loadedInitialPAK;
@@ -140,7 +150,6 @@ public class SnowRunner {
 	private final JMenuItem miSGValuesSorted;
 	private final JMenuItem miSGValuesOriginal;
 	private final JMenu selectedSaveGameMenu;
-	private final SpecialTruckAddons specialTruckAddons;
 	
 	SnowRunner() {
 		data = null;
@@ -234,6 +243,7 @@ public class SnowRunner {
 	private void initialize() {
 		truckImages.read();
 		userDefinedValues.read();
+		specialTruckAddons.readFromFile();
 		dlcs.loadStoredData();
 		controllers.dlcListeners.setDLCs(dlcs);
 		
@@ -875,7 +885,26 @@ public class SnowRunner {
 		return pos;
 	}
 	
-	public static class TruckImages
+	public static class Initializable
+	{
+		private boolean wasInitialized;
+		
+		protected Initializable()
+		{
+			wasInitialized = false;
+		}
+		protected void checkInitialized()
+		{
+			if (!wasInitialized)
+				throw new IllegalStateException();
+		}
+		protected void setInitialized()
+		{
+			wasInitialized = true;
+		}
+	}
+	
+	public static class TruckImages extends Initializable
 	{
 		public interface Listener
 		{
@@ -886,17 +915,20 @@ public class SnowRunner {
 		
 		public BufferedImage get(String truckID)
 		{
+			checkInitialized();
 			return images.get(truckID);
 		}
 		
 		public void set(String truckID, BufferedImage image)
 		{
+			checkInitialized();
 			images.put(truckID, image);
 			write();
 		}
 		
 		public boolean contains(String truckID)
 		{
+			checkInitialized();
 			return images.containsKey(truckID);
 		}
 		
@@ -935,10 +967,12 @@ public class SnowRunner {
 			}
 			
 			System.out.printf("... done%n");
+			setInitialized();
 		}
 		
 		private void write()
 		{
+			checkInitialized();
 			File file = new File(TruckImagesFile);
 			System.out.printf("Write Truck Images to file \"%s\" ...%n", file.getAbsolutePath());
 			
@@ -968,7 +1002,7 @@ public class SnowRunner {
 		}
 	}
 	
-	public static class DLCs
+	public static class DLCs extends Initializable
 	{
 		public interface Listener {
 			void setDLCs(DLCs dlcs);
@@ -990,6 +1024,7 @@ public class SnowRunner {
 		
 		public Vector<String> getAllDLCs()
 		{
+			checkInitialized();
 			HashSet<String> dlcSet = new HashSet<>();
 			dlcSet.addAll(trucks.values());
 			dlcSet.addAll(maps  .values());
@@ -999,14 +1034,14 @@ public class SnowRunner {
 			
 			return sortedDLCs;
 		}
-		public void   setDLC(String id, ItemType type, String dlc) {        type.getAssignments.apply(this).put(id, dlc); }
-		public String getDLC(String id, ItemType type            ) { return type.getAssignments.apply(this).get(id     ); }
+		public void   setDLC(String id, ItemType type, String dlc) { checkInitialized();        type.getAssignments.apply(this).put(id, dlc); }
+		public String getDLC(String id, ItemType type            ) { checkInitialized(); return type.getAssignments.apply(this).get(id     ); }
 		
-		public String getDLCofTruck(String truckID) { return trucks.get(truckID); }
-		public String getDLCofMap  (String   mapID) { return maps  .get(  mapID); }
+		public String getDLCofTruck(String truckID) { checkInitialized(); return trucks.get(truckID); }
+		public String getDLCofMap  (String   mapID) { checkInitialized(); return maps  .get(  mapID); }
 
-		public Collection<String> getTruckIDs() { return trucks.keySet(); }
-		public Collection<String> getMapIDs  () { return maps  .keySet(); }
+		public Collection<String> getTruckIDs() { checkInitialized(); return trucks.keySet(); }
+		public Collection<String> getMapIDs  () { checkInitialized(); return maps  .keySet(); }
 		
 		private static HashMap<String,Vector<String>> getReversedMap(HashMap<String,String> assignments)
 		{
@@ -1021,6 +1056,8 @@ public class SnowRunner {
 		}
 		
 		void saveData() {
+			checkInitialized();
+			
 			File file = new File(DLCAssignmentsFile);
 			System.out.printf("Write DLCs to file \"%s\" ...%n", file.getAbsolutePath());
 			
@@ -1093,10 +1130,12 @@ public class SnowRunner {
 			}
 			
 			System.out.printf("... done%n");
+			setInitialized();
 		}
 	}
 	
-	public static class SpecialTruckAddons {
+	public static class SpecialTruckAddons extends Initializable
+	{
 
 		private static final String ValuePrefix = "$ ";
 		private static final String ListIdClosingBracket = "]]";
@@ -1148,11 +1187,8 @@ public class SnowRunner {
 			lists = new EnumMap<>(AddonCategory.class);
 			for (AddonCategory cat : AddonCategory.values())
 				lists.put(cat, new SpecialTruckAddonList(cat));
-			
-			// classes using this expect lists with values 
-			readFromFile();
 		}
-		
+
 		public void readFromFile() {
 			File file = new File(SpecialTruckAddonsFile);
 			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
@@ -1190,9 +1226,11 @@ public class SnowRunner {
 				System.err.printf("IOException while reading SpecialTruckAddons from file \"%s\": %s", file.getAbsolutePath(), ex.getMessage());
 				//ex.printStackTrace();
 			}
+			setInitialized();
 		}
 
 		public void writeToFile() {
+			checkInitialized();
 			File file = new File(SpecialTruckAddonsFile);
 			try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
 				
@@ -1218,11 +1256,13 @@ public class SnowRunner {
 		}
 
 		public void foreachList(BiConsumer<AddonCategory,SpecialTruckAddonList> action) {
+			checkInitialized();
 			for (AddonCategory category : AddonCategory.values())
 				action.accept(category, lists.get(category));
 		}
 
 		public SpecialTruckAddonList getList(AddonCategory category) {
+			checkInitialized();
 			return lists.get(category);
 		}
 
