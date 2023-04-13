@@ -26,7 +26,6 @@ import net.schwarzbaer.java.games.snowrunner.MapTypes.SetMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
@@ -807,7 +806,7 @@ public class Data {
 	}
 
 	public Capability isCapable(Truck truck, SpecialTruckAddons.AddonCategory listID, SpecialTruckAddons specialTruckAddons, TextOutput textOutput) {
-		SpecialTruckAddonList addonList = specialTruckAddons.getList(listID);
+		SpecialTruckAddons.SpecialTruckAddonList addonList = specialTruckAddons.getList(listID);
 		if (textOutput!=null) textOutput.printf("Is Truck <%s> capable of %s?%n", truck.id, listID.label);
 		
 		switch (listID.type) {
@@ -948,6 +947,97 @@ public class Data {
 					}
 		}
 		return resultList;
+	}
+
+	public boolean canTruckCombineWithCompatibleAddon(Truck truck, Vector<String> addonIDs, Predicate<TruckAddon> addonPredicate)
+	{
+		HashSet<String> socketIDs1 = new HashSet<>();
+		for (String id : addonIDs)
+		{
+			TruckAddon addon = truckAddons.get(id);
+			if (addon!=null)
+				socketIDs1.add(addon.gameData.installSocket);
+		}
+		
+		HashSet<String> socketIDs2 = new HashSet<>();
+		for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
+			for (TruckAddon addon : list)
+				if (addonPredicate.test(addon))
+					socketIDs2.add(addon.gameData.installSocket);
+		
+		if (socketIDs1.isEmpty() || socketIDs2.isEmpty())
+			return false;
+		
+		Vector<FoundSocket> sockets1 = FoundSocket.find(truck, socketIDs1);
+		Vector<FoundSocket> sockets2 = FoundSocket.find(truck, socketIDs2);
+		
+		for (FoundSocket socket1 : sockets1) {
+			for (FoundSocket socket2 : sockets2) {
+				
+				if (socket1.addonSocket == socket2.addonSocket) continue;
+				if (allSocketBIDsWereBlockedBySocketA(socket1, socket2)) continue;
+				if (allSocketBIDsWereBlockedBySocketA(socket2, socket1)) continue;
+				
+				//      different addonSockets
+				// AND  socket1 don't blocks socket2 
+				// AND  socket2 don't blocks socket1
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	private static boolean allSocketBIDsWereBlockedBySocketA(FoundSocket socketA, FoundSocket socketB)
+	{
+		for (String socketB_ID : socketB.socketIDs)
+			if (!contains(socketA.socket.blockedSocketIDs, socketB_ID))
+				return false;
+		return true;
+	}
+	
+	private static class FoundSocket
+	{
+		private final Truck.AddonSockets addonSocket;
+		private final Truck.AddonSockets.Socket socket;
+		private final HashSet<String> socketIDs;
+
+		FoundSocket(Truck.AddonSockets addonSocket, Truck.AddonSockets.Socket socket)
+		{
+			this.addonSocket = addonSocket;
+			this.socket = socket;
+			socketIDs = new HashSet<>();
+		}
+		
+		static Vector<FoundSocket> find(Truck truck, Collection<String> socketIDs)
+		{
+			Vector<FoundSocket> foundSockets = new Vector<>();
+			for (Truck.AddonSockets addonSocket : truck.addonSockets)
+				for (Truck.AddonSockets.Socket socket : addonSocket.sockets)
+				{
+					FoundSocket foundSocket = null;
+					for (String socketID : socketIDs)
+						if (contains(socket.socketIDs, socketID))
+						{
+							if (foundSocket == null)
+								foundSockets.add( foundSocket = new FoundSocket(addonSocket, socket) );
+							foundSocket.socketIDs.add(socketID);
+						}
+				}
+			return foundSockets;
+		}
+	}
+	
+	private static boolean contains(String[] strs, String str)
+	{
+		for (String str1 : strs)
+		{
+			if (str1==null && str==null)
+				return true;
+			if (str1!=null && str1.equals(str))
+				return true;
+		}
+		return false;
 	}
 
 	public interface HasNameAndID {
@@ -1153,6 +1243,7 @@ public class Data {
 			public final String installSocket;
 			public final String[][] requiredAddons; // (ra[0][0] || ra[0][1] || ... ) && (ra[1][0] || ra[1][1] || ... ) && ...
 			public final LoadArea[] loadAreas;
+			public final boolean isCargoCarrier;
 	
 			GameDataT3NonTruck(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 				super(gameDataNode, debugOutputPrefix);
@@ -1184,6 +1275,7 @@ public class Data {
 					GenericXmlNode loadAreaNode = loadAreaNodes[i];
 					loadAreas[i] = new LoadArea(loadAreaNode);
 				}
+				isCargoCarrier = loadAreas.length==0 && cargoSlots!=null && cargoSlots>0;
 				
 				GenericXmlNode[] requiredAddonNodes = gameDataNode.getNodes("GameData", "RequiredAddon");
 				requiredAddons = new String[requiredAddonNodes.length][];
@@ -1275,6 +1367,7 @@ public class Data {
 			public final String[] excludeAddons;
 			public final Boolean recallable_obsolete;
 			public final String unlockByObjective;
+			public final boolean isCargoCarrier;
 
 			GameDataTruck(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 				super(gameDataNode, debugOutputPrefix);
@@ -1291,6 +1384,7 @@ public class Data {
 				//showAttr("[General]", null, "Recallable"   , recallable);
 				//   [General] <GameData Recallable="####">
 				//      true
+				isCargoCarrier = cargoSlots!=null && cargoSlots>0;
 			}
 		}
 		

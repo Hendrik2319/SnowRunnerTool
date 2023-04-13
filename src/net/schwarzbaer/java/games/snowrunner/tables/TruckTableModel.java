@@ -15,6 +15,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JTable;
 
 import net.schwarzbaer.gui.Tables;
+import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
@@ -26,10 +27,9 @@ import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCAssignmentListener;
-import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.VerboseTableModelBasedBuilder;
 
@@ -67,6 +67,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "Country"  , "Country"              ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                 ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                 ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
+				new ColumnID( "OwnedBool", "Owned"                ,              Boolean.class,  50,             null,   null,      null, false, (row,model) -> isOwned(row,model)),
 				new ColumnID( "Owned"    , "Owned"                ,                 Long.class,  50,             null, CENTER,      null, false, (row,model) -> getOwnedCount(row,model)),
 				new ColumnID( "InWareHs" , "In Warehouse"         ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
 				new ColumnID( "InGarage" , "In Garage"            ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, null), (row, model, textOutput) -> getTrucksInGarage   (row, model, textOutput)),
@@ -76,7 +77,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "AWDData"  , "AWD (from Data)"      ,               String.class,  95,             null, CENTER,      null, false, row -> "??? t.b.d."),
 				new ColumnID( "AWDUser"  , "AWD (by User)"        ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> udv.getTruckValues(((Truck)row).id).realAWD),
 				new ColumnID( "AWDTool"  , "AWD (by Tool)"        ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
-				new ColumnID( "AutoWinch", "AutomaticWinch"       ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
+				new ColumnID( "AutoWinch", "Automatic Winch"      ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
+				new ColumnID( "MiniCargo", "Mini Crane & Cargo"   ,              Boolean.class, 105,             null,   null,      null, false, (row,model) -> canMiniCraneAndCargo(row,model)).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID(ID_MetalD   , "Metal Detector"       ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.MetalDetector   ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID(ID_Seismic  , "Seismic Vibrator"     ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.SeismicVibrator ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID(ID_BigCrane , "Big Crane"            ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane        ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.BigCrane        ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
@@ -107,6 +109,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		//		new ColumnID( "MaxWhWoSp", "Max. WheelRadius Without Suspension", String.class, 200,             null,   null,      null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
 				new ColumnID( "Image"    , "Image"                ,               String.class, 130,             null,   null,      null, false, row -> ((Truck)row).image),
 				new ColumnID( "CargoSlts", "Cargo Slots"          ,              Integer.class,  70,             null, CENTER,      null, false, row -> ((Truck)row).gameData.cargoSlots),
+				new ColumnID( "CargoCarr", "Cargo Carrier"        ,              Boolean.class,  80,             null,   null,      null, false, row -> ((Truck)row).gameData.isCargoCarrier),
 				new ColumnID( "ExclCargo", "Excluded Cargo Types" ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludedCargoTypes,true)),
 				new ColumnID( "ExclAddon", "Exclude Addons"       ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludeAddons,true)),
 		//		new ColumnID( "Recall"   , "Recallable"           ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable_obsolete),
@@ -237,11 +240,36 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		});
 	}
 
+	private static Boolean canMiniCraneAndCargo(Object row, VerySimpleTableModel<?> model)
+	{
+		return castNCall(row, model, (truck_, model_) -> {
+			if (truck_.gameData.isCargoCarrier)
+			{
+				Data.Capability canMiniCrane = model_.data.isCapable(truck_, SpecialTruckAddons.AddonCategory.MiniCrane, model_.specialTruckAddons, null);
+				return canMiniCrane==null ? null : canMiniCrane.isCapable;
+			}
+			
+			SpecialTruckAddons.SpecialTruckAddonList list = model_.specialTruckAddons.getList(SpecialTruckAddons.AddonCategory.MiniCrane);
+			Vector<String> miniCraneIDs = new Vector<>();
+			list.forEach(miniCraneIDs::add);
+			return model_.data.canTruckCombineWithCompatibleAddon(truck_, miniCraneIDs, addon -> addon.gameData.isCargoCarrier);
+		});
+	}
+
 	private static String getDLC(Object row, VerySimpleTableModel<?> model)
 	{
 		return castNCall(row, model, (truck_, model_) -> {
 			if (model_.dlcs==null) return null;
 			return model_.dlcs.getDLCofTruck(truck_.id);
+		});
+	}
+	
+	private static Boolean isOwned(Object row, VerySimpleTableModel<?> model)
+	{
+		return castNCall(row, model, (truck_, model_) -> {
+			if (model_.saveGame==null) return null;
+			long n = model_.saveGame.getOwnedTruckCount(truck_);
+			return n>0;
 		});
 	}
 	
