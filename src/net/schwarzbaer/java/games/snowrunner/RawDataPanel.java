@@ -43,7 +43,7 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 	private SaveGameData saveGameData;
 	private final Finalizer finalizer;
 
-	RawDataPanel(Window window, SnowRunner.Controllers controllers) {
+	RawDataPanel(Window window, SnowRunner.GlobalFinalDataStructures gfds) {
 		super();
 		this.window = window;
 		data = null;
@@ -68,7 +68,7 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 		
 		updatePanels();
 		
-		finalizer = controllers.createNewFinalizer();
+		finalizer = gfds.controllers.createNewFinalizer();
 		finalizer.addLanguageListener(this);
 		finalizer.addDataReceiver(this);
 	}

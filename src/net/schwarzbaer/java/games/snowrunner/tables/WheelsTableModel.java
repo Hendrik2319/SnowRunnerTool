@@ -11,12 +11,12 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 
 public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
 
-	public WheelsTableModel(Window mainWindow, Controllers controllers) {
-		super(mainWindow, controllers, new ColumnID[] {
+	public WheelsTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
+		super(mainWindow, gfds, new ColumnID[] {
 				new ColumnID("ID"     , "ID"     , String .class, 300,   null,    null, false, row -> ((RowItem)row).label),
 				new ColumnID("Names"  , "Names"  , String .class, 130,   null,    null, (row,lang) -> SnowRunner.joinStringIDs(((RowItem)row).names_StringID, lang)),
 				new ColumnID("Sizes"  , "Sizes"  , String .class, 300,   null,    null, false, row -> getSizeList ( ((RowItem)row).sizes  )),

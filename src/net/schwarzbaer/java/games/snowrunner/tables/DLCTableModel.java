@@ -11,9 +11,9 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 
 public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements Finalizable {
 
@@ -24,14 +24,14 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	private Data data;
 	private SaveGame savegame;
 
-	public DLCTableModel(Controllers controllers) {
+	public DLCTableModel(GlobalFinalDataStructures gfds) {
 		super(ColumnID.values());
 		language = null;
 		dlcs = null;
 		data = null;
 		rows = new Vector<>();
 		
-		finalizer = controllers.createNewFinalizer();
+		finalizer = gfds.controllers.createNewFinalizer();
 		finalizer.addLanguageListener(language->{
 			this.language = language;
 			fireTableUpdate();

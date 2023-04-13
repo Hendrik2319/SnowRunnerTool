@@ -41,10 +41,10 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective.Obj
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.InstalledAddon;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
@@ -61,12 +61,12 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	private Language language;
 
 	
-	public SaveGameDataPanel(Window mainWindow, Controllers controllers)
+	public SaveGameDataPanel(Window mainWindow, GlobalFinalDataStructures gfds)
 	{
 		super(JSplitPane.HORIZONTAL_SPLIT, true);
 		
 		setResizeWeight(0);
-		finalizer = controllers.createNewFinalizer();
+		finalizer = gfds.controllers.createNewFinalizer();
 		
 		textArea = new JTextArea();
 		textArea.setEditable(false);
@@ -77,10 +77,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		textAreaScrollPane.setPreferredSize(new Dimension(400,100));
 		
 		JTabbedPane tableTabPanel = new JTabbedPane();
-		    TruckTableModel     truckTableModel = addTab(finalizer, tableTabPanel, "Trucks"    , new     TruckTableModel(mainWindow, controllers));
-		      MapTableModel       mapTableModel = addTab(finalizer, tableTabPanel, "Maps"      , new       MapTableModel(mainWindow, controllers));
-		    AddonTableModel     addonTableModel = addTab(finalizer, tableTabPanel, "Addons"    , new     AddonTableModel(mainWindow, controllers));
-		ObjectiveTableModel objectiveTableModel = addTab(finalizer, tableTabPanel, "Objectives", new ObjectiveTableModel(mainWindow, controllers));
+		    TruckTableModel     truckTableModel = addTab(finalizer, tableTabPanel, "Trucks"    , new     TruckTableModel(mainWindow, gfds));
+		      MapTableModel       mapTableModel = addTab(finalizer, tableTabPanel, "Maps"      , new       MapTableModel(mainWindow, gfds));
+		    AddonTableModel     addonTableModel = addTab(finalizer, tableTabPanel, "Addons"    , new     AddonTableModel(mainWindow, gfds));
+		ObjectiveTableModel objectiveTableModel = addTab(finalizer, tableTabPanel, "Objectives", new ObjectiveTableModel(mainWindow, gfds));
 		
 		setLeftComponent(textAreaScrollPane);
 		setRightComponent(tableTabPanel);
@@ -242,9 +242,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class InstalledAddonTableModel extends ExtendedVerySimpleTableModelTAOS<InstalledAddon> implements SplitPaneConfigurator
 	{
-		InstalledAddonTableModel(Window mainWindow, Controllers controllers)
+		InstalledAddonTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
-			super(mainWindow, controllers, new ColumnID[] {
+			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("Name"       , "Name"             ,  String .class, 280,   null, null, false, row->((InstalledAddon)row).name              ),
 					
 					new ColumnID("Fuel"       , "Fuel"             ,  Double .class,  50,   null, null, false, row->((InstalledAddon)row).fuel              ),
@@ -292,9 +292,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		private Data data;
 		private final InstalledAddonTableModel installedAddonTableModel;
 	
-		TruckTableModel(Window mainWindow, Controllers controllers)
+		TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
-			super(mainWindow, controllers, new ColumnID[] {
+			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("Name"       ,"Name"                        ,  String .class, 175,   null,      null, false, row->((Row)row).name ),
 					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).map.originalMapID()),
 					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, get((model, data, lang, row)->getMapName(row.map,lang, true))),
@@ -331,7 +331,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, row->((Row)row).truckDesc.needToInstallDefaultAddons),
 			});
 			data = null;
-			installedAddonTableModel = new InstalledAddonTableModel(mainWindow, controllers);
+			installedAddonTableModel = new InstalledAddonTableModel(mainWindow, gfds);
 		}
 	
 		private static <ResultType,V1,V2> ResultType getNonNull2(V1 value1, V2 value2, BiFunction<V1,V2,ResultType> computeValue)
@@ -435,9 +435,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		protected DLCs dlcs;
 		private Data data;
 
-		MapTableModel(Window mainWindow, Controllers controllers)
+		MapTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
-			super(mainWindow, controllers, new ColumnID[] {
+			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("MapID"     ,"Map ID"                ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
 					new ColumnID("Name"      ,"Name"                  ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
 					new ColumnID("DLC"       ,"DLC"                   ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row,model))),
@@ -512,7 +512,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				);
 				boolean assignmentsChanged = dlg.showDialog();
 				if (assignmentsChanged)
-					finalizer.getControllers().dlcListeners.updateAfterChange();
+					gfds.controllers.dlcListeners.updateAfterChange();
 			}));
 			
 			contextMenu.addContextMenuInvokeListener((table, x, y) -> {
@@ -610,9 +610,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	{
 		private Data data;
 		
-		AddonTableModel(Window mainWindow, Controllers controllers)
+		AddonTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
-			super(mainWindow, controllers, new ColumnID[] {
+			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("ID"       ,"ID"       , String             .class, 300,   null, null, false, row->((Row)row).addon.addonId),
 					new ColumnID("Type"     ,"Type"     , AddonType          .class,  80,   null, null, false, row->((Row)row).type),
 					new ColumnID("Name"     ,"Name"     , String             .class, 180,   null, null, false, get((model, data, lang, row)->SnowRunner.solveStringID(row.item, lang))),
@@ -669,9 +669,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	{
 		private Data data;
 		
-		ObjectiveTableModel(Window mainWindow, Controllers controllers)
+		ObjectiveTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
-			super(mainWindow, controllers, new ColumnID[] {
+			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("ID"        ,"ID"                                       ,  String .class, 320,   null,    null, false, row->((Objective)row).objectiveId      ),
 					new ColumnID("Attempts"  ,"Attempts"                                 ,  Long   .class,  60,   null,    null, false, row->((Objective)row).attempts         ),
 					new ColumnID("Times"     ,"Times"                                    ,  Long   .class,  40,   null,    null, false, row->((Objective)row).times            ),

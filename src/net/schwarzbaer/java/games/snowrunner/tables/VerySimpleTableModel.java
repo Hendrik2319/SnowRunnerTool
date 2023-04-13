@@ -59,10 +59,10 @@ import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DLCs;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContextMenuModifier;
@@ -90,11 +90,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	private   int clickedRowIndex;
 	private   ColumnID clickedColumn;
 	private   RowType clickedRow;
+	protected final GlobalFinalDataStructures gfds;
 
-	protected VerySimpleTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
+	protected VerySimpleTableModel(Window mainWindow, GlobalFinalDataStructures gfds, ColumnID[] columns) {
 		super(columns);
 		this.mainWindow = mainWindow;
-		this.finalizer = controllers.createNewFinalizer();
+		this.gfds = gfds;
+		this.finalizer = this.gfds.controllers.createNewFinalizer();
 		this.originalColumns = columns;
 		this.columns = null; // to hide super.columns
 		language = null;
@@ -1950,8 +1952,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		
 		protected Runnable outputUpdateMethod;
 
-		protected OutputSourceTableModel(Window mainWindow, Controllers controllers, ColumnID[] columns) {
-			super(mainWindow, controllers, columns);
+		protected OutputSourceTableModel(Window mainWindow, GlobalFinalDataStructures gfds, ColumnID[] columns) {
+			super(mainWindow, gfds, columns);
 			outputUpdateMethod = null;
 		}
 		
@@ -1970,8 +1972,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	}
 	
 	public static abstract class ExtendedVerySimpleTableModelUOS<RowType> extends OutputSourceTableModel<RowType> implements UnspecificOutputSource {
-		protected ExtendedVerySimpleTableModelUOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
-			super(mainWindow, controllers, columns);
+		protected ExtendedVerySimpleTableModelUOS(Window mainWindow, GlobalFinalDataStructures gfds, ColumnID[] columns) {
+			super(mainWindow, gfds, columns);
 		}
 
 		@Override public void setOutputContentForRow(int rowIndex)
@@ -1986,8 +1988,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	public static abstract class ExtendedVerySimpleTableModelTPOS<RowType> extends OutputSourceTableModel<RowType> implements TextPaneOutputSource {
 
-		protected ExtendedVerySimpleTableModelTPOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
-			super(mainWindow, controllers, columns);
+		protected ExtendedVerySimpleTableModelTPOS(Window mainWindow, GlobalFinalDataStructures gfds, ColumnID[] columns) {
+			super(mainWindow, gfds, columns);
 		}
 
 		@Override
@@ -2002,8 +2004,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	public static abstract class ExtendedVerySimpleTableModelTAOS<RowType> extends OutputSourceTableModel<RowType> implements TextAreaOutputSource {
 
-		protected ExtendedVerySimpleTableModelTAOS(Window mainWindow, Controllers controllers, ColumnID[] columns) {
-			super(mainWindow, controllers, columns);
+		protected ExtendedVerySimpleTableModelTAOS(Window mainWindow, GlobalFinalDataStructures gfds, ColumnID[] columns) {
+			super(mainWindow, gfds, columns);
 		}
 		
 		@Override public String getOutputTextForRow(int rowIndex) {

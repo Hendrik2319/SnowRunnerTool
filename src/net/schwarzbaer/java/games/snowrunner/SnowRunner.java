@@ -127,17 +127,22 @@ public class SnowRunner {
 	
 	public static class GlobalFinalDataStructures
 	{
+		public final Controllers controllers;
+		public final UserDefinedValues userDefinedValues;
+		public final DLCs dlcs;
+		public final TruckImages truckImages;
+		public final SpecialTruckAddons specialTruckAddons;
 		
 		GlobalFinalDataStructures()
 		{
-			
+			controllers = new Controllers();
+			userDefinedValues = new UserDefinedValues();
+			dlcs = new DLCs();
+			truckImages = new TruckImages();
+			specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
 		}
 	}
 
-	private final UserDefinedValues userDefinedValues;
-	private final DLCs dlcs;
-	private final TruckImages truckImages;
-	private final SpecialTruckAddons specialTruckAddons;
 	
 	private Data data;
 	private SaveGameData saveGameData;
@@ -145,44 +150,40 @@ public class SnowRunner {
 	private File loadedInitialPAK;
 	private final StandardMainWindow mainWindow;
 	private final JMenu languageMenu;
-	private final Controllers controllers;
 	private final RawDataPanel rawDataPanel;
 	private final JMenuItem miSGValuesSorted;
 	private final JMenuItem miSGValuesOriginal;
 	private final JMenu selectedSaveGameMenu;
+	private final GlobalFinalDataStructures gfds;
 	
 	SnowRunner() {
 		data = null;
 		saveGameData = null;
 		selectedSaveGame = null;
 		loadedInitialPAK = null;
-		userDefinedValues = new UserDefinedValues();
-		dlcs = new DLCs();
-		truckImages = new TruckImages();
 		
 		mainWindow = new StandardMainWindow("SnowRunner Tool");
-		controllers = new Controllers();
-		Finalizer fin = controllers.createNewFinalizer();
+		gfds = new GlobalFinalDataStructures();
+		Finalizer fin = gfds.controllers.createNewFinalizer();
 		
-		specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
-		fin.addSpecialTruckAddonsListener((list, change) -> specialTruckAddons.writeToFile());
+		fin.addSpecialTruckAddonsListener((list, change) -> gfds.specialTruckAddons.writeToFile());
 		
-		rawDataPanel = new RawDataPanel(mainWindow, controllers);
+		rawDataPanel = new RawDataPanel(mainWindow, gfds);
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"          ,                        fin.addSubComp(new TrucksTablePanel         (mainWindow, controllers, specialTruckAddons, userDefinedValues, truckImages)));
-		contentPane.addTab("Trucks (old)"    ,                        fin.addSubComp(new TrucksListPanel          (mainWindow, controllers, specialTruckAddons, truckImages)));
-		contentPane.addTab("Wheels"          , TableSimplifier.create(fin.addSubComp(new WheelsTableModel         (mainWindow, controllers))));
-		contentPane.addTab("DLCs"            , TableSimplifier.create(fin.addSubComp(new DLCTableModel            (            controllers))));
-		contentPane.addTab("Trailers"        , TableSimplifier.create(fin.addSubComp(new TrailersTableModel       (mainWindow, controllers, true))));
-		contentPane.addTab("Truck Addons"    ,                        fin.addSubComp(new TruckAddonsTablePanel    (mainWindow, controllers, specialTruckAddons)));
-		contentPane.addTab("Engines"         , TableSimplifier.create(fin.addSubComp(new EnginesTableModel        (mainWindow, controllers, true, null))));
-		contentPane.addTab("Gearboxes"       , TableSimplifier.create(fin.addSubComp(new GearboxesTableModel      (mainWindow, controllers, true, null))));
-		contentPane.addTab("Suspensions"     , TableSimplifier.create(fin.addSubComp(new SuspensionsTableModel    (mainWindow, controllers, true, null))));
-		contentPane.addTab("Winches"         , TableSimplifier.create(fin.addSubComp(new WinchesTableModel        (mainWindow, controllers, true, null))));
-		contentPane.addTab("Addon Categories", TableSimplifier.create(fin.addSubComp(new AddonCategoriesTableModel(mainWindow, controllers))));
-		contentPane.addTab("SaveGame"        ,                        fin.addSubComp(new SaveGameDataPanel        (mainWindow, controllers)));
+		contentPane.addTab("Trucks"          ,                        fin.addSubComp(new TrucksTablePanel         (mainWindow, gfds)));
+		contentPane.addTab("Trucks (old)"    ,                        fin.addSubComp(new TrucksListPanel          (mainWindow, gfds)));
+		contentPane.addTab("Wheels"          , TableSimplifier.create(fin.addSubComp(new WheelsTableModel         (mainWindow, gfds))));
+		contentPane.addTab("DLCs"            , TableSimplifier.create(fin.addSubComp(new DLCTableModel            (            gfds))));
+		contentPane.addTab("Trailers"        , TableSimplifier.create(fin.addSubComp(new TrailersTableModel       (mainWindow, gfds, true))));
+		contentPane.addTab("Truck Addons"    ,                        fin.addSubComp(new TruckAddonsTablePanel    (mainWindow, gfds)));
+		contentPane.addTab("Engines"         , TableSimplifier.create(fin.addSubComp(new EnginesTableModel        (mainWindow, gfds, true, null))));
+		contentPane.addTab("Gearboxes"       , TableSimplifier.create(fin.addSubComp(new GearboxesTableModel      (mainWindow, gfds, true, null))));
+		contentPane.addTab("Suspensions"     , TableSimplifier.create(fin.addSubComp(new SuspensionsTableModel    (mainWindow, gfds, true, null))));
+		contentPane.addTab("Winches"         , TableSimplifier.create(fin.addSubComp(new WinchesTableModel        (mainWindow, gfds, true, null))));
+		contentPane.addTab("Addon Categories", TableSimplifier.create(fin.addSubComp(new AddonCategoriesTableModel(mainWindow, gfds))));
+		contentPane.addTab("SaveGame"        ,                        fin.addSubComp(new SaveGameDataPanel        (mainWindow, gfds)));
 		contentPane.addTab("Raw Data"        ,                        fin.addSubComp(rawDataPanel));
 		
 		
@@ -231,7 +232,7 @@ public class SnowRunner {
 		
 		JMenu testingMenu = menuBar.add(new JMenu("Debug"));
 		testingMenu.add(createMenuItem("Show Event Listeners", true, e->{
-			controllers.showListeners();
+			gfds.controllers.showListeners();
 		}));
 		
 		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
@@ -241,11 +242,11 @@ public class SnowRunner {
 	}
 	
 	private void initialize() {
-		truckImages.read();
-		userDefinedValues.read();
-		specialTruckAddons.readFromFile();
-		dlcs.loadStoredData();
-		controllers.dlcListeners.setDLCs(dlcs);
+		gfds.truckImages.read();
+		gfds.userDefinedValues.read();
+		gfds.specialTruckAddons.readFromFile();
+		gfds.dlcs.loadStoredData();
+		gfds.controllers.dlcListeners.setDLCs(gfds.dlcs);
 		
 		if (loadInitialPAK()) updateAfterDataChange();
 		reloadSaveGameData();
@@ -433,7 +434,7 @@ public class SnowRunner {
 	}
 	
 	private void updateAfterSaveGameChange() {
-		controllers.saveGameListeners.setSaveGame(selectedSaveGame);
+		gfds.controllers.saveGameListeners.setSaveGame(selectedSaveGame);
 		updateWindowTitle();
 	}
 
@@ -442,7 +443,7 @@ public class SnowRunner {
 	}
 	
 	private void updateAfterDataChange() {
-		controllers.dataReceivers.setData(data);
+		gfds.controllers.dataReceivers.setData(data);
 		
 		Vector<String> langs = new Vector<>(data.languages.keySet());
 		langs.sort(null);
@@ -456,7 +457,7 @@ public class SnowRunner {
 		setLanguage(currentLangID);
 		
 		EnumSet<SpecialTruckAddons.AddonCategory> idsOfEmptyLists = EnumSet.noneOf(SpecialTruckAddons.AddonCategory.class);
-		specialTruckAddons.foreachList((listID,list)->{
+		gfds.specialTruckAddons.foreachList((listID,list)->{
 			int count = list.findIn(data.truckAddons);
 			if (count==0)
 				idsOfEmptyLists.add(listID);
@@ -506,7 +507,7 @@ public class SnowRunner {
 		if (language!=null)
 			language.scanRegionNames(false);
 		
-		controllers.languageListeners.setLanguage(language);
+		gfds.controllers.languageListeners.setLanguage(language);
 	}
 
 	public static String getTruckLabel(Truck truck, Language language) {
@@ -1330,16 +1331,16 @@ public class SnowRunner {
 		
 		private final Window mainWindow;
 		private final Finalizer finalizer;
+		private final GlobalFinalDataStructures gfds;
 		private final Vector<Tab> tabs;
-		private final SpecialTruckAddons specialTruckAddOns;
 		private Data data;
 		private Language language;
 		private SaveGame saveGame;
 
-		TruckAddonsTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+		TruckAddonsTablePanel(Window mainWindow, GlobalFinalDataStructures gfds) {
 			this.mainWindow = mainWindow;
-			this.finalizer = controllers.createNewFinalizer();
-			this.specialTruckAddOns = specialTruckAddOns;
+			this.gfds = gfds;
+			this.finalizer = gfds.controllers.createNewFinalizer();
 			this.language = null;
 			this.data = null;
 			this.tabs = new Vector<>();
@@ -1384,7 +1385,7 @@ public class SnowRunner {
 			tabs.add(allTab);
 			
 			String title = allTab.getTabTitle(data.addonCategories, language);
-			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, finalizer.getControllers(), false, specialTruckAddOns).set(data, saveGame);
+			TruckAddonsTableModel tableModel = new TruckAddonsTableModel(mainWindow, gfds, false).set(data, saveGame);
 			finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 			addTab(title, tableModel);
 			tableModel.setRowData(data.truckAddons.values());
@@ -1399,7 +1400,7 @@ public class SnowRunner {
 				tabs.add(tab);
 				
 				title = tab.getTabTitle(data.addonCategories, language);
-				tableModel = new TruckAddonsTableModel(mainWindow, finalizer.getControllers(), false, specialTruckAddOns).set(data, saveGame);
+				tableModel = new TruckAddonsTableModel(mainWindow, gfds, false).set(data, saveGame);
 				finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
 				addTab(title, tableModel);
 				tableModel.setRowData(list);
@@ -1429,22 +1430,22 @@ public class SnowRunner {
 		private Data data;
 		private final Finalizer finalizer;
 
-		TrucksTablePanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, UserDefinedValues userDefinedValues, TruckImages truckImages) {
+		TrucksTablePanel(Window mainWindow, GlobalFinalDataStructures gfds) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
-			finalizer = controllers.createNewFinalizer();
+			finalizer = gfds.controllers.createNewFinalizer();
 			
 			data = null;
 			finalizer.addDataReceiver(data->{
 				this.data = data;
 			});
 			
-			TruckPanelProto truckPanelProto = new TruckPanelProto(mainWindow, controllers, specialTruckAddOns, truckImages);
+			TruckPanelProto truckPanelProto = new TruckPanelProto(mainWindow, gfds);
 			finalizer.addSubComp(truckPanelProto);
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
 			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
-			TruckTableModel truckTableModel = new TruckTableModel(mainWindow, controllers, specialTruckAddOns, userDefinedValues, truckImages);
+			TruckTableModel truckTableModel = new TruckTableModel(mainWindow, gfds);
 			finalizer.addSubComp(truckTableModel);
 			JComponent truckTableScrollPane = TableSimplifier.create(
 					truckTableModel,
@@ -1468,15 +1469,15 @@ public class SnowRunner {
 		private DLCs dlcs;
 		private Data data;
 		
-		TrucksListPanel(StandardMainWindow mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, TruckImages truckImages) {
+		TrucksListPanel(StandardMainWindow mainWindow, GlobalFinalDataStructures gfds) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
-			this.finalizer = controllers.createNewFinalizer();
+			this.finalizer = gfds.controllers.createNewFinalizer();
 			this.dlcs = null;
 			this.data = null;
 			setResizeWeight(0);
 			
-			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, controllers, specialTruckAddOns, truckImages);
+			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, gfds);
 			finalizer.addSubComp(truckPanelProto);
 			JSplitPane splitPaneFromTruckPanel = truckPanelProto.createSplitPane();
 			splitPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
@@ -1492,7 +1493,7 @@ public class SnowRunner {
 				truckList.setListData(items);
 			});
 			
-			TruckListContextMenu truckListContextMenu = new TruckListContextMenu();
+			TruckListContextMenu truckListContextMenu = new TruckListContextMenu(gfds);
 			finalizer.addLanguageListener(truckListContextMenu);
 			
 			TruckListCellRenderer truckListCellRenderer = new TruckListCellRenderer(truckList);
@@ -1522,7 +1523,7 @@ public class SnowRunner {
 			private Truck clickedItem;
 			private Language language;
 		
-			TruckListContextMenu() {
+			TruckListContextMenu(GlobalFinalDataStructures gfds) {
 				clickedIndex = -1;
 				clickedItem = null;
 				language = null;
@@ -1540,7 +1541,7 @@ public class SnowRunner {
 					);
 					boolean assignmentsChanged = dlg.showDialog();
 					if (assignmentsChanged)
-						finalizer.getControllers().dlcListeners.updateAfterChange();
+						gfds.controllers.dlcListeners.updateAfterChange();
 				}));
 				
 				addContextMenuInvokeListener((comp, x, y) -> {
@@ -1654,10 +1655,6 @@ public class SnowRunner {
 			
 			private final Vector<Finalizable> subComps = new Vector<>();
 			private final StringVectorMap<Finalizable> volatileSubComps = new StringVectorMap<>();
-			
-			public Controllers getControllers() {
-				return Controllers.this;
-			}
 
 			public <T extends Finalizable> T addSubComp(T subComp) {
 				subComps.add(subComp);

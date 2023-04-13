@@ -16,7 +16,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 
@@ -27,13 +27,13 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 	private SaveGame saveGame;
 	private Trailer clickedRow;
 
-	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData, Data data, SaveGame saveGame) {
-		this(mainWindow, controllers, connectToGlobalData);
+	public TrailersTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, Data data, SaveGame saveGame) {
+		this(mainWindow, gfds, connectToGlobalData);
 		setExtraData(data);
 		this.saveGame = saveGame;
 	}
-	public TrailersTableModel(Window mainWindow, Controllers controllers, boolean connectToGlobalData) {
-		super(mainWindow, controllers, new ColumnID[] {
+	public TrailersTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData) {
+		super(mainWindow, gfds, new ColumnID[] {
 				new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
 				new ColumnID("Name"     ,"Name"                 ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.name_StringID), 
 				new ColumnID("UpdateLvl","Update Level"         ,  String.class,  80,   null,      null, false, row->((Trailer)row).updateLevel),
@@ -119,7 +119,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		
 		JMenuItem miFilterTrucksByTrailer = contextMenu.add(SnowRunner.createMenuItem("Filter table \"Trucks\" by usability of this trailer", true, e->{
 			if (clickedRow != null)
-				finalizer.getControllers().filterTrucksByTrailersListeners.setFilter(clickedRow);
+				gfds.controllers.filterTrucksByTrailersListeners.setFilter(clickedRow);
 		}));
 		
 		contextMenu.addContextMenuInvokeListener((table, x, y) -> {

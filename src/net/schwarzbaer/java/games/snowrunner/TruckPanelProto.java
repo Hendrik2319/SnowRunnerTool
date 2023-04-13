@@ -67,10 +67,9 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TruckImages;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
@@ -100,13 +99,13 @@ class TruckPanelProto implements Finalizable {
 	private SnowRunner.DLCs dlcs;
 	private final TruckImages truckImages;
 
-	TruckPanelProto(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns, TruckImages truckImages) {
-		this.truckImages = truckImages;
+	TruckPanelProto(Window mainWindow, GlobalFinalDataStructures gfds) {
+		this.truckImages = gfds.truckImages;
 		language = null;
 		truck = null;
 		dlcs = null;
 		saveGame = null;
-		finalizer = controllers.createNewFinalizer();
+		finalizer = gfds.controllers.createNewFinalizer();
 		
 		truckImageView = new ImageView(300,300);
 		
@@ -119,8 +118,8 @@ class TruckPanelProto implements Finalizable {
 		
 		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow);
 		addonSocketsPanel = new AddonSocketsPanel();
-		addonsPanel  = new AddonsPanel (mainWindow, controllers, specialTruckAddOns);
-		addonsPanel2 = new AddonsPanel2(mainWindow, controllers, specialTruckAddOns);
+		addonsPanel  = new AddonsPanel (mainWindow, gfds);
+		addonsPanel2 = new AddonsPanel2(mainWindow, gfds);
 		finalizer.addSubComp(addonsPanel);
 		finalizer.addSubComp(addonsPanel2);
 		
@@ -275,13 +274,13 @@ class TruckPanelProto implements Finalizable {
 		private Truck truck;
 		private final Vector<Tab> currentTabs;
 		private AddonCategories addonCategories;
-		private final SpecialTruckAddons specialTruckAddOns;
 		private SaveGame saveGame;
+		private final GlobalFinalDataStructures gfds;
 
-		AddonsPanel2(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+		AddonsPanel2(Window mainWindow, GlobalFinalDataStructures gfds) {
 			this.mainWindow = mainWindow;
-			this.finalizer = controllers.createNewFinalizer();
-			this.specialTruckAddOns = specialTruckAddOns;
+			this.gfds = gfds;
+			this.finalizer = gfds.controllers.createNewFinalizer();
 			this.truck = null;
 			saveGame = null;
 			addonCategories = null;
@@ -320,11 +319,11 @@ class TruckPanelProto implements Finalizable {
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, finalizer.getControllers(), false, data, saveGame));
-				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultEngine_ItemID    , Data.Engine    .class)));
-				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultGearbox_ItemID   , Data.Gearbox   .class)));
-				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultSuspension_ItemID, Data.Suspension.class)));
-				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel    (mainWindow, finalizer.getControllers(), false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultWinch_ItemID     , Data.Winch     .class)));
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, gfds, false, data, saveGame));
+				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, gfds, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultEngine_ItemID    , Data.Engine    .class)));
+				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, gfds, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultGearbox_ItemID   , Data.Gearbox   .class)));
+				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, gfds, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultSuspension_ItemID, Data.Suspension.class)));
+				createTab("winch"     , this.truck.compatibleWinches     , () -> new WinchesTableModel    (mainWindow, gfds, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultWinch_ItemID     , Data.Winch     .class)));
 				
 				StringVectorMap<TruckAddon> compatibleTruckAddons = this.truck.compatibleTruckAddons;
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
@@ -332,8 +331,7 @@ class TruckPanelProto implements Finalizable {
 				for (String category : truckAddonCategories)
 					createTab(category, compatibleTruckAddons.get(category), () -> {
 						return new TruckAddonsTableModel(
-							mainWindow, finalizer.getControllers(), false, specialTruckAddOns,
-							true, createDefaultColumn_List(tr->tr.defaultAddonIDs,TruckAddon.class)
+							mainWindow, gfds, false, true, createDefaultColumn_List(tr->tr.defaultAddonIDs,TruckAddon.class)
 						).set(data, saveGame);
 					});
 			}
@@ -433,17 +431,17 @@ class TruckPanelProto implements Finalizable {
 		private Language language;
 		private final Finalizer finalizer;
 
-		AddonsPanel(Window mainWindow, Controllers controllers, SpecialTruckAddons specialTruckAddOns) {
+		AddonsPanel(Window mainWindow, GlobalFinalDataStructures gfds) {
 			super(new GridBagLayout());
 			
-			finalizer = controllers.createNewFinalizer();
+			finalizer = gfds.controllers.createNewFinalizer();
 			addonSockets = null;
 			currentSocketIndex = 0;
 			language = null;
 			
 			tablePanels = new JTabbedPane();
-			tablePanels.addTab("Trailers", TableSimplifier.create(finalizer.addSubComp(   trailersTableModel = new TrailersTableModel(mainWindow, controllers, false))));
-			tablePanels.addTab("Addons"  , TableSimplifier.create(finalizer.addSubComp(truckAddonsTableModel = new TruckAddonsTableModel(mainWindow, controllers, false, specialTruckAddOns))));
+			tablePanels.addTab("Trailers", TableSimplifier.create(finalizer.addSubComp(   trailersTableModel = new TrailersTableModel   (mainWindow, gfds, false))));
+			tablePanels.addTab("Addons"  , TableSimplifier.create(finalizer.addSubComp(truckAddonsTableModel = new TruckAddonsTableModel(mainWindow, gfds, false))));
 			
 			GridBagConstraints c = new GridBagConstraints();
 			c.fill = GridBagConstraints.BOTH;
