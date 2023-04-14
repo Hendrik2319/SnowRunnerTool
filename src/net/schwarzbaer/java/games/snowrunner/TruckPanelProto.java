@@ -42,6 +42,7 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
@@ -70,6 +71,7 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
@@ -163,6 +165,7 @@ class TruckPanelProto implements Finalizable {
 	
 	JSplitPane createSplitPane() {
 		JTabbedPane tabbedPanel = new JTabbedPane();
+		tabbedPanel.addTab("Image", truckImageView);
 		addStandardTabsTo(tabbedPanel);
 		
 		JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
@@ -251,7 +254,9 @@ class TruckPanelProto implements Finalizable {
 			outTop.add(0, "DefaultAddons", "%s", SnowRunner.joinTruckAddonNames(truck.defaultAddons, addonCategories, language));
 		}
 		
+		ScrollValues scrollPos = ScrollValues.getVertical(truckInfoTextAreaScrollPane);
 		truckInfoTextArea.setText(outTop.generateOutput());
+		if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(truckInfoTextAreaScrollPane));
 	}
 
 	private static class AddonsPanel2 extends CombinedTableTabPaneTextPanePanel implements Finalizable {

@@ -13,7 +13,6 @@ import java.util.function.Function;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
@@ -30,6 +29,7 @@ import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
 import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
 import net.schwarzbaer.system.ClipboardTools;
 
 public class TableSimplifier {
@@ -395,42 +395,4 @@ public class TableSimplifier {
 			void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex);
 		}
 		
-		private record ScrollValues(int min, int max, int ext, int val) {
-			
-			static ScrollValues get(JScrollBar scrollBar)
-			{
-				int min = scrollBar.getMinimum();
-				int max = scrollBar.getMaximum();
-				int ext = scrollBar.getVisibleAmount();
-				int val = scrollBar.getValue();
-				return new ScrollValues(min, max, ext, val);
-			}
-
-			static ScrollValues getVertical(JScrollPane scrollPane)
-			{
-				if (scrollPane==null) return null;
-				return get(scrollPane.getVerticalScrollBar());
-			}
-
-			void setVertical(JScrollPane scrollPane)
-			{
-				if (scrollPane==null) return;
-				JScrollBar scrollBar = scrollPane.getVerticalScrollBar();
-				ScrollValues newValues = get(scrollBar);
-				//System.err.printf("scroll pos: %s -> %s%n", this, newValues);
-				
-				if (val==0) // start of page -> start of page
-					scrollBar.setValue(val);
-				
-				else if (val+ext >= max) // end of page -> end of page
-					scrollBar.setValue(newValues.max-newValues.ext);
-				
-				else if (val+newValues.ext >= newValues.max) // old val > max -> end of page
-					scrollBar.setValue(newValues.max-newValues.ext);
-				
-				else
-					scrollBar.setValue(val);
-			}
-
-		}
 	}
