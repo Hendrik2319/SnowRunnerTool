@@ -2,6 +2,7 @@ package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dialog.ModalityType;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Window;
@@ -72,6 +73,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
+import net.schwarzbaer.gui.ImageViewDialog;
 import net.schwarzbaer.gui.ProgressDialog;
 import net.schwarzbaer.gui.StandardMainWindow;
 import net.schwarzbaer.gui.StyledDocumentInterface;
@@ -156,6 +158,7 @@ public class SnowRunner {
 	private final JMenuItem miSGValuesOriginal;
 	private final JMenu selectedSaveGameMenu;
 	private final GlobalFinalDataStructures gfds;
+	private final ImageDialogController truckImageDialogController;
 	
 	SnowRunner() {
 		data = null;
@@ -169,12 +172,20 @@ public class SnowRunner {
 		
 		fin.addSpecialTruckAddonsListener((list, change) -> gfds.specialTruckAddons.writeToFile());
 		
+		truckImageDialogController = new ImageDialogController(mainWindow, "Truck Image", 400,400);
+		truckImageDialogController.registerDialogAsExtraWindow(
+				AppSettings.ValueKey.TruckImageDialog_WindowX,
+				AppSettings.ValueKey.TruckImageDialog_WindowY,
+				AppSettings.ValueKey.TruckImageDialog_WindowWidth,
+				AppSettings.ValueKey.TruckImageDialog_WindowHeight
+		);
+		
 		rawDataPanel = new RawDataPanel(mainWindow, gfds);
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"          ,                        fin.addSubComp(new TrucksTablePanel         (mainWindow, gfds)));
-		contentPane.addTab("Trucks (old)"    ,                        fin.addSubComp(new TrucksListPanel          (mainWindow, gfds)));
+		contentPane.addTab("Trucks"          ,                        fin.addSubComp(new TrucksTablePanel         (mainWindow, gfds, truckImageDialogController)));
+		contentPane.addTab("Trucks (old)"    ,                        fin.addSubComp(new TrucksListPanel          (mainWindow, gfds, truckImageDialogController)));
 		contentPane.addTab("Wheels"          , TableSimplifier.create(fin.addSubComp(new WheelsTableModel         (mainWindow, gfds))));
 		contentPane.addTab("DLCs"            , TableSimplifier.create(fin.addSubComp(new DLCTableModel            (            gfds))));
 		contentPane.addTab("Trailers"        , TableSimplifier.create(fin.addSubComp(new TrailersTableModel       (mainWindow, gfds, true))));
@@ -225,6 +236,9 @@ public class SnowRunner {
 		
 		boolean writeCalculationDetailsinToConsole = settings.getBool(AppSettings.ValueKey.Tables_WriteCalculationDetailsToConsole, true);
 		JMenu optionsMenu = menuBar.add(new JMenu("Options"));
+		optionsMenu.add(createMenuItem("Show Truck Images in separate window", true, e->{
+			truckImageDialogController.showDialog();
+		}));
 		optionsMenu.add(createCheckBoxMenuItem("Write Calculation Details to Console", writeCalculationDetailsinToConsole, null, true, b->{
 			settings.putBool(AppSettings.ValueKey.Tables_WriteCalculationDetailsToConsole, b);
 		}));
@@ -1429,7 +1443,7 @@ public class SnowRunner {
 		private Data data;
 		private final Finalizer finalizer;
 
-		TrucksTablePanel(Window mainWindow, GlobalFinalDataStructures gfds) {
+		TrucksTablePanel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			finalizer = gfds.controllers.createNewFinalizer();
@@ -1439,7 +1453,7 @@ public class SnowRunner {
 				this.data = data;
 			});
 			
-			TruckPanelProto truckPanelProto = new TruckPanelProto(mainWindow, gfds);
+			TruckPanelProto truckPanelProto = new TruckPanelProto(mainWindow, gfds, imageDialogController);
 			finalizer.addSubComp(truckPanelProto);
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
 			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
@@ -1468,7 +1482,7 @@ public class SnowRunner {
 		private Data data;
 		private final GlobalFinalDataStructures gfds;
 		
-		TrucksListPanel(StandardMainWindow mainWindow, GlobalFinalDataStructures gfds) {
+		TrucksListPanel(StandardMainWindow mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController) {
 			super(JSplitPane.HORIZONTAL_SPLIT);
 			this.mainWindow = mainWindow;
 			this.gfds = gfds;
@@ -1476,7 +1490,7 @@ public class SnowRunner {
 			this.data = null;
 			setResizeWeight(0);
 			
-			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, this.gfds);
+			TruckPanelProto truckPanelProto = new TruckPanelProto(this.mainWindow, this.gfds, imageDialogController);
 			finalizer.addSubComp(truckPanelProto);
 			JSplitPane splitPaneFromTruckPanel = truckPanelProto.createSplitPane();
 			splitPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
@@ -1789,6 +1803,10 @@ public class SnowRunner {
 			Tables_CalcDetailsDialog_WindowY,
 			Tables_CalcDetailsDialog_WindowWidth,
 			Tables_CalcDetailsDialog_WindowHeight,
+			TruckImageDialog_WindowX,
+			TruckImageDialog_WindowY,
+			TruckImageDialog_WindowWidth,
+			TruckImageDialog_WindowHeight,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {
@@ -1877,5 +1895,36 @@ public class SnowRunner {
 				scrollBar.setValue(val);
 		}
 
+	}
+	
+	public static class ImageDialogController
+	{
+		private ImageViewDialog dialog;
+
+		public ImageDialogController(Window mainWindow, String title, int width, int height)
+		{
+			dialog = new ImageViewDialog(mainWindow, null, title, width, height, null, false, true);
+			dialog.setModalityType(ModalityType.MODELESS);
+		}
+
+		private void registerDialogAsExtraWindow(AppSettings.ValueKey windowX, AppSettings.ValueKey windowY, AppSettings.ValueKey windowWidth, AppSettings.ValueKey windowHeight)
+		{
+			settings.registerExtraWindow(dialog, windowX, windowY, windowWidth, windowHeight);
+		}
+
+		public void showDialog()
+		{
+			if (dialog.isVisible())
+				return;
+			
+			dialog.setVisible(true);
+		}
+
+		public void setImage(BufferedImage image)
+		{
+			dialog.setImage(image);
+			dialog.setZoom(1);
+		}
+		
 	}
 }

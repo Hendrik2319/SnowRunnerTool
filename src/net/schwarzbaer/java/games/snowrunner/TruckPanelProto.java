@@ -71,6 +71,7 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.ImageDialogController;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
@@ -98,15 +99,18 @@ class TruckPanelProto implements Finalizable {
 	private SaveGame saveGame;
 	private AddonCategories addonCategories;
 	private final GlobalFinalDataStructures gfds;
+	private final ImageDialogController imageDialogController;
 
-	TruckPanelProto(Window mainWindow, GlobalFinalDataStructures gfds) {
+	TruckPanelProto(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController) {
 		this.gfds = gfds;
 		language = null;
 		truck = null;
 		saveGame = null;
 		finalizer = gfds.controllers.createNewFinalizer();
+		this.imageDialogController = imageDialogController;
 		
-		truckImageView = new ImageView(300,300);
+		truckImageView = new ImageView(300,300, null, true);
+		extendTruckImageViewContextMenu(truckImageView.getContextMenu());
 		
 		truckInfoTextArea = new JTextArea();
 		truckInfoTextArea.setEditable(false);
@@ -149,6 +153,16 @@ class TruckPanelProto implements Finalizable {
 		updateTruckImage();
 	}
 	
+	private void extendTruckImageViewContextMenu(ContextMenu contextMenu)
+	{
+		contextMenu.addSeparator();
+		contextMenu.add(SnowRunner.createMenuItem("Show in separate window", true, e->{
+			imageDialogController.showDialog();
+			updateTruckImage();
+		}));
+		//contextMenu.addContextMenuInvokeListener(null);
+	}
+
 	@Override public void prepareRemovingFromGUI() {
 		finalizer.removeSubCompsAndListenersFromGUI();
 	}
@@ -197,6 +211,7 @@ class TruckPanelProto implements Finalizable {
 		BufferedImage image = truck==null ? null : gfds.truckImages.get(truck.id);
 		truckImageView.setImage(image);
 		truckImageView.setZoom(1);
+		imageDialogController.setImage(image);
 	}
 
 	private void updateOutput() {
