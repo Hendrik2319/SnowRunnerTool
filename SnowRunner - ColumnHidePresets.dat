@@ -16,5 +16,5 @@ Columns=AWDUser,AutoWinch,BigCrane,Country,DLUser,FuelCap,LogLift,LongLogs,MedLo
 [Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
 Preset=SpecAddonTest
-Columns=AutoWinch,BigCrane,CargoSlts,DefAWD,DefDifLck,DefEngine,DefGearbx,DefSusp,DefWinch,Desc,ExclAddon,ExclCargo,FuelCap,ID,Image,LogLift,LongLogs,MedLogs,MetalD,MiniCrane,Name,Owned,Price,Seismic,ShortLogs,Type,UnlExpl,UnlRank,UpgrWinch,WhHigh,WhMud,WhOffr,WheelSizs,WheelTyps
+Columns=AutoWinch,BigCrane,ID,LogLift,LongLogs,MedLogs,MedLogsB,MetalD,MiniCargo,MiniCrane,Name,Owned,Seismic,ShortLogs,Type
 

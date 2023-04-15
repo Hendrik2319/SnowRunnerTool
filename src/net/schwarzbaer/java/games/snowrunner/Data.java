@@ -367,7 +367,8 @@ public class Data {
 			boolean foundARequiredAddon = false;
 			for (int orIndex=0; orIndex<requiredAddons[andIndex].length; orIndex++) {
 				String requiredAddon = requiredAddons[andIndex][orIndex];
-				if (findAddon(requiredAddon, compatibleAddons, compatibleTrailers)) {
+				if (	findAddon(compatibleAddons  , addon   -> requiredAddon.equals(addon  .id)) ||
+						findAddon(compatibleTrailers, trailer -> requiredAddon.equals(trailer.id))	) {
 					foundARequiredAddon = true;
 					break;
 				}
@@ -378,15 +379,21 @@ public class Data {
 		return true;
 	}
 
-	private static boolean findAddon(String id, StringVectorMap<TruckAddon> addons, HashSet<Trailer> trailers) {
-		if (addons!=null)
-			for (Vector<TruckAddon> list : addons.values())
-				for (TruckAddon addon : list)
-					if (id.equals(addon.id))
+	private static <ItemType extends ItemBased> boolean findAddon(StringVectorMap<ItemType> items, Predicate<ItemType> predicate)
+	{
+		if (items!=null)
+			for (Vector<ItemType> list : items.values())
+				for (ItemType item : list)
+					if (predicate.test(item))
 						return true;
-		if (trailers!=null)
-			for (Trailer trailer : trailers)
-				if (id.equals(trailer.id))
+		return false;
+	}
+
+	private static <ItemType extends ItemBased> boolean findAddon(Collection<ItemType> items, Predicate<ItemType> predicate)
+	{
+		if (items!=null)
+			for (ItemType item : items)
+				if (predicate.test(item))
 					return true;
 		return false;
 	}
@@ -846,9 +853,7 @@ public class Data {
 					
 					r -> false, //r!=null && r.booleanValue(),
 					
-					id -> {
-						return determineCapability(truck, id, textOutput);
-					}
+					id -> determineLoadAreaCargoCapability(truck, id, textOutput)
 				);
 				if (textOutput!=null)
 				{
@@ -862,7 +867,7 @@ public class Data {
 		return null;
 	}
 
-	private Capability determineCapability(Truck truck, String id, TextOutput textOutput)
+	private Capability determineLoadAreaCargoCapability(Truck truck, String id, TextOutput textOutput)
 	{
 		TruckAddon addon = truckAddons.get(id);
 		if (addon==null) {
@@ -889,87 +894,93 @@ public class Data {
 		}
 		if (textOutput!=null) textOutput.printf("      CargoAddonSubtype: \"%s\"%n", addon.gameData.cargoAddonSubtype);
 		
-		Vector<TruckAddon> truckAddons = findItemsWithCompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, this.truckAddons.values());
-		Vector<Trailer   > trailers    = findItemsWithCompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, this.trailers   .values());
-		
-		if (truckAddons.isEmpty() && trailers.isEmpty()) {
-			if (textOutput!=null) textOutput.printf("      Can't find any addon or trailer for CargoAddonSubtype.%n");
-			return null;
-		}
-		
 		Capability result = null;
 		
-		boolean noAddonFound = true;
-		if (textOutput!=null && !truckAddons.isEmpty())
-			textOutput.printf("      Found addons for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinTruckAddonNames(truckAddons, null, null));
-		for (TruckAddon addon_ : truckAddons)
-			if (findAddon(addon_.id, truck.compatibleTruckAddons, null)) {
-				if (textOutput!=null) textOutput.printf("         Found addon <%s> in truck's list of compatible addons.%n", addon_.id);
-				noAddonFound = false;
-				if (result == null) result = new Capability(false,false,false);
-				result.isCapable = true;
-				result.byTruck   = true;
-				break;
-			}
-		if (textOutput!=null && noAddonFound && !truckAddons.isEmpty())
-			textOutput.printf("         None of the found addons are in truck's list of compatible addons.%n");
+		if (findAddon(truck.compatibleTruckAddons, truckAddon -> {
+			boolean has = hasItemACompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, false, truckAddon);
+			if (has && textOutput!=null)
+				textOutput.printf("      Found addon <%s> for CargoAddonSubtype \"%s\" truck's list of compatible addons.%n", truckAddon.id, addon.gameData.cargoAddonSubtype);
+			return has;
+		}))
+		{
+			if (result == null) result = new Capability(false,false,false);
+			result.isCapable = true;
+			result.byTruck   = true;
+		}
+		else
+			if (textOutput!=null)
+				textOutput.printf("      No addon for CargoAddonSubtype \"%s\" found truck's list of compatible addons.%n", addon.gameData.cargoAddonSubtype);
 		
-		boolean noTrailerFound = true;
-		if (textOutput!=null && !trailers.isEmpty())
-			textOutput.printf("      Found trailers for CargoAddonSubtype \"%s\": %s%n", addon.gameData.cargoAddonSubtype, SnowRunner.joinNames(trailers, null));
-		for (Trailer trailer : trailers)
-			if (findAddon(trailer.id, null, truck.compatibleTrailers)) {
-				if (textOutput!=null) textOutput.printf("         Found trailer <%s> in truck's list of compatible trailers.%n", trailer.id);
-				noTrailerFound = false;
-				if (result == null) result = new Capability(false,false,false);
-				result.isCapable = true;
-				result.byTrailer = true;
-				break;
-			}
-		if (textOutput!=null && noTrailerFound && !trailers.isEmpty())
-			textOutput.printf("         None of the found trailers are in truck's list of compatible trailers.%n");
+		if (findAddon(truck.compatibleTrailers, trailer -> {
+			boolean has = hasItemACompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, false, trailer);
+			if (has && textOutput!=null)
+				textOutput.printf("      Found trailer <%s> for CargoAddonSubtype \"%s\" truck's list of compatible trailers.%n", trailer.id, addon.gameData.cargoAddonSubtype);
+			return has;
+		}))
+		{
+			if (result == null) result = new Capability(false,false,false);
+			result.isCapable = true;
+			result.byTrailer = true;
+		}
+		else
+			if (textOutput!=null)
+				textOutput.printf("      No trailer for CargoAddonSubtype \"%s\" found truck's list of compatible trailers.%n", addon.gameData.cargoAddonSubtype);
 		
 		if (result == null)
 			result = new Capability(false,false,false);
+		
 		return result;
 	}
 
 	private static
 	<ItemType extends GameData.GameDataT3NonTruckContainer>
-	Vector<ItemType> findItemsWithCompatibleLoadArea(String requiredCargoType, String requiredCargoAddonSubtype, Collection<ItemType> items) {
-		Vector<ItemType> resultList = new Vector<>();
-		for (ItemType item : items) {
-			GameData.GameDataT3NonTruck gameData = item.getGameData();
-			if (gameData!=null)
-				for (GameData.GameDataT3NonTruck.LoadArea loadArea : gameData.loadAreas)
-					if (
-					//		(requiredCargoType         == null || requiredCargoType        .equals(loadArea.type   )) &&
-							(requiredCargoAddonSubtype == null || requiredCargoAddonSubtype.equals(loadArea.subtype)) &&
-							loadArea.trailerLoad != null && loadArea.trailerLoad.booleanValue()
-					)
-					{
-						resultList.add(item);
-						break;
-					}
-		}
-		return resultList;
+	boolean hasItemACompatibleLoadArea(String requiredCargoType, String requiredCargoAddonSubtype, boolean ignoreTrailerLoad, ItemType item)
+	{
+		GameData.GameDataT3NonTruck gameData = item.getGameData();
+		if (gameData == null) throw new IllegalStateException();
+		
+		for (GameData.GameDataT3NonTruck.LoadArea loadArea : gameData.loadAreas)
+			if (
+			//		(requiredCargoType         == null || requiredCargoType        .equals(loadArea.type   )) &&
+					(requiredCargoAddonSubtype == null || requiredCargoAddonSubtype.equals(loadArea.subtype)) &&
+					(ignoreTrailerLoad || (loadArea.trailerLoad != null && loadArea.trailerLoad.booleanValue()))
+			)
+				return true;
+		return false;
 	}
 
-	public boolean canTruckCombineWithCompatibleAddon(Truck truck, Vector<String> addonIDs, Predicate<TruckAddon> addonPredicate)
+	public static
+	<ItemType extends GameData.GameDataT3NonTruckContainer>
+	boolean hasItemACompatibleLoadArea(HashSet<CargoTypePair> cargoTypes, boolean ignoreTrailerLoad, ItemType item)
 	{
-		HashSet<String> socketIDs1 = new HashSet<>();
-		for (String id : addonIDs)
+		for (CargoTypePair ct : cargoTypes)
+			if (hasItemACompatibleLoadArea(ct.cargoType, ct.cargoAddonSubtype, ignoreTrailerLoad, item))
+				return true;
+		return false;
+	}
+	
+	public record CargoTypePair(String cargoType, String cargoAddonSubtype) {}
+	
+	public HashSet<CargoTypePair> getCargoTypes(Collection<String> truckAddonIDs)
+	{
+		HashSet<CargoTypePair> set = new HashSet<>();
+		for (String id : truckAddonIDs)
 		{
-			TruckAddon addon = truckAddons.get(id);
-			if (addon!=null)
-				socketIDs1.add(addon.gameData.installSocket);
+			TruckAddon truckAddon = truckAddons.get(id);
+			if (truckAddon.gameData.isCargo)
+				set.add(new CargoTypePair(
+						truckAddon.gameData.cargoType,
+						truckAddon.gameData.cargoAddonSubtype
+				));
 		}
 		
-		HashSet<String> socketIDs2 = new HashSet<>();
-		for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
-			for (TruckAddon addon : list)
-				if (addonPredicate.test(addon))
-					socketIDs2.add(addon.gameData.installSocket);
+		return set;
+	}
+
+	public boolean canTruckCombineCompatibleAddons(Truck truck, Predicate<TruckAddon> addonPredicate1, Predicate<TruckAddon> addonPredicate2)
+	{
+		HashSet<String> socketIDs1 = getSocketIDsOfCompatibleAddons(truck, addonPredicate1);
+		HashSet<String> socketIDs2 = getSocketIDsOfCompatibleAddons(truck, addonPredicate2);
 		
 		if (socketIDs1.isEmpty() || socketIDs2.isEmpty())
 			return false;
@@ -992,6 +1003,16 @@ public class Data {
 		}
 		
 		return false;
+	}
+
+	private static HashSet<String> getSocketIDsOfCompatibleAddons(Truck truck, Predicate<TruckAddon> addonPredicate)
+	{
+		HashSet<String> socketIDs = new HashSet<>();
+		for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
+			for (TruckAddon addon : list)
+				if (addonPredicate.test(addon))
+					socketIDs.add(addon.gameData.installSocket);
+		return socketIDs;
 	}
 
 	private static boolean allSocketBIDsWereBlockedBySocketA(FoundSocket socketA, FoundSocket socketB)
