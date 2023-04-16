@@ -240,7 +240,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			}
 			
 			SpecialTruckAddons.SpecialTruckAddonList list = model_.gfds.specialTruckAddons.getList(SpecialTruckAddons.AddonCategory.MiniCrane);
-			return model_.data.canTruckCombineCompatibleAddons(truck_, addon -> list.contains(addon), addon -> addon.gameData.isCargoCarrier);
+			return model_.data.canTruckCombineCompatibleAddons(
+					truck_,
+					addon -> list.contains(addon),
+					addon -> addon.gameData.isCargoCarrier
+			);
 		});
 	}
 
@@ -252,13 +256,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			SpecialTruckAddons.SpecialTruckAddonList listOfLogs = model_.gfds.specialTruckAddons.getList(logType);
 			Vector<String> logIDs = new Vector<>();
 			listOfLogs.forEach(logIDs::add);
-			HashSet<Data.CargoTypePair> cargoTypes = model_.data.getCargoTypes(logIDs);
+			HashSet<Data.CargoTypePair> logCargoTypes = model_.data.getTruckAddonCargoTypes(logIDs);
 			
 			SpecialTruckAddons.SpecialTruckAddonList listOfLogLifts = model_.gfds.specialTruckAddons.getList(SpecialTruckAddons.AddonCategory.LogLift);
 			return model_.data.canTruckCombineCompatibleAddons(
 					truck_,
 					addon -> listOfLogLifts.contains(addon),
-					addon -> Data.hasItemACompatibleLoadArea(cargoTypes, true, addon)
+					addon -> Data.hasItemACompatibleLoadArea(addon, logCargoTypes, true)
 			);
 		});
 	}

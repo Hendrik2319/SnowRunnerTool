@@ -367,8 +367,9 @@ public class Data {
 			boolean foundARequiredAddon = false;
 			for (int orIndex=0; orIndex<requiredAddons[andIndex].length; orIndex++) {
 				String requiredAddon = requiredAddons[andIndex][orIndex];
-				if (	findAddon(compatibleAddons  , addon   -> requiredAddon.equals(addon  .id)) ||
-						findAddon(compatibleTrailers, trailer -> requiredAddon.equals(trailer.id))	) {
+				Predicate<ItemBasedNonTruck> predicate = item -> requiredAddon.equals(item.id);
+				if (	findOne(compatibleAddons  , predicate)!=null ||
+						findOne(compatibleTrailers, predicate)!=null	) {
 					foundARequiredAddon = true;
 					break;
 				}
@@ -379,23 +380,23 @@ public class Data {
 		return true;
 	}
 
-	private static <ItemType extends ItemBased> boolean findAddon(StringVectorMap<ItemType> items, Predicate<ItemType> predicate)
+	private static <ItemType extends ItemBased> ItemType findOne(StringVectorMap<ItemType> items, Predicate<? super ItemType> predicate)
 	{
 		if (items!=null)
 			for (Vector<ItemType> list : items.values())
 				for (ItemType item : list)
 					if (predicate.test(item))
-						return true;
-		return false;
+						return item;
+		return null;
 	}
 
-	private static <ItemType extends ItemBased> boolean findAddon(Collection<ItemType> items, Predicate<ItemType> predicate)
+	private static <ItemType extends ItemBased> ItemType findOne(Collection<ItemType> items, Predicate<? super ItemType> predicate)
 	{
 		if (items!=null)
 			for (ItemType item : items)
 				if (predicate.test(item))
-					return true;
-		return false;
+					return item;
+		return null;
 	}
 
 	private static boolean findAddon(String id, String[] idList) {
@@ -894,47 +895,41 @@ public class Data {
 		}
 		if (textOutput!=null) textOutput.printf("      CargoAddonSubtype: \"%s\"%n", addon.gameData.cargoAddonSubtype);
 		
-		Capability result = null;
+		Predicate<ItemBasedNonTruck> predicate = item -> hasItemACompatibleLoadArea(item, addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, false);
+		TruckAddon truckAddon = findOne(truck.compatibleTruckAddons, predicate);
+		Trailer    trailer    = findOne(truck.compatibleTrailers   , predicate);
 		
-		if (findAddon(truck.compatibleTruckAddons, truckAddon -> {
-			boolean has = hasItemACompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, false, truckAddon);
-			if (has && textOutput!=null)
-				textOutput.printf("      Found addon <%s> for CargoAddonSubtype \"%s\" truck's list of compatible addons.%n", truckAddon.id, addon.gameData.cargoAddonSubtype);
-			return has;
-		}))
+		Capability result = new Capability(false,false,false);
+		if (truckAddon!=null)
 		{
-			if (result == null) result = new Capability(false,false,false);
 			result.isCapable = true;
 			result.byTruck   = true;
 		}
-		else
-			if (textOutput!=null)
-				textOutput.printf("      No addon for CargoAddonSubtype \"%s\" found truck's list of compatible addons.%n", addon.gameData.cargoAddonSubtype);
 		
-		if (findAddon(truck.compatibleTrailers, trailer -> {
-			boolean has = hasItemACompatibleLoadArea(addon.gameData.cargoType, addon.gameData.cargoAddonSubtype, false, trailer);
-			if (has && textOutput!=null)
-				textOutput.printf("      Found trailer <%s> for CargoAddonSubtype \"%s\" truck's list of compatible trailers.%n", trailer.id, addon.gameData.cargoAddonSubtype);
-			return has;
-		}))
+		if (trailer!=null)
 		{
-			if (result == null) result = new Capability(false,false,false);
 			result.isCapable = true;
 			result.byTrailer = true;
 		}
-		else
-			if (textOutput!=null)
-				textOutput.printf("      No trailer for CargoAddonSubtype \"%s\" found truck's list of compatible trailers.%n", addon.gameData.cargoAddonSubtype);
 		
-		if (result == null)
-			result = new Capability(false,false,false);
+		if (textOutput!=null)
+		{
+			if (truckAddon!=null)
+				textOutput.printf("      Found addon <%s> for CargoAddonSubtype \"%s\" truck's list of compatible addons.%n", truckAddon.id, addon.gameData.cargoAddonSubtype);
+			else
+				textOutput.printf("      No addon for CargoAddonSubtype \"%s\" found truck's list of compatible addons.%n", addon.gameData.cargoAddonSubtype);
+			if (trailer!=null)
+				textOutput.printf("      Found trailer <%s> for CargoAddonSubtype \"%s\" truck's list of compatible trailers.%n", trailer.id, addon.gameData.cargoAddonSubtype);
+			else
+				textOutput.printf("      No trailer for CargoAddonSubtype \"%s\" found truck's list of compatible trailers.%n", addon.gameData.cargoAddonSubtype);
+		}
 		
 		return result;
 	}
 
-	private static
+	public static
 	<ItemType extends GameData.GameDataT3NonTruckContainer>
-	boolean hasItemACompatibleLoadArea(String requiredCargoType, String requiredCargoAddonSubtype, boolean ignoreTrailerLoad, ItemType item)
+	boolean hasItemACompatibleLoadArea(ItemType item, String requiredCargoType, String requiredCargoAddonSubtype, boolean ignoreTrailerLoad)
 	{
 		GameData.GameDataT3NonTruck gameData = item.getGameData();
 		if (gameData == null) throw new IllegalStateException();
@@ -951,17 +946,17 @@ public class Data {
 
 	public static
 	<ItemType extends GameData.GameDataT3NonTruckContainer>
-	boolean hasItemACompatibleLoadArea(HashSet<CargoTypePair> cargoTypes, boolean ignoreTrailerLoad, ItemType item)
+	boolean hasItemACompatibleLoadArea(ItemType item, HashSet<CargoTypePair> cargoTypes, boolean ignoreTrailerLoad)
 	{
 		for (CargoTypePair ct : cargoTypes)
-			if (hasItemACompatibleLoadArea(ct.cargoType, ct.cargoAddonSubtype, ignoreTrailerLoad, item))
+			if (hasItemACompatibleLoadArea(item, ct.cargoType, ct.cargoAddonSubtype, ignoreTrailerLoad))
 				return true;
 		return false;
 	}
 	
 	public record CargoTypePair(String cargoType, String cargoAddonSubtype) {}
 	
-	public HashSet<CargoTypePair> getCargoTypes(Collection<String> truckAddonIDs)
+	public HashSet<CargoTypePair> getTruckAddonCargoTypes(Collection<String> truckAddonIDs)
 	{
 		HashSet<CargoTypePair> set = new HashSet<>();
 		for (String id : truckAddonIDs)
@@ -2255,7 +2250,12 @@ public class Data {
 		}
 	}
 	
-	public static class Trailer extends ItemBased implements HasNameAndID, GameData.GameDataT3NonTruckContainer {
+	private static abstract class ItemBasedNonTruck extends ItemBased implements HasNameAndID, GameData.GameDataT3NonTruckContainer
+	{
+		ItemBasedNonTruck(Item item) { super(item); }
+	}
+	
+	public static class Trailer extends ItemBasedNonTruck {
 
 		public final String attachType;
 		public final Integer repairsCapacity;
@@ -2292,7 +2292,7 @@ public class Data {
 		@Override public GameData.GameDataT3NonTruck getGameData() { return gameData; }
 	}
 
-	public static class TruckAddon extends ItemBased implements HasNameAndID, GameData.GameDataT3NonTruckContainer {
+	public static class TruckAddon extends ItemBasedNonTruck {
 		
 		public final Integer repairsCapacity;
 		public final Integer wheelRepairsCapacity;
