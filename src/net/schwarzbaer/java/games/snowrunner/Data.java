@@ -2010,11 +2010,12 @@ public class Data {
 			//      FuelCapacity
 			//      FueltankMarkerOffset
 			//      Responsiveness
+			//      SetHandbrakeOnWinchRelease  // new
 			//      SteerSpeed
 			//      SuspensionMarkerOffset
 			//      TruckImage
 			//      TruckType
-			//      WheelToPack
+			//      WheelToPack  // removed
 			type         = parseEnum( truckDataNode.attributes.get("TruckType"), "TruckType", TruckType.values());
 			image        =            truckDataNode.attributes.get("TruckImage");
 			fuelCapacity = parseInt ( truckDataNode.attributes.get("FuelCapacity") );
@@ -2261,6 +2262,7 @@ public class Data {
 		public final Integer repairsCapacity;
 		public final Integer wheelRepairsCapacity;
 		public final Integer fuelCapacity;
+		public final Integer waterCapacity;
 		public final Vector<Truck> usableBy;
 		
 		public final GameData.GameDataTrailer gameData;
@@ -2278,6 +2280,7 @@ public class Data {
 			repairsCapacity      = parseInt( getAttribute(truckDataNode, "RepairsCapacity"     ) );
 			wheelRepairsCapacity = parseInt( getAttribute(truckDataNode, "WheelRepairsCapacity") );
 			fuelCapacity         = parseInt( getAttribute(truckDataNode, "FuelCapacity"        ) );
+			waterCapacity        = parseInt( getAttribute(truckDataNode, "WaterCapacity"       ) );
 			//if (truckDataNode!=null)
 			//	truckDataNode.attributes.forEach((key,value)->{
 			//		unexpectedValues.add("Class[trucks] <Truck Type=\"Trailer\"> <TruckData ####=\"...\">", key);
@@ -2297,6 +2300,7 @@ public class Data {
 		public final Integer repairsCapacity;
 		public final Integer wheelRepairsCapacity;
 		public final Integer fuelCapacity;
+		public final Integer waterCapacity;
 		public final Boolean enablesAllWheelDrive;
 		public final Boolean enablesDiffLock;
 		public final Vector<Truck> usableBy;
@@ -2313,6 +2317,7 @@ public class Data {
 			repairsCapacity      = parseInt ( getAttribute(truckDataNodes, "RepairsCapacity"       ) );
 			wheelRepairsCapacity = parseInt ( getAttribute(truckDataNodes, "WheelRepairsCapacity"  ) );
 			fuelCapacity         = parseInt ( getAttribute(truckDataNodes, "FuelCapacity"          ) );
+			waterCapacity        = parseInt ( getAttribute(truckDataNodes, "WaterCapacity"         ) );
 			enablesAllWheelDrive = parseBool( getAttribute(truckDataNodes, "AllWheelDriveInstalled") );
 			enablesDiffLock      = parseBool( getAttribute(truckDataNodes, "DiffLockInstalled"     ) );
 			//for (GenericXmlNode truckDataNode : truckDataNodes)

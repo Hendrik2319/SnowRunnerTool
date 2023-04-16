@@ -54,6 +54,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				new ColumnID("Repairs"  ,"Repairs"                 , Integer.class,  50,  RIGHT,    "%d R", false, row->((TruckAddon)row).repairsCapacity),
 				new ColumnID("WheelRep" ,"Wheel Repairs"           , Integer.class,  85, CENTER,   "%d WR", false, row->((TruckAddon)row).wheelRepairsCapacity),
 				new ColumnID("Fuel"     ,"Fuel"                    , Integer.class,  50,  RIGHT,    "%d L", false, row->((TruckAddon)row).fuelCapacity),
+				new ColumnID("Water"    ,"Water"                   , Integer.class,  50,  RIGHT,    "%d L", false, row->((TruckAddon)row).waterCapacity),
 				new ColumnID("EnAWD"    ,"Enables AWD"             , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).enablesAllWheelDrive), 
 				new ColumnID("EnDiffLck","Enables DiffLock"        , Boolean.class,  90,   null,      null, false, row->((TruckAddon)row).enablesDiffLock), 
 				new ColumnID("Price"    ,"Price"                   , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((TruckAddon)row).gameData.price), 

@@ -154,6 +154,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		return false;
 	}
 
+	protected void clearCacheOfAllColumns()
+	{
+		for (ColumnID columnID : originalColumns)
+			columnID.valueCache.clear();
+	}
+
 	protected void clearCacheOfColumns(ColumnID.Update event)
 	{
 		for (ColumnID columnID : originalColumns)
@@ -319,6 +325,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	public final void setRowData(Collection<RowType> rows) {
 		this.rows.clear();
 		originalRows.clear();
+		clearCacheOfAllColumns();
 		if (rows!=null) {
 			originalRows.addAll(rows);
 			if (initialRowOrder != null)
@@ -486,6 +493,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			boolean changed = dlg.showDialog();
 			if (changed) {
 				rows.clear();
+				clearCacheOfAllColumns();
 				this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns, this::getValue));
 				fireTableStructureUpdate();
 				reconfigureAfterTableStructureUpdate();
