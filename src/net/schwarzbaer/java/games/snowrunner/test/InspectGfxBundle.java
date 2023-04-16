@@ -15,48 +15,72 @@ import java.util.function.BiConsumer;
 public class InspectGfxBundle {
 
 	public static void main(String[] args) {
-//		String path = "c:\\__Games\\_GameData\\_Saves\\SnowRunner\\boot.pak_\\[gfx]\\gfxbundle.gfxbundle";
-//		
-//		try (FileInputStream in = new FileInputStream(path)) {
-//			
-//			GfxBundleReader reader = new GfxBundleReader(in);
-//			reader.readHeader();
-//			
-////			reader.readAllItems((name,bytes_)->{
-////				File outFile = new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\gfxbundle.gfxbundle_\\"+name);
-////				try {
-////					log("Write item \"%s\" to file \"%s\" ...", name, outFile.getAbsolutePath());
-////					Files.write(outFile.toPath(), bytes_, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-////					log(" done%n");
-////				} catch (IOException e) {
-////					e.printStackTrace();
-////				}
-////			});
-//
-////			//String fileToExtract = "icons_lib.gfx";
-////			//String fileToExtract = "font_en.gfx";
-////			//String fileToExtract = "font_jp.gfx";
-////			//String fileToExtract = "ui_root.gfx";
-////			String fileToExtract = "trucks_lib.gfx";
-////			
-////			byte[] bytes = reader.readFile(fileToExtract);
-//////			File outFile = new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\"+fileToExtract);
-//////			Files.write(outFile.toPath(), bytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-////			
-////			if (bytes!=null)
-////				readGfx("icons_lib.gfx", bytes);
-//			
-//		} catch (FileNotFoundException e) {
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
+//		File outputFolder1 = new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\gfxbundle.gfxbundle_");
+//		extractContent(
+//				new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\boot.pak_\\[gfx]\\gfxbundle.gfxbundle"),
+//				outputFolder1
+//		);
 		
+		File outputFolder2 = new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\gfx.pak - gfxbundle.gfxbundle");
+//		extractContent(
+//				new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\gfx.pak\\[gfx]\\gfxbundle.gfxbundle"),
+//				outputFolder2
+//		);
 		
-		String[] testGFX = new String[] { "icons_lib.gfx", "ui_root.gfx", "trucks_lib.gfx", "exit_menu.gfx", "region_map.gfx" };
+//		testFiles(outputFolder1, new String[] {
+//				"icons_lib.gfx", "ui_root.gfx", "trucks_lib.gfx", "exit_menu.gfx", "region_map.gfx"
+//		});
+		testFiles(outputFolder2, new String[] {
+//				"icons_lib.gfx", "ui_root.gfx", "trucks_lib.gfx",
+				"system_message.gfx",
+				"trucks_img_lib.gfx"
+		});
+	}
+
+	private static void extractContent(File file, File outputFolder)
+	{
+		try (FileInputStream in = new FileInputStream(file)) {
+			
+			GfxBundleReader reader = new GfxBundleReader(in);
+			reader.readHeader();
+			
+			reader.readAllItems((name,bytes_)->{
+				//File outFile = new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\gfxbundle.gfxbundle_\\"+name);
+				File outFile = new File(outputFolder, name);
+				try {
+					log("Write item \"%s\" to file \"%s\" ...", name, outFile.getAbsolutePath());
+					Files.write(outFile.toPath(), bytes_, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+					log(" done%n");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			});
+
+//			//String fileToExtract = "icons_lib.gfx";
+//			//String fileToExtract = "font_en.gfx";
+//			//String fileToExtract = "font_jp.gfx";
+//			//String fileToExtract = "ui_root.gfx";
+//			String fileToExtract = "trucks_lib.gfx";
+//			
+//			byte[] bytes = reader.readFile(fileToExtract);
+////			File outFile = new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\"+fileToExtract);
+////			Files.write(outFile.toPath(), bytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+//			
+//			if (bytes!=null)
+//				readGfx("icons_lib.gfx", bytes);
+			
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static void testFiles(File baseFolder, String[] testGFX)
+	{
 		for (String filename : testGFX) {
 			
-			File testFile = new File("c:\\__Games\\_GameData\\_Saves\\SnowRunner\\gfxbundle.gfxbundle_\\"+filename);
+			File testFile = new File(baseFolder, filename);
 			try {
 				log("%nRead content of \"%s\"%n", filename);
 				byte[] bytes = Files.readAllBytes(testFile.toPath());
@@ -65,7 +89,6 @@ public class InspectGfxBundle {
 				e.printStackTrace();
 			}
 		}
-		
 	}
 	
 	private static void log(String format, Object... args) {
@@ -84,17 +107,17 @@ public class InspectGfxBundle {
 			log("Unknown Bytes (2)  : %s%n", toHexString(reader.readBytes(new byte[2])));
 			log("Items: [ <unknown count> ]%n");
 			for (int i=0; i<100000; i++ ) {
-				//log("   [%02X]", i);
+				log("   [%02X]", i);
 				byte[] unknownBytes = reader.readBytes(new byte[13]);
-				//log("  %s", toHexString(unknownBytes));
+				log("  %s", toHexString(unknownBytes));
 				if (unknownBytes[0]==0x44 && unknownBytes[1]==0x11 && unknownBytes[2]==0x08) {
-					log("   [%02X]", i);
-					log("  %s", toHexString(unknownBytes));
+//					log("   [%02X]", i);
+//					log("  %s", toHexString(unknownBytes));
 					log("%n");
 					break;
 				}
-				reader.readVarString8();
-				//log("  %s%n", reader.readVarString8());
+//				reader.readVarString8();
+				log("  %s%n", reader.readVarString8());
 			}
 			log("Unknown Bytes (6)  : %s%n", toHexString(reader.readBytes(new byte[6])));
 			log("Unknown Label      : %s%n", reader.readZeroTermString());
