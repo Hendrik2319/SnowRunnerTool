@@ -251,8 +251,8 @@ class TruckPanelProto implements Finalizable {
 		String name = null;
 		String description = null;
 		if (language!=null) {
-			name        = language.dictionary.get(truck.gameData.name_StringID);
-			description = language.dictionary.get(truck.gameData.description_StringID);
+			name        = language.get(truck.gameData.name_StringID);
+			description = language.get(truck.gameData.description_StringID);
 		}
 		outTop.add(0, "Name", "<%s>", truck.gameData.name_StringID);
 		if (name!=null)

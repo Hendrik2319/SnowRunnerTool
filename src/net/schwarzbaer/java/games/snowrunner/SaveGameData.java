@@ -189,10 +189,25 @@ public class SaveGameData {
 			throw new TraverseException("%s isn't a ObjectValue or Null", debugOutputPrefixStr);
 	}
 	
-	private static void checkEmptyArray(JSON_Array<NV, V> array, String debugOutputPrefixStr)
+	private static void checkEmptyArrayOrUnset(JSON_Array<NV, V> array, String debugOutputPrefixStr)
 	{
 		if (array!=null && !array.isEmpty())
 			System.err.printf("Array %s is not empty as expected.%n", debugOutputPrefixStr);
+	}
+	
+	private static void checkEmptyArrayOrUnsetOrNull(JSON_Data.Value<NV, V> arrayBaseValue, String debugOutputPrefixStr) throws TraverseException
+	{
+		if (arrayBaseValue==null)
+			return; // unset -> OK
+		if (arrayBaseValue.type!=JSON_Data.Value.Type.Array && arrayBaseValue.type!=JSON_Data.Value.Type.Null)
+			throw new TraverseException("%s isn't a ArrayValue or Null", debugOutputPrefixStr);
+		if (arrayBaseValue.type==JSON_Data.Value.Type.Array)
+		{
+			JSON_Data.ArrayValue<NV, V> arrayValue = arrayBaseValue.castToArrayValue();
+			if (arrayValue==null) throw new IllegalStateException();
+			if (!arrayValue.value.isEmpty())
+				System.err.printf("Array %s is not empty as expected.%n", debugOutputPrefixStr);
+		}
 	}
 
 	private static void checkEmptyObject(JSON_Object<NV, V> object, String debugOutputPrefixStr)
@@ -278,7 +293,6 @@ public class SaveGameData {
 		public final HashMap<String, Objective> objectives;
 		public final HashMap<String, Addon    > addons;
 		
-		// currently not shown data
 		public final boolean isFirstGarageDiscovered;
 		public final long lastLevelState;
 		public final String lastLoadedLevel;
@@ -289,6 +303,7 @@ public class SaveGameData {
 		public final long saveId;
 		public final String trackedObjective;
 		public final HashMap<String, Boolean> tutorialStates;
+		public final HashMap<String, String> forcedModelStates;
 
 		private SaveGame(String fileName, String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
 			if (data==null)
@@ -377,11 +392,10 @@ public class SaveGameData {
 			checkObjectOrNull(persistentProfileData, persistentProfileData_Null, debugOutputPrefixStr+".persistentProfileData");
 			checkObjectOrNull(tutorialStates       , tutorialStates_Null       , debugOutputPrefixStr+".tutorialStates"       );
 			checkObjectOrNull(watchPointsData      , watchPointsData_Null      , debugOutputPrefixStr+".watchPointsData"      );
-			checkEmptyObject (forcedModelStates        , debugOutputPrefixStr+".forcedModelStates"        );
-			checkEmptyArray  (givenTrialRewards        , debugOutputPrefixStr+".givenTrialRewards"        );
-			checkEmptyObject (justDiscoveredObjects    , debugOutputPrefixStr+".justDiscoveredObjects"    );
-			checkEmptyObject (modTruckRefundValues     , debugOutputPrefixStr+".modTruckRefundValues"     );
-			checkEmptyObject (modTruckTypesRefundValues, debugOutputPrefixStr+".modTruckTypesRefundValues");
+			checkEmptyArrayOrUnset(givenTrialRewards        , debugOutputPrefixStr+".givenTrialRewards"        );
+			checkEmptyObject      (justDiscoveredObjects    , debugOutputPrefixStr+".justDiscoveredObjects"    );
+			checkEmptyObject      (modTruckRefundValues     , debugOutputPrefixStr+".modTruckRefundValues"     );
+			checkEmptyObject      (modTruckTypesRefundValues, debugOutputPrefixStr+".modTruckTypesRefundValues");
 			
 			
 			if (persistentProfileData==null)
@@ -389,12 +403,22 @@ public class SaveGameData {
 			else
 				ppd = new PersistentProfileData(this, persistentProfileData, debugOutputPrefixStr+".persistentProfileData");
 			
+			this.forcedModelStates = new HashMap<String,String>();
+			parseObject(forcedModelStates, debugOutputPrefixStr+".forcedModelStates", (value, modelName, localPrefixStr) -> {
+				String state = JSON_Data.getStringValue(value, localPrefixStr);
+				
+				if (this.forcedModelStates.containsKey(modelName))
+					System.err.printf("[ForcedModelStates] Found more than 1 entry with same Model name \"%s\" in %s%n", modelName, localPrefixStr);
+				else
+					this.forcedModelStates.put(modelName, state);
+			});
+			
 			this.tutorialStates = new HashMap<>();
 			parseObject(tutorialStates, debugOutputPrefixStr+".tutorialStates", (value, tutorialStep, localPrefixStr) -> {
 				boolean state = JSON_Data.getBoolValue(value, localPrefixStr);
 				
 				if (this.tutorialStates.containsKey(tutorialStep))
-					System.err.printf("[TutorialStates] Found more than 1 entry with same TutorialStep name: %s%n", localPrefixStr);
+					System.err.printf("[TutorialStates] Found more than 1 entry with same TutorialStep name \"%s\" in %s%n", tutorialStep, localPrefixStr);
 				else
 					this.tutorialStates.put(tutorialStep, state);
 			});
@@ -598,9 +622,9 @@ public class SaveGameData {
 				
 				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 				
-				checkEmptyObject(refundTruckDescs      , debugOutputPrefixStr+".refundTruckDescs"      );
-				checkEmptyObject(userId                , debugOutputPrefixStr+".userId"                );
-				checkEmptyArray (refundGarageTruckDescs, debugOutputPrefixStr+".refundGarageTruckDescs");
+				checkEmptyObject      (refundTruckDescs      , debugOutputPrefixStr+".refundTruckDescs"      );
+				checkEmptyObject      (userId                , debugOutputPrefixStr+".userId"                );
+				checkEmptyArrayOrUnset(refundGarageTruckDescs, debugOutputPrefixStr+".refundGarageTruckDescs");
 				
 				this.ownedTrucks = new HashMap<>();
 				parseObject(ownedTrucks, debugOutputPrefixStr+".ownedTrucks", (value, name, local_debugOutputPrefixStr) -> {
@@ -809,10 +833,10 @@ public class SaveGameData {
 				 */
 
 				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
-				checkEmptyArray (constraints          , debugOutputPrefixStr+".constraints"          );
-				checkEmptyArray (controlConstrPosition, debugOutputPrefixStr+".controlConstrPosition");
-				checkEmptyArray (isPoweredEngaged     , debugOutputPrefixStr+".isPoweredEngaged"     );
-				checkEmptyArray (tmBodies             , debugOutputPrefixStr+".tmBodies"             );
+				checkEmptyArrayOrUnset(constraints          , debugOutputPrefixStr+".constraints"          );
+				checkEmptyArrayOrUnset(controlConstrPosition, debugOutputPrefixStr+".controlConstrPosition");
+				checkEmptyArrayOrUnset(isPoweredEngaged     , debugOutputPrefixStr+".isPoweredEngaged"     );
+				checkEmptyArrayOrUnset(tmBodies             , debugOutputPrefixStr+".tmBodies"             );
 				
 				this.retainedMap = MapIndex.parse(retainedMapId);
 				this.addons = parseArray_Object(addons, debugOutputPrefixStr+".addons", InstalledAddon::new, new Vector<>());
@@ -823,13 +847,16 @@ public class SaveGameData {
 				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(InstalledAddon.class)
 						.add("addonCRC"             , JSON_Data.Value.Type.Integer)
 						.add("constraints"          , JSON_Data.Value.Type.Null   )
+						.add("constraints"          , JSON_Data.Value.Type.Array  )
 						.add("controlConstrPosition", JSON_Data.Value.Type.Null   )
+						.add("controlConstrPosition", JSON_Data.Value.Type.Array  )
 						.add("eulerAngles"          , JSON_Data.Value.Type.Object )
 						.add("extraParents"         , JSON_Data.Value.Type.Array  )
 						.add("firstSlot"            , JSON_Data.Value.Type.Integer)
 						.add("fuel"                 , JSON_Data.Value.Type.Float  )
 						.add("isInCockpit"          , JSON_Data.Value.Type.Bool   )
 						.add("isPoweredEngaged"     , JSON_Data.Value.Type.Null   )
+						.add("isPoweredEngaged"     , JSON_Data.Value.Type.Array  )
 						.add("name"                 , JSON_Data.Value.Type.String )
 						.add("overrideMaterial"     , JSON_Data.Value.Type.String )
 						.add("parentAddonType"      , JSON_Data.Value.Type.String )
@@ -837,30 +864,36 @@ public class SaveGameData {
 						.add("position"             , JSON_Data.Value.Type.Object )
 						.add("repairs"              , JSON_Data.Value.Type.Integer)
 						.add("tmBodies"             , JSON_Data.Value.Type.Null   )
+						.add("tmBodies"             , JSON_Data.Value.Type.Array  )
 						.add("water"                , JSON_Data.Value.Type.Float  )
 						.add("wheelRepairs"         , JSON_Data.Value.Type.Integer)
 						;
 				/*
 					Block "[SaveGameData.SaveGame.TruckDesc.InstalledAddon]" [18]
 					    addonCRC             :[Integer, <unset>]
-					    constraints          :[Null, <unset>]
-					    controlConstrPosition:[Null, <unset>]
-					    eulerAngles          :Object
-					    extraParents         :Array
-					    extraParents[]:Object or empty array
+					    constraints          :[Array, Null, <unset>]
+					    controlConstrPosition:[Array, Null, <unset>]
+					    eulerAngles     : Object
+					    extraParents    : Array
 					    firstSlot       : Integer
 					    fuel            : Float
 					    isInCockpit     : Bool
-					    isPoweredEngaged:[Null   , <unset>]
+					    isPoweredEngaged:[Array , Null, <unset>]
 					    name            : String
 					    overrideMaterial: String
 					    parentAddonType : String
 					    parentFrame     : String
 					    position        : Object
 					    repairs         : Integer
-					    tmBodies        :[Null   , <unset>]
+					    tmBodies        :[Array  , Null, <unset>]
 					    water           :[Float  , <unset>]
 					    wheelRepairs    : Integer
+					    
+					    constraints[]:empty array
+					    controlConstrPosition[]:empty array
+					    extraParents[]:Object or empty array
+					    isPoweredEngaged[]:empty array
+					    tmBodies[]:empty array
 					    
 					Block "[SaveGameData.SaveGame.TruckDesc.InstalledAddon].eulerAngles" [3]
 					    x:Float
@@ -891,32 +924,40 @@ public class SaveGameData {
 				{
 					//scanJSON(object, this);
 					
+					JSON_Data.Value<NV,V> constraints_Value, controlConstrPosition_Value, isPoweredEngaged_Value, tmBodies_Value;
+					JSON_Object<NV,V> eulerAngles, position;
 					@SuppressWarnings("unused")
-					JSON_Data.Null constraints, controlConstrPosition, isPoweredEngaged, tmBodies;
-					JSON_Object<NV, V> eulerAngles, position;
-					JSON_Array<NV, V> extraParents;
+					JSON_Array<NV,V> constraints, controlConstrPosition, extraParents, isPoweredEngaged, tmBodies;
 					
-					addonCRC              = JSON_Data.getIntegerValue(object, "addonCRC"             , true, false, debugOutputPrefixStr);
-					constraints           = JSON_Data.getNullValue   (object, "constraints"          , true, false, debugOutputPrefixStr);
-					controlConstrPosition = JSON_Data.getNullValue   (object, "controlConstrPosition", true, false, debugOutputPrefixStr);
-					eulerAngles           = JSON_Data.getObjectValue (object, "eulerAngles"          , debugOutputPrefixStr);
-					extraParents          = JSON_Data.getArrayValue  (object, "extraParents"         , debugOutputPrefixStr);
-					firstSlot             = JSON_Data.getIntegerValue(object, "firstSlot"            , debugOutputPrefixStr);
-					fuel                  = JSON_Data.getFloatValue  (object, "fuel"                 , debugOutputPrefixStr);
-					isInCockpit           = JSON_Data.getBoolValue   (object, "isInCockpit"          , debugOutputPrefixStr);
-					isPoweredEngaged      = JSON_Data.getNullValue   (object, "isPoweredEngaged"     , true, false, debugOutputPrefixStr);
-					name                  = JSON_Data.getStringValue (object, "name"                 , debugOutputPrefixStr);
-					overrideMaterial      = JSON_Data.getStringValue (object, "overrideMaterial"     , debugOutputPrefixStr);
-					parentAddonType       = JSON_Data.getStringValue (object, "parentAddonType"      , debugOutputPrefixStr);
-					parentFrame           = JSON_Data.getStringValue (object, "parentFrame"          , debugOutputPrefixStr);
-					position              = JSON_Data.getObjectValue (object, "position"             , debugOutputPrefixStr);
-					repairs               = JSON_Data.getIntegerValue(object, "repairs"              , debugOutputPrefixStr);
-					tmBodies              = JSON_Data.getNullValue   (object, "tmBodies"             , true, false, debugOutputPrefixStr);
-					water                 = JSON_Data.getFloatValue  (object, "water"                , true, false, debugOutputPrefixStr);
-					wheelRepairs          = JSON_Data.getIntegerValue(object, "wheelRepairs"         , debugOutputPrefixStr);
+					addonCRC                    = JSON_Data.getIntegerValue(object, "addonCRC"             , true, false, debugOutputPrefixStr);
+					constraints                 = JSON_Data.getArrayValue  (object, "constraints"          , true,  true, debugOutputPrefixStr);
+					constraints_Value           = JSON_Data.getValue       (object, "constraints"          , true,  debugOutputPrefixStr);
+					controlConstrPosition       = JSON_Data.getArrayValue  (object, "controlConstrPosition", true,  true, debugOutputPrefixStr);
+					controlConstrPosition_Value = JSON_Data.getValue       (object, "controlConstrPosition", true,  debugOutputPrefixStr);
+					eulerAngles                 = JSON_Data.getObjectValue (object, "eulerAngles"          , debugOutputPrefixStr);
+					extraParents                = JSON_Data.getArrayValue  (object, "extraParents"         , debugOutputPrefixStr);
+					firstSlot                   = JSON_Data.getIntegerValue(object, "firstSlot"            , debugOutputPrefixStr);
+					fuel                        = JSON_Data.getFloatValue  (object, "fuel"                 , debugOutputPrefixStr);
+					isInCockpit                 = JSON_Data.getBoolValue   (object, "isInCockpit"          , debugOutputPrefixStr);
+					isPoweredEngaged            = JSON_Data.getArrayValue  (object, "isPoweredEngaged"     , true,  true, debugOutputPrefixStr);
+					isPoweredEngaged_Value      = JSON_Data.getValue       (object, "isPoweredEngaged"     , true,  debugOutputPrefixStr);
+					name                        = JSON_Data.getStringValue (object, "name"                 , debugOutputPrefixStr);
+					overrideMaterial            = JSON_Data.getStringValue (object, "overrideMaterial"     , debugOutputPrefixStr);
+					parentAddonType             = JSON_Data.getStringValue (object, "parentAddonType"      , debugOutputPrefixStr);
+					parentFrame                 = JSON_Data.getStringValue (object, "parentFrame"          , debugOutputPrefixStr);
+					position                    = JSON_Data.getObjectValue (object, "position"             , debugOutputPrefixStr);
+					repairs                     = JSON_Data.getIntegerValue(object, "repairs"              , debugOutputPrefixStr);
+					tmBodies                    = JSON_Data.getArrayValue  (object, "tmBodies"             , true,  true, debugOutputPrefixStr);
+					tmBodies_Value              = JSON_Data.getValue       (object, "tmBodies"             , true,  debugOutputPrefixStr);
+					water                       = JSON_Data.getFloatValue  (object, "water"                , true, false, debugOutputPrefixStr);
+					wheelRepairs                = JSON_Data.getIntegerValue(object, "wheelRepairs"         , debugOutputPrefixStr);
 					
 					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 					
+					checkEmptyArrayOrUnsetOrNull(constraints_Value          , debugOutputPrefixStr+".constraints"          );
+					checkEmptyArrayOrUnsetOrNull(controlConstrPosition_Value, debugOutputPrefixStr+".controlConstrPosition");
+					checkEmptyArrayOrUnsetOrNull(isPoweredEngaged_Value     , debugOutputPrefixStr+".isPoweredEngaged"     );
+					checkEmptyArrayOrUnsetOrNull(tmBodies_Value             , debugOutputPrefixStr+".tmBodies"             );
 					this.position     = new Coord3F(position   , debugOutputPrefixStr+".position"   );
 					this.eulerAngles  = new Coord3F(eulerAngles, debugOutputPrefixStr+".eulerAngles");
 					this.extraParents = parseArray_Object(extraParents, debugOutputPrefixStr+".extraParents", ExtraParent::new, new Vector<>());
@@ -1152,7 +1193,7 @@ public class SaveGameData {
 			{
 				helper.parseObject(maps, object, debugOutputPrefixStr, (map, value, local) -> {
 					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
-					checkEmptyArray(array, local);
+					checkEmptyArrayOrUnset(array, local);
 				});
 			}
 		
@@ -1408,7 +1449,7 @@ public class SaveGameData {
 			{
 				helper.parseObject(objectives, object, debugOutputPrefixStr, (objective, value, local) -> {
 					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
-					checkEmptyArray(array, local);
+					checkEmptyArrayOrUnset(array, local);
 				});
 			}
 

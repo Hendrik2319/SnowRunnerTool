@@ -430,14 +430,19 @@ public class Data {
 	}
 
 	public static class Language {
-		final String name;
-		final HashMap<String,String> dictionary;
-		public RegionNames regionNames;
+		public  String name;
+		private final HashMap<String,String> dictionary;
+		public  RegionNames regionNames;
 		
 		Language(String name) {
 			this.name = name;
 			this.dictionary = new HashMap<>();
 			regionNames = null;
+		}
+		
+		public String get(String id)
+		{
+			return dictionary.get(id);
 		}
 		
 		void scanRegionNames(boolean verbose)

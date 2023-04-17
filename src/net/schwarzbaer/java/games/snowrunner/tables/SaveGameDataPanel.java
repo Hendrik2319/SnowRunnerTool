@@ -6,6 +6,7 @@ import java.awt.Point;
 import java.awt.Window;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
@@ -137,11 +138,23 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(0, "Game Time"             , "%s", saveGame.getGameTimeStr() );
 			out.add(0, "Is HardMode"           , saveGame.isHardMode, "Yes", "False");
 			out.add(0, "World Configuration"   , saveGame.worldConfiguration);
-			out.add(0, "<Birth Version>"       , saveGame.birthVersion);
 			out.add(0, "<Game Difficulty Mode>", saveGame.gameDifficultyMode);
+			out.add(0, "Metric System"         , saveGame.metricSystem);
+			out.add(0, "Tracked Objective"     , saveGame.trackedObjective);
+			showObjective(out, 1, saveGame.trackedObjective, language, 30);
+			out.add(0, "Last Loaded Map"       , saveGame.lastLoadedLevel);
+			if (saveGame.lastLoadedLevel!=null && language!=null)
+			{
+				Data.MapIndex mapIndex = Data.MapIndex.parse(saveGame.lastLoadedLevel);
+				String mapName = language.regionNames.getNameForMap(mapIndex, ()->null);
+				if (mapName!=null)
+					out.add(0, null, "%s", mapName);
+			}
+			out.add(0, "<Last Map State>", saveGame.lastLevelState);
 			
 			if (saveGame.ppd!=null)
 			{
+				out.addEmptyLine();
 				out.add(0, "Experience", saveGame.ppd.experience);	
 				out.add(0, "Rank"      , saveGame.ppd.rank);
 				out.addEmptyLine();
@@ -158,9 +171,54 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 						out.add(1, truckName.name, saveGame.ppd.ownedTrucks.get(truckName.id));
 				}
 			}
+			
+			out.addEmptyLine();
+			out.add(0, "<ObjVersion>"             , saveGame.objVersion);
+			out.add(0, "<Birth Version>"          , saveGame.birthVersion);
+			out.add(0, "<Save ID>"                , saveGame.saveId);
+			out.add(0, "<First Garage Discovered>", saveGame.isFirstGarageDiscovered);
+			out.add(0, "<Last Phantom Mode>"      , saveGame.lastPhantomMode);
+			out.add(0, "<Objectives Validated>"   , saveGame.objectivesValidated);
+			add(out,0, "<Forced Model States>"    , saveGame.forcedModelStates, out::add);
+			add(out,0, "<Tutorial States>"        , saveGame.tutorialStates   , out::add);
 		}
 		
 		textArea.setText(out.generateOutput());
+	}
+
+	private static void showObjective(ValueListOutput out, int indentLevel, String objective, Language language, int maxLineLength)
+	{
+		if (objective!=null && language!=null)
+		{
+			String objName = language.get(objective);
+			if (objName!=null)
+			{
+				out.add(indentLevel  , "Name");
+				out.add(indentLevel+1, objName);
+			}
+			String objDesc = language.get(objective+"_DESC");
+			if (objDesc!=null)
+			{
+				out.add(indentLevel, "Description");
+				SnowRunner.lineWrap(objDesc, maxLineLength, str->out.add(indentLevel+1, str));
+			}
+		}
+	}
+	
+	private interface OutAddFcn<ValueType>
+	{
+		void add(int indentLevel, String label, ValueType value);
+	}
+	
+	private static <ValueType> void add(ValueListOutput out, int indentLevel, String label, HashMap<String,ValueType> map, OutAddFcn<ValueType> outAdd)
+	{
+		if (outAdd==null) throw new IllegalArgumentException();
+		if (label==null) throw new IllegalArgumentException();
+		
+		out.add(indentLevel, label, map==null ? 0 : map.size());
+		if (map!=null)
+			for (String key : getSorted(map.keySet()))
+				outAdd.add(indentLevel+1, String.format("\"%s\"", key), map.get(key));
 	}
 	
 	private static String getMapName(MapIndex mapIndex, Language lang, boolean nullIfNoName)
@@ -713,8 +771,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		{
 			ValueListOutput out = new ValueListOutput();
 			
+			showObjective(out, 0, row.objectiveId, language, 30);
+			
 			if (!row.savedCargoNeedToBeRemovedOnRestart.isEmpty())
 			{
+				out.addEmptyLine();
 				out.add(0, "Saved Cargo Need To Be Removed On Restart:");
 				for (String cargoType : getSorted(row.savedCargoNeedToBeRemovedOnRestart))
 				{

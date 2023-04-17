@@ -558,7 +558,7 @@ public class SnowRunner {
 	}
 	
 	public static String solveStringID(String strID, Language language, String defaultStr) {
-		String str = language==null ? null : language.dictionary.get(strID);
+		String str = language==null ? null : language.get(strID);
 		if (str != null) return str;
 		return defaultStr;
 	}
@@ -568,7 +568,7 @@ public class SnowRunner {
 		if (namedToken==null) return null;
 		String name_StringID = namedToken.getName_StringID();
 		if (name_StringID==null) return null;
-		return language.dictionary.get(name_StringID);
+		return language.get(name_StringID);
 	}
 	
 	public static String getReducedString(String str, int maxLength) {
@@ -900,6 +900,65 @@ public class SnowRunner {
 		return pos;
 	}
 	
+	public static void lineWrap(String text, int maxLineLength, Consumer<String> writeLine)
+	{
+		if (text==null) return;
+		
+		StringBuilder line = new StringBuilder();
+		Iterable<String> lines = ()->text.lines().iterator();
+		for (String block : lines)
+		{
+			if (block.isBlank())
+				writeLine.accept("");
+			else
+			{
+				String[] words = block.split("\\s", -1);
+				line.setLength(0);
+				for (String word : words)
+				{
+					if (word.isBlank())
+						continue;
+					
+					// pre: line.length() < maxLineLength
+					int newLineLength = line.length() +1+ word.length();
+					
+					if (newLineLength < maxLineLength) // normal case: add a word
+					{
+						if (!line.isEmpty()) line.append(" ");
+						line.append(word);
+						continue;
+					}
+					
+					if (line.length() < maxLineLength*0.8)
+					{
+						if (
+								newLineLength < maxLineLength*1.2 ||
+								(line.length() < maxLineLength*0.3 && word.length() >= maxLineLength)
+						)
+						{
+							if (!line.isEmpty()) line.append(" ");
+							line.append(word);
+							writeLine.accept(line.toString());
+							line.setLength(0);
+							continue;
+						}
+					}
+					
+					writeLine.accept(line.toString());
+					line.setLength(0);
+					
+					if (word.length() >= maxLineLength)
+						writeLine.accept(word);
+					else
+						line.append(word);
+					continue;
+				}
+				if (!line.isEmpty())
+					writeLine.accept(line.toString());
+			}
+		}
+	}
+
 	public static class Initializable
 	{
 		private boolean wasInitialized;
