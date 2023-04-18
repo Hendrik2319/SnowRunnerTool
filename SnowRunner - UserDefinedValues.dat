@@ -64,6 +64,11 @@ AWD=None
 DiffLock=Permanent
 
 [Truck]
+id=pacific_p512
+AWD=None
+DiffLock=Able
+
+[Truck]
 id=paystar_5600ts
 AWD=Able
 DiffLock=Able
