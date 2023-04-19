@@ -135,6 +135,7 @@ public class SnowRunner {
 		public final DLCs dlcs;
 		public final TruckImages truckImages;
 		public final SpecialTruckAddons specialTruckAddons;
+		public final WheelsQualityRanges wheelsQualityRanges;
 		
 		GlobalFinalDataStructures()
 		{
@@ -143,6 +144,7 @@ public class SnowRunner {
 			dlcs = new DLCs();
 			truckImages = new TruckImages();
 			specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
+			wheelsQualityRanges = new WheelsQualityRanges();
 		}
 	}
 
@@ -1985,5 +1987,69 @@ public class SnowRunner {
 			dialog.setZoom(1);
 		}
 		
+	}
+
+	public static class WheelsQualityRanges
+	{
+		public enum WheelValue {
+			Highway, Offroad, Mud
+		}
+		
+		public enum QualityValue {
+			Average("Durchschnittlich"),
+			Good("Gut"),
+			Excellent("Exzellent"),
+			;
+			private final String label;
+			QualityValue(String label) { this.label = label; }
+			@Override public String toString() { return label==null ? name() : label; }
+		}
+		
+		private final HashMap<DataMapIndex,QualityData> data = new HashMap<>();
+		
+		private record DataMapIndex(String wheelsDefID, int indexInDef) {}
+		
+		private static class QualityData
+		{
+
+			public QualityValue get(String truckId, WheelValue wheelValue)
+			{
+				// TODO Auto-generated method stub
+				return null;
+			}
+
+			public void set(String truckId, WheelValue wheelValue, QualityValue qualityValue)
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+		}
+		
+
+		public QualityValue getQualityValue(String wheelsDefID, int indexInDef, String truckId, WheelValue wheelValue)
+		{
+			QualityData qualityData = data.get(new DataMapIndex(wheelsDefID, indexInDef));
+			if (qualityData==null) return null;
+			return qualityData.get(truckId, wheelValue);
+		}
+
+		public void setQualityValue(String wheelsDefID, int indexInDef, String truckId, WheelValue wheelValue, Float value, QualityValue qualityValue)
+		{
+			DataMapIndex index = new DataMapIndex(wheelsDefID, indexInDef);
+			QualityData qualityData = data.get(index);
+			if (qualityData==null) data.put(index, qualityData = new QualityData());
+			qualityData.set(truckId, wheelValue, qualityValue);
+			if (value!=null)
+			{
+				// TODO: change value range for QualityValue @ WheelValue
+			}
+		}
+
+		public boolean isTruckSpecific(String wheelsDefID, int indexInDef, String truckId)
+		{
+			// TODO Auto-generated method stub
+			return false;
+		}
 	}
 }

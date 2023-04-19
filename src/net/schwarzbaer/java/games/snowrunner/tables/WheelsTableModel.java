@@ -66,9 +66,9 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		final HashSet<Truck> trucks;
 		final HashSet<Integer> sizes;
 		final HashSet<String> names_StringID;
-		final RowItem.TireValues tireValues;
+		final TireValues tireValues;
 
-		public RowItem(String key, String label, RowItem.TireValues tireValues) {
+		public RowItem(String key, String label, TireValues tireValues) {
 			this.key = key;
 			this.label = label;
 			this.tireValues = tireValues;
@@ -81,7 +81,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 			trucks.add(truck);
 			sizes.add(CompatibleWheel.computeSize_inch(scale));
 			names_StringID.add(tire.gameData.name_StringID);
-			RowItem.TireValues newTireValues = new TireValues(tire);
+			TireValues newTireValues = new TireValues(tire);
 			if (!tireValues.equals(newTireValues)) {
 				System.err.printf("[WheelsTable] Found a wheel with same source (%s) but different values: %s <-> %s", key, tireValues, newTireValues);
 			}
@@ -113,10 +113,10 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 
 			@Override
 			public boolean equals(Object obj) {
-				if (!(obj instanceof RowItem.TireValues))
+				if (!(obj instanceof TireValues))
 					return false;
 				
-				RowItem.TireValues other = (RowItem.TireValues) obj;
+				TireValues other = (TireValues) obj;
 				if (!equals( this.frictionHighway, other.frictionHighway )) return false;
 				if (!equals( this.frictionOffroad, other.frictionOffroad )) return false;
 				if (!equals( this.frictionMud    , other.frictionMud     )) return false;
