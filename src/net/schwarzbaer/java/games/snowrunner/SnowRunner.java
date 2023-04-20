@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Vector;
 import java.util.function.BiConsumer;
@@ -101,6 +102,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.Winch
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.WheelsTableModel;
 import net.schwarzbaer.system.DateTimeFormatter;
@@ -108,12 +110,13 @@ import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
 
-	public static final String DLCAssignmentsFile     = "SnowRunner - DLCAssignments.dat";
-	public static final String UserDefinedValuesFile  = "SnowRunner - UserDefinedValues.dat";
-	public static final String FilterRowsPresetsFile  = "SnowRunner - FilterRowsPresets.dat";
-	public static final String ColumnHidePresetsFile  = "SnowRunner - ColumnHidePresets.dat";
-	public static final String SpecialTruckAddonsFile = "SnowRunner - SpecialTruckAddons.dat";
-	public static final String TruckImagesFile        = "SnowRunner - TruckImages.zip";
+	public static final String DLCAssignmentsFile      = "SnowRunner - DLCAssignments.dat";
+	public static final String UserDefinedValuesFile   = "SnowRunner - UserDefinedValues.dat";
+	public static final String FilterRowsPresetsFile   = "SnowRunner - FilterRowsPresets.dat";
+	public static final String ColumnHidePresetsFile   = "SnowRunner - ColumnHidePresets.dat";
+	public static final String SpecialTruckAddonsFile  = "SnowRunner - SpecialTruckAddons.dat";
+	public static final String TruckImagesFile         = "SnowRunner - TruckImages.zip";
+	public static final String WheelsQualityRangesFile = "SnowRunner - WheelsQualityRanges.dat";
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
@@ -137,14 +140,23 @@ public class SnowRunner {
 		public final SpecialTruckAddons specialTruckAddons;
 		public final WheelsQualityRanges wheelsQualityRanges;
 		
-		GlobalFinalDataStructures()
+		private GlobalFinalDataStructures()
 		{
 			controllers = new Controllers();
 			userDefinedValues = new UserDefinedValues();
 			dlcs = new DLCs();
 			truckImages = new TruckImages();
 			specialTruckAddons = new SpecialTruckAddons(controllers.specialTruckAddonsListeners);
-			wheelsQualityRanges = new WheelsQualityRanges();
+			wheelsQualityRanges = new WheelsQualityRanges(controllers.wheelsQualityRangesListeners);
+		}
+
+		private void initialize()
+		{
+			truckImages.read();
+			userDefinedValues.read();
+			specialTruckAddons.readFromFile();
+			dlcs.loadStoredData();
+			wheelsQualityRanges.readFile();
 		}
 	}
 
@@ -259,10 +271,7 @@ public class SnowRunner {
 	}
 	
 	private void initialize() {
-		gfds.truckImages.read();
-		gfds.userDefinedValues.read();
-		gfds.specialTruckAddons.readFromFile();
-		gfds.dlcs.loadStoredData();
+		gfds.initialize();
 		
 		if (loadInitialPAK()) updateAfterDataChange();
 		reloadSaveGameData();
@@ -893,13 +902,20 @@ public class SnowRunner {
 	}
 
 
-	static final Comparator<String> CATEGORY_ORDER = Comparator.<String>comparingInt(SnowRunner::getCategoryOrderIndex).thenComparing(Comparator.naturalOrder());
-	static final List<String> CATEGORY_ORDER_LIST = Arrays.asList("Trailers", "engine", "gearbox", "suspension", "winch", "awd", "diff_lock", "frame_addons");
+	public static final Comparator<String> CATEGORY_ORDER = Comparator.<String>comparingInt(SnowRunner::getCategoryOrderIndex).thenComparing(Comparator.naturalOrder());
+	public static final List<String> CATEGORY_ORDER_LIST = Arrays.asList("Trailers", "engine", "gearbox", "suspension", "winch", "awd", "diff_lock", "frame_addons");
 	static int getCategoryOrderIndex(String category) {
 		//return "frame_addons".equals(category) ? 0 : 1;
 		int pos = CATEGORY_ORDER_LIST.indexOf(category);
 		if (pos<0) return CATEGORY_ORDER_LIST.size();
 		return pos;
+	}
+
+	public static <ValueType extends Comparable<ValueType>> Vector<ValueType> getSorted(Collection<ValueType> list)
+	{
+		Vector<ValueType> vector = new Vector<>(list);
+		vector.sort(null);
+		return vector;
 	}
 	
 	public static void lineWrap(String text, int maxLineLength, Consumer<String> writeLine)
@@ -959,6 +975,13 @@ public class SnowRunner {
 					writeLine.accept(line.toString());
 			}
 		}
+	}
+
+	public static <EnumType> EnumType parseEnum(String str, Function<String,EnumType> parseEnum)
+	{
+		if (str==null) return null;
+		try { return parseEnum.apply(str); }
+		catch (Exception e) { return null; }
 	}
 
 	public static class Initializable
@@ -1686,6 +1709,7 @@ public class SnowRunner {
 		public final SpecialTruckAddOnsController specialTruckAddonsListeners;
 		public final FilterTrucksByTrailersController filterTrucksByTrailersListeners;
 		public final TruckImagesController truckImagesListeners;
+		public final WheelsQualityRangesController wheelsQualityRangesListeners;
 		
 		Controllers() {
 			languageListeners               = new LanguageController();
@@ -1695,6 +1719,7 @@ public class SnowRunner {
 			specialTruckAddonsListeners     = new SpecialTruckAddOnsController();
 			filterTrucksByTrailersListeners = new FilterTrucksByTrailersController();
 			truckImagesListeners            = new TruckImagesController();
+			wheelsQualityRangesListeners    = new WheelsQualityRangesController();
 		}
 		
 		void showListeners() {
@@ -1708,6 +1733,7 @@ public class SnowRunner {
 			specialTruckAddonsListeners    .showListeners(indent, "SpecialTruckAddOnsListeners"    );
 			filterTrucksByTrailersListeners.showListeners(indent, "FilterTrucksByTrailersListeners");
 			truckImagesListeners           .showListeners(indent, "TruckImagesListeners"           );
+			wheelsQualityRangesListeners   .showListeners(indent, "WheelsQualityRangesListeners"   );
 		}
 		
 		public interface Finalizable {
@@ -1749,6 +1775,7 @@ public class SnowRunner {
 				specialTruckAddonsListeners    .removeListenersOfSource(this);
 				filterTrucksByTrailersListeners.removeListenersOfSource(this);
 				truckImagesListeners           .removeListenersOfSource(this);
+				wheelsQualityRangesListeners   .removeListenersOfSource(this);
 			}
 			
 			public void removeVolatileSubCompsFromGUI(String listID) {
@@ -1766,6 +1793,7 @@ public class SnowRunner {
 			public void addSpecialTruckAddonsListener    (SpecialTruckAddons.Listener l                    ) { specialTruckAddonsListeners    .add(this,l); }
 			public void addFilterTrucksByTrailersListener(TruckTableModel.FilterTrucksByTrailersListener l ) { filterTrucksByTrailersListeners.add(this,l); }
 			public void addTruckImagesListener           (TruckImages.Listener l                           ) { truckImagesListeners           .add(this,l); }
+			public void addWheelsQualityRangesListener   (WheelsQualityRanges.Listener l                   ) { wheelsQualityRangesListeners   .add(this,l); }
 		}
 
 		private static class AbstractController<Listener> {
@@ -1846,6 +1874,14 @@ public class SnowRunner {
 			{
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setFilter(trailer);
+			}
+		}
+		
+		public static class WheelsQualityRangesController extends AbstractController<WheelsQualityRanges.Listener> implements WheelsQualityRanges.Listener {
+			@Override public void valueChanged(String wheelsDefID, int indexInDef, WheelsQualityRanges.WheelValue wheelValue)
+			{
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).valueChanged(wheelsDefID, indexInDef, wheelValue);
 			}
 		}
 	}
@@ -1989,10 +2025,16 @@ public class SnowRunner {
 		
 	}
 
-	public static class WheelsQualityRanges
+	public static class WheelsQualityRanges extends Initializable
 	{
+		public interface Listener
+		{
+			void valueChanged(String wheelsDefID, int indexInDef, WheelValue wheelValue);
+		}
+		
 		public enum WheelValue {
-			Highway, Offroad, Mud
+			Highway, Offroad, Mud;
+			private static WheelValue parse(String str) { return parseEnum(str, WheelValue::valueOf); }
 		}
 		
 		public enum QualityValue {
@@ -2001,34 +2043,27 @@ public class SnowRunner {
 			Excellent("Exzellent"),
 			;
 			private final String label;
-			QualityValue(String label) { this.label = label; }
+			private QualityValue(String label) { this.label = label; }
 			@Override public String toString() { return label==null ? name() : label; }
+			private static QualityValue parse(String str) { return parseEnum(str, QualityValue::valueOf); }
 		}
 		
-		private final HashMap<DataMapIndex,QualityData> data = new HashMap<>();
+		private final HashMap<DataMapIndex,QualityData> data;
+		private final Controllers.WheelsQualityRangesController listeners;
+		private final EnumMap<WheelValue,EnumMap<QualityValue, MinMax>> ranges;
 		
-		private record DataMapIndex(String wheelsDefID, int indexInDef) {}
-		
-		private static class QualityData
+		public WheelsQualityRanges(Controllers.WheelsQualityRangesController listeners)
 		{
-
-			public QualityValue get(String truckId, WheelValue wheelValue)
-			{
-				// TODO Auto-generated method stub
-				return null;
-			}
-
-			public void set(String truckId, WheelValue wheelValue, QualityValue qualityValue)
-			{
-				// TODO Auto-generated method stub
-				
-			}
-			
+			this.listeners = listeners;
+			data = new HashMap<>();
+			ranges = new EnumMap<>(WheelValue.class);
 		}
-		
 
 		public QualityValue getQualityValue(String wheelsDefID, int indexInDef, String truckId, WheelValue wheelValue)
 		{
+			checkInitialized();
+			if (wheelsDefID==null) throw new IllegalArgumentException();
+			if (wheelValue ==null) throw new IllegalArgumentException();
 			QualityData qualityData = data.get(new DataMapIndex(wheelsDefID, indexInDef));
 			if (qualityData==null) return null;
 			return qualityData.get(truckId, wheelValue);
@@ -2036,20 +2071,368 @@ public class SnowRunner {
 
 		public void setQualityValue(String wheelsDefID, int indexInDef, String truckId, WheelValue wheelValue, Float value, QualityValue qualityValue)
 		{
+			checkInitialized();
+			if (wheelsDefID==null) throw new IllegalArgumentException();
+			if (wheelValue ==null) throw new IllegalArgumentException();
+			
 			DataMapIndex index = new DataMapIndex(wheelsDefID, indexInDef);
-			QualityData qualityData = data.get(index);
-			if (qualityData==null) data.put(index, qualityData = new QualityData());
+			QualityData qualityData = getOrCreateQualityData(index);
 			qualityData.set(truckId, wheelValue, qualityValue);
-			if (value!=null)
+			
+			if (value!=null && qualityValue!=null)
 			{
-				// TODO: change value range for QualityValue @ WheelValue
+				EnumMap<QualityValue, MinMax> qualityMap = getOrCreateRanges(wheelValue);
+				
+				MinMax minMax = qualityMap.get(qualityValue);
+				if (minMax==null) qualityMap.put(qualityValue, minMax = new MinMax(value, value));
+				else              minMax.update(value);
+			}
+			
+			listeners.valueChanged(wheelsDefID, indexInDef, wheelValue);
+			writeFile();
+		}
+		
+		private static <K,V> V getOrCreate(Map<K,V> map, K key, Supplier<V> createNewValue)
+		{
+			V value = map.get(key);
+			if (value==null)
+				map.put(key, value = createNewValue.get());
+			return value;
+		}
+
+		private QualityData getOrCreateQualityData(DataMapIndex index)
+		{
+			return getOrCreate(data, index, ()->new QualityData());
+		}
+
+		private EnumMap<QualityValue, MinMax> getOrCreateRanges(WheelValue wheelValue)
+		{
+			return getOrCreate(ranges, wheelValue, ()->new EnumMap<>(QualityValue.class));
+		}
+
+		private void readFile()
+		{
+			File file = new File(WheelsQualityRangesFile);
+			System.out.printf("Read WheelsQualityRanges from file \"%s\" ...%n", file.getAbsolutePath());
+			
+			data.clear();
+			ranges.clear();
+			
+			try (BufferedReader in = new BufferedReader( new InputStreamReader( new FileInputStream( file ), StandardCharsets.UTF_8) ))
+			{
+				
+				String line, value;
+				WheelValue rangeWV = null;
+				DataMapIndex qdIndex = null;
+				boolean inRangeBlock = false, inQualityDataBlock = false;
+				
+				while ( (line=in.readLine())!=null )
+				{
+					
+					if (line.equals("[Range]"))
+					{
+						rangeWV = null;
+						inRangeBlock = true;
+						inQualityDataBlock = false;
+					}
+					
+					if (inRangeBlock)
+					{
+						if ( (value = Data.getLineValue(line, "WheelValue = "))!=null)
+							rangeWV = WheelValue.parse(value);
+						
+						if ( (value = Data.getLineValue(line, "Range = "))!=null && rangeWV!=null)
+						{
+							String[] parts = value.split(":", -1);
+							if (parts.length == 3)
+							{
+								QualityValue qv = QualityValue.parse(parts[0]);
+								Float min = parseFloat(parts[1]);
+								Float max = parseFloat(parts[2]);
+								if (qv!=null && min!=null && Float.isFinite(min) && max!=null && Float.isFinite(max))
+									getOrCreateRanges(rangeWV).put(qv, new MinMax(min, max));
+							}
+						}
+					}
+					
+					if (line.equals("[QualityData]"))
+					{
+						qdIndex = null;
+						inQualityDataBlock = true;
+						inRangeBlock = false;
+					}
+					
+					if (inQualityDataBlock)
+					{
+						if ((value = Data.getLineValue(line, "Index = "))!=null)
+						{
+							String[] parts = value.split(":", -1);
+							if (parts.length == 2)
+							{
+								String wheelsDefID = parts[0];
+								Integer indexInDef = parseInt(parts[1]);
+								qdIndex = new DataMapIndex(wheelsDefID, indexInDef);
+							}
+						}
+						
+						if ((value = Data.getLineValue(line, "General = "))!=null && qdIndex!=null)
+						{
+							EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(value, null);
+							if (qvMap!=null && !qvMap.isEmpty())
+							{
+								QualityData qualityData = getOrCreateQualityData(qdIndex);
+								qualityData.generalValues.putAll(qvMap);
+							}
+						}
+						
+						if ((value = Data.getLineValue(line, "Truck = "))!=null && qdIndex!=null)
+						{
+							int pos = value.indexOf(":");
+							if (pos>=0)
+							{
+								String truckID = value.substring(0, pos);
+								String qvMapStr = value.substring(pos+1);
+								QualityData qualityData = getOrCreateQualityData(qdIndex);
+								EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(qvMapStr, qualityData.generalValues);
+								
+								if (qvMap!=null && !qvMap.isEmpty())
+									qualityData.modifyTruckQvMap(truckID, map -> {
+										map.putAll(qvMap);
+									});
+							}
+						}
+					}
+				}
+				
+			}
+			catch (FileNotFoundException e) {}
+			catch (IOException e)
+			{
+				System.err.printf("IOException while reading WheelsQualityRanges: %s%n", e.getMessage());
+				//e.printStackTrace();
+			}
+			
+			System.out.printf("... done%n");
+			setInitialized();
+		}
+
+		private void writeFile()
+		{
+			checkInitialized();
+			
+			File file = new File(WheelsQualityRangesFile);
+			System.out.printf("Write WheelsQualityRanges to file \"%s\" ...%n", file.getAbsolutePath());
+			
+			try (PrintWriter out = new PrintWriter( new OutputStreamWriter( new FileOutputStream( file ), StandardCharsets.UTF_8) ))
+			{
+				
+				for (WheelValue wv : getSorted(ranges.keySet()))
+				{
+					out.printf("[Range]%n");
+					out.printf("WheelValue = %s%n", wv.name());
+					
+					EnumMap<QualityValue, MinMax> qvMap = ranges.get(wv);
+					for (QualityValue qv : getSorted(qvMap.keySet()))
+					{
+						MinMax minMax = qvMap.get(qv);
+						out.printf("Range = %s:%1.4f:%1.4f%n", qv.name(), minMax.min, minMax.max);
+					}
+					out.printf("%n");
+				}
+				
+				for (DataMapIndex index : getSorted(data.keySet()))
+				{
+					QualityData qualityData = data.get(index);
+					
+					out.printf("[QualityData]%n");
+					out.printf("Index = %s:%d%n", index.wheelsDefID, index.indexInDef);
+					out.printf("General = %s%n", qvMapToString(qualityData.generalValues, null));
+					
+					for (String truckID : getSorted(qualityData.truckValues.keySet()))
+					{
+						EnumMap<WheelValue, QualityValue> qvMap = qualityData.truckValues.get(truckID);
+						if (!qvMap.isEmpty())
+							out.printf("Truck = %s:%s%n", truckID, qvMapToString(qvMap, qualityData.generalValues));
+					}
+					out.printf("%n");
+				}
+				
+			}
+			catch (FileNotFoundException e) {}
+			
+			System.out.printf("... done%n");
+		}
+
+		private static Integer parseInt(String str)
+		{
+			try { return Integer.parseInt(str); }
+			catch (NumberFormatException e) { return null; }
+		}
+
+		private static Float parseFloat(String str)
+		{
+			float f;
+			try { f = Float.parseFloat(str); }
+			catch (NumberFormatException e) { return null; }
+			if (!Float.isFinite(f)) return null;
+			return f;
+		}
+
+		private static EnumMap<WheelValue, QualityValue> stringToQvMap(String str, EnumMap<WheelValue, QualityValue> generalValues)
+		{
+			if (str==null) return null;
+			
+			String[] parts = str.split(":", -1);
+			if (parts.length != 3) return null;
+			
+			EnumMap<WheelValue, QualityValue> qvMap = new EnumMap<>(WheelValue.class);
+			parseAndAdd(parts[0], WheelValue.Highway, qvMap, generalValues);
+			parseAndAdd(parts[1], WheelValue.Offroad, qvMap, generalValues);
+			parseAndAdd(parts[2], WheelValue.Mud    , qvMap, generalValues);
+			if (qvMap.isEmpty()) return null;
+			return qvMap;
+		}
+
+		private static void parseAndAdd(String str, WheelValue wheelValue, EnumMap<WheelValue, QualityValue> qvMap, EnumMap<WheelValue, QualityValue> generalValues)
+		{
+			QualityValue qualityValue = stringToQv(str, wheelValue, generalValues);
+			if (qualityValue!=null) qvMap.put(wheelValue, qualityValue);
+		}
+
+		private static String qvMapToString(EnumMap<WheelValue, QualityValue> values, EnumMap<WheelValue, QualityValue> generalValues)
+		{
+			return String.format(
+					"%s:%s:%s",
+					qvToString(WheelValue.Highway, values, generalValues),
+					qvToString(WheelValue.Offroad, values, generalValues),
+					qvToString(WheelValue.Mud    , values, generalValues)
+			);
+		}
+
+		private static QualityValue stringToQv(String str, WheelValue wv, EnumMap<WheelValue, QualityValue> generalValues)
+		{
+			if (wv==null) throw new IllegalArgumentException();
+			if (str==null) return null;
+			if (str.isEmpty()) return null;
+			
+			QualityValue qv = QualityValue.parse(str);
+			if (generalValues==null) return qv;
+			
+			QualityValue generalQV = generalValues.get(wv);
+			if (generalQV==qv)
+				return null;
+			return qv;
+		}
+
+		private static String qvToString(WheelValue wv, EnumMap<WheelValue, QualityValue> values, EnumMap<WheelValue, QualityValue> generalValues)
+		{
+			if (wv==null) throw new IllegalArgumentException();
+			QualityValue value = values.get(wv);
+			if (generalValues==null) return value==null ? "" : value.name();
+			
+			QualityValue generalValue = generalValues.get(wv);
+			return value==generalValue || value==null ? "" : value.name();
+		}
+
+		private record DataMapIndex(String wheelsDefID, int indexInDef) implements Comparable<DataMapIndex>
+		{
+			@Override public int compareTo(DataMapIndex other)
+			{
+				if (other==null) return -1;
+				int n = this.wheelsDefID.compareTo(other.wheelsDefID);
+				if (n!=0) return n;
+				return this.indexInDef - other.indexInDef;
 			}
 		}
 
-		public boolean isTruckSpecific(String wheelsDefID, int indexInDef, String truckId)
+		private static class QualityData
 		{
-			// TODO Auto-generated method stub
-			return false;
+			private final EnumMap<WheelValue, QualityValue> generalValues;
+			private final HashMap<String, EnumMap<WheelValue, QualityValue>> truckValues;
+			
+			private QualityData() {
+				generalValues = new EnumMap<>(WheelValue.class);
+				truckValues = new HashMap<>();
+			}
+			
+			private QualityValue get(String truckId, WheelValue wheelValue)
+			{
+				if (truckId==null)
+					return generalValues.get(wheelValue);
+				
+				EnumMap<WheelValue, QualityValue> map = truckValues.get(truckId);
+				if (map==null)
+					return generalValues.get(wheelValue);
+				
+				QualityValue qv = map.get(wheelValue);
+				if (qv==null)
+					return generalValues.get(wheelValue);
+				
+				return qv;
+			}
+		
+			private void set(String truckId, WheelValue wheelValue, QualityValue qualityValue)
+			{
+				if (truckId==null)
+				{
+					if (qualityValue!=null)
+						generalValues.put(wheelValue, qualityValue);
+					else
+						generalValues.remove(wheelValue);
+				}
+				else
+				{
+					if (!generalValues.containsKey(wheelValue))
+					{
+						if (qualityValue!=null)
+							generalValues.put(wheelValue, qualityValue);
+					}
+					else
+					{
+						QualityValue generalQV = generalValues.get(wheelValue);
+						if (generalQV == qualityValue)
+							qualityValue = null;
+					}
+					
+					QualityValue qualityValue_ = qualityValue;
+					
+					modifyTruckQvMap(truckId, map ->
+					{
+						if (qualityValue_!=null)
+							map.put(wheelValue, qualityValue_);
+						else
+							map.remove(wheelValue);
+					});
+				}
+			}
+
+			private void modifyTruckQvMap(String truckId, Consumer<EnumMap<WheelValue, QualityValue>> action)
+			{
+				EnumMap<WheelValue, QualityValue> map = getOrCreate(truckValues, truckId, ()->new EnumMap<>(WheelValue.class));
+				action.accept(map);
+				if (map.isEmpty())
+					truckValues.remove(truckId);
+			}
+		}
+		
+		private static class MinMax
+		{
+			private float min;
+			private float max;
+
+			private MinMax(float min, float max)
+			{
+				this.min = min;
+				this.max = max;
+			}
+			
+			private void update(float value)
+			{
+				if (min > value)
+					min = value;
+				if (max < value)
+					max = value;
+			}
 		}
 	}
 }

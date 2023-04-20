@@ -217,7 +217,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		
 		out.add(indentLevel, label, map==null ? 0 : map.size());
 		if (map!=null)
-			for (String key : getSorted(map.keySet()))
+			for (String key : SnowRunner.getSorted(map.keySet()))
 				outAdd.add(indentLevel+1, String.format("\"%s\"", key), map.get(key));
 	}
 	
@@ -228,13 +228,6 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			return lang.regionNames.getNameForMap(mapIndex, ()->null, ()->null);
 		else
 			return lang.regionNames.getNameForMap(mapIndex);
-	}
-
-	private static Vector<String> getSorted(Collection<String> list)
-	{
-		Vector<String> vector = new Vector<>(list);
-		vector.sort(null);
-		return vector;
 	}
 
 	private static String getNameOfCargoType(String cargoType, Data data, Language language)
@@ -603,7 +596,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			{
 				if (!sb.isEmpty()) out.addEmptyLine();
 				out.add(0, "WatchPoints:");
-				for (String key : getSorted(row.watchPoints.keySet()))
+				for (String key : SnowRunner.getSorted(row.watchPoints.keySet()))
 					out.add(1, key, row.watchPoints.get(key));
 				sb.append(out.generateOutput());
 				out.clear();
@@ -613,7 +606,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			{
 				if (!sb.isEmpty()) out.addEmptyLine();
 				out.add(0, "Upgrades:");
-				for (String key : getSorted(row.upgradesGiverData.keySet()))
+				for (String key : SnowRunner.getSorted(row.upgradesGiverData.keySet()))
 					out.add(1, key, row.upgradesGiverData.get(key));
 				sb.append(out.generateOutput());
 				out.clear();
@@ -623,7 +616,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			{
 				if (!sb.isEmpty()) out.addEmptyLine();
 				out.add(0, "Discovered Objects:");
-				for (String obj : getSorted(row.discoveredObjects))
+				for (String obj : SnowRunner.getSorted(row.discoveredObjects))
 					out.add(1, obj);
 				sb.append(out.generateOutput());
 				out.clear();
@@ -633,11 +626,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			{
 				if (!sb.isEmpty()) out.addEmptyLine();
 				out.add(0, "Cargo Loading Counts:");
-				for (String key : getSorted(row.cargoLoadingCounts.keySet()))
+				for (String key : SnowRunner.getSorted(row.cargoLoadingCounts.keySet()))
 				{
 					CargoLoadingCounts clc = row.cargoLoadingCounts.get(key);
 					out.add(1, clc.stationName);
-					for (String cargoType : getSorted(clc.counts.keySet()))
+					for (String cargoType : SnowRunner.getSorted(clc.counts.keySet()))
 					{
 						out.add(2, String.format("<%s>", cargoType), clc.counts.get(cargoType));
 						String name = getNameOfCargoType(cargoType, data, language);
@@ -777,7 +770,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			{
 				out.addEmptyLine();
 				out.add(0, "Saved Cargo Need To Be Removed On Restart:");
-				for (String cargoType : getSorted(row.savedCargoNeedToBeRemovedOnRestart))
+				for (String cargoType : SnowRunner.getSorted(row.savedCargoNeedToBeRemovedOnRestart))
 				{
 					out.add(1, String.format("<%s>", cargoType));
 					String name = getNameOfCargoType(cargoType, data, language);

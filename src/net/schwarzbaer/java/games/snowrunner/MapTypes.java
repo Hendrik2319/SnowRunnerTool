@@ -9,7 +9,7 @@ import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-class MapTypes {
+public class MapTypes {
 
 	public static class SetMap<MapKeyType,SetValueType> extends HashMap<MapKeyType,HashSet<SetValueType>> {
 		private static final long serialVersionUID = -6897179951968079373L;

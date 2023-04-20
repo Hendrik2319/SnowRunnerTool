@@ -1,4 +1,4 @@
-package net.schwarzbaer.java.games.snowrunner;
+package net.schwarzbaer.java.games.snowrunner.tables;
 
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -56,19 +56,20 @@ import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.gui.ZoomableCanvas;
+import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.HasNameAndID;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets;
-import net.schwarzbaer.java.games.snowrunner.Data.Truck.AddonSockets.Socket;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.WheelsDef;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
@@ -80,13 +81,9 @@ import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.Engin
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.WinchesTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
-import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 
-class TruckPanelProto implements Finalizable {
+public class TruckPanelProto implements Finalizable {
 	
 	private final Finalizer finalizer;
 	private final ImageView truckImageView;
@@ -103,7 +100,7 @@ class TruckPanelProto implements Finalizable {
 	private final GlobalFinalDataStructures gfds;
 	private final ImageDialogController imageDialogController;
 
-	TruckPanelProto(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController) {
+	public TruckPanelProto(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController) {
 		this.gfds = gfds;
 		language = null;
 		truck = null;
@@ -125,6 +122,7 @@ class TruckPanelProto implements Finalizable {
 		addonSocketsPanel = new AddonSocketsPanel();
 		addonsPanel  = new AddonsPanel (mainWindow, gfds);
 		addonsPanel2 = new AddonsPanel2(mainWindow, gfds);
+		finalizer.addSubComp(compatibleWheelsPanel);
 		finalizer.addSubComp(addonsPanel);
 		finalizer.addSubComp(addonsPanel2);
 		
@@ -169,7 +167,7 @@ class TruckPanelProto implements Finalizable {
 		finalizer.removeSubCompsAndListenersFromGUI();
 	}
 	
-	JTabbedPane createTabbedPane() {
+	public JTabbedPane createTabbedPane() {
 		
 		JTabbedPane tabbedPanel = new JTabbedPane();
 		tabbedPanel.addTab("General Infos", truckInfoTextAreaScrollPane);
@@ -179,7 +177,7 @@ class TruckPanelProto implements Finalizable {
 		return tabbedPanel;
 	}
 	
-	JSplitPane createSplitPane() {
+	public JSplitPane createSplitPane() {
 		JTabbedPane tabbedPanel = new JTabbedPane();
 		tabbedPanel.addTab("Image", truckImageView);
 		addStandardTabsTo(tabbedPanel);
@@ -198,7 +196,7 @@ class TruckPanelProto implements Finalizable {
 		tabbedPanel.addTab("Addons by Category", addonsPanel2);
 	}
 
-	void setTruck(Truck truck, Data data) {
+	public void setTruck(Truck truck, Data data) {
 		this.truck = truck;
 		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : truck.id, truck==null ? null : truck.gameData.name_StringID);
 		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
@@ -653,9 +651,9 @@ class TruckPanelProto implements Finalizable {
 				final int indexAS;
 				final AddonSockets as;
 				final int indexSocket;
-				final Socket socket;
+				final AddonSockets.Socket socket;
 
-				public RowItem(int indexAS, AddonSockets as, int indexSocket, Socket socket) {
+				public RowItem(int indexAS, AddonSockets as, int indexSocket, AddonSockets.Socket socket) {
 					this.indexAS = indexAS;
 					this.as = as;
 					this.indexSocket = indexSocket;
@@ -669,7 +667,7 @@ class TruckPanelProto implements Finalizable {
 					for (int i=0; i<addonSockets.length; i++) {
 						AddonSockets as = addonSockets[i];
 						for (int j=0; j<as.sockets.length; j++) {
-							Socket socket = as.sockets[j];
+							AddonSockets.Socket socket = as.sockets[j];
 							data.add(new RowItem(i,as,j,socket));
 						}
 					}
@@ -727,15 +725,15 @@ class TruckPanelProto implements Finalizable {
 		}
 	}
 
-	@SuppressWarnings("unused")
-	private static class CompatibleWheelsPanel extends JSplitPane {
+	private static class CompatibleWheelsPanel extends JSplitPane implements Finalizable {
 		private static final long serialVersionUID = -6605852766458546928L;
 		
+		private final Window mainWindow;
+		private final Finalizer finalizer;
 		private final JTextArea textArea;
 		private final JTable table;
 		private final CWTableModel tableModel;
 		private CWTableModel.RowItem selectedWheel;
-		private final Window mainWindow;
 		private Language language;
 		private CompatibleWheel[] compatibleWheels;
 		private String truckName_StringID;
@@ -749,7 +747,7 @@ class TruckPanelProto implements Finalizable {
 			language = null;
 			compatibleWheels = null;
 			truckName_StringID = null;
-			
+			finalizer = gfds.controllers.createNewFinalizer();
 			
 			table = new JTable(tableModel = new CWTableModel(gfds));
 			tableModel.setTable(table);
@@ -768,6 +766,7 @@ class TruckPanelProto implements Finalizable {
 			JScrollPane tableScrollPane = new JScrollPane(table);
 			tableScrollPane.setBorder(null);
 			
+			finalizer.addSubComp(tableModel);
 			
 			ContextMenu tableContextMenu = new ContextMenu();
 			tableContextMenu.addTo(table);
@@ -830,6 +829,11 @@ class TruckPanelProto implements Finalizable {
 			updateWheelInfo();
 		}
 
+		@Override public void prepareRemovingFromGUI()
+		{
+			finalizer.removeSubCompsAndListenersFromGUI();
+		}
+
 		private void updateWheelInfo() {
 			textArea.setText("");
 			if (selectedWheel != null) {
@@ -855,6 +859,8 @@ class TruckPanelProto implements Finalizable {
 
 		private static class CWTableCellRenderer implements TableCellRenderer {
 		
+			private static final Color COLOR_BG_TRUCK_QV   = new Color(0xF1D5D5);
+			private static final Color COLOR_BG_GENERAL_QV = new Color(0xD5F1D5);
 			private final CWTableModel tableModel;
 			private final Tables.LabelRendererComponent rendererComp;
 		
@@ -872,12 +878,16 @@ class TruckPanelProto implements Finalizable {
 				CWTableModel.RowItem  row      = rowM   <0 ? null : tableModel.getRow     (rowM   );
 				CWTableModel.ColumnID columnID = columnM<0 ? null : tableModel.getColumnID(columnM);
 				
-				if (columnID!=null) {
-					if (columnID.config.columnClass==Float.class) {
+				Supplier<Color> getCustomBackground = null;
+				if (columnID!=null)
+				{
+					if (columnID.config.columnClass==Float.class)
+					{
 						valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
 						rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
 					}
-					if (columnID.config.columnClass==Integer.class) {
+					else if (columnID.config.columnClass==Integer.class)
+					{
 						switch (columnID) {
 						case Size:
 							valueStr = value==null ? "<???>" : String.format("%d\"", value);
@@ -896,19 +906,43 @@ class TruckPanelProto implements Finalizable {
 							break;
 						}
 					}
+					
+					WheelsQualityRanges.WheelValue wheelValue = null;
+					switch (columnID) {
+						case QualityHighway: wheelValue = WheelsQualityRanges.WheelValue.Highway; break;
+						case QualityOffroad: wheelValue = WheelsQualityRanges.WheelValue.Offroad; break;
+						case QualityMud    : wheelValue = WheelsQualityRanges.WheelValue.Mud    ; break;
+						default: break;
+					}
+					
+					if (row!=null && wheelValue!=null && (value==null || value instanceof WheelsQualityRanges.QualityValue))
+					{
+						WheelsQualityRanges.QualityValue truckQV   = (WheelsQualityRanges.QualityValue) value;
+						WheelsQualityRanges.QualityValue generalQV = row.getGeneralQualityValue(wheelValue);
+						getCustomBackground = ()-> truckQV==null ? null : truckQV==generalQV ? COLOR_BG_GENERAL_QV : COLOR_BG_TRUCK_QV;
+					}
 				}
 				
-				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
+				Supplier<Color> getCustomBackground_ = getCustomBackground;
+				getCustomBackground = ()->{
+					Color bgColor = getCustomBackground_==null ? null : getCustomBackground_.get();
+					if (bgColor==null && tableModel.isCellEditable(rowM, columnM))
+						bgColor = VerySimpleTableModel.COLOR_BG_EDITABLECELL;
+					return bgColor;
+				};
+				
+				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus, getCustomBackground, null);
 				return rendererComp;
 			}
 		
 		}
 
-		private static class CWTableModel extends SimplifiedTableModel<CWTableModel.ColumnID>{
+		private static class CWTableModel extends SimplifiedTableModel<CWTableModel.ColumnID> implements Finalizable {
 		
+			private final GlobalFinalDataStructures gfds;
+			private final Finalizer finalizer;
 			private final Vector<RowItem> data;
 			private Language language;
-			private final GlobalFinalDataStructures gfds;
 			private String truckId;
 		
 			CWTableModel(GlobalFinalDataStructures gfds) {
@@ -917,6 +951,21 @@ class TruckPanelProto implements Finalizable {
 				data = new Vector<>();
 				language = null;
 				truckId = null;
+				finalizer = this.gfds.controllers.createNewFinalizer();
+				finalizer.addWheelsQualityRangesListener((wheelsDefID, indexInDef, wheelValue) -> {
+					if (wheelValue!=null)
+						switch (wheelValue)
+						{
+							case Highway: fireTableColumnUpdate(ColumnID.QualityHighway); break;
+							case Offroad: fireTableColumnUpdate(ColumnID.QualityOffroad); break;
+							case Mud    : fireTableColumnUpdate(ColumnID.QualityMud    ); break;
+						}
+				});
+			}
+
+			@Override public void prepareRemovingFromGUI()
+			{
+				finalizer.removeSubCompsAndListenersFromGUI();
 			}
 		
 			void setRenderers() {
@@ -924,6 +973,7 @@ class TruckPanelProto implements Finalizable {
 				//table.setDefaultRenderer(String .class, renderer);
 				table.setDefaultRenderer(Integer.class, renderer);
 				table.setDefaultRenderer(Float  .class, renderer);
+				table.setDefaultRenderer(WheelsQualityRanges.QualityValue.class, renderer);
 				//table.setDefaultRenderer(Boolean.class, null);
 				table.setDefaultEditor(
 						WheelsQualityRanges.QualityValue.class,
@@ -960,14 +1010,14 @@ class TruckPanelProto implements Finalizable {
 				void setQualityValue_O(WheelsQualityRanges.QualityValue qualityValue) { gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, tire.indexInDef, truckId, WheelsQualityRanges.WheelValue.Offroad, tire.frictionOffroad, qualityValue); }
 				void setQualityValue_M(WheelsQualityRanges.QualityValue qualityValue) { gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, tire.indexInDef, truckId, WheelsQualityRanges.WheelValue.Mud    , tire.frictionMud    , qualityValue); }
 
+				WheelsQualityRanges.QualityValue getGeneralQualityValue(WheelsQualityRanges.WheelValue wheelValue)
+				{
+					return gfds.wheelsQualityRanges.getQualityValue(wheelsDefID, tire.indexInDef, null, wheelValue);
+				}
+
 				WheelsQualityRanges.QualityValue getQualityValue(WheelsQualityRanges.WheelValue wheelValue)
 				{
 					return gfds.wheelsQualityRanges.getQualityValue(wheelsDefID, tire.indexInDef, truckId, wheelValue);
-				}
-				
-				boolean isTruckSpecificQualityValue()
-				{
-					return gfds.wheelsQualityRanges.isTruckSpecific(wheelsDefID, tire.indexInDef, truckId);
 				}
 			}
 		
@@ -1010,9 +1060,9 @@ class TruckPanelProto implements Finalizable {
 			{
 				switch (columnID)
 				{
-					case Quality_highway:
-					case Quality_offroad:
-					case Quality_mud:
+					case QualityHighway:
+					case QualityOffroad:
+					case QualityMud:
 						return true;
 					default:
 						return false;
@@ -1026,9 +1076,9 @@ class TruckPanelProto implements Finalizable {
 				if (row==null) return;
 				switch (columnID)
 				{
-					case Quality_highway: row.setQualityValue_H((WheelsQualityRanges.QualityValue)aValue);
-					case Quality_offroad: row.setQualityValue_O((WheelsQualityRanges.QualityValue)aValue);
-					case Quality_mud    : row.setQualityValue_M((WheelsQualityRanges.QualityValue)aValue);
+					case QualityHighway: row.setQualityValue_H((WheelsQualityRanges.QualityValue)aValue);
+					case QualityOffroad: row.setQualityValue_O((WheelsQualityRanges.QualityValue)aValue);
+					case QualityMud    : row.setQualityValue_M((WheelsQualityRanges.QualityValue)aValue);
 					default: break;
 				}
 			}
@@ -1043,12 +1093,12 @@ class TruckPanelProto implements Finalizable {
 					case Name       : return SnowRunner.solveStringID(row.tire.gameData.name_StringID, language);
 					case Description: return SnowRunner.solveStringID(row.tire.gameData.description_StringID, language);
 					case UpdateLevel: return row.updateLevel;
-					case Friction_highway: return row.tire.frictionHighway;
-					case Friction_offroad: return row.tire.frictionOffroad;
-					case Friction_mud    : return row.tire.frictionMud;
-					case Quality_highway: return row.getQualityValue(WheelsQualityRanges.WheelValue.Highway);
-					case Quality_offroad: return row.getQualityValue(WheelsQualityRanges.WheelValue.Offroad);
-					case Quality_mud    : return row.getQualityValue(WheelsQualityRanges.WheelValue.Mud    );
+					case FrictionHighway: return row.tire.frictionHighway;
+					case FrictionOffroad: return row.tire.frictionOffroad;
+					case FrictionMud    : return row.tire.frictionMud;
+					case QualityHighway : return row.getQualityValue(WheelsQualityRanges.WheelValue.Highway);
+					case QualityOffroad : return row.getQualityValue(WheelsQualityRanges.WheelValue.Offroad);
+					case QualityMud     : return row.getQualityValue(WheelsQualityRanges.WheelValue.Mud    );
 					case OnIce: return row.tire.onIce;
 					case Price: return row.tire.gameData.price;
 					case Size : return row.getSize();
@@ -1064,13 +1114,13 @@ class TruckPanelProto implements Finalizable {
 				Name                ("Name"                 , String .class, 130), 
 				UpdateLevel         ("Update Level"         , String .class,  80), 
 				Size                ("Size"                 , Integer.class,  50), 
-				Friction_highway    ("Highway"              , Float  .class,  55), 
-				Friction_offroad    ("Offroad"              , Float  .class,  50), 
-				Friction_mud        ("Mud"                  , Float  .class,  50), 
+				FrictionHighway     ("Highway"              , Float  .class,  55), 
+				FrictionOffroad     ("Offroad"              , Float  .class,  50), 
+				FrictionMud         ("Mud"                  , Float  .class,  50), 
 				OnIce               ("On Ice"               , Boolean.class,  50), 
-				Quality_highway     ("Highway"              , WheelsQualityRanges.QualityValue.class,  55), 
-				Quality_offroad     ("Offroad"              , WheelsQualityRanges.QualityValue.class,  50), 
-				Quality_mud         ("Mud"                  , WheelsQualityRanges.QualityValue.class,  50), 
+				QualityHighway      ("Highway"              , WheelsQualityRanges.QualityValue.class,  50), 
+				QualityOffroad      ("Offroad"              , WheelsQualityRanges.QualityValue.class,  50), 
+				QualityMud          ("Mud"                  , WheelsQualityRanges.QualityValue.class,  50), 
 				Price               ("Price"                , Integer.class,  50), 
 				UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
 				UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 

@@ -12,21 +12,38 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges.QualityValue;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges.WheelValue;
 
 public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
 
+	private static final String QV_HIGH = "QV_High";
+	private static final String QV_OFFR = "QV_Offr";
+	private static final String QV_MUD  = "QV_Mud";
 	public WheelsTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
 		super(mainWindow, gfds, new ColumnID[] {
-				new ColumnID("ID"     , "ID"     , String .class, 300,   null,    null, false, row -> ((RowItem)row).label),
-				new ColumnID("Names"  , "Names"  , String .class, 130,   null,    null, (row,lang) -> SnowRunner.joinStringIDs(((RowItem)row).names_StringID, lang)),
-				new ColumnID("Sizes"  , "Sizes"  , String .class, 300,   null,    null, false, row -> getSizeList ( ((RowItem)row).sizes  )),
-				new ColumnID("Highway", "Highway", Float  .class,  55,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionHighway), 
-				new ColumnID("Offroad", "Offroad", Float  .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionOffroad), 
-				new ColumnID("Mud"    , "Mud"    , Float  .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionMud), 
-				new ColumnID("OnIce"  , "On Ice" , Boolean.class,  50,   null,    null, false, row -> ((RowItem)row).tireValues.onIce), 
-				new ColumnID("Trucks" , "Trucks" , String .class, 800,   null,    null, (row,lang) -> SnowRunner.joinNames(((RowItem)row).trucks, lang)),
+				new ColumnID("ID"     , "ID"     , String      .class, 300,   null,    null, false, row -> ((RowItem)row).label),
+				new ColumnID("Names"  , "Names"  , String      .class, 130,   null,    null, (row,lang) -> SnowRunner.joinStringIDs(((RowItem)row).names_StringID, lang)),
+				new ColumnID("Sizes"  , "Sizes"  , String      .class, 300,   null,    null, false, row -> getSizeList ( ((RowItem)row).sizes  )),
+				new ColumnID("Highway", "Highway", Float       .class,  55,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionHighway), 
+				new ColumnID("Offroad", "Offroad", Float       .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionOffroad), 
+				new ColumnID("Mud"    , "Mud"    , Float       .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionMud), 
+				new ColumnID("OnIce"  , "On Ice" , Boolean     .class,  50,   null,    null, false, row -> ((RowItem)row).tireValues.onIce), 
+				new ColumnID( QV_HIGH , "Highway", QualityValue.class,  50,   null,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Highway)),
+				new ColumnID( QV_OFFR , "Offroad", QualityValue.class,  50,   null,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Offroad)),
+				new ColumnID( QV_MUD  , "Mud"    , QualityValue.class,  50,   null,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Mud    )),
+				new ColumnID("Trucks" , "Trucks" , String      .class, 800,   null,    null, (row,lang) -> SnowRunner.joinNames(((RowItem)row).trucks, lang)),
 		});
-		connectToGlobalData(WheelsTableModel::getData);
+		connectToGlobalData(this::getData);
+		finalizer.addWheelsQualityRangesListener((wheelsDefID, indexInDef, wheelValue) -> {
+			if (wheelValue!=null)
+				switch (wheelValue)
+				{
+					case Highway: fireTableColumnUpdate(QV_HIGH); break;
+					case Offroad: fireTableColumnUpdate(QV_OFFR); break;
+					case Mud    : fireTableColumnUpdate(QV_MUD ); break;
+				}
+		});
 	}
 
 	@Override protected String getRowName(RowItem row)
@@ -34,7 +51,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		return row==null ? null : SnowRunner.joinStringIDs(row.names_StringID, language);
 	}
 
-	private static Vector<RowItem> getData(Data data) {
+	private Vector<RowItem> getData(Data data) {
 		HashMap<String,RowItem> rows = new HashMap<>();
 		for (Truck truck:data.trucks.values()) {
 			for (CompatibleWheel wheel : truck.compatibleWheels) {
@@ -49,7 +66,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 							: String.format("%s | %s [%d]", dlc, wheelsDefID, i);
 					RowItem rowItem = rows.get(key);
 					if (rowItem==null)
-						rows.put(key, rowItem = new RowItem(key, label, new RowItem.TireValues(tire)));
+						rows.put(key, rowItem = new RowItem(wheelsDefID, i, key, label, new RowItem.TireValues(tire)));
 					rowItem.add(wheel.scale,tire,truck);
 				}
 			}
@@ -59,8 +76,19 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		return values;
 	}
 	
-	static class RowItem {
+	private static String getSizeList(HashSet<Integer> sizes) {
+		Iterable<String> it = ()->sizes
+				.stream()
+				.sorted()
+				.map(size->String.format("%d\"", size))
+				.iterator();
+		return sizes.isEmpty() ? "" :  String.join(", ", it);
+	}
 
+	class RowItem {
+
+		final String wheelsDefID;
+		final int indexInDef;
 		final String key;
 		final String label;
 		final HashSet<Truck> trucks;
@@ -68,13 +96,24 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		final HashSet<String> names_StringID;
 		final TireValues tireValues;
 
-		public RowItem(String key, String label, TireValues tireValues) {
+		public RowItem(String wheelsDefID, int indexInDef, String key, String label, TireValues tireValues) {
+			this.wheelsDefID = wheelsDefID;
+			this.indexInDef = indexInDef;
 			this.key = key;
 			this.label = label;
 			this.tireValues = tireValues;
 			trucks = new HashSet<>();
 			sizes = new HashSet<>();
 			names_StringID = new HashSet<>();
+		}
+
+		QualityValue getQualityValue(WheelValue wheelValue)
+		{
+			return gfds.wheelsQualityRanges.getQualityValue(wheelsDefID, indexInDef, null, wheelValue);
+		}
+		void setQualityValue(WheelValue wheelValue, QualityValue qualityValue)
+		{
+			gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, indexInDef, null, wheelValue, null, qualityValue);
 		}
 
 		public void add(Float scale, TruckTire tire, Truck truck) {
@@ -144,13 +183,33 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		}
 	}
 
-	private static String getSizeList(HashSet<Integer> sizes) {
-		Iterable<String> it = ()->sizes
-				.stream()
-				.sorted()
-				.map(size->String.format("%d\"", size))
-				.iterator();
-		return sizes.isEmpty() ? "" :  String.join(", ", it);
+	@Override
+	protected boolean isCellEditable(int rowIndex, int columnIndex, ColumnID columnID)
+	{
+		if (columnID!=null)
+			switch (columnID.id)
+			{
+				case QV_HIGH:
+				case QV_OFFR:
+				case QV_MUD:
+					return true;
+			}
+		return false;
+	}
+
+	@Override
+	protected void setValueAt(Object aValue, int rowIndex, int columnIndex, ColumnID columnID)
+	{
+		RowItem row = getRow(rowIndex);
+		if (row==null) return;
+		
+		if (columnID==null) return;
+		switch (columnID.id)
+		{
+			case QV_HIGH: row.setQualityValue(WheelValue.Highway, (QualityValue) aValue); break;
+			case QV_OFFR: row.setQualityValue(WheelValue.Offroad, (QualityValue) aValue); break;
+			case QV_MUD : row.setQualityValue(WheelValue.Mud    , (QualityValue) aValue); break;
+		}
 	}
 
 }

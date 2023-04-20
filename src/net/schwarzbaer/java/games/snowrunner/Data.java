@@ -1150,7 +1150,7 @@ public class Data {
 			return category;
 		}
 
-		static String getCategoryLabel(String category, AddonCategories addonCategories, Language language) {
+		public static String getCategoryLabel(String category, AddonCategories addonCategories, Language language) {
 			if (addonCategories!=null)
 				return addonCategories.getCategoryLabel(category, language);
 			return AddonCategories.getCategoryLabel(category);
@@ -2155,16 +2155,16 @@ public class Data {
 			}
 		}
 		
-		static class AddonSockets {
+		public static class AddonSockets {
 
-			final StringVectorMap<TruckAddon> compatibleTruckAddons;
-			final StringVectorMap<Trailer> compatibleTrailers;
-			final String defaultAddonID;
-			final Socket[] sockets;
-			final HashSet<String> compatibleSocketIDs;
-			TruckAddon defaultAddonItem;
+			public final StringVectorMap<TruckAddon> compatibleTruckAddons;
+			public final StringVectorMap<Trailer> compatibleTrailers;
+			public final String defaultAddonID;
+			public final Socket[] sockets;
+			public final HashSet<String> compatibleSocketIDs;
+			public TruckAddon defaultAddonItem;
 
-			AddonSockets(GenericXmlNode node) {
+			private AddonSockets(GenericXmlNode node) {
 				if (!node.nodeName.equals("AddonSockets"))
 					throw new IllegalStateException();
 				
@@ -2190,13 +2190,13 @@ public class Data {
 				}
 			}
 			
-			static class Socket {
+			public static class Socket {
 
-				final String[] socketIDs; // "Names" attribute   <--->   <TruckAddon> <GameData> <InstallSocket Type="#####">
-				final String[] blockedSocketIDs;
-				final boolean isInCockpit;
+				public final String[] socketIDs; // "Names" attribute   <--->   <TruckAddon> <GameData> <InstallSocket Type="#####">
+				public final String[] blockedSocketIDs;
+				public final boolean isInCockpit;
 
-				public Socket(GenericXmlNode node) {
+				private Socket(GenericXmlNode node) {
 					if (!node.nodeName.equals("Socket"))
 						throw new IllegalStateException();
 					
@@ -2242,7 +2242,7 @@ public class Data {
 				return scale==null ? null : Math.round(scale.floatValue()*78.5f);
 			}
 		
-			void printTireList(ValueListOutput out, int indentLevel) {
+			public void printTireList(ValueListOutput out, int indentLevel) {
 				if (wheelsDef!=null)
 					for (int i=0; i<wheelsDef.truckTires.size(); i++) {
 						TruckTire truckTire = wheelsDef.truckTires.get(i);

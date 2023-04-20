@@ -1771,7 +1771,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		}
 		
 		private final SimplifiedColumnConfig config;
-		private final String id;
+		public  final String id;
 		private final Function<Object, ?> getValue;
 		private final LanguageBasedStringBuilder getValueL;
 		private final TableModelBasedBuilder<?> getValueT;
