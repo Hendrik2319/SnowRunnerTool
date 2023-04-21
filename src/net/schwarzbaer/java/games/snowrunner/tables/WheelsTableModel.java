@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
 
+import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
@@ -29,9 +30,9 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 				new ColumnID("Offroad", "Offroad", Float       .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionOffroad), 
 				new ColumnID("Mud"    , "Mud"    , Float       .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionMud), 
 				new ColumnID("OnIce"  , "On Ice" , Boolean     .class,  50,   null,    null, false, row -> ((RowItem)row).tireValues.onIce), 
-				new ColumnID( QV_HIGH , "Highway", QualityValue.class,  50,   null,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Highway)),
-				new ColumnID( QV_OFFR , "Offroad", QualityValue.class,  50,   null,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Offroad)),
-				new ColumnID( QV_MUD  , "Mud"    , QualityValue.class,  50,   null,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Mud    )),
+				new ColumnID( QV_HIGH , "Highway", QualityValue.class,  55, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Highway)),
+				new ColumnID( QV_OFFR , "Offroad", QualityValue.class,  50, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Offroad)),
+				new ColumnID( QV_MUD  , "Mud"    , QualityValue.class,  50, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Mud    )),
 				new ColumnID("Trucks" , "Trucks" , String      .class, 800,   null,    null, (row,lang) -> SnowRunner.joinNames(((RowItem)row).trucks, lang)),
 		});
 		connectToGlobalData(this::getData);
@@ -113,7 +114,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		}
 		void setQualityValue(WheelValue wheelValue, QualityValue qualityValue)
 		{
-			gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, indexInDef, null, wheelValue, null, qualityValue);
+			gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, indexInDef, null, wheelValue, qualityValue);
 		}
 
 		public void add(Float scale, TruckTire tire, Truck truck) {
@@ -181,6 +182,18 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 			}
 			
 		}
+	}
+
+	@Override
+	public void reconfigureAfterTableStructureUpdate()
+	{
+		super.reconfigureAfterTableStructureUpdate();
+		table.setDefaultEditor(
+				QualityValue.class,
+				new Tables.ComboboxCellEditor<>(
+						SnowRunner.addNull(QualityValue.values())
+				)
+		);
 	}
 
 	@Override

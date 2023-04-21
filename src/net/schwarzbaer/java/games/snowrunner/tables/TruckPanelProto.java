@@ -915,11 +915,15 @@ public class TruckPanelProto implements Finalizable {
 						default: break;
 					}
 					
-					if (row!=null && wheelValue!=null && (value==null || value instanceof WheelsQualityRanges.QualityValue))
+					if (wheelValue!=null)
 					{
-						WheelsQualityRanges.QualityValue truckQV   = (WheelsQualityRanges.QualityValue) value;
-						WheelsQualityRanges.QualityValue generalQV = row.getGeneralQualityValue(wheelValue);
-						getCustomBackground = ()-> truckQV==null ? null : truckQV==generalQV ? COLOR_BG_GENERAL_QV : COLOR_BG_TRUCK_QV;
+						rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
+						if (row!=null && (value==null || value instanceof WheelsQualityRanges.QualityValue))
+						{
+							WheelsQualityRanges.QualityValue truckQV   = (WheelsQualityRanges.QualityValue) value;
+							WheelsQualityRanges.QualityValue generalQV = row.getGeneralQualityValue(wheelValue);
+							getCustomBackground = ()-> truckQV==null ? null : truckQV==generalQV ? COLOR_BG_GENERAL_QV : COLOR_BG_TRUCK_QV;
+						}
 					}
 				}
 				
@@ -1006,9 +1010,10 @@ public class TruckPanelProto implements Finalizable {
 					return CompatibleWheel.computeSize_inch(scale);
 				}
 				
-				void setQualityValue_H(WheelsQualityRanges.QualityValue qualityValue) { gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, tire.indexInDef, truckId, WheelsQualityRanges.WheelValue.Highway, tire.frictionHighway, qualityValue); }
-				void setQualityValue_O(WheelsQualityRanges.QualityValue qualityValue) { gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, tire.indexInDef, truckId, WheelsQualityRanges.WheelValue.Offroad, tire.frictionOffroad, qualityValue); }
-				void setQualityValue_M(WheelsQualityRanges.QualityValue qualityValue) { gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, tire.indexInDef, truckId, WheelsQualityRanges.WheelValue.Mud    , tire.frictionMud    , qualityValue); }
+				void setQualityValue(WheelsQualityRanges.WheelValue wheelValue, WheelsQualityRanges.QualityValue qualityValue)
+				{
+					gfds.wheelsQualityRanges.setQualityValue(wheelsDefID, tire.indexInDef, truckId, wheelValue, qualityValue);
+				}
 
 				WheelsQualityRanges.QualityValue getGeneralQualityValue(WheelsQualityRanges.WheelValue wheelValue)
 				{
@@ -1076,9 +1081,9 @@ public class TruckPanelProto implements Finalizable {
 				if (row==null) return;
 				switch (columnID)
 				{
-					case QualityHighway: row.setQualityValue_H((WheelsQualityRanges.QualityValue)aValue);
-					case QualityOffroad: row.setQualityValue_O((WheelsQualityRanges.QualityValue)aValue);
-					case QualityMud    : row.setQualityValue_M((WheelsQualityRanges.QualityValue)aValue);
+					case QualityHighway: row.setQualityValue(WheelsQualityRanges.WheelValue.Highway, (WheelsQualityRanges.QualityValue)aValue); break;
+					case QualityOffroad: row.setQualityValue(WheelsQualityRanges.WheelValue.Offroad, (WheelsQualityRanges.QualityValue)aValue); break;
+					case QualityMud    : row.setQualityValue(WheelsQualityRanges.WheelValue.Mud    , (WheelsQualityRanges.QualityValue)aValue); break;
 					default: break;
 				}
 			}
@@ -1118,7 +1123,7 @@ public class TruckPanelProto implements Finalizable {
 				FrictionOffroad     ("Offroad"              , Float  .class,  50), 
 				FrictionMud         ("Mud"                  , Float  .class,  50), 
 				OnIce               ("On Ice"               , Boolean.class,  50), 
-				QualityHighway      ("Highway"              , WheelsQualityRanges.QualityValue.class,  50), 
+				QualityHighway      ("Highway"              , WheelsQualityRanges.QualityValue.class,  55), 
 				QualityOffroad      ("Offroad"              , WheelsQualityRanges.QualityValue.class,  50), 
 				QualityMud          ("Mud"                  , WheelsQualityRanges.QualityValue.class,  50), 
 				Price               ("Price"                , Integer.class,  50), 

@@ -195,6 +195,21 @@ public class SaveGameData {
 			System.err.printf("Array %s is not empty as expected.%n", debugOutputPrefixStr);
 	}
 	
+	private static void checkEmptyObjectOrUnsetOrNull(JSON_Data.Value<NV, V> objectBaseValue, String debugOutputPrefixStr) throws TraverseException
+	{
+		if (objectBaseValue==null)
+			return; // unset -> OK
+		if (objectBaseValue.type!=JSON_Data.Value.Type.Object && objectBaseValue.type!=JSON_Data.Value.Type.Null)
+			throw new TraverseException("%s isn't a ObjectValue or Null", debugOutputPrefixStr);
+		if (objectBaseValue.type==JSON_Data.Value.Type.Object)
+		{
+			JSON_Data.ObjectValue<NV, V> objectValue = objectBaseValue.castToObjectValue();
+			if (objectValue==null) throw new IllegalStateException();
+			if (!objectValue.value.isEmpty())
+				System.err.printf("Object %s is not empty as expected.%n", debugOutputPrefixStr);
+		}
+	}
+	
 	private static void checkEmptyArrayOrUnsetOrNull(JSON_Data.Value<NV, V> arrayBaseValue, String debugOutputPrefixStr) throws TraverseException
 	{
 		if (arrayBaseValue==null)
@@ -239,6 +254,7 @@ public class SaveGameData {
 				.add("gameStatByRegion"                  , JSON_Data.Value.Type.Object ) // unparsed
 				.add("gameTime"                          , JSON_Data.Value.Type.Float  )
 				.add("garagesData"                       , JSON_Data.Value.Type.Object )
+				.add("garagesShopData"                   , JSON_Data.Value.Type.Object ) // empty
 				.add("garagesShopData"                   , JSON_Data.Value.Type.Null   )
 				.add("givenTrialRewards"                 , JSON_Data.Value.Type.Array  ) // empty
 				.add("hiddenCargoes"                     , JSON_Data.Value.Type.Object )
@@ -325,14 +341,15 @@ public class SaveGameData {
 			
 			String debugOutputPrefixStr = "CompleteSave"+indexStr+".SslValue";
 			
-			JSON_Object<NV, V> cargoLoadingCounts, forcedModelStates, garagesData, hiddenCargoes, justDiscoveredObjects, levelGarageStatuses,
+			@SuppressWarnings("unused")
+			JSON_Object<NV, V> cargoLoadingCounts, forcedModelStates, garagesData, garagesShopData, hiddenCargoes, justDiscoveredObjects, levelGarageStatuses,
 				modTruckOnLevels, modTruckRefundValues, modTruckTypesRefundValues, objectiveStates, persistentProfileData,
 				savedCargoNeedToBeRemovedOnRestart, tutorialStates, upgradesGiverData, watchPointsData, waypoints;
 			
 			JSON_Array<NV, V> visitedLevels, discoveredObjectives, discoveredObjects, finishedObjs, givenTrialRewards, viewedUnactivatedObjectives;
 			
-			@SuppressWarnings("unused")
-			JSON_Data.Null levelGarageStatuses_Null, garagesShopData_Null, persistentProfileData_Null, tutorialStates_Null, watchPointsData_Null;
+			JSON_Data.Null levelGarageStatuses_Null, persistentProfileData_Null, tutorialStates_Null, watchPointsData_Null;
+			JSON_Data.Value<NV,V> garagesShopData_Value;
 			
 			birthVersion                       = JSON_Data.getIntegerValue  (sslValueObj, "birthVersion"                      , debugOutputPrefixStr);
 			cargoLoadingCounts                 = JSON_Data.getObjectValue   (sslValueObj, "cargoLoadingCounts"                , debugOutputPrefixStr);
@@ -343,7 +360,8 @@ public class SaveGameData {
 			gameDifficultyMode                 = JSON_Data.getIntegerValue  (sslValueObj, "gameDifficultyMode"                , true, false, debugOutputPrefixStr);
 			gameTime                           = JSON_Data.getFloatValue    (sslValueObj, "gameTime"                          , debugOutputPrefixStr);
 			garagesData                        = JSON_Data.getObjectValue   (sslValueObj, "garagesData"                       , debugOutputPrefixStr);
-			garagesShopData_Null               = JSON_Data.getNullValue     (sslValueObj, "garagesShopData"                   , true, false, debugOutputPrefixStr);
+			garagesShopData                    = JSON_Data.getObjectValue   (sslValueObj, "garagesShopData"                   , true, true, debugOutputPrefixStr);
+			garagesShopData_Value              = JSON_Data.getValue         (sslValueObj, "garagesShopData"                   , true, debugOutputPrefixStr);
 			givenTrialRewards                  = JSON_Data.getArrayValue    (sslValueObj, "givenTrialRewards"                 , debugOutputPrefixStr);
 			hiddenCargoes                      = JSON_Data.getObjectValue   (sslValueObj, "hiddenCargoes"                     , debugOutputPrefixStr);
 			isFirstGarageDiscovered            = JSON_Data.getBoolValue     (sslValueObj, "isFirstGarageDiscovered"           , debugOutputPrefixStr);
@@ -396,6 +414,7 @@ public class SaveGameData {
 			checkEmptyObject      (justDiscoveredObjects    , debugOutputPrefixStr+".justDiscoveredObjects"    );
 			checkEmptyObject      (modTruckRefundValues     , debugOutputPrefixStr+".modTruckRefundValues"     );
 			checkEmptyObject      (modTruckTypesRefundValues, debugOutputPrefixStr+".modTruckTypesRefundValues");
+			checkEmptyObjectOrUnsetOrNull(garagesShopData_Value, debugOutputPrefixStr+".garagesShopData");
 			
 			
 			if (persistentProfileData==null)

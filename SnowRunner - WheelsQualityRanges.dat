@@ -1,0 +1,310 @@
+[Wheel]
+Index = wheels_cat_th357_single:0
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_ford_f750:0
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_ford_f750:1
+General = Average:Excellent:Excellent
+
+[Wheel]
+Index = wheels_ford_f750:2
+General = Average:Excellent:Excellent
+
+[Wheel]
+Index = wheels_ford_f750:3
+General = Average:Excellent:Excellent
+
+[Wheel]
+Index = wheels_ford_f750:4
+General = Good:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_double1:0
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_heavy_double1:1
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_heavy_double1:2
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_heavy_double1:3
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_heavy_double1:4
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_heavy_double1:5
+General = Good:Good:Average
+Truck = international_paystar_5070:::
+
+[Wheel]
+Index = wheels_heavy_double2:0
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_double2:1
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_double2:2
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_double2:3
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_double_p16:0
+General = Average:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_mudtires_tayga:0
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_offroad_p12:0
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_heavy_offroad_p512:0
+General = Average:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_single:0
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_heavy_single:1
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_single:2
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_single:3
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_single:4
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_heavy_single:5
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_single:6
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_single:7
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_single2:0
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_heavy_single2:1
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_medium_ank_mk38:0
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_medium_double:0
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_medium_double:1
+General = Excellent:Average:Bad
+Truck = international_loadstar_1700::Good:
+
+[Wheel]
+Index = wheels_medium_double:2
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_medium_double:3
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_medium_double:4
+General = Good:Good:Average
+Truck = international_loadstar_1700:::Good
+
+[Wheel]
+Index = wheels_medium_double:5
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_medium_double:6
+General = Average:Excellent:Good
+Truck = international_loadstar_1700:::Excellent
+
+[Wheel]
+Index = wheels_medium_double:7
+General = Average:Excellent:Good
+Truck = international_loadstar_1700:::Excellent
+
+[Wheel]
+Index = wheels_medium_double:8
+General = Average:Excellent:Good
+Truck = international_loadstar_1700:::Excellent
+
+[Wheel]
+Index = wheels_medium_double:9
+General = Average:Excellent:Good
+Truck = international_loadstar_1700:Good::
+
+[Wheel]
+Index = wheels_medium_double:10
+General = Average:Excellent:Good
+Truck = international_loadstar_1700:Good::
+
+[Wheel]
+Index = wheels_medium_double_front:0
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_medium_double_front:1
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_medium_double_front:2
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_medium_double_front:3
+General = Good:Good:Average
+Truck = krs_58_bandit:::
+
+[Wheel]
+Index = wheels_medium_double_front:4
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_medium_double_front:5
+General = Good:Good:Average
+
+[Wheel]
+Index = wheels_medium_double_front:6
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_medium_double_front:7
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_medium_double_front:8
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_medium_double_front:9
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_medium_mudtires_actaeon:0
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_medium_mudtires_ankmk38:0
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_scout1:0
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_scout1:1
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_scout1:2
+General = Excellent:Average:Bad
+
+[Wheel]
+Index = wheels_scout2:0
+General = Average:Good:Average
+
+[Wheel]
+Index = wheels_scout2:1
+General = Average:Average:Good
+
+[Wheel]
+Index = wheels_scout2:2
+General = Good:Average:Average
+
+[Wheel]
+Index = wheels_scout2:3
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_scout2:4
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_scout2:5
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_scout_offroad2_hummer_h2:0
+General = Excellent:Excellent:Good
+
+[Wheel]
+Index = wheels_scout_yar_871:0
+General = Bad:Excellent:Excellent
+Truck = khan_39_marshall:::
+
+[Wheel]
+Index = wheels_scout_yar_871:1
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_superheavy_cat745_single:0
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_superheavy_cat745_single:1
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_superheavy_cat745_single:2
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_superheavy_cat745_single:3
+General = Average:Good:Excellent
+
+[Wheel]
+Index = wheels_superheavy_cat770g_double:0
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_superheavy_single:0
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_superheavy_single:1
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_superheavy_single:2
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_superheavy_single:3
+General = Average:Good:Excellent
+

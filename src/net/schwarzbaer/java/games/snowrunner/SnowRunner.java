@@ -2033,11 +2033,11 @@ public class SnowRunner {
 		}
 		
 		public enum WheelValue {
-			Highway, Offroad, Mud;
-			private static WheelValue parse(String str) { return parseEnum(str, WheelValue::valueOf); }
+			Highway, Offroad, Mud
 		}
 		
 		public enum QualityValue {
+			Bad("Schlecht"),
 			Average("Durchschnittlich"),
 			Good("Gut"),
 			Excellent("Exzellent"),
@@ -2050,13 +2050,11 @@ public class SnowRunner {
 		
 		private final HashMap<DataMapIndex,QualityData> data;
 		private final Controllers.WheelsQualityRangesController listeners;
-		private final EnumMap<WheelValue,EnumMap<QualityValue, MinMax>> ranges;
 		
 		public WheelsQualityRanges(Controllers.WheelsQualityRangesController listeners)
 		{
 			this.listeners = listeners;
 			data = new HashMap<>();
-			ranges = new EnumMap<>(WheelValue.class);
 		}
 
 		public QualityValue getQualityValue(String wheelsDefID, int indexInDef, String truckId, WheelValue wheelValue)
@@ -2069,7 +2067,7 @@ public class SnowRunner {
 			return qualityData.get(truckId, wheelValue);
 		}
 
-		public void setQualityValue(String wheelsDefID, int indexInDef, String truckId, WheelValue wheelValue, Float value, QualityValue qualityValue)
+		public void setQualityValue(String wheelsDefID, int indexInDef, String truckId, WheelValue wheelValue, QualityValue qualityValue)
 		{
 			checkInitialized();
 			if (wheelsDefID==null) throw new IllegalArgumentException();
@@ -2078,15 +2076,6 @@ public class SnowRunner {
 			DataMapIndex index = new DataMapIndex(wheelsDefID, indexInDef);
 			QualityData qualityData = getOrCreateQualityData(index);
 			qualityData.set(truckId, wheelValue, qualityValue);
-			
-			if (value!=null && qualityValue!=null)
-			{
-				EnumMap<QualityValue, MinMax> qualityMap = getOrCreateRanges(wheelValue);
-				
-				MinMax minMax = qualityMap.get(qualityValue);
-				if (minMax==null) qualityMap.put(qualityValue, minMax = new MinMax(value, value));
-				else              minMax.update(value);
-			}
 			
 			listeners.valueChanged(wheelsDefID, indexInDef, wheelValue);
 			writeFile();
@@ -2105,66 +2094,29 @@ public class SnowRunner {
 			return getOrCreate(data, index, ()->new QualityData());
 		}
 
-		private EnumMap<QualityValue, MinMax> getOrCreateRanges(WheelValue wheelValue)
-		{
-			return getOrCreate(ranges, wheelValue, ()->new EnumMap<>(QualityValue.class));
-		}
-
 		private void readFile()
 		{
 			File file = new File(WheelsQualityRangesFile);
 			System.out.printf("Read WheelsQualityRanges from file \"%s\" ...%n", file.getAbsolutePath());
 			
 			data.clear();
-			ranges.clear();
 			
 			try (BufferedReader in = new BufferedReader( new InputStreamReader( new FileInputStream( file ), StandardCharsets.UTF_8) ))
 			{
 				
 				String line, value;
-				WheelValue rangeWV = null;
 				DataMapIndex qdIndex = null;
-				boolean inRangeBlock = false, inQualityDataBlock = false;
 				
 				while ( (line=in.readLine())!=null )
 				{
-					
-					if (line.equals("[Range]"))
-					{
-						rangeWV = null;
-						inRangeBlock = true;
-						inQualityDataBlock = false;
-					}
-					
-					if (inRangeBlock)
-					{
-						if ( (value = Data.getLineValue(line, "WheelValue = "))!=null)
-							rangeWV = WheelValue.parse(value);
-						
-						if ( (value = Data.getLineValue(line, "Range = "))!=null && rangeWV!=null)
-						{
-							String[] parts = value.split(":", -1);
-							if (parts.length == 3)
-							{
-								QualityValue qv = QualityValue.parse(parts[0]);
-								Float min = parseFloat(parts[1]);
-								Float max = parseFloat(parts[2]);
-								if (qv!=null && min!=null && Float.isFinite(min) && max!=null && Float.isFinite(max))
-									getOrCreateRanges(rangeWV).put(qv, new MinMax(min, max));
-							}
-						}
-					}
-					
-					if (line.equals("[QualityData]"))
-					{
+					if (line.equals("[Wheel]"))
 						qdIndex = null;
-						inQualityDataBlock = true;
-						inRangeBlock = false;
-					}
 					
-					if (inQualityDataBlock)
+					if ((value = Data.getLineValue(line, "Index = "))!=null)
 					{
-						if ((value = Data.getLineValue(line, "Index = "))!=null)
+						if (qdIndex != null)
+							qdIndex = null;
+						else
 						{
 							String[] parts = value.split(":", -1);
 							if (parts.length == 2)
@@ -2174,32 +2126,32 @@ public class SnowRunner {
 								qdIndex = new DataMapIndex(wheelsDefID, indexInDef);
 							}
 						}
-						
-						if ((value = Data.getLineValue(line, "General = "))!=null && qdIndex!=null)
+					}
+					
+					if ((value = Data.getLineValue(line, "General = "))!=null && qdIndex!=null)
+					{
+						EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(value, null);
+						if (qvMap!=null && !qvMap.isEmpty())
 						{
-							EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(value, null);
-							if (qvMap!=null && !qvMap.isEmpty())
-							{
-								QualityData qualityData = getOrCreateQualityData(qdIndex);
-								qualityData.generalValues.putAll(qvMap);
-							}
+							QualityData qualityData = getOrCreateQualityData(qdIndex);
+							qualityData.generalValues.putAll(qvMap);
 						}
-						
-						if ((value = Data.getLineValue(line, "Truck = "))!=null && qdIndex!=null)
+					}
+					
+					if ((value = Data.getLineValue(line, "Truck = "))!=null && qdIndex!=null)
+					{
+						int pos = value.indexOf(":");
+						if (pos>=0)
 						{
-							int pos = value.indexOf(":");
-							if (pos>=0)
-							{
-								String truckID = value.substring(0, pos);
-								String qvMapStr = value.substring(pos+1);
-								QualityData qualityData = getOrCreateQualityData(qdIndex);
-								EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(qvMapStr, qualityData.generalValues);
-								
-								if (qvMap!=null && !qvMap.isEmpty())
-									qualityData.modifyTruckQvMap(truckID, map -> {
-										map.putAll(qvMap);
-									});
-							}
+							String truckID = value.substring(0, pos);
+							String qvMapStr = value.substring(pos+1);
+							QualityData qualityData = getOrCreateQualityData(qdIndex);
+							EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(qvMapStr, qualityData.generalValues);
+							
+							if (qvMap!=null && !qvMap.isEmpty())
+								qualityData.modifyTruckQvMap(truckID, map -> {
+									map.putAll(qvMap);
+								});
 						}
 					}
 				}
@@ -2226,25 +2178,11 @@ public class SnowRunner {
 			try (PrintWriter out = new PrintWriter( new OutputStreamWriter( new FileOutputStream( file ), StandardCharsets.UTF_8) ))
 			{
 				
-				for (WheelValue wv : getSorted(ranges.keySet()))
-				{
-					out.printf("[Range]%n");
-					out.printf("WheelValue = %s%n", wv.name());
-					
-					EnumMap<QualityValue, MinMax> qvMap = ranges.get(wv);
-					for (QualityValue qv : getSorted(qvMap.keySet()))
-					{
-						MinMax minMax = qvMap.get(qv);
-						out.printf("Range = %s:%1.4f:%1.4f%n", qv.name(), minMax.min, minMax.max);
-					}
-					out.printf("%n");
-				}
-				
 				for (DataMapIndex index : getSorted(data.keySet()))
 				{
 					QualityData qualityData = data.get(index);
 					
-					out.printf("[QualityData]%n");
+					out.printf("[Wheel]%n");
 					out.printf("Index = %s:%d%n", index.wheelsDefID, index.indexInDef);
 					out.printf("General = %s%n", qvMapToString(qualityData.generalValues, null));
 					
@@ -2267,15 +2205,6 @@ public class SnowRunner {
 		{
 			try { return Integer.parseInt(str); }
 			catch (NumberFormatException e) { return null; }
-		}
-
-		private static Float parseFloat(String str)
-		{
-			float f;
-			try { f = Float.parseFloat(str); }
-			catch (NumberFormatException e) { return null; }
-			if (!Float.isFinite(f)) return null;
-			return f;
 		}
 
 		private static EnumMap<WheelValue, QualityValue> stringToQvMap(String str, EnumMap<WheelValue, QualityValue> generalValues)
@@ -2385,7 +2314,10 @@ public class SnowRunner {
 					if (!generalValues.containsKey(wheelValue))
 					{
 						if (qualityValue!=null)
+						{
 							generalValues.put(wheelValue, qualityValue);
+							qualityValue = null;
+						}
 					}
 					else
 					{
@@ -2415,6 +2347,7 @@ public class SnowRunner {
 			}
 		}
 		
+		@SuppressWarnings("unused")
 		private static class MinMax
 		{
 			private float min;
