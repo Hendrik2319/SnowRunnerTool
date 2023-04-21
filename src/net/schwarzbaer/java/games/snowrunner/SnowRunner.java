@@ -2190,7 +2190,7 @@ public class SnowRunner {
 					{
 						EnumMap<WheelValue, QualityValue> qvMap = qualityData.truckValues.get(truckID);
 						if (!qvMap.isEmpty())
-							out.printf("Truck = %s:%s%n", truckID, qvMapToString(qvMap, qualityData.generalValues));
+							out.printf("Truck = %s:%s%n", truckID, qvMapToString(qvMap, qualityData.generalValues)); // TODO: don't write empty maps
 					}
 					out.printf("%n");
 				}
