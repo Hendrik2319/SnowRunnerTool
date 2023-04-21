@@ -45,7 +45,6 @@ General = Good:Good:Average
 [Wheel]
 Index = wheels_heavy_double1:5
 General = Good:Good:Average
-Truck = international_paystar_5070:::
 
 [Wheel]
 Index = wheels_heavy_double2:0
@@ -189,7 +188,6 @@ General = Excellent:Average:Bad
 [Wheel]
 Index = wheels_medium_double_front:3
 General = Good:Good:Average
-Truck = krs_58_bandit:::
 
 [Wheel]
 Index = wheels_medium_double_front:4
@@ -266,7 +264,6 @@ General = Excellent:Excellent:Good
 [Wheel]
 Index = wheels_scout_yar_871:0
 General = Bad:Excellent:Excellent
-Truck = khan_39_marshall:::
 
 [Wheel]
 Index = wheels_scout_yar_871:1
