@@ -1,6 +1,18 @@
 [Wheel]
+Index = wheels_azov_43_191_sprinter:0
+General = Good:Good:Excellent
+
+[Wheel]
+Index = wheels_base_kirovets_k7m:0
+General = Bad:Good:Excellent
+
+[Wheel]
 Index = wheels_cat_th357_single:0
 General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_derry_special_15c177:0
+General = Average:Excellent:Good
 
 [Wheel]
 Index = wheels_ford_f750:0
@@ -21,6 +33,10 @@ General = Average:Excellent:Excellent
 [Wheel]
 Index = wheels_ford_f750:4
 General = Good:Excellent:Good
+
+[Wheel]
+Index = wheels_gor_by4:0
+General = Average:Excellent:Excellent
 
 [Wheel]
 Index = wheels_heavy_double1:0
@@ -117,6 +133,18 @@ General = Bad:Excellent:Excellent
 [Wheel]
 Index = wheels_heavy_single2:1
 General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_kirovets_k700:0
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_land_rover_defender_110:0
+General = Excellent:Excellent:Good
+
+[Wheel]
+Index = wheels_land_rover_defender_90:0
+General = Excellent:Excellent:Good
 
 [Wheel]
 Index = wheels_medium_ank_mk38:0
@@ -222,6 +250,10 @@ Index = wheels_medium_mudtires_ankmk38:0
 General = Bad:Excellent:Excellent
 
 [Wheel]
+Index = wheels_rezvani_hercules_6x6:0
+General = Excellent:Excellent:Good
+
+[Wheel]
 Index = wheels_scout1:0
 General = Excellent:Average:Bad
 
@@ -258,8 +290,56 @@ Index = wheels_scout2:5
 General = Average:Excellent:Good
 
 [Wheel]
+Index = wheels_scout_apache_1:0
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_scout_apache_1:1
+General = Average:Good:Average
+
+[Wheel]
+Index = wheels_scout_apache_1:2
+General = Average:Average:Good
+
+[Wheel]
+Index = wheels_scout_apache_1:3
+General = Good:Average:Average
+
+[Wheel]
+Index = wheels_scout_apache_1:4
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_scout_apache_1:5
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_scout_btr:0
+General = Bad:Excellent:Excellent
+
+[Wheel]
 Index = wheels_scout_offroad2_hummer_h2:0
 General = Excellent:Excellent:Good
+
+[Wheel]
+Index = wheels_scout_offroad2_jeep_wrangler:0
+General = Excellent:Excellent:Good
+
+[Wheel]
+Index = wheels_scout_yar_87:0
+General = Excellent:Excellent:Average
+
+[Wheel]
+Index = wheels_scout_yar_87:1
+General = Average:Excellent:Excellent
+
+[Wheel]
+Index = wheels_scout_yar_87:2
+General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_scout_yar_87:3
+General = Good:Excellent:Good
 
 [Wheel]
 Index = wheels_scout_yar_871:0
@@ -268,6 +348,14 @@ General = Bad:Excellent:Excellent
 [Wheel]
 Index = wheels_scout_yar_871:1
 General = Bad:Excellent:Excellent
+
+[Wheel]
+Index = wheels_step_3364_crocodile:0
+General = Good:Good:Good
+
+[Wheel]
+Index = wheels_step_39331_pike:0
+General = Good:Good:Good
 
 [Wheel]
 Index = wheels_superheavy_cat745_single:0
@@ -304,4 +392,24 @@ General = Bad:Excellent:Excellent
 [Wheel]
 Index = wheels_superheavy_single:3
 General = Average:Good:Excellent
+
+[Wheel]
+Index = wheels_tatra_force_815_7:0
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_tatra_phoenix:0
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_tatra_t813:0
+General = Bad:Good:Excellent
+
+[Wheel]
+Index = wheels_zikz_566a:0
+General = Average:Excellent:Good
+
+[Wheel]
+Index = wheels_zikz_605r_1:0
+General = Bad:Good:Excellent
 
