@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -2037,15 +2038,17 @@ public class SnowRunner {
 		}
 		
 		public enum QualityValue {
-			Bad("Schlecht"),
-			Average("Durchschnittlich"),
-			Good("Gut"),
-			Excellent("Exzellent"),
+			Bad, //("Schlecht"),
+			Average, //("Durchschnittlich"),
+			Good, //("Gut"),
+			Excellent, //("Exzellent"),
 			;
 			private final String label;
+			private QualityValue() { this(null); }
 			private QualityValue(String label) { this.label = label; }
 			@Override public String toString() { return label==null ? name() : label; }
 			private static QualityValue parse(String str) { return parseEnum(str, QualityValue::valueOf); }
+			private static String toString(QualityValue qv) { return qv==null ? "" : qv.name(); }
 		}
 		
 		private final HashMap<DataMapIndex,QualityData> data;
@@ -2130,7 +2133,7 @@ public class SnowRunner {
 					
 					if ((value = Data.getLineValue(line, "General = "))!=null && qdIndex!=null)
 					{
-						EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(value, null);
+						EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(value);
 						if (qvMap!=null && !qvMap.isEmpty())
 						{
 							QualityData qualityData = getOrCreateQualityData(qdIndex);
@@ -2146,11 +2149,11 @@ public class SnowRunner {
 							String truckID = value.substring(0, pos);
 							String qvMapStr = value.substring(pos+1);
 							QualityData qualityData = getOrCreateQualityData(qdIndex);
-							EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(qvMapStr, qualityData.generalValues);
-							
-							if (qvMap!=null && !qvMap.isEmpty())
+							EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(qvMapStr);
+							EnumMap<WheelValue, QualityValue> expQvMap = qvMap; //expandQvMap(qvMap, qualityData.generalValues);
+							if (expQvMap!=null && !expQvMap.isEmpty())
 								qualityData.modifyTruckQvMap(truckID, map -> {
-									map.putAll(qvMap);
+									map.putAll(expQvMap);
 								});
 						}
 					}
@@ -2184,13 +2187,14 @@ public class SnowRunner {
 					
 					out.printf("[Wheel]%n");
 					out.printf("Index = %s:%d%n", index.wheelsDefID, index.indexInDef);
-					out.printf("General = %s%n", qvMapToString(qualityData.generalValues, null));
+					out.printf("General = %s%n", qvMapToString(qualityData.generalValues));
 					
 					for (String truckID : getSorted(qualityData.truckValues.keySet()))
 					{
 						EnumMap<WheelValue, QualityValue> qvMap = qualityData.truckValues.get(truckID);
+						qvMap = reduceQvMap(qvMap, qualityData.generalValues);
 						if (!qvMap.isEmpty())
-							out.printf("Truck = %s:%s%n", truckID, qvMapToString(qvMap, qualityData.generalValues)); // TODO: don't write empty maps
+							out.printf("Truck = %s:%s%n", truckID, qvMapToString(qvMap));
 					}
 					out.printf("%n");
 				}
@@ -2207,7 +2211,17 @@ public class SnowRunner {
 			catch (NumberFormatException e) { return null; }
 		}
 
-		private static EnumMap<WheelValue, QualityValue> stringToQvMap(String str, EnumMap<WheelValue, QualityValue> generalValues)
+		private static String qvMapToString(EnumMap<WheelValue, QualityValue> values)
+		{
+			return String.format(
+					"%s:%s:%s",
+					QualityValue.toString(values.get(WheelValue.Highway)),
+					QualityValue.toString(values.get(WheelValue.Offroad)),
+					QualityValue.toString(values.get(WheelValue.Mud    ))
+			);
+		}
+
+		private static EnumMap<WheelValue, QualityValue> stringToQvMap(String str)
 		{
 			if (str==null) return null;
 			
@@ -2215,52 +2229,47 @@ public class SnowRunner {
 			if (parts.length != 3) return null;
 			
 			EnumMap<WheelValue, QualityValue> qvMap = new EnumMap<>(WheelValue.class);
-			parseAndAdd(parts[0], WheelValue.Highway, qvMap, generalValues);
-			parseAndAdd(parts[1], WheelValue.Offroad, qvMap, generalValues);
-			parseAndAdd(parts[2], WheelValue.Mud    , qvMap, generalValues);
+			parseAndAdd(parts[0], WheelValue.Highway, qvMap);
+			parseAndAdd(parts[1], WheelValue.Offroad, qvMap);
+			parseAndAdd(parts[2], WheelValue.Mud    , qvMap);
 			if (qvMap.isEmpty()) return null;
 			return qvMap;
 		}
 
-		private static void parseAndAdd(String str, WheelValue wheelValue, EnumMap<WheelValue, QualityValue> qvMap, EnumMap<WheelValue, QualityValue> generalValues)
+		private static void parseAndAdd(String str, WheelValue wheelValue, EnumMap<WheelValue, QualityValue> qvMap)
 		{
-			QualityValue qualityValue = stringToQv(str, wheelValue, generalValues);
+			QualityValue qualityValue = str.isEmpty() ? null : QualityValue.parse(str);
 			if (qualityValue!=null) qvMap.put(wheelValue, qualityValue);
 		}
 
-		private static String qvMapToString(EnumMap<WheelValue, QualityValue> values, EnumMap<WheelValue, QualityValue> generalValues)
+		private static EnumMap<WheelValue, QualityValue> reduceQvMap(EnumMap<WheelValue, QualityValue> qvMap, EnumMap<WheelValue, QualityValue> generalValues)
 		{
-			return String.format(
-					"%s:%s:%s",
-					qvToString(WheelValue.Highway, values, generalValues),
-					qvToString(WheelValue.Offroad, values, generalValues),
-					qvToString(WheelValue.Mud    , values, generalValues)
-			);
+			if (qvMap==null) return null;
+			return mergeMaps(qvMap, generalValues, (qv, generalQV) -> qv==generalQV ? null : qv);
 		}
 
-		private static QualityValue stringToQv(String str, WheelValue wv, EnumMap<WheelValue, QualityValue> generalValues)
+		@SuppressWarnings("unused")
+		private static EnumMap<WheelValue, QualityValue> expandQvMap(EnumMap<WheelValue, QualityValue> qvMap, EnumMap<WheelValue, QualityValue> generalValues)
 		{
-			if (wv==null) throw new IllegalArgumentException();
-			if (str==null) return null;
-			if (str.isEmpty()) return null;
-			
-			QualityValue qv = QualityValue.parse(str);
-			if (generalValues==null) return qv;
-			
-			QualityValue generalQV = generalValues.get(wv);
-			if (generalQV==qv)
-				return null;
-			return qv;
+			if (qvMap==null) return null;
+			return mergeMaps(qvMap, generalValues, (qv, generalQV) -> qv==null ? generalQV : qv);
 		}
 
-		private static String qvToString(WheelValue wv, EnumMap<WheelValue, QualityValue> values, EnumMap<WheelValue, QualityValue> generalValues)
+		private static EnumMap<WheelValue, QualityValue> mergeMaps(EnumMap<WheelValue, QualityValue> map1, EnumMap<WheelValue, QualityValue> map2, BinaryOperator<QualityValue> mergeValues)
 		{
-			if (wv==null) throw new IllegalArgumentException();
-			QualityValue value = values.get(wv);
-			if (generalValues==null) return value==null ? "" : value.name();
+			if (map1==null) throw new IllegalArgumentException();
+			if (map2==null) throw new IllegalArgumentException();
 			
-			QualityValue generalValue = generalValues.get(wv);
-			return value==generalValue || value==null ? "" : value.name();
+			EnumMap<WheelValue, QualityValue> newMap = new EnumMap<>(WheelValue.class);
+			for (WheelValue wv : WheelValue.values())
+			{
+				QualityValue value1 = map1.get(wv);
+				QualityValue value2 = map2.get(wv);
+				value1 = mergeValues.apply(value1, value2);
+				if (value1!=null)
+					newMap.put(wv, value1);
+			}
+			return newMap;
 		}
 
 		private record DataMapIndex(String wheelsDefID, int indexInDef) implements Comparable<DataMapIndex>

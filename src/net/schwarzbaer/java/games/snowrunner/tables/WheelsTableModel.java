@@ -31,8 +31,8 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 				new ColumnID("Mud"    , "Mud"    , Float       .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionMud), 
 				new ColumnID("OnIce"  , "On Ice" , Boolean     .class,  50,   null,    null, false, row -> ((RowItem)row).tireValues.onIce), 
 				new ColumnID( QV_HIGH , "Highway", QualityValue.class,  55, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Highway)),
-				new ColumnID( QV_OFFR , "Offroad", QualityValue.class,  50, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Offroad)),
-				new ColumnID( QV_MUD  , "Mud"    , QualityValue.class,  50, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Mud    )),
+				new ColumnID( QV_OFFR , "Offroad", QualityValue.class,  55, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Offroad)),
+				new ColumnID( QV_MUD  , "Mud"    , QualityValue.class,  55, CENTER,    null, false, row -> ((RowItem)row).getQualityValue(WheelValue.Mud    )),
 				new ColumnID("Trucks" , "Trucks" , String      .class, 800,   null,    null, (row,lang) -> SnowRunner.joinNames(((RowItem)row).trucks, lang)),
 		});
 		connectToGlobalData(this::getData);

@@ -82,6 +82,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.Gearb
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.WinchesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
+import net.schwarzbaer.system.ValueContainer;
 
 public class TruckPanelProto implements Finalizable {
 	
@@ -1124,8 +1125,8 @@ public class TruckPanelProto implements Finalizable {
 				FrictionMud         ("Mud"                  , Float  .class,  50), 
 				OnIce               ("On Ice"               , Boolean.class,  50), 
 				QualityHighway      ("Highway"              , WheelsQualityRanges.QualityValue.class,  55), 
-				QualityOffroad      ("Offroad"              , WheelsQualityRanges.QualityValue.class,  50), 
-				QualityMud          ("Mud"                  , WheelsQualityRanges.QualityValue.class,  50), 
+				QualityOffroad      ("Offroad"              , WheelsQualityRanges.QualityValue.class,  55), 
+				QualityMud          ("Mud"                  , WheelsQualityRanges.QualityValue.class,  55), 
 				Price               ("Price"                , Integer.class,  50), 
 				UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
 				UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
@@ -1248,7 +1249,7 @@ public class TruckPanelProto implements Finalizable {
 			Vector<WheelsDiagram.DataPoint> dataPointsVec = new Vector<>();
 			dataPointsMap.forEach((x,yMap)->dataPointsVec.addAll(yMap.values()));
 			
-			diagramView.setData(dataPointsVec,true,true);
+			diagramView.setData(dataPointsVec,true,true, horizAxis.toString(), vertAxis.toString());
 		}
 
 		private Float getValue(TruckTire tire, AxisValue value) {
@@ -1278,27 +1279,37 @@ public class TruckPanelProto implements Finalizable {
 			private Float maxX;
 			private Float minY;
 			private Float maxY;
-			private final HashMap<DataPoint, TextBox> textBoxes;
+			private final HashMap<DataPoint, DataPointTextBox> textBoxes;
 			private final HashMap<DataPoint, Point> posMarkers;
 			private final HashSet<DataPoint> paretoSet;
 			private DataPoint hoveredDataPoint;
+			private final TextBox axisHLabel;
+			private final TextBox axisVLabel;
 			
 			WheelsDiagram() {
 				textBoxes = new HashMap<>();
 				posMarkers = new HashMap<>();
 				paretoSet = new HashSet<>();
-				setData(null,true,true);
+				axisHLabel = new TextBox(TextBox.Anchor.TopRight, "Horizontal");
+				axisVLabel = new TextBox(TextBox.Anchor.TopLeft , "Vertical");
+				axisHLabel.setOffset(0,5);
+				axisVLabel.setOffset(5,0);
+				axisHLabel.setColors(null, null, Color.GRAY);
+				axisVLabel.setColors(null, null, Color.GRAY);
+				setData(null,true,true, "<Horizontal>", "<Vertical>");
 				activateMapScale(COLOR_AXIS, "units", false);
 				activateAxes(COLOR_AXIS, true,true,true,true);
 			}
 		
-			void setData(Vector<DataPoint> dataPoints, boolean isXPositiveBetter, boolean isYPositiveBetter) {
+			void setData(Vector<DataPoint> dataPoints, boolean isXPositiveBetter, boolean isYPositiveBetter, String axisHLabel, String axisVLabel) {
 				textBoxes.clear();
 				posMarkers.clear();
 				paretoSet.clear();
 				hoveredDataPoint = null;
 				
 				this.dataPoints = dataPoints;
+				this.axisHLabel.setText(axisHLabel);
+				this.axisVLabel.setText(axisVLabel);
 				
 				minX = null;
 				maxX = null;
@@ -1334,33 +1345,50 @@ public class TruckPanelProto implements Finalizable {
 				return true;
 			}
 		
-			private boolean isOver(int x, int y, DataPoint dataPoint) {
+			private boolean isOver(int x, int y, DataPoint dataPoint)
+			{
+				return isOverMarker(x, y, dataPoint) || isOverTextBox(x, y, dataPoint);
+			}
+
+			private boolean isOverMarker(int x, int y, DataPoint dataPoint)
+			{
 				if (dataPoint==null) return false;
-				
 				Point p = posMarkers.get(dataPoint);
 				int dist_squared = (x-p.x)*(x-p.x) + (y-p.y)*(y-p.y);
-				if (dist_squared < 10*10) return true;
-				
-				TextBox textBox = textBoxes.get(dataPoint);
-				return textBox.boxRect.contains( x-textBox.textBoxBaseX_px, y-textBox.textBoxBaseY_px );
+				return dist_squared < 10*10;
 			}
-		
-			private DataPoint findNextDataPoint(int x, int y) {
+
+			private boolean isOverTextBox(int x, int y, DataPoint dataPoint)
+			{
+				if (dataPoint==null) return false;
+				return textBoxes.get(dataPoint).isOver(x,y);
+			}
+			
+			private interface DataPointPredicate
+			{
+				boolean test(int x, int y, DataPoint dataPoint);
+			}
+			
+			private DataPoint findDataPoint(int x, int y, DataPointPredicate predicate)
+			{
 				for (DataPoint dataPoint: dataPoints)
-					if (isOver(x, y, dataPoint))
+					if (predicate.test(x, y, dataPoint))
 						return dataPoint;
 				return null;
 			}
 		
 			@Override public void mouseMoved(MouseEvent e) {
-				if (!isOver(e.getX(),e.getY(),hoveredDataPoint)) {
-					hoveredDataPoint = findNextDataPoint(e.getX(),e.getY());
+				int x = e.getX();
+				int y = e.getY();
+				DataPoint overMarker = findDataPoint(x,y,this::isOverMarker);
+				if ((overMarker!=null && overMarker!=hoveredDataPoint) || (overMarker==null && !isOverTextBox(x,y,hoveredDataPoint))) {
+					hoveredDataPoint = overMarker!=null ? overMarker : findDataPoint(x,y,this::isOver);
 					repaint();
 				}
 			}
 		
 			@Override public void mouseEntered(MouseEvent e) {
-				hoveredDataPoint = findNextDataPoint(e.getX(),e.getY());
+				hoveredDataPoint = findDataPoint(e.getX(),e.getY(),this::isOver);
 				repaint();
 			}
 		
@@ -1382,19 +1410,25 @@ public class TruckPanelProto implements Finalizable {
 				g2.setClip(x, y, width, height);
 				
 				if (dataPoints!=null && minX!=null && maxX!=null && minY!=null && maxY!=null) {
-					drawDiagram(g2, x, y);
+					drawDiagram(g2);
+					
+					for (int stage=DataPointTextBox.MIN_STAGE; stage<=DataPointTextBox.MAX_STAGE; stage++)
+						for (DataPoint dataPoint:dataPoints)
+							if (dataPoint!=hoveredDataPoint && !paretoSet.contains(dataPoint))
+								drawDataPointTextBox(g2, dataPoint, false, false, stage);
+					
+					for (int stage=DataPointTextBox.MIN_STAGE; stage<=DataPointTextBox.MAX_STAGE; stage++)
+						for (DataPoint dataPoint:dataPoints)
+							if (dataPoint!=hoveredDataPoint && paretoSet.contains(dataPoint))
+								drawDataPointTextBox(g2, dataPoint, false, true, stage);
 					
 					for (DataPoint dataPoint:dataPoints)
 						if (dataPoint!=hoveredDataPoint)
-							drawDataPointTextBox(g2,x,y,dataPoint);
-					
-					for (DataPoint dataPoint:dataPoints)
-						if (dataPoint!=hoveredDataPoint)
-							drawDataPointPosMarker(g2,x,y,dataPoint);
+							drawDataPointPosMarker(g2,dataPoint);
 					
 					if (hoveredDataPoint!=null) {
-						drawDataPointTextBox(g2,x,y,hoveredDataPoint);
-						drawDataPointPosMarker(g2,x,y,hoveredDataPoint);
+						drawDataPointTextBox(g2, hoveredDataPoint, true, paretoSet.contains(hoveredDataPoint), DataPointTextBox.NO_STAGE);
+						drawDataPointPosMarker(g2, hoveredDataPoint);
 					}
 				}
 				
@@ -1403,18 +1437,18 @@ public class TruckPanelProto implements Finalizable {
 				g2.setClip(origClip);
 			}
 		
-			private void drawDiagram(Graphics2D g2, int x, int y) {
+			private void drawDiagram(Graphics2D g2) {
 				float diagramMinX_u = Math.min(minX, 0);
 				float diagramMinY_u = Math.min(minY, 0);
 				float diagramMaxX_u = Math.max(maxX, 0);
 				float diagramMaxY_u = Math.max(maxY, 0);
 				
-				int zeroX_px = x+viewState.convertPos_AngleToScreen_LongX(0);
-				int zeroY_px = y+viewState.convertPos_AngleToScreen_LatY (0);
-				int diagramMinX_px = x+viewState.convertPos_AngleToScreen_LongX(diagramMinX_u);
-				int diagramMinY_px = y+viewState.convertPos_AngleToScreen_LatY (diagramMinY_u);
-				int diagramMaxX_px = x+viewState.convertPos_AngleToScreen_LongX(diagramMaxX_u);
-				int diagramMaxY_px = y+viewState.convertPos_AngleToScreen_LatY (diagramMaxY_u);
+				int zeroX_px = viewState.convertPos_AngleToScreen_LongX(0);
+				int zeroY_px = viewState.convertPos_AngleToScreen_LatY (0);
+				int diagramMinX_px = viewState.convertPos_AngleToScreen_LongX(diagramMinX_u);
+				int diagramMinY_px = viewState.convertPos_AngleToScreen_LatY (diagramMinY_u);
+				int diagramMaxX_px = viewState.convertPos_AngleToScreen_LongX(diagramMaxX_u);
+				int diagramMaxY_px = viewState.convertPos_AngleToScreen_LatY (diagramMaxY_u);
 				int diagramWidth_px  = diagramMaxX_px-diagramMinX_px;
 				int diagramHeight_px = diagramMinY_px-diagramMaxY_px; // pos. Y upwards
 				
@@ -1431,29 +1465,30 @@ public class TruckPanelProto implements Finalizable {
 				g2.drawLine(zeroX_px+5, diagramMaxY_px-5 , zeroX_px, diagramMaxY_px-20);
 				g2.drawLine(zeroX_px-5, diagramMaxY_px-5 , zeroX_px, diagramMaxY_px-20);
 				g2.setStroke(origStroke);
+				
+				axisHLabel.setPos(diagramMaxX_px, zeroY_px);
+				axisHLabel.draw(g2);
+				axisVLabel.setPos(zeroX_px, diagramMaxY_px);
+				axisVLabel.draw(g2);
 			}
 			
-			private void drawDataPointTextBox(Graphics2D g2, int x, int y, DataPoint dataPoint) {
-				int dataPointX_px = x+viewState.convertPos_AngleToScreen_LongX(dataPoint.x);
-				int dataPointY_px = y+viewState.convertPos_AngleToScreen_LatY (dataPoint.y);
-				TextBox textBox = textBoxes.get(dataPoint);
+			private void drawDataPointTextBox(Graphics2D g2, DataPoint dataPoint, boolean isHovered, boolean isInParetoSet, int stage) {
+				int dataPointX_px = viewState.convertPos_AngleToScreen_LongX(dataPoint.x);
+				int dataPointY_px = viewState.convertPos_AngleToScreen_LatY (dataPoint.y);
+				DataPointTextBox textBox = textBoxes.get(dataPoint);
 				if (textBox==null) {
-					textBox = new TextBox(str->getStringBounds(g2, str), dataPoint.getTextBox());
+					textBox = new DataPointTextBox(dataPoint.getTextBox());
 					textBoxes.put(dataPoint, textBox);
 				}
-				textBox.draw(g2, x, y, dataPointX_px, dataPointY_px, dataPoint==hoveredDataPoint, paretoSet.contains(dataPoint));
-			}
-		
-			private Rectangle getStringBounds(Graphics2D g2, String str) {
-				return g2.getFontMetrics().getStringBounds(str, g2).getBounds();
+				textBox.draw(g2, dataPointX_px, dataPointY_px, isHovered, isInParetoSet, stage);
 			}
 			
-			private void drawDataPointPosMarker(Graphics2D g2, int x, int y, DataPoint dataPoint) {
+			private void drawDataPointPosMarker(Graphics2D g2, DataPoint dataPoint) {
 				Point p = posMarkers.get(dataPoint);
 				if (p == null)
 					posMarkers.put(dataPoint, p = new Point());
-				p.x = x+viewState.convertPos_AngleToScreen_LongX(dataPoint.x);
-				p.y = y+viewState.convertPos_AngleToScreen_LatY (dataPoint.y);
+				p.x = viewState.convertPos_AngleToScreen_LongX(dataPoint.x);
+				p.y = viewState.convertPos_AngleToScreen_LatY (dataPoint.y);
 				Color fillColor = dataPoint==hoveredDataPoint ? COLOR_FILL_HOVERED : paretoSet.contains(dataPoint) ? COLOR_FILL_PARETO : COLOR_FILL;
 				drawFilledCircle(g2, p.x, p.y, 3, fillColor, COLOR_CONTOUR);
 			}
@@ -1494,67 +1529,56 @@ public class TruckPanelProto implements Finalizable {
 			
 			}
 			
-			private static class TextBox {
+			private static class DataPointTextBox extends ZoomableCanvas.TextBox
+			{
+				static final int NO_STAGE = -1;
+				static final int MIN_STAGE = 0;
+				static final int MAX_STAGE = 3;
 				
-				private final static int BorderX = 3;
-				private final static int BorderY = 1;
-				
-				private final String[] text;
-				private final int[] xOffsets;
-				private final int[] yOffsets;
-				private final Rectangle boxRect;
-				private int textBoxBaseX_px;
-				private int textBoxBaseY_px;
-			
-				TextBox(Function<String,Rectangle> getStringBounds, String[] text) {
-					this.text = text;
-					Rectangle[] stringBounds = new Rectangle[text.length];
-					yOffsets = new int[text.length];
-					xOffsets = new int[text.length];
-					int rowOffset = 0;
-					Rectangle stringBoundsTotal = null; 
-					
-					for (int i=text.length-1; i>=0; i--) {
-						stringBounds[i] = getStringBounds.apply(text[i]);
-						//stringBounds[i] = g2.getFontMetrics().getStringBounds(textBox[i], g2).getBounds();
-						rowOffset -= stringBounds[i].height;
-						xOffsets[i] = -stringBounds[i].x;
-						yOffsets[i] = -stringBounds[i].y+rowOffset;
-						stringBounds[i].x = 0;
-						stringBounds[i].y = rowOffset;
-						if (i==text.length-1) stringBoundsTotal = new Rectangle(stringBounds[i]);
-						else                     stringBoundsTotal.add(stringBounds[i]);
-					}
-					
-					boxRect = new Rectangle( stringBoundsTotal );
-					boxRect.y      -= 2*BorderY;
-					boxRect.width  += 2*BorderX;
-					boxRect.height += 2*BorderY;
-					
-					textBoxBaseX_px = 0;
-					textBoxBaseY_px = 0;
+				DataPointTextBox(String... texts) {
+					super(Anchor.BottomLeft, texts);
+					setOffset(20, -10);
 				}
 				
-				void draw(Graphics2D g2, int x, int y, int dataPointX_px, int dataPointY_px, boolean isHovered, boolean isInParetoSet) {
-					textBoxBaseX_px = dataPointX_px+20;
-					textBoxBaseY_px = dataPointY_px-10;
+				void draw(Graphics2D g2, int dataPointX_px, int dataPointY_px, boolean isHovered, boolean isInParetoSet, int stage)
+				{	
+					setPos(dataPointX_px,dataPointY_px);
+					Color borderColor = isHovered || isInParetoSet ? COLOR_CONTOUR : COLOR_TEXT_NOTPARETO;
+					Color   fillColor = isHovered                  ? COLOR_TEXTBOX_BACKGROUND : Color.WHITE;
+					Color   textColor = isHovered || isInParetoSet ? COLOR_TEXT : COLOR_TEXT_NOTPARETO;
+					setColors(borderColor, fillColor, textColor);
 					
-					if (isHovered) {
-						g2.setColor(COLOR_TEXTBOX_BACKGROUND);
-						g2.fillRect(textBoxBaseX_px+boxRect.x, textBoxBaseY_px+boxRect.y, boxRect.width, boxRect.height);
+					g2.setColor(borderColor);
+					g2.drawLine(this.x, this.y, this.x+20, this.y-10);
+					
+					if (stage<0)
+					{
+						g2.setColor(borderColor);
+						g2.drawLine(this.x, this.y, this.x+20, this.y-10);
+						super.draw(g2);
 					}
-					g2.setColor(isHovered || isInParetoSet ? COLOR_CONTOUR : COLOR_TEXT_NOTPARETO);
-					g2.drawLine(dataPointX_px, dataPointY_px, textBoxBaseX_px, textBoxBaseY_px);
-					g2.drawRect(textBoxBaseX_px+boxRect.x, textBoxBaseY_px+boxRect.y, boxRect.width-1, boxRect.height-1);
-					
-					for (int i=0; i<text.length; i++) {
-						g2.setColor(isHovered || isInParetoSet ? COLOR_TEXT : COLOR_TEXT_NOTPARETO);
-						g2.drawString(text[i], textBoxBaseX_px+xOffsets[i]+BorderX, textBoxBaseY_px+yOffsets[i]-BorderY);
+					else if (stage==0)
+					{
+						g2.setColor(borderColor);
+						g2.drawLine(this.x, this.y, this.x+20, this.y-10);
+					}
+					else
+					{
+						super.draw(g2, stage-1);
 					}
 				}
 				
+				boolean isOver(int x, int y)
+				{
+					ValueContainer<Boolean> isOver = new ValueContainer<>(false);
+					forEachRow((i,boxX,boxY,boxW,boxH,strX,strY) -> {
+						isOver.value = new Rectangle(this.x+boxX, this.y+boxY, boxW, boxH).contains(x,y);
+						return !isOver.value;
+					});
+					return isOver.value;
+				}
 			}
-		
+			
 			private static class DataPoint {
 				
 				final float x,y;
