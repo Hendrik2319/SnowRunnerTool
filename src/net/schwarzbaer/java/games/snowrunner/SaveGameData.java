@@ -235,13 +235,13 @@ public class SaveGameData {
 		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_Root = KJV_FACTORY.create("[SaveGame]<root>")
 		//		.add("CompleteSave#"  , JSON_Data.Value.Type.Object)
 				.add("cfg_version"    , JSON_Data.Value.Type.Integer);
-		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_CompleteSave = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave")
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_CompleteSave = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave#")
 				.add("SslValue"       , JSON_Data.Value.Type.Object)
 				.add("SslType"        , JSON_Data.Value.Type.String);
 		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_watchPointsData = KJV_FACTORY.create()
 				.add("data"           , JSON_Data.Value.Type.Object);
 		
-		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_SslValue = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave.SslValue")
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_SslValue = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave#.SslValue")
 				.add("birthVersion"                      , JSON_Data.Value.Type.Integer)
 				.add("cargoLoadingCounts"                , JSON_Data.Value.Type.Object )
 				.add("discoveredObjectives"              , JSON_Data.Value.Type.Array  )
@@ -250,6 +250,7 @@ public class SaveGameData {
 				.add("forcedModelStates"                 , JSON_Data.Value.Type.Object ) // empty
 				.add("gameDifficultyMode"                , JSON_Data.Value.Type.Integer)
 				.add("gameDifficultySettings"            , JSON_Data.Value.Type.Object ) // unparsed
+				.add("gameDifficultySettings"            , JSON_Data.Value.Type.Null   ) // unparsed
 				.add("gameStat"                          , JSON_Data.Value.Type.Object ) // unparsed
 				.add("gameStatByRegion"                  , JSON_Data.Value.Type.Object ) // unparsed
 				.add("gameTime"                          , JSON_Data.Value.Type.Float  )
