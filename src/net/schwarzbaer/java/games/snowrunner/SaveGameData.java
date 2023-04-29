@@ -183,6 +183,13 @@ public class SaveGameData {
 		return targetCollection;
 	}
 	
+	private static <Type> Type parseObjectOrNull(JSON_Object<NV, V> object, JSON_Data.Null null_, Constructor<Type> constructor, String debugOutputPrefixStr) throws TraverseException
+	{
+		checkObjectOrNull(object, null_, debugOutputPrefixStr);
+		if (object == null) return null;
+		return constructor.create(object, debugOutputPrefixStr);
+	}
+	
 	private static void checkObjectOrNull(JSON_Object<NV, V> object, JSON_Data.Null null_, String debugOutputPrefixStr) throws TraverseException
 	{
 		if (object==null && null_==null)
@@ -408,7 +415,6 @@ public class SaveGameData {
 			KNOWN_JSON_VALUES_SslValue.scanUnexpectedValues(sslValueObj);
 			
 			checkObjectOrNull(levelGarageStatuses  , levelGarageStatuses_Null  , debugOutputPrefixStr+".levelGarageStatuses"  );
-			checkObjectOrNull(persistentProfileData, persistentProfileData_Null, debugOutputPrefixStr+".persistentProfileData");
 			checkObjectOrNull(tutorialStates       , tutorialStates_Null       , debugOutputPrefixStr+".tutorialStates"       );
 			checkObjectOrNull(watchPointsData      , watchPointsData_Null      , debugOutputPrefixStr+".watchPointsData"      );
 			checkEmptyArrayOrUnset(givenTrialRewards        , debugOutputPrefixStr+".givenTrialRewards"        );
@@ -417,11 +423,7 @@ public class SaveGameData {
 			checkEmptyObject      (modTruckTypesRefundValues, debugOutputPrefixStr+".modTruckTypesRefundValues");
 			checkEmptyObjectOrUnsetOrNull(garagesShopData_Value, debugOutputPrefixStr+".garagesShopData");
 			
-			
-			if (persistentProfileData==null)
-				ppd = null;
-			else
-				ppd = new PersistentProfileData(this, persistentProfileData, debugOutputPrefixStr+".persistentProfileData");
+			ppd = parseObjectOrNull(persistentProfileData, persistentProfileData_Null, PersistentProfileData::new, debugOutputPrefixStr+".persistentProfileData");
 			
 			this.forcedModelStates = new HashMap<String,String>();
 			parseObject(forcedModelStates, debugOutputPrefixStr+".forcedModelStates", (value, modelName, localPrefixStr) -> {
@@ -571,7 +573,7 @@ public class SaveGameData {
 			public boolean isZero() { return x==0.0 && y==0.0 && z==0.0; }
 		}
 
-		public static class PersistentProfileData
+		public class PersistentProfileData
 		{
 			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(PersistentProfileData.class)
 					.add("experience"              , JSON_Data.Value.Type.Integer)
@@ -607,7 +609,7 @@ public class SaveGameData {
 			public final HashMap<String, Long> ownedTrucks;
 			public final Vector<TruckDesc> trucksInWarehouse;
 			
-			private PersistentProfileData(SaveGame saveGame, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			private PersistentProfileData(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons, discoveredTrucks, discoveredUpgrades, refundTruckDescs, userId;
 				JSON_Array<NV, V> trucksInWarehouse, refundGarageTruckDescs;
@@ -654,13 +656,13 @@ public class SaveGameData {
 				
 				this.trucksInWarehouse = parseArray_Object(trucksInWarehouse, debugOutputPrefixStr+".trucksInWarehouse", TruckDesc::new, new Vector<>());
 				
-				MapInfos .parseDiscoveredTrucks  (saveGame.maps      , discoveredTrucks  , debugOutputPrefixStr+".discoveredTrucks"  );
-				MapInfos .parseDiscoveredUpgrades(saveGame.maps      , discoveredUpgrades, debugOutputPrefixStr+".discoveredUpgrades");
-				Objective.parseContestAttempts   (saveGame.objectives, contestAttempts   , debugOutputPrefixStr+".contestAttempts"   );
-				Objective.parseContestLastTimes  (saveGame.objectives, contestLastTimes  , debugOutputPrefixStr+".contestLastTimes"  );
-				Objective.parseContestTimes      (saveGame.objectives, contestTimes      , debugOutputPrefixStr+".contestTimes"      );
-				Addon    .parseOwned             (saveGame.addons    , addons            , debugOutputPrefixStr+".addons"            );
-				Addon    .parseDamagableAddons   (saveGame.addons    , damagableAddons   , debugOutputPrefixStr+".damagableAddons"   );
+				MapInfos .parseDiscoveredTrucks  (maps                , discoveredTrucks  , debugOutputPrefixStr+".discoveredTrucks"  );
+				MapInfos .parseDiscoveredUpgrades(maps                , discoveredUpgrades, debugOutputPrefixStr+".discoveredUpgrades");
+				Objective.parseContestAttempts   (objectives          , contestAttempts   , debugOutputPrefixStr+".contestAttempts"   );
+				Objective.parseContestLastTimes  (objectives          , contestLastTimes  , debugOutputPrefixStr+".contestLastTimes"  );
+				Objective.parseContestTimes      (objectives          , contestTimes      , debugOutputPrefixStr+".contestTimes"      );
+				Addon    .parseOwned             (SaveGame.this.addons, addons            , debugOutputPrefixStr+".addons"            );
+				Addon    .parseDamagableAddons   (SaveGame.this.addons, damagableAddons   , debugOutputPrefixStr+".damagableAddons"   );
 				
 			}
 		}
@@ -1568,6 +1570,7 @@ public class SaveGameData {
 							.add("changeTruckState"    , JSON_Data.Value.Type.Null  )
 							.add("farmingState"        , JSON_Data.Value.Type.Null  )
 							.add("livingAreaState"     , JSON_Data.Value.Type.Null  )
+							.add("livingAreaState"     , JSON_Data.Value.Type.Object)
 							.add("makeActionInZone"    , JSON_Data.Value.Type.Null  )
 							.add("truckDeliveryStates" , JSON_Data.Value.Type.Array )
 							.add("truckRepairStates"   , JSON_Data.Value.Type.Array )
@@ -1580,7 +1583,7 @@ public class SaveGameData {
 					        cargoSpawnState     : Array 
 					        changeTruckState    : Null  
 					        farmingState        :[Null  , <unset>]
-					        livingAreaState     : Null  
+					        livingAreaState     :[Object, Null]  ->  LivingAreaState  
 					        makeActionInZone    : Null  
 					        truckDeliveryStates : Array 
 					        truckRepairStates   : Array 
@@ -1592,6 +1595,7 @@ public class SaveGameData {
 					        truckRepairStates   [] : Object or empty array  ->  TruckRepairState
 					 */
 					
+					public final LivingAreaState livingAreaState;
 					public final VisitAllZonesState visitAllZonesState;
 					public final Vector<CargoDeliveryAction> cargoDeliveryActions;
 					public final Vector<CargoSpawnState> cargoSpawnState;
@@ -1603,16 +1607,17 @@ public class SaveGameData {
 						//scanJSON(object, this);
 						
 						@SuppressWarnings("unused")
-						JSON_Data.Null changeTruckState, farmingState, livingAreaState, makeActionInZone, visitAllZonesState_Null;
-						JSON_Object<NV, V> visitAllZonesState;
+						JSON_Data.Null changeTruckState_Null, farmingState_Null, livingAreaState_Null, makeActionInZone_Null, visitAllZonesState_Null;
+						JSON_Object<NV, V> livingAreaState, visitAllZonesState;
 						JSON_Array<NV, V> cargoDeliveryActions, cargoSpawnState, truckDeliveryStates, truckRepairStates;
 						
 						cargoDeliveryActions    = JSON_Data.getArrayValue (object, "cargoDeliveryActions", debugOutputPrefixStr);
 						cargoSpawnState         = JSON_Data.getArrayValue (object, "cargoSpawnState"     , debugOutputPrefixStr);
-						changeTruckState        = JSON_Data.getNullValue  (object, "changeTruckState"    , debugOutputPrefixStr);
-						farmingState            = JSON_Data.getNullValue  (object, "farmingState"        , true, false, debugOutputPrefixStr);
-						livingAreaState         = JSON_Data.getNullValue  (object, "livingAreaState"     , debugOutputPrefixStr);
-						makeActionInZone        = JSON_Data.getNullValue  (object, "makeActionInZone"    , debugOutputPrefixStr);
+						changeTruckState_Null   = JSON_Data.getNullValue  (object, "changeTruckState"    , debugOutputPrefixStr);
+						farmingState_Null       = JSON_Data.getNullValue  (object, "farmingState"        , true, false, debugOutputPrefixStr);
+						livingAreaState         = JSON_Data.getObjectValue(object, "livingAreaState"     , false, true, debugOutputPrefixStr);
+						livingAreaState_Null    = JSON_Data.getNullValue  (object, "livingAreaState"     , false, true, debugOutputPrefixStr);
+						makeActionInZone_Null   = JSON_Data.getNullValue  (object, "makeActionInZone"    , debugOutputPrefixStr);
 						truckDeliveryStates     = JSON_Data.getArrayValue (object, "truckDeliveryStates" , debugOutputPrefixStr);
 						truckRepairStates       = JSON_Data.getArrayValue (object, "truckRepairStates"   , debugOutputPrefixStr);
 						visitAllZonesState      = JSON_Data.getObjectValue(object, "visitAllZonesState"  , false, true, debugOutputPrefixStr);
@@ -1620,15 +1625,43 @@ public class SaveGameData {
 						
 						KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 						
-						if (visitAllZonesState!=null)
-							this.visitAllZonesState = new VisitAllZonesState(visitAllZonesState, debugOutputPrefixStr+".visitAllZonesState");
-						else
-							this.visitAllZonesState = null;
-						
+						this.livingAreaState      = parseObjectOrNull(livingAreaState   , livingAreaState_Null   , LivingAreaState   ::new, debugOutputPrefixStr+".livingAreaState");
+						this.visitAllZonesState   = parseObjectOrNull(visitAllZonesState, visitAllZonesState_Null, VisitAllZonesState::new, debugOutputPrefixStr+".visitAllZonesState");
 						this.cargoDeliveryActions = parseArray_Object(cargoDeliveryActions, debugOutputPrefixStr+".cargoDeliveryActions", CargoDeliveryAction::new, new Vector<>());
 						this.cargoSpawnState      = parseArray_Object(cargoSpawnState     , debugOutputPrefixStr+".cargoSpawnState"     , CargoSpawnState    ::new, new Vector<>());
 						this.truckDeliveryStates  = parseArray_Object(truckDeliveryStates , debugOutputPrefixStr+".truckDeliveryStates" , TruckDeliveryState ::new, new Vector<>());
 						this.truckRepairStates    = parseArray_Object(truckRepairStates   , debugOutputPrefixStr+".truckRepairStates"   , TruckRepairState   ::new, new Vector<>());
+					}
+					
+					public static class LivingAreaState
+					{
+						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(LivingAreaState.class)
+								.add("currentLivingAreaValue", JSON_Data.Value.Type.Integer)
+								.add("isSynced"              , JSON_Data.Value.Type.Bool   )
+								.add("neededLivingAreaValue" , JSON_Data.Value.Type.Integer)
+								.add("zoneGlobalId"          , JSON_Data.Value.Type.String )
+								;
+						/*
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.LivingAreaState]" [4]
+						        currentLivingAreaValue:Integer
+						        isSynced              :Bool
+						        neededLivingAreaValue :Integer
+						        zoneGlobalId          :String
+						 */
+						public final long currentLivingAreaValue;
+						public final boolean isSynced;
+						public final long neededLivingAreaValue;
+						public final String zoneGlobalId;
+						
+						private LivingAreaState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+						{
+							//scanJSON(object, this);
+							currentLivingAreaValue = JSON_Data.getIntegerValue(object, "currentLivingAreaValue", debugOutputPrefixStr);
+							isSynced               = JSON_Data.getBoolValue   (object, "isSynced"              , debugOutputPrefixStr);
+							neededLivingAreaValue  = JSON_Data.getIntegerValue(object, "neededLivingAreaValue" , debugOutputPrefixStr);
+							zoneGlobalId           = JSON_Data.getStringValue (object, "zoneGlobalId"          , debugOutputPrefixStr);
+							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+						}
 					}
 					
 					public static class VisitAllZonesState
