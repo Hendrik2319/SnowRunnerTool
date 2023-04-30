@@ -254,7 +254,7 @@ public class SaveGameData {
 				.add("discoveredObjectives"              , JSON_Data.Value.Type.Array  )
 				.add("discoveredObjects"                 , JSON_Data.Value.Type.Array  )
 				.add("finishedObjs"                      , JSON_Data.Value.Type.Array  )
-				.add("forcedModelStates"                 , JSON_Data.Value.Type.Object ) // empty
+				.add("forcedModelStates"                 , JSON_Data.Value.Type.Object )
 				.add("gameDifficultyMode"                , JSON_Data.Value.Type.Integer)
 				.add("gameDifficultySettings"            , JSON_Data.Value.Type.Object ) // unparsed
 				.add("gameDifficultySettings"            , JSON_Data.Value.Type.Null   ) // unparsed
@@ -410,7 +410,7 @@ public class SaveGameData {
 					upgradableGarages
 					
 				empty:
-					forcedModelStates, discoveredObjects, givenTrialRewards, justDiscoveredObjects, modTruckRefundValues, modTruckTypesRefundValues
+					garagesShopData, givenTrialRewards, justDiscoveredObjects, modTruckRefundValues, modTruckTypesRefundValues
 			 */
 			KNOWN_JSON_VALUES_SslValue.scanUnexpectedValues(sslValueObj);
 			
