@@ -578,6 +578,7 @@ public class TruckPanelProto implements Finalizable {
 						new ColumnID( "InCockpit       ", "In Cockpit"       , Boolean.class,  60,   null,    null, false, get(row -> row.socket.isInCockpit                 )),
 						new ColumnID( "BlockedSocketIDs", "Blocked SocketIDs",  String.class, 700,   null,    null, false, get(row -> toString( row.socket.blockedSocketIDs ))), 
 				});
+				coloring.addBackgroundRowColorizer(Coloring.createOddEvenColorizer(row -> row.indexAS));
 			}
 			
 			private static <ResultType> Function<Object,ResultType> get(Function<RowItem,ResultType> getFunction)

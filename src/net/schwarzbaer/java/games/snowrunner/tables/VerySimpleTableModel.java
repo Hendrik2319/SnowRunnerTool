@@ -74,6 +74,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	static final Color COLOR_BG_FALSE = new Color(0xFF6600);
 	static final Color COLOR_BG_TRUE = new Color(0x99FF33);
 	static final Color COLOR_BG_EDITABLECELL = new Color(0xFFFAE7);
+	static final Color COLOR_BG_ODD  = new Color(0xF5F5FF);
+	static final Color COLOR_BG_EVEN = new Color(0xFFFFEF);
 	
 	@SuppressWarnings("unused")
 	private   final Float columns; // to hide super.columns
@@ -217,6 +219,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		void removeBackgroundRowColorizer(Function<RowType,Color> colorizer) {
 			if (colorizer==null) throw new IllegalArgumentException();
 			rowColorizersBG.remove(colorizer);
+		}
+		
+		static <RowType> Function<RowType, Color> createOddEvenColorizer(Function<RowType, Integer> getIndex) {
+			return row -> (getIndex.apply(row) & 1) == 1 ? COLOR_BG_ODD : COLOR_BG_EVEN;
 		}
 		
 		private static <Type> Function<Object, Color> convertClassColorizer(Class<Type> class_, Function<Type, Color> getcolor) {

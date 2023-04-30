@@ -2364,7 +2364,7 @@ public class Data {
 		{
 			Object parent = parents.get(class_);
 			if (parent==null) return null;
-			if (!class_.isAssignableFrom(parent.getClass()))
+			if (!class_.isInstance(parent))
 				throw new IllegalStateException();
 			return class_.cast(parent);
 		}
