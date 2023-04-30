@@ -143,7 +143,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			return null;
 		});
 		
-		coloring.setBackgroundColumnColoring(true, Truck.UDV.ItemState.class, state->{
+		coloring.setBackgroundColumnColoring(true, Truck.UDV.ItemState.class, (truck, state) ->{
 			switch (state) {
 			case None:
 				return COLOR_BG_FALSE;

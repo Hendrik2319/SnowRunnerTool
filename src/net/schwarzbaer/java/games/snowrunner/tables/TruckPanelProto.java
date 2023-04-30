@@ -3,7 +3,6 @@ package net.schwarzbaer.java.games.snowrunner.tables;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -23,7 +22,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -39,21 +37,13 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
-import javax.swing.JTable;
 import javax.swing.JTextArea;
-import javax.swing.ListSelectionModel;
-import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.table.TableCellRenderer;
 
 import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.gui.Disabler;
 import net.schwarzbaer.gui.ImageView;
 import net.schwarzbaer.gui.Tables;
-import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
-import net.schwarzbaer.gui.Tables.SimplifiedColumnIDInterface;
-import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
-import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.gui.ZoomableCanvas;
@@ -130,8 +120,6 @@ public class TruckPanelProto implements Finalizable {
 		
 		finalizer.addLanguageListener(language->{
 			this.language = language;
-			compatibleWheelsPanel.setLanguage(language);
-//			addonSocketsPanel.setLanguage(language);
 			updateOutput();
 		});
 		finalizer.addSaveGameListener(saveGame->{
@@ -680,7 +668,6 @@ public class TruckPanelProto implements Finalizable {
 		private final Window mainWindow;
 		private final Finalizer finalizer;
 		private final JTextArea textArea;
-		private final JTable table;
 		private final CWTableModel tableModel;
 		private CWTableModel.RowItem selectedWheel;
 		private Language language;
@@ -698,36 +685,14 @@ public class TruckPanelProto implements Finalizable {
 			truckName_StringID = null;
 			finalizer = gfds.controllers.createNewFinalizer();
 			
-			table = new JTable(tableModel = new CWTableModel(gfds));
-			tableModel.setTable(table);
-			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
-			table.setRowSorter(rowSorter);
-			tableModel.setRenderers();
-			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			table.getSelectionModel().addListSelectionListener(e->{
-				int rowV = table.getSelectedRow();
-				int rowM = table.convertRowIndexToModel(rowV);
-				selectedWheel = tableModel.getRow(rowM);
-				updateWheelInfo();
-			});
-			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-			tableModel.setColumnWidths(table);
-			JScrollPane tableScrollPane = new JScrollPane(table);
-			tableScrollPane.setBorder(null);
-			
+			JComponent tableScrollPane = TableSimplifier.create(
+					tableModel = new CWTableModel(mainWindow, gfds),
+					(TableSimplifier.UnspecificOutputSource) rowIndex -> {
+						selectedWheel = tableModel.getRow(rowIndex);
+						updateWheelInfo();
+					}
+			);
 			finalizer.addSubComp(tableModel);
-			
-			ContextMenu tableContextMenu = new ContextMenu();
-			tableContextMenu.addTo(table);
-			
-			tableContextMenu.add(SnowRunner.createMenuItem("Reset Row Order",true,e->{
-				rowSorter.resetSortOrder();
-				table.repaint();
-			}));
-			tableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
-				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
-			}));
-			
 			
 			textArea = new JTextArea();
 			textArea.setEditable(false);
@@ -744,8 +709,8 @@ public class TruckPanelProto implements Finalizable {
 			
 			c.weightx = 0;
 			tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data in Diagram", true, e->{
-				if (tableModel.data!=null)
-					new WheelsDiagramDialog(this.mainWindow, tableModel.data, truckName_StringID, language).showDialog();
+				if (tableModel.rows!=null)
+					new WheelsDiagramDialog(this.mainWindow, tableModel.rows, truckName_StringID, language).showDialog();
 			}),c);
 			
 			tableButtonsPanel.add(SnowRunner.createButton("Show Wheel Data as Text", true, e->{
@@ -775,6 +740,11 @@ public class TruckPanelProto implements Finalizable {
 			setTopComponent(tablePanel);
 			setBottomComponent(textAreaScrollPane);
 			
+			finalizer.addLanguageListener(language->{
+				this.language = language;
+				updateWheelInfo();
+			});
+			
 			updateWheelInfo();
 		}
 
@@ -793,12 +763,6 @@ public class TruckPanelProto implements Finalizable {
 			}
 		}
 	
-		void setLanguage(Language language) {
-			this.language = language;
-			tableModel.setLanguage(language);
-			updateWheelInfo();
-		}
-	
 		void setData(CompatibleWheel[] compatibleWheels, String truckId, String truckName_StringID) {
 			this.compatibleWheels = compatibleWheels;
 			this.truckName_StringID = truckName_StringID;
@@ -806,141 +770,56 @@ public class TruckPanelProto implements Finalizable {
 			updateWheelInfo();
 		}
 
-		private static class CWTableCellRenderer implements TableCellRenderer {
-		
+		private static class CWTableModel extends VerySimpleTableModel<CWTableModel.RowItem>
+		{
+			private static final String ID_QUALITY_HIGHWAY = "QualityHighway";
+			private static final String ID_QUALITY_OFFROAD = "QualityOffroad";
+			private static final String ID_QUALITY_MUD     = "QualityMud";
 			private static final Color COLOR_BG_TRUCK_QV   = new Color(0xF1D5D5);
 			private static final Color COLOR_BG_GENERAL_QV = new Color(0xD5F1D5);
-			private final CWTableModel tableModel;
-			private final Tables.LabelRendererComponent rendererComp;
-		
-			CWTableCellRenderer(CWTableModel tableModel) {
-				this.tableModel = tableModel;
-				rendererComp = new Tables.LabelRendererComponent();
-			}
-		
-			@Override
-			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
-				String valueStr = value==null ? null : value.toString();
-				
-				int rowM    = rowV   <0 ? -1 : table.convertRowIndexToModel   (rowV   );
-				int columnM = columnV<0 ? -1 : table.convertColumnIndexToModel(columnV);
-				CWTableModel.RowItem  row      = rowM   <0 ? null : tableModel.getRow     (rowM   );
-				CWTableModel.ColumnID columnID = columnM<0 ? null : tableModel.getColumnID(columnM);
-				
-				Supplier<Color> getCustomBackground = null;
-				if (columnID!=null)
-				{
-					if (columnID.config.columnClass==Float.class)
-					{
-						valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
-						rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-					}
-					else if (columnID.config.columnClass==Integer.class)
-					{
-						switch (columnID) {
-						case Size:
-							valueStr = value==null ? "<???>" : String.format("%d\"", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-							break;
-						case Price:
-							valueStr = value==null ? "<???>" : String.format("%d Cr", value);
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-						case UnlockByRank:
-							valueStr = value==null ? "<???>" : value.toString();
-							rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-							break;
-						default:
-							rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-							break;
-						}
-					}
-					
-					WheelsQualityRanges.WheelValue wheelValue = null;
-					switch (columnID) {
-						case QualityHighway: wheelValue = WheelsQualityRanges.WheelValue.Highway; break;
-						case QualityOffroad: wheelValue = WheelsQualityRanges.WheelValue.Offroad; break;
-						case QualityMud    : wheelValue = WheelsQualityRanges.WheelValue.Mud    ; break;
-						default: break;
-					}
-					
-					if (wheelValue!=null)
-					{
-						rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-						if (row!=null && (value==null || value instanceof WheelsQualityRanges.QualityValue))
-						{
-							WheelsQualityRanges.QualityValue truckQV   = (WheelsQualityRanges.QualityValue) value;
-							WheelsQualityRanges.QualityValue generalQV = row.getGeneralQualityValue(wheelValue);
-							getCustomBackground = ()-> truckQV==null ? null : truckQV==generalQV ? COLOR_BG_GENERAL_QV : COLOR_BG_TRUCK_QV;
-						}
-					}
-				}
-				
-				Supplier<Color> getCustomBackground_ = getCustomBackground;
-				getCustomBackground = ()->{
-					Color bgColor = getCustomBackground_==null ? null : getCustomBackground_.get();
-					if (bgColor==null && tableModel.isCellEditable(rowM, columnM))
-						bgColor = VerySimpleTableModel.COLOR_BG_EDITABLECELL;
-					return bgColor;
-				};
-				
-				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus, getCustomBackground, null);
-				return rendererComp;
-			}
-		
-		}
-
-		private static class CWTableModel extends SimplifiedTableModel<CWTableModel.ColumnID> implements Finalizable {
-		
-			private final GlobalFinalDataStructures gfds;
-			private final Finalizer finalizer;
-			private final Vector<RowItem> data;
-			private Language language;
+			
 			private String truckId;
-		
-			CWTableModel(GlobalFinalDataStructures gfds) {
-				super(ColumnID.values());
-				this.gfds = gfds;
-				data = new Vector<>();
-				language = null;
+
+			CWTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+			{
+				super(mainWindow, gfds, new ColumnID[] {
+						new ColumnID( "WheelsDefID"        , "WheelsDef"            , String                          .class, 140,   null,    null, false, get(row -> row.wheelsDefID                )),
+						new ColumnID( "Type"               , "Type"                 , String                          .class,  80,   null,    null,  true, get(row -> row.tire.tireType_StringID     )),
+						new ColumnID( "Name"               , "Name"                 , String                          .class, 130,   null,    null,  true, get(row -> row.tire.gameData.name_StringID)),
+						new ColumnID( "UpdateLevel"        , "Update Level"         , String                          .class,  80,   null,    null, false, get(row -> row.updateLevel                )),
+						new ColumnID( "Size"               , "Size"                 , Integer                         .class,  50, CENTER,  "%d\"", false, get(row -> row.getSize()                  )),
+						new ColumnID( "FrictionHighway"    , "Highway"              , Float                           .class,  55,   null, "%1.2f", false, get(row -> row.tire.frictionHighway       )),
+						new ColumnID( "FrictionOffroad"    , "Offroad"              , Float                           .class,  50,   null, "%1.2f", false, get(row -> row.tire.frictionOffroad       )),
+						new ColumnID( "FrictionMud"        , "Mud"                  , Float                           .class,  50,   null, "%1.2f", false, get(row -> row.tire.frictionMud           )),
+						new ColumnID( "OnIce"              , "On Ice"               , Boolean                         .class,  50,   null,    null, false, get(row -> row.tire.onIce                 )),
+						new ColumnID( ID_QUALITY_HIGHWAY   , "Highway"              , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Highway))),
+						new ColumnID( ID_QUALITY_OFFROAD   , "Offroad"              , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Offroad))),
+						new ColumnID( ID_QUALITY_MUD       , "Mud"                  , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Mud    ))),
+						new ColumnID( "Price"              , "Price"                , Integer                         .class,  50,   null, "%d Cr", false, get(row -> row.tire.gameData.price               )),
+						new ColumnID( "UnlockByExploration", "Unlock By Exploration", Boolean                         .class, 120,   null,    null, false, get(row -> row.tire.gameData.unlockByExploration )),
+						new ColumnID( "UnlockByRank"       , "Unlock By Rank"       , Integer                         .class, 100, CENTER,    null, false, get(row -> row.tire.gameData.unlockByRank        )),
+						new ColumnID( "Description"        , "Description"          , String                          .class, 200,   null,    null,  true, get(row -> row.tire.gameData.description_StringID)),
+				});
 				truckId = null;
-				finalizer = this.gfds.controllers.createNewFinalizer();
-				finalizer.addWheelsQualityRangesListener((wheelsDefID, indexInDef, wheelValue) -> {
-					if (wheelValue!=null)
-						switch (wheelValue)
-						{
-							case Highway: fireTableColumnUpdate(ColumnID.QualityHighway); break;
-							case Offroad: fireTableColumnUpdate(ColumnID.QualityOffroad); break;
-							case Mud    : fireTableColumnUpdate(ColumnID.QualityMud    ); break;
-						}
+				setColumnBgColoring(coloring, ID_QUALITY_HIGHWAY, WheelsQualityRanges.WheelValue.Highway);
+				setColumnBgColoring(coloring, ID_QUALITY_OFFROAD, WheelsQualityRanges.WheelValue.Offroad);
+				setColumnBgColoring(coloring, ID_QUALITY_MUD    , WheelsQualityRanges.WheelValue.Mud    );
+			}
+
+			private static void setColumnBgColoring(Coloring<RowItem> coloring, String columnID, WheelsQualityRanges.WheelValue wheelValue)
+			{
+				coloring.setBackgroundColumnColoring(false, columnID, WheelsQualityRanges.QualityValue.class, (row, truckQV) -> {
+					if (truckQV==null) return null;
+					WheelsQualityRanges.QualityValue generalQV = row.getGeneralQualityValue(wheelValue);
+					return truckQV==generalQV ? COLOR_BG_GENERAL_QV : COLOR_BG_TRUCK_QV;
 				});
 			}
-
-			@Override public void prepareRemovingFromGUI()
-			{
-				finalizer.removeSubCompsAndListenersFromGUI();
-			}
-		
-			void setRenderers() {
-				CWTableCellRenderer renderer = new CWTableCellRenderer(this);
-				//table.setDefaultRenderer(String .class, renderer);
-				table.setDefaultRenderer(Integer.class, renderer);
-				table.setDefaultRenderer(Float  .class, renderer);
-				table.setDefaultRenderer(WheelsQualityRanges.QualityValue.class, renderer);
-				//table.setDefaultRenderer(Boolean.class, null);
-				table.setDefaultEditor(
-						WheelsQualityRanges.QualityValue.class,
-						new Tables.ComboboxCellEditor<>(
-								SnowRunner.addNull(WheelsQualityRanges.QualityValue.values())
-						)
-				);
-			}
-		
-			void setLanguage(Language language) {
-				this.language = language;
-				fireTableUpdate();
-			}
 			
+			private static <ResultType> Function<Object,ResultType> get(Function<RowItem,ResultType> getFunction)
+			{
+				return ColumnID.get(RowItem.class, getFunction);
+			}
+
 			class RowItem {
 				
 				final String wheelsDefID;
@@ -974,11 +853,29 @@ public class TruckPanelProto implements Finalizable {
 					return gfds.wheelsQualityRanges.getQualityValue(wheelsDefID, tire.indexInDef, truckId, wheelValue);
 				}
 			}
-		
+
+			@Override
+			public void reconfigureAfterTableStructureUpdate()
+			{
+				super.reconfigureAfterTableStructureUpdate();
+				table.setDefaultEditor(
+						WheelsQualityRanges.QualityValue.class,
+						new Tables.ComboboxCellEditor<>(
+								SnowRunner.addNull(WheelsQualityRanges.QualityValue.values())
+						)
+				);
+			}
+
+			@Override
+			protected String getRowName(RowItem row)
+			{
+				return row==null ? null : SnowRunner.solveStringID(row.tire.gameData.name_StringID, language);
+			}
+			
 			void setData(CompatibleWheel[] compatibleWheels, String truckId) {
 				this.truckId = truckId;
-				data.clear();
 				
+				Vector<RowItem> data = new Vector<>();
 				if (compatibleWheels!=null) {
 					for (CompatibleWheel wheel : compatibleWheels) {
 						WheelsDef wheelsDef = wheel.wheelsDef;
@@ -995,32 +892,21 @@ public class TruckPanelProto implements Finalizable {
 							.thenComparing(cw->cw.tire.gameData.name_StringID,stringNullsLast);
 					data.sort(comparator);
 				}
-				
-				fireTableUpdate();
+				setRowData(data);
 			}
 
-			public RowItem getRow(int rowIndex) {
-				if (data==null || rowIndex<0 || rowIndex>=data.size())
-					return null;
-				return data.get(rowIndex);
-			}
-		
-			@Override public int getRowCount() {
-				return data==null ? 0 : data.size();
-			}
-		
 			@Override
 			protected boolean isCellEditable(int rowIndex, int columnIndex, ColumnID columnID)
 			{
-				switch (columnID)
-				{
-					case QualityHighway:
-					case QualityOffroad:
-					case QualityMud:
-						return true;
-					default:
-						return false;
-				}
+				if (columnID!=null)
+					switch (columnID.id)
+					{
+						case ID_QUALITY_HIGHWAY:
+						case ID_QUALITY_OFFROAD:
+						case ID_QUALITY_MUD    :
+							return true;
+					}
+				return false;
 			}
 
 			@Override
@@ -1028,66 +914,15 @@ public class TruckPanelProto implements Finalizable {
 			{
 				RowItem row = getRow(rowIndex);
 				if (row==null) return;
-				switch (columnID)
+				
+				if (columnID==null) return;
+				switch (columnID.id)
 				{
-					case QualityHighway: row.setQualityValue(WheelsQualityRanges.WheelValue.Highway, (WheelsQualityRanges.QualityValue)aValue); break;
-					case QualityOffroad: row.setQualityValue(WheelsQualityRanges.WheelValue.Offroad, (WheelsQualityRanges.QualityValue)aValue); break;
-					case QualityMud    : row.setQualityValue(WheelsQualityRanges.WheelValue.Mud    , (WheelsQualityRanges.QualityValue)aValue); break;
-					default: break;
+					case ID_QUALITY_HIGHWAY: row.setQualityValue(WheelsQualityRanges.WheelValue.Highway, (WheelsQualityRanges.QualityValue)aValue); break;
+					case ID_QUALITY_OFFROAD: row.setQualityValue(WheelsQualityRanges.WheelValue.Offroad, (WheelsQualityRanges.QualityValue)aValue); break;
+					case ID_QUALITY_MUD    : row.setQualityValue(WheelsQualityRanges.WheelValue.Mud    , (WheelsQualityRanges.QualityValue)aValue); break;
 				}
 			}
-
-			@Override
-			public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
-				RowItem row = getRow(rowIndex);
-				if (row!=null)
-					switch (columnID) {
-					case WheelsDefID: return row.wheelsDefID;
-					case Type       : return SnowRunner.solveStringID(row.tire.tireType_StringID, language);
-					case Name       : return SnowRunner.solveStringID(row.tire.gameData.name_StringID, language);
-					case Description: return SnowRunner.solveStringID(row.tire.gameData.description_StringID, language);
-					case UpdateLevel: return row.updateLevel;
-					case FrictionHighway: return row.tire.frictionHighway;
-					case FrictionOffroad: return row.tire.frictionOffroad;
-					case FrictionMud    : return row.tire.frictionMud;
-					case QualityHighway : return row.getQualityValue(WheelsQualityRanges.WheelValue.Highway);
-					case QualityOffroad : return row.getQualityValue(WheelsQualityRanges.WheelValue.Offroad);
-					case QualityMud     : return row.getQualityValue(WheelsQualityRanges.WheelValue.Mud    );
-					case OnIce: return row.tire.onIce;
-					case Price: return row.tire.gameData.price;
-					case Size : return row.getSize();
-					case UnlockByExploration: return row.tire.gameData.unlockByExploration;
-					case UnlockByRank: return row.tire.gameData.unlockByRank;
-					}
-				return null;
-			}
-		
-			enum ColumnID implements SimplifiedColumnIDInterface {
-				WheelsDefID         ("WheelsDef"            , String .class, 140), 
-				Type                ("Type"                 , String .class,  80), 
-				Name                ("Name"                 , String .class, 130), 
-				UpdateLevel         ("Update Level"         , String .class,  80), 
-				Size                ("Size"                 , Integer.class,  50), 
-				FrictionHighway     ("Highway"              , Float  .class,  55), 
-				FrictionOffroad     ("Offroad"              , Float  .class,  50), 
-				FrictionMud         ("Mud"                  , Float  .class,  50), 
-				OnIce               ("On Ice"               , Boolean.class,  50), 
-				QualityHighway      ("Highway"              , WheelsQualityRanges.QualityValue.class,  55), 
-				QualityOffroad      ("Offroad"              , WheelsQualityRanges.QualityValue.class,  55), 
-				QualityMud          ("Mud"                  , WheelsQualityRanges.QualityValue.class,  55), 
-				Price               ("Price"                , Integer.class,  50), 
-				UnlockByExploration ("Unlock By Exploration", Boolean.class, 120), 
-				UnlockByRank        ("Unlock By Rank"       , Integer.class, 100), 
-				Description         ("Description"          , String .class, 200), 
-				;
-			
-				private final SimplifiedColumnConfig config;
-				ColumnID(String name, Class<?> columnClass, int prefWidth) {
-					config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
-				}
-				@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
-			}
-			
 		}
 	}
 

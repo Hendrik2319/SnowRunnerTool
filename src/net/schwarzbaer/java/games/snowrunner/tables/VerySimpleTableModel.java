@@ -137,7 +137,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						break;
 				}
 			
-		coloring.setBackgroundColumnColoring(true, Boolean.class, b -> b ? COLOR_BG_TRUE : COLOR_BG_FALSE);
+		coloring.setBackgroundColumnColoring(true, Boolean.class, (row, b) -> b ? COLOR_BG_TRUE : COLOR_BG_FALSE);
 		
 		HashSet<String> columnIDIDs = new HashSet<>();
 		for (int i=0; i<originalColumns.length; i++) {
@@ -178,11 +178,15 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private final Vector<Function<RowType,Color>> rowColorizersFG = new Vector<>();
 		private final Vector<Function<RowType,Color>> rowColorizersBG = new Vector<>();
 		
-		private final HashMap<Class<?>,Function<Object,Color>> classColorizersFG = new HashMap<>();
-		private final HashMap<Class<?>,Function<Object,Color>> classColorizersBG = new HashMap<>();
+		private final HashMap<Class<?>,BiFunction<RowType,Object,Color>> classColorizersFG        = new HashMap<>();
+		private final HashMap<Class<?>,BiFunction<RowType,Object,Color>> classColorizersBG        = new HashMap<>();
+		private final HashMap<Class<?>,BiFunction<RowType,Object,Color>> classColorizersFGspecial = new HashMap<>();
+		private final HashMap<Class<?>,BiFunction<RowType,Object,Color>> classColorizersBGspecial = new HashMap<>();
 		
-		private final HashMap<Class<?>,Function<Object,Color>> classColorizersFGspecial = new HashMap<>();
-		private final HashMap<Class<?>,Function<Object,Color>> classColorizersBGspecial = new HashMap<>();
+		private final HashMap<String,BiFunction<RowType,Object,Color>> columnColorizersFG        = new HashMap<>();
+		private final HashMap<String,BiFunction<RowType,Object,Color>> columnColorizersBG        = new HashMap<>();
+		private final HashMap<String,BiFunction<RowType,Object,Color>> columnColorizersFGspecial = new HashMap<>();
+		private final HashMap<String,BiFunction<RowType,Object,Color>> columnColorizersBGspecial = new HashMap<>();
 		
 		private final HashSet<Integer> columnsWithActiveSpecialColoring = new HashSet<>();
 		
@@ -225,17 +229,25 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			return row -> (getIndex.apply(row) & 1) == 1 ? COLOR_BG_ODD : COLOR_BG_EVEN;
 		}
 		
-		private static <Type> Function<Object, Color> convertClassColorizer(Class<Type> class_, Function<Type, Color> getcolor) {
-			return obj->!class_.isInstance(obj) ? null : getcolor.apply(class_.cast(obj));
+		private static <RowType, Type> BiFunction<RowType, Object, Color> convertClassColorizer(Class<Type> class_, BiFunction<RowType,Type,Color> getcolor) {
+			return (row,obj)->!class_.isInstance(obj) ? null : getcolor.apply(row, class_.cast(obj));
 		}
 
-		<Type> void setForegroundColumnColoring(boolean isSpecial, Class<Type> class_, Function<Type,Color> getcolor) {
+		<Type> void setForegroundColumnColoring(boolean isSpecial, Class<Type> class_, BiFunction<RowType,Type,Color> getcolor) {
 			if (isSpecial) classColorizersFGspecial.put(class_, convertClassColorizer(class_, getcolor));
 			else           classColorizersFG       .put(class_, convertClassColorizer(class_, getcolor));
 		}
-		<Type> void setBackgroundColumnColoring(boolean isSpecial, Class<Type> class_, Function<Type,Color> getcolor) {
+		<Type> void setBackgroundColumnColoring(boolean isSpecial, Class<Type> class_, BiFunction<RowType,Type,Color> getcolor) {
 			if (isSpecial) classColorizersBGspecial.put(class_, convertClassColorizer(class_, getcolor));
 			else           classColorizersBG       .put(class_, convertClassColorizer(class_, getcolor));
+		}
+		<Type> void setForegroundColumnColoring(boolean isSpecial, String columnID, Class<Type> class_, BiFunction<RowType,Type,Color> getcolor) {
+			if (isSpecial) columnColorizersFGspecial.put(columnID, convertClassColorizer(class_, getcolor));
+			else           columnColorizersFG       .put(columnID, convertClassColorizer(class_, getcolor));
+		}
+		<Type> void setBackgroundColumnColoring(boolean isSpecial, String columnID, Class<Type> class_, BiFunction<RowType,Type,Color> getcolor) {
+			if (isSpecial) columnColorizersBGspecial.put(columnID, convertClassColorizer(class_, getcolor));
+			else           columnColorizersBG       .put(columnID, convertClassColorizer(class_, getcolor));
 		}
 
 		Color getRowColor(Vector<Function<RowType,Color>> colorizers, RowType row) {
@@ -257,38 +269,52 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 
 		private Color getColor(boolean isForeground, int columnM, ColumnID columnID, int rowM, RowType row, Object value) {
 			
-			HashMap<Class<?>, Function<Object, Color>> classColorizersSpecial;
-			Vector<Function<RowType,Color>> rowColorizers;
-			HashMap<Class<?>, Function<Object, Color>> classColorizers;
-			Color defaultColor;
+			HashMap<String, BiFunction<RowType, Object, Color>> columnColorizersSpecial;  // prio 1
+			HashMap<String, BiFunction<RowType, Object, Color>> columnColorizers;         // prio 3
+			HashMap<Class<?>, BiFunction<RowType, Object, Color>> classColorizersSpecial; // prio 2
+			HashMap<Class<?>, BiFunction<RowType, Object, Color>> classColorizers;        // prio 4
+			Vector<Function<RowType,Color>> rowColorizers;  // prio 5
+			Color defaultColor;  // prio 6
 			
 			if (isForeground) {
+				columnColorizersSpecial = columnColorizersFGspecial;
+				columnColorizers        = columnColorizersFG;
 				classColorizersSpecial = classColorizersFGspecial;
-				rowColorizers          = rowColorizersFG;
 				classColorizers        = classColorizersFG;
+				rowColorizers          = rowColorizersFG;
 				defaultColor = columnID.foreground;
 			} else {
+				columnColorizersSpecial = columnColorizersBGspecial;
+				columnColorizers        = columnColorizersBG;
 				classColorizersSpecial = classColorizersBGspecial;
-				rowColorizers          = rowColorizersBG;
 				classColorizers        = classColorizersBG;
+				rowColorizers          = rowColorizersBG;
 				defaultColor = columnID.background;
 			}
 			Color color = null;
 			
 			if (columnsWithActiveSpecialColoring.contains(columnM)) {
-				Function<Object, Color> colorizerFG = classColorizersSpecial.get(columnID.config.columnClass);
-				if (color==null && colorizerFG!=null)
-					color = colorizerFG.apply(value);
+				BiFunction<RowType, Object, Color> specialColumnColorizer = columnColorizersSpecial.get(columnID.id);
+				if (color==null && specialColumnColorizer!=null)
+					color = specialColumnColorizer.apply(row, value);
+				
+				BiFunction<RowType, Object, Color> specialClassColorizer = classColorizersSpecial.get(columnID.config.columnClass);
+				if (color==null && specialClassColorizer!=null)
+					color = specialClassColorizer.apply(row, value);
 			}
 			
-			if (color==null) color = defaultColor;
+			BiFunction<RowType, Object, Color> columnColorizer = columnColorizers.get(columnID.id);
+			if (color==null && columnColorizer!=null)
+				color = columnColorizer.apply(row, value);
+			
+			BiFunction<RowType, Object, Color> classColorizer = classColorizers.get(columnID.config.columnClass);
+			if (color==null && classColorizer!=null)
+				color = classColorizer.apply(row, value);
 			
 			if (color==null && !rowColorizers.isEmpty())
 				color = getRowColor(rowColorizers,row);
 			
-			Function<Object, Color> colorizerFG = classColorizers.get(columnID.config.columnClass);
-			if (color==null && colorizerFG!=null)
-				color = colorizerFG.apply(value);
+			if (color==null) color = defaultColor;
 			
 			if (!isForeground && color==null && tablemodel.isCellEditable(rowM, columnM, columnID)) {
 				color = COLOR_BG_EDITABLECELL;
