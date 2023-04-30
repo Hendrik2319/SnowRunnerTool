@@ -919,6 +919,14 @@ public class SnowRunner {
 		return vector;
 	}
 	
+	public static <K,V> V getOrCreate(Map<K,V> map, K key, Supplier<V> createNewValue)
+	{
+		V value = map.get(key);
+		if (value==null)
+			map.put(key, value = createNewValue.get());
+		return value;
+	}
+
 	public static void lineWrap(String text, int maxLineLength, Consumer<String> writeLine)
 	{
 		if (text==null) return;
@@ -2084,14 +2092,6 @@ public class SnowRunner {
 			writeFile();
 		}
 		
-		private static <K,V> V getOrCreate(Map<K,V> map, K key, Supplier<V> createNewValue)
-		{
-			V value = map.get(key);
-			if (value==null)
-				map.put(key, value = createNewValue.get());
-			return value;
-		}
-
 		private QualityData getOrCreateQualityData(DataMapIndex index)
 		{
 			return getOrCreate(data, index, ()->new QualityData());

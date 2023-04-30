@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -81,6 +82,9 @@ import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.Engin
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.WinchesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 import net.schwarzbaer.system.ValueContainer;
 
@@ -119,18 +123,15 @@ public class TruckPanelProto implements Finalizable {
 		truckInfoTextAreaScrollPane = new JScrollPane(truckInfoTextArea);
 		truckInfoTextAreaScrollPane.setPreferredSize(new Dimension(300,300));
 		
-		compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow, gfds);
-		addonSocketsPanel = new AddonSocketsPanel();
-		addonsPanel  = new AddonsPanel (mainWindow, gfds);
-		addonsPanel2 = new AddonsPanel2(mainWindow, gfds);
-		finalizer.addSubComp(compatibleWheelsPanel);
-		finalizer.addSubComp(addonsPanel);
-		finalizer.addSubComp(addonsPanel2);
+		finalizer.addSubComp(compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow, gfds));
+		finalizer.addSubComp(addonSocketsPanel     = new AddonSocketsPanel    (mainWindow, gfds));
+		finalizer.addSubComp(addonsPanel           = new AddonsPanel          (mainWindow, gfds));
+		finalizer.addSubComp(addonsPanel2          = new AddonsPanel2         (mainWindow, gfds));
 		
 		finalizer.addLanguageListener(language->{
 			this.language = language;
 			compatibleWheelsPanel.setLanguage(language);
-			addonSocketsPanel.setLanguage(language);
+//			addonSocketsPanel.setLanguage(language);
 			updateOutput();
 		});
 		finalizer.addSaveGameListener(saveGame->{
@@ -191,10 +192,10 @@ public class TruckPanelProto implements Finalizable {
 	}
 
 	private void addStandardTabsTo(JTabbedPane tabbedPanel) {
-		tabbedPanel.addTab("Compatible Wheels", compatibleWheelsPanel);
-		tabbedPanel.addTab("Addon Sockets", addonSocketsPanel);
-		tabbedPanel.addTab("Addons by Socket", addonsPanel);
-		tabbedPanel.addTab("Addons by Category", addonsPanel2);
+		tabbedPanel.addTab("Compatible Wheels"     , compatibleWheelsPanel);
+		tabbedPanel.addTab("Addon Sockets"         , addonSocketsPanel.rootComp);
+		tabbedPanel.addTab("Addons by Socket Group", addonsPanel);
+		tabbedPanel.addTab("Addons by Category"    , addonsPanel2);
 	}
 
 	public void setTruck(Truck truck, Data data) {
@@ -341,11 +342,11 @@ public class TruckPanelProto implements Finalizable {
 				Vector<String> truckAddonCategories = new Vector<>(compatibleTruckAddons.keySet());
 				truckAddonCategories.sort(SnowRunner.CATEGORY_ORDER);
 				for (String category : truckAddonCategories)
-					createTab(category, compatibleTruckAddons.get(category), () -> {
-						return new TruckAddonsTableModel(
+					createTab(category, compatibleTruckAddons.get(category), () ->
+						new TruckAddonsTableModel(
 							mainWindow, gfds, false, true, createDefaultColumn_List(tr->tr.defaultAddonIDs,TruckAddon.class)
-						).set(data, saveGame);
-					});
+						).set(data, saveGame)
+					);
 			}
 		}
 
@@ -544,117 +545,60 @@ public class TruckPanelProto implements Finalizable {
 		}
 	}
 
-	private static class AddonSocketsPanel extends JPanel {
-		private static final long serialVersionUID = 8965968181190111458L;
+	private static class AddonSocketsPanel implements Finalizable
+	{
+		private final Finalizer finalizer;
+		private final AddonSocketsTableModel tableModel;
+		private final JComponent rootComp;
 		
-		private final JTable table;
-		private final AddonTableModel tableModel;
-		@SuppressWarnings("unused")
-		private Language language;
-		
-		AddonSocketsPanel() {
-			super(new BorderLayout());
-			language = null;
-			
-			table = new JTable(tableModel = new AddonTableModel());
-			tableModel.setTable(table);
-			SimplifiedRowSorter rowSorter = new SimplifiedRowSorter(tableModel);
-			table.setRowSorter(rowSorter);
-			tableModel.setRenderers();
-			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-			tableModel.setColumnWidths(table);
-			JScrollPane addonTableScrollPane = new JScrollPane(table);
-			addonTableScrollPane.setBorder(null);
-			
-			
-			ContextMenu tableContextMenu = new ContextMenu();
-			tableContextMenu.addTo(table);
-			
-			tableContextMenu.add(SnowRunner.createMenuItem("Reset Row Order",true,e->{
-				rowSorter.resetSortOrder();
-				table.repaint();
-			}));
-			tableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
-				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
-			}));
-			
-			add(addonTableScrollPane, BorderLayout.CENTER);
-		}
-		
-		void setLanguage(Language language) {
-			this.language = language;
-			tableModel.setLanguage(language);
+		AddonSocketsPanel(Window mainWindow, GlobalFinalDataStructures gfds)
+		{
+			finalizer = gfds.controllers.createNewFinalizer();
+			finalizer.addSubComp(tableModel = new AddonSocketsTableModel(mainWindow, gfds));
+			rootComp = TableSimplifier.create(tableModel);
 		}
 	
-		void setData(AddonSockets[] addonSockets) {
+		void setData(AddonSockets[] addonSockets)
+		{
 			tableModel.setData(addonSockets);
 		}
-
-		private static class AddonTableCellRenderer implements TableCellRenderer {
 		
-			private final AddonTableModel tableModel;
-			private final Tables.LabelRendererComponent rendererComp;
-		
-			AddonTableCellRenderer(AddonTableModel tableModel) {
-				this.tableModel = tableModel;
-				rendererComp = new Tables.LabelRendererComponent();
-			}
-		
-			@Override
-			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
-				String valueStr = value==null ? null : value.toString();
-				
-				int columnM = table.convertColumnIndexToModel(columnV);
-				AddonTableModel.ColumnID columnID = tableModel.getColumnID(columnM);
-				
-				if (columnID!=null) {
-					//if (columnID.config.columnClass==Float.class) {
-					//	valueStr = value==null ? "<???>" : String.format(Locale.ENGLISH, "%1.2f", value);
-					//	rendererComp.setHorizontalAlignment(SwingConstants.RIGHT);
-					//}
-					if (columnID.config.columnClass==Integer.class) {
-						rendererComp.setHorizontalAlignment(SwingConstants.CENTER);
-					}
-				}
-				
-				rendererComp.configureAsTableCellRendererComponent(table, null, valueStr, isSelected, hasFocus);
-				return rendererComp;
-			}
-		
+		@Override public void prepareRemovingFromGUI() {
+			finalizer.removeSubCompsAndListenersFromGUI();
 		}
 
-		private static class AddonTableModel extends SimplifiedTableModel<AddonTableModel.ColumnID>{
-			private final Vector<RowItem> data;
-			@SuppressWarnings("unused")
-			private Language language;
-		
-			AddonTableModel() {
-				super(ColumnID.values());
-				data = new Vector<>();
-				language = null;
+		private static class AddonSocketsTableModel extends ExtendedVerySimpleTableModelTAOS<AddonSocketsTableModel.RowItem> implements SplitPaneConfigurator
+		{
+			AddonSocketsTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
+				super(mainWindow, gfds, new ColumnID[] {
+						new ColumnID( "IndexAS         ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexAS                            )), 
+						new ColumnID( "DefaultAddon    ", "Default Addon"    ,  String.class, 210,   null,    null, false, get(row -> row.as.defaultAddonID                  )),
+						new ColumnID( "IndexSocket     ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexSocket                        )),
+						new ColumnID( "SocketID        ", "SocketID"         ,  String.class, 230,   null,    null, false, get(row -> toString( row.socket.socketIDs )       )),
+						new ColumnID( "InCockpit       ", "In Cockpit"       , Boolean.class,  60,   null,    null, false, get(row -> row.socket.isInCockpit                 )),
+						new ColumnID( "BlockedSocketIDs", "Blocked SocketIDs",  String.class, 700,   null,    null, false, get(row -> toString( row.socket.blockedSocketIDs ))), 
+				});
 			}
 			
-			void setRenderers() {
-				AddonTableCellRenderer renderer = new AddonTableCellRenderer(this);
-				//table.setDefaultRenderer(String .class, renderer);
-				table.setDefaultRenderer(Integer.class, renderer);
-				//table.setDefaultRenderer(Float  .class, renderer);
-				//table.setDefaultRenderer(Boolean.class, null);
+			private static <ResultType> Function<Object,ResultType> get(Function<RowItem,ResultType> getFunction)
+			{
+				return ColumnID.get(RowItem.class, getFunction);
 			}
 			
-			void setLanguage(Language language) {
-				this.language = language;
-				fireTableUpdate();
-			}
-			
-			private static class RowItem {
+			@Override public boolean useLineWrap() { return false; }
+			@Override public boolean createSplitPane() { return true; }
+			@Override public Boolean putOutputInScrollPane() { return true; }
+			@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
+
+			private static class RowItem
+			{
 				final int indexAS;
 				final AddonSockets as;
 				final int indexSocket;
 				final AddonSockets.Socket socket;
 
-				public RowItem(int indexAS, AddonSockets as, int indexSocket, AddonSockets.Socket socket) {
+				public RowItem(int indexAS, AddonSockets as, int indexSocket, AddonSockets.Socket socket)
+				{
 					this.indexAS = indexAS;
 					this.as = as;
 					this.indexSocket = indexSocket;
@@ -662,8 +606,53 @@ public class TruckPanelProto implements Finalizable {
 				}
 			}
 			
-			void setData(Data.Truck.AddonSockets[] addonSockets) {
-				data.clear();
+			@Override protected String getRowName(RowItem row)
+			{
+				return row==null ? null : String.format("Socket[%d][%d]", row.indexAS, row.indexSocket);
+			}
+
+			@Override
+			protected String getOutputTextForRow(int rowIndex, RowItem row)
+			{
+				ValueListOutput out = new ValueListOutput();
+				
+				if (row.socket.offset_     !=null) out.add(0, "Offset"      , "%s", row.socket.offset_     );
+				if (row.socket.dir_        !=null) out.add(0, "Dir"         , "%s", row.socket.dir_        );
+				if (row.socket.upDir_      !=null) out.add(0, "UpDir"       , "%s", row.socket.upDir_      );
+				if (row.socket.parentFrame_!=null) out.add(0, "Parent Frame", "%s", row.socket.parentFrame_);
+				
+				if (!row.socket.isBlockedBy.isEmpty())
+				{
+					if (!out.isEmpty()) out.addEmptyLine();
+					for (String socketID : SnowRunner.getSorted(row.socket.isBlockedBy.keySet()))
+					{
+						out.add(0, String.format("\"%s\" is blocked by", socketID));
+						for (String[] arr : row.socket.isBlockedBy.get(socketID))
+							out.add(1, null, "%s", toString(arr));
+					}
+				}
+				
+				if (row.socket.addonsShifts.length>0)
+				{
+					if (!out.isEmpty()) out.addEmptyLine();
+					out.add(0, "Addons Shifts");
+					AddonSockets.Socket.AddonsShift[] addonsShifts = row.socket.addonsShifts;
+					for (int i=0; i<addonsShifts.length; i++)
+					{
+						AddonSockets.Socket.AddonsShift as = addonsShifts[i];
+						out.add(1, String.format("Addons Shift [%d]", i+1));
+						if (as.types_            !=null) out.add(2, "Types"            , "%s", toString(as.types_)  );
+						if (as.trailerNamesBlock_!=null) out.add(2, "TrailerNamesBlock", "%s", as.trailerNamesBlock_);
+						if (as.offset_           !=null) out.add(2, "Offset"           , "%s", as.offset_           );
+					}
+				}
+				
+				return out.generateOutput();
+			}
+
+			void setData(Data.Truck.AddonSockets[] addonSockets)
+			{
+				Vector<RowItem> data = new Vector<>();
 				if (addonSockets!=null)
 					for (int i=0; i<addonSockets.length; i++) {
 						AddonSockets as = addonSockets[i];
@@ -672,56 +661,14 @@ public class TruckPanelProto implements Finalizable {
 							data.add(new RowItem(i,as,j,socket));
 						}
 					}
-				fireTableUpdate();
-			}
-		
-			private RowItem getRow(int rowIndex) {
-				if (rowIndex<0 || rowIndex>=data.size()) return null;
-				return data.get(rowIndex);
+				setRowData(data);
 			}
 
-			@Override
-			public int getRowCount() {
-				return data.size();
-			}
-		
-			@Override
-			public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
-				RowItem row = getRow(rowIndex);
-				if (row==null) return null;
-				
-				switch (columnID) {
-				case IndexAS          : return row.indexAS;
-				case DefaultAddon     : return row.as.defaultAddonID;
-				case IndexSocket      : return row.indexSocket;
-				case InCockpit        : return row.socket.isInCockpit;
-				case SocketID         : return toString( row.socket.socketIDs );
-				case BlockedSocketIDs : return toString( row.socket.blockedSocketIDs );
-				}
-				return null;
-			}
-
-			private String toString(String[] strs) {
+			private static String toString(String[] strs) {
 				if (strs==null) return "<null>";
 				if (strs.length==0) return "[]";
 				if (strs.length==1) return strs[0];
 				return Arrays.toString(strs);
-			}
-
-			enum ColumnID implements SimplifiedColumnIDInterface {
-				IndexAS         ("#"                , Integer.class,  30), 
-				DefaultAddon    ("Default Addon"    ,  String.class, 210),
-				IndexSocket     ("#"                , Integer.class,  30),
-				SocketID        ("SocketID"         ,  String.class, 230),
-				InCockpit       ("In Cockpit"       , Boolean.class,  60),
-				BlockedSocketIDs("Blocked SocketIDs",  String.class, 700), 
-				;
-				
-				private final SimplifiedColumnConfig config;
-				ColumnID(String name, Class<?> columnClass, int prefWidth) {
-					config = new SimplifiedColumnConfig(name, columnClass, 20, -1, prefWidth, prefWidth);
-				}
-				@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 			}
 		}
 	}

@@ -1067,6 +1067,17 @@ public class Data {
 		return false;
 	}
 
+	@SuppressWarnings("unused")
+	private static void scanNode(GenericXmlNode node, String prefix, String nodeName)
+	{
+		node.attributes.forEach((key,value)->{
+			unexpectedValues.add(String.format("%s <%s ####=\"...\">", prefix, nodeName), key);
+		});
+		node.nodes.keySet().forEach(key->{
+			unexpectedValues.add(String.format("%s <%s> <####>", prefix, nodeName), key);
+		});
+	}
+
 	public interface HasNameAndID {
 		String getName_StringID();
 		String getID();
@@ -2084,10 +2095,11 @@ public class Data {
 			defaultAddonIDs = new HashSet<>();
 			defaultAddons = new Vector<>();
 			
+			Context subNodeContext = new Context().add(this);
 			GenericXmlNode[] addonSocketsNodes = gameDataNode.getNodes("GameData","AddonSockets");
 			addonSockets = new AddonSockets[addonSocketsNodes.length];
 			for (int i=0; i<addonSockets.length; i++) {
-				addonSockets[i] = new AddonSockets(addonSocketsNodes[i]);
+				addonSockets[i] = new AddonSockets(addonSocketsNodes[i], i, subNodeContext);
 				if (addonSockets[i].defaultAddonID!=null)
 					defaultAddonIDs.add(addonSockets[i].defaultAddonID);
 			}
@@ -2157,6 +2169,7 @@ public class Data {
 		
 		public static class AddonSockets {
 
+			public final int index;
 			public final StringVectorMap<TruckAddon> compatibleTruckAddons;
 			public final StringVectorMap<Trailer> compatibleTrailers;
 			public final String defaultAddonID;
@@ -2164,7 +2177,9 @@ public class Data {
 			public final HashSet<String> compatibleSocketIDs;
 			public TruckAddon defaultAddonItem;
 
-			private AddonSockets(GenericXmlNode node) {
+			private AddonSockets(GenericXmlNode node, int index, Context context) {
+				this.index = index;
+				
 				if (!node.nodeName.equals("AddonSockets"))
 					throw new IllegalStateException();
 				
@@ -2179,42 +2194,119 @@ public class Data {
 				defaultAddonID = node.attributes.get("DefaultAddon");
 				defaultAddonItem = null;
 				
+				Context subNodeContext = context.add(this);
 				compatibleTrailers = new StringVectorMap<>();
 				compatibleTruckAddons = new StringVectorMap<>();
 				compatibleSocketIDs = new HashSet<>();
 				GenericXmlNode[] socketNodes = node.getNodes("AddonSockets","Socket");
 				sockets = new Socket[socketNodes.length];
 				for (int i=0; i<sockets.length; i++) {
-					sockets[i] = new Socket(socketNodes[i]);
+					sockets[i] = new Socket(socketNodes[i], i, subNodeContext);
 					compatibleSocketIDs.addAll(Arrays.asList(sockets[i].socketIDs));
 				}
 			}
 			
 			public static class Socket {
 
+				public final int index;
 				public final String[] socketIDs; // "Names" attribute   <--->   <TruckAddon> <GameData> <InstallSocket Type="#####">
 				public final String[] blockedSocketIDs;
-				public final boolean isInCockpit;
+				public final Boolean isInCockpit;
+				public final AddonsShift[] addonsShifts;
+				public final String dir_;
+				public final String upDir_;
+				public final String offset_;
+				public final String parentFrame_;
+				public final HashMap<String,Vector<String[]>> isBlockedBy;
 
-				private Socket(GenericXmlNode node) {
+				private Socket(GenericXmlNode node, int index, Context context) {
+					this.index = index;
+					
 					if (!node.nodeName.equals("Socket"))
 						throw new IllegalStateException();
 					
-					//node.attributes.forEach((key,value)->{
-					//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket ####=\"...\">", key);
-					//});
-					//   Class[trucks] <Truck> <GameData> <AddonSockets> <Socket ####="...">
-					//      Dir
-					//      InCockpit
-					//      Names
-					//      NamesBlock
-					//      Offset
-					//      ParentFrame
-					//      UpDir
+					//scanNode(node, "Class[trucks] <Truck> <GameData> <AddonSockets>", "Socket");
+					/*
+					   Class[trucks] <Truck> <GameData> <AddonSockets> <Socket ####="...">
+					   -  Dir
+					   #  InCockpit
+					   #  Names
+					   #  NamesBlock
+					   -  Offset
+					   -  ParentFrame
+					   -  UpDir
+					   
+					   Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <####>
+					      AddonsShift
+					      ExtraParent
+					*/
+					socketIDs        = splitColonSeparatedIDList(node.attributes.get("Names"      ));
+					blockedSocketIDs = splitColonSeparatedIDList(node.attributes.get("NamesBlock" ));
+					isInCockpit      = parseBool                (node.attributes.get("InCockpit"  ));
+					dir_             =                           node.attributes.get("Dir"        ) ;
+					upDir_           =                           node.attributes.get("UpDir"      ) ;
+					offset_          =                           node.attributes.get("Offset"     ) ;
+					parentFrame_     =                           node.attributes.get("ParentFrame") ;
+					isBlockedBy      = new HashMap<>();
+					//if (node.attributes.containsKey("Dir"))
+					//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket Dir=\"...\">", truck.id);
+					//if (node.attributes.containsKey("UpDir"))
+					//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket UpDir=\"...\">", truck.id);
 					
-					socketIDs        = splitColonSeparatedIDList(node.attributes.get("Names"));
-					blockedSocketIDs = splitColonSeparatedIDList(node.attributes.get("NamesBlock"));
-					isInCockpit      = parseBool(node.attributes.get("InCockpit"),false);
+					Context subNodeContext = context.add(this);
+					GenericXmlNode[] addonsShiftNodes = node.getNodes("Socket","AddonsShift");
+					addonsShifts = new AddonsShift[addonsShiftNodes.length];
+					for (int i=0; i<addonsShifts.length; i++)
+						addonsShifts[i] = new AddonsShift(addonsShiftNodes[i], i, subNodeContext);
+				}
+				
+				public static class AddonsShift
+				{
+					public final String offset_;
+					public final String trailerNamesBlock_;
+					public final String[] types_;
+					public final int index;
+
+					private AddonsShift(GenericXmlNode node, int index, Context context)
+					{
+						this.index = index;
+						
+						//scanNode(node, "Class[trucks] <Truck> <GameData> <AddonSockets> <Socket>", "AddonsShift");
+						/*
+						   Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift ####="...">
+						      Offset
+						      TrailerNamesBlock
+						      Types
+						 */
+						offset_            =                           node.attributes.get("Offset"           );
+						trailerNamesBlock_ =                           node.attributes.get("TrailerNamesBlock");
+						types_             = splitColonSeparatedIDList(node.attributes.get("Types"            ));
+						
+						Truck truck = context.get(Truck.class);
+						AddonSockets addonSockets = context.get(AddonSockets.class);
+						Socket socket = context.get(Socket.class);
+						@SuppressWarnings("unused")
+						String position = String.format("%s [%d,%d,%d]", truck.id, addonSockets.index, socket.index, index);
+						
+						if (trailerNamesBlock_!=null)
+						{
+							//if (!isIn(trailerNamesBlock_, socket.socketIDs))
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - TrailerNamesBlock !in Socket.Names", position);
+							
+							//if (!"(0; 0; 0)".equals(offset_))
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - Offset != \"(0; 0; 0)\"", position);
+							
+							if (isIn(trailerNamesBlock_, socket.socketIDs))
+								SnowRunner.getOrCreate(socket.isBlockedBy, trailerNamesBlock_, Vector<String[]>::new).add(types_);
+						}
+						else
+						{
+							//if (types_==null)
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - no Types attribute", position);
+							//else if (types_.length!=1)
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - Types.length != 1", position);
+						}
+					}
 				}
 			}
 		}
@@ -2256,6 +2348,36 @@ public class Data {
 		}
 	}
 	
+	private static class Context
+	{
+		private final HashMap<Class<?>, Object> parents = new HashMap<>();
+
+		Context add(Object parent)
+		{
+			Context new_ = new Context();
+			new_.parents.putAll(parents);
+			new_.parents.put(parent.getClass(), parent);
+			return new_;
+		}
+		
+		<Type> Type get(Class<Type> class_)
+		{
+			Object parent = parents.get(class_);
+			if (parent==null) return null;
+			if (!class_.isAssignableFrom(parent.getClass()))
+				throw new IllegalStateException();
+			return class_.cast(parent);
+		}
+	}
+	
+	private static boolean isIn(String str, String[] strs)
+	{
+		for (String str_ : strs)
+			if (str.equals(str_))
+				return true;
+		return false;
+	}
+
 	private static abstract class ItemBasedNonTruck extends ItemBased implements HasNameAndID, GameData.GameDataT3NonTruckContainer
 	{
 		ItemBasedNonTruck(Item item) { super(item); }

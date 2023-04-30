@@ -1950,6 +1950,20 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				return getFunction.get(model, model.language, row);
 			};
 		}
+		
+		public static <ResultType, RowType>
+		Function<Object, ResultType>
+			get(
+					Class<RowType> rowClass,
+					Function<RowType, ResultType> getFunction
+			)
+		{
+			return row_ -> {
+				if (row_==null || !rowClass.isAssignableFrom(row_.getClass())) return null;
+				RowType row = rowClass.cast(row_);
+				return getFunction.apply(row);
+			};
+		}
 	}
 	
 	public static abstract class OutputSourceTableModel<RowType> extends VerySimpleTableModel<RowType> {
