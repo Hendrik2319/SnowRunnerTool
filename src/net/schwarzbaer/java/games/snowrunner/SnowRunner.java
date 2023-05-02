@@ -922,19 +922,6 @@ public class SnowRunner {
 			for (Truck.AddonSockets group : addonSockets)
 				for (Truck.AddonSockets.Socket socket : group.sockets)
 				{
-					if (Data.contains(socket.blockedSocketIDs, installSocket))
-					{
-						if (!isFirst || addNewLineFirst) doc.append("%n");
-						isFirst = false;
-						doc.append(StyledDocumentInterface.Style.BOLD, "Is Blocked");
-						doc.append(operatorColor, "%n%sif ", indent);
-						forEach( socket.socketIDs, (isFirstStr, str) -> {
-							if (!isFirstStr) doc.append(operatorColor, " or ");
-							doc.append(str);
-						});
-						doc.append(operatorColor, " is installed");
-					}
-					
 					if (Data.contains(socket.socketIDs, installSocket))
 					{
 						Vector<String[]> blockCombis = socket.isBlockedBy.get(installSocket);
@@ -942,20 +929,25 @@ public class SnowRunner {
 						{
 							if (!isFirst || addNewLineFirst) doc.append("%n");
 							isFirst = false;
+							
 							doc.append(StyledDocumentInterface.Style.BOLD, "Is Blocked");
-							forEach( blockCombis, (isFirstCombi, blockCombi) -> {
-								String orStr = "OR ";
-								if (isFirstCombi) orStr = "   ";
-								doc.append(operatorColor, "%n%s ", indent);
-								doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), orStr);
-								
-								doc.append(operatorColor, "if ");
-								forEach( blockCombi, (isFirstStr, str) -> {
-									if (!isFirstStr) doc.append(operatorColor, " and ");
-									doc.append(str);
-								});
-								doc.append(operatorColor, " is installed");
-							});
+							
+							boolean isFirstCombi = true;
+							Vector<String> singleCombis = new Vector<>();
+							for (String[] blockCombi : blockCombis)
+								if (blockCombi.length==1)
+									singleCombis.add(blockCombi[0]);
+								else
+								{
+									writeIdCombi(doc, operatorColor, indent, blockCombi, "and", isFirstCombi);
+									isFirstCombi = false;
+								}
+							
+							if (!singleCombis.isEmpty())
+							{
+								writeIdCombi(doc, operatorColor, indent, singleCombis.toArray(String[]::new), "or", isFirstCombi);
+								isFirstCombi = false;
+							}
 						}
 						
 						if (!socket.isShiftedBy.isEmpty())
@@ -965,18 +957,30 @@ public class SnowRunner {
 								if (!isFirst || addNewLineFirst) doc.append("%n");
 								isFirst = false;
 								doc.append(StyledDocumentInterface.Style.BOLD,"Is Shifted");
-								doc.append(operatorColor,"%n%sif ", indent);
-								forEach( as.types(), (isFirstStr, str) -> {
-									if (!isFirstStr) doc.append(operatorColor, " and ");
-									doc.append(str);
-								});
-								doc.append(operatorColor, " is installed");
-								doc.append(operatorColor, "%n%s by offset ", indent);
+								doc.append(operatorColor, "%n%sby offset ", indent);
 								doc.append(as.offset());
+								writeIdCombi(doc, operatorColor, indent, as.types(), "and", null);
 							}
 						}
 					}
 				}
+	}
+
+	private static void writeIdCombi(StyledDocumentInterface doc, Color operatorColor, String indent, String[] ids, String operator, Boolean isFirst)
+	{
+		doc.append(operatorColor, "%n%s", indent);
+		if (isFirst!=null)
+		{
+			String orStr = "OR ";
+			if (isFirst) orStr = "   ";
+			doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), orStr);
+		}
+		doc.append(operatorColor, "if ");
+		forEach( ids, (isFirstStr, str) -> {
+			if (!isFirstStr) doc.append(operatorColor, " %s ", operator);
+			doc.append(str);
+		});
+		doc.append(operatorColor, " is installed");
 	}
 
 	public static String joinAddonIDs(String[] strs, boolean emptyAndNullReturnsNull) {

@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -1029,15 +1030,12 @@ public class Data {
 
 	private static boolean socketBIsBlockedBySocketA(FoundSocket socketA, FoundSocket socketB)
 	{
-		boolean isBlocked = contains(socketA.socket.blockedSocketIDs, socketB.socketID);
-		if (isBlocked) return true;
-		
 		Vector<String[]> blockCombis = socketB.socket.isBlockedBy.get(socketB.socketID);
 		if (blockCombis!=null)
 			for (String[] blockCombi : blockCombis)
 				if (blockCombi.length==1 && contains(blockCombi, socketA.socketID))
 					return true;
-			
+		
 		return false;
 	}
 	
@@ -2086,11 +2084,30 @@ public class Data {
 			Context subNodeContext = new Context().add(this);
 			GenericXmlNode[] addonSocketsNodes = gameDataNode.getNodes("GameData","AddonSockets");
 			addonSockets = new AddonSockets[addonSocketsNodes.length];
-			for (int i=0; i<addonSockets.length; i++) {
+			for (int i=0; i<addonSockets.length; i++)
+			{
 				addonSockets[i] = new AddonSockets(addonSocketsNodes[i], i, subNodeContext);
 				if (addonSockets[i].defaultAddonID!=null)
 					defaultAddonIDs.add(addonSockets[i].defaultAddonID);
 			}
+			
+			forEachSocket((as1,s1) -> {
+				for (String blocked_id : s1.raw_BlockedSocketIDs)
+				{
+					if (as1.compatibleSocketIDs.contains(blocked_id))
+						continue; // this socket blocks all sockets of the same group by default
+					
+					// blocked socket also blocks this socket
+					for (String s1_id : s1.socketIDs)
+						SnowRunner.getOrCreate(s1.isBlockedBy, s1_id, Vector<String[]>::new).add(new String[] { blocked_id });
+					
+					forEachSocket((as2,s2) -> {
+						if (contains(s2.socketIDs, blocked_id))
+							for (String s1_id : s1.socketIDs)
+								SnowRunner.getOrCreate(s2.isBlockedBy, blocked_id, Vector<String[]>::new).add(new String[] { s1_id });
+					});
+				}
+			});
 			
 			GenericXmlNode[] compatibleWheelsNodes = truckDataNode.getNodes("TruckData", "CompatibleWheels");
 			compatibleWheels = new CompatibleWheel[compatibleWheelsNodes.length];
@@ -2100,6 +2117,14 @@ public class Data {
 			compatibleTrailers = new HashSet<>();
 			compatibleTruckAddons = new StringVectorMap<>();
 		}
+		
+		public void forEachSocket(BiConsumer<AddonSockets, AddonSockets.Socket> action)
+		{
+			for (AddonSockets as : addonSockets)
+				for (AddonSockets.Socket s : as.sockets)
+					action.accept(as, s);
+		}
+			
 
 		@Override public String getName_StringID() { return gameData.name_StringID; }
 		@Override public String getID() { return id; }
@@ -2198,15 +2223,15 @@ public class Data {
 
 				public final int index;
 				public final String[] socketIDs; // "Names" attribute   <--->   <TruckAddon> <GameData> <InstallSocket Type="#####">
-				public final String[] blockedSocketIDs;
 				public final Boolean isInCockpit;
-				public final RawAddonsShift[] rawAddonsShifts;
 				public final String dir_;
 				public final String upDir_;
 				public final String offset_;
 				public final String parentFrame_;
 				public final HashMap<String,Vector<String[]>> isBlockedBy;
 				public final Vector<AddonsShift> isShiftedBy;
+				public final String[] raw_BlockedSocketIDs;
+				public final RawAddonsShift[] raw_AddonsShifts;
 
 				private Socket(GenericXmlNode node, int index, Context context) {
 					this.index = index;
@@ -2229,13 +2254,13 @@ public class Data {
 					      AddonsShift
 					      ExtraParent
 					*/
-					socketIDs        = splitColonSeparatedIDList(node.attributes.get("Names"      ));
-					blockedSocketIDs = splitColonSeparatedIDList(node.attributes.get("NamesBlock" ));
-					isInCockpit      = parseBool                (node.attributes.get("InCockpit"  ));
-					dir_             =                           node.attributes.get("Dir"        ) ;
-					upDir_           =                           node.attributes.get("UpDir"      ) ;
-					offset_          =                           node.attributes.get("Offset"     ) ;
-					parentFrame_     =                           node.attributes.get("ParentFrame") ;
+					socketIDs            = splitColonSeparatedIDList(node.attributes.get("Names"      ));
+					raw_BlockedSocketIDs = splitColonSeparatedIDList(node.attributes.get("NamesBlock" ));
+					isInCockpit          = parseBool                (node.attributes.get("InCockpit"  ));
+					dir_                 =                           node.attributes.get("Dir"        ) ;
+					upDir_               =                           node.attributes.get("UpDir"      ) ;
+					offset_              =                           node.attributes.get("Offset"     ) ;
+					parentFrame_         =                           node.attributes.get("ParentFrame") ;
 					//if (node.attributes.containsKey("Dir"))
 					//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket Dir=\"...\">", truck.id);
 					//if (node.attributes.containsKey("UpDir"))
@@ -2243,26 +2268,52 @@ public class Data {
 					
 					isBlockedBy = new HashMap<>();
 					isShiftedBy   = new Vector<>();
-					Context subNodeContext = context.add(this);
+					
 					GenericXmlNode[] addonsShiftNodes = node.getNodes("Socket","AddonsShift");
-					rawAddonsShifts = new RawAddonsShift[addonsShiftNodes.length];
-					for (int i=0; i<rawAddonsShifts.length; i++)
-						rawAddonsShifts[i] = new RawAddonsShift(addonsShiftNodes[i], i, subNodeContext);
+					raw_AddonsShifts = new RawAddonsShift[addonsShiftNodes.length];
+					for (int i=0; i<raw_AddonsShifts.length; i++)
+					{
+						RawAddonsShift ras = raw_AddonsShifts[i] = new RawAddonsShift(addonsShiftNodes[i]);
+						
+						//Truck truck = context.get(Truck.class);
+						//AddonSockets addonSockets = context.get(AddonSockets.class);
+						//@SuppressWarnings("unused")
+						//String position = String.format("%s [%d,%d,%d]", truck.id, addonSockets.index, index, i);
+						
+						if (ras.trailerNamesBlock_!=null)
+						{
+							//if (!isIn(ras.trailerNamesBlock_, socketIDs))
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - TrailerNamesBlock !in Socket.Names", position);
+							
+							//if (!"(0; 0; 0)".equals(ras.offset_))
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - Offset != \"(0; 0; 0)\"", position);
+							
+							if (contains(socketIDs, ras.trailerNamesBlock_))
+								SnowRunner.getOrCreate(isBlockedBy, ras.trailerNamesBlock_, Vector<String[]>::new).add(ras.types_);
+						}
+						else
+						{
+							//if (ras.types_==null)
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - no Types attribute", position);
+							//else
+							//if (ras.types_.length!=1)
+							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - Types.length != 1", position);
+							
+							isShiftedBy.add(new AddonsShift(ras.types_, offset_));
+						}
+					}
 				}
 				
 				public record AddonsShift(String[] types, String offset) {}
 				
 				public static class RawAddonsShift
 				{
-					public final int index;
 					public final String offset_;
 					public final String trailerNamesBlock_;
 					public final String[] types_;
 					
-					private RawAddonsShift(GenericXmlNode node, int index, Context context)
+					private RawAddonsShift(GenericXmlNode node)
 					{
-						this.index = index;
-						
 						//scanNode(node, "Class[trucks] <Truck> <GameData> <AddonSockets> <Socket>", "AddonsShift");
 						/*
 						   Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift ####="...">
@@ -2273,34 +2324,6 @@ public class Data {
 						offset_            =                           node.attributes.get("Offset"           );
 						trailerNamesBlock_ =                           node.attributes.get("TrailerNamesBlock");
 						types_             = splitColonSeparatedIDList(node.attributes.get("Types"            ));
-						
-						Truck truck = context.get(Truck.class);
-						AddonSockets addonSockets = context.get(AddonSockets.class);
-						Socket socket = context.get(Socket.class);
-						@SuppressWarnings("unused")
-						String position = String.format("%s [%d,%d,%d]", truck.id, addonSockets.index, socket.index, index);
-						
-						if (trailerNamesBlock_!=null)
-						{
-							//if (!isIn(trailerNamesBlock_, socket.socketIDs))
-							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - TrailerNamesBlock !in Socket.Names", position);
-							
-							//if (!"(0; 0; 0)".equals(offset_))
-							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - Offset != \"(0; 0; 0)\"", position);
-							
-							if (contains(socket.socketIDs, trailerNamesBlock_))
-								SnowRunner.getOrCreate(socket.isBlockedBy, trailerNamesBlock_, Vector<String[]>::new).add(types_);
-						}
-						else
-						{
-							//if (types_==null)
-							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - no Types attribute", position);
-							//else
-							//if (types_.length!=1)
-							//	unexpectedValues.add("Class[trucks] <Truck> <GameData> <AddonSockets> <Socket> <AddonsShift> - Types.length != 1", position);
-							
-							socket.isShiftedBy.add(new AddonsShift(types_, offset_));
-						}
 					}
 				}
 			}
@@ -2355,6 +2378,7 @@ public class Data {
 			return new_;
 		}
 		
+		@SuppressWarnings("unused")
 		<Type> Type get(Class<Type> class_)
 		{
 			Object parent = parents.get(class_);

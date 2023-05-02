@@ -564,7 +564,6 @@ public class TruckPanelProto implements Finalizable {
 						new ColumnID( "IndexSocket     ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexSocket+1                      )),
 						new ColumnID( "SocketID        ", "SocketID"         ,  String.class, 230,   null,    null, false, get(row -> toString( row.socket.socketIDs )       )),
 						new ColumnID( "InCockpit       ", "In Cockpit"       , Boolean.class,  60,   null,    null, false, get(row -> row.socket.isInCockpit                 )),
-						new ColumnID( "BlockedSocketIDs", "Blocked SocketIDs",  String.class, 700,   null,    null, false, get(row -> toString( row.socket.blockedSocketIDs ))), 
 				});
 				coloring.addBackgroundRowColorizer(Coloring.createOddEvenColorizer(row -> row.indexAS));
 			}
@@ -632,11 +631,11 @@ public class TruckPanelProto implements Finalizable {
 					}
 				}
 				
-				if (row.socket.rawAddonsShifts.length>0)
+				if (row.socket.raw_AddonsShifts.length>0)
 				{
 					if (!out.isEmpty()) out.addEmptyLine();
-					out.add(0, "Addons Shifts");
-					AddonSockets.Socket.RawAddonsShift[] addonsShifts = row.socket.rawAddonsShifts;
+					out.add(0, "Raw Addons Shifts");
+					AddonSockets.Socket.RawAddonsShift[] addonsShifts = row.socket.raw_AddonsShifts;
 					for (int i=0; i<addonsShifts.length; i++)
 					{
 						AddonSockets.Socket.RawAddonsShift as = addonsShifts[i];
@@ -645,6 +644,13 @@ public class TruckPanelProto implements Finalizable {
 						if (as.trailerNamesBlock_!=null) out.add(2, "TrailerNamesBlock", "%s", as.trailerNamesBlock_);
 						if (as.offset_           !=null) out.add(2, "Offset"           , "%s", as.offset_           );
 					}
+				}
+				
+				if (row.socket.raw_BlockedSocketIDs.length>0)
+				{
+					if (!out.isEmpty()) out.addEmptyLine();
+					out.add(0, "Raw Blocked Socket IDs");
+					out.add(1, null, "%s", toString(row.socket.raw_BlockedSocketIDs));
 				}
 				
 				return out.generateOutput();
