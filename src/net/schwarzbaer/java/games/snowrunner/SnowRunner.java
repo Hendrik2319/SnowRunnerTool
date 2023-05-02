@@ -849,20 +849,6 @@ public class SnowRunner {
 		return joinRequiredAddonsToString(requiredAddonNames, indent);
 	}
 
-	public static void writeRequiredAddonsToDoc(StyledDocumentInterface doc, Color operatorColor, String[][] requiredAddons, String indent) {
-		for (int i=0; i<requiredAddons.length; i++) {
-			if (i>0) {
-				doc.append("%n%s", indent);
-				doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), "AND%n");
-			}
-			doc.append("%s", indent+"  ");
-			for (int j=0; j<requiredAddons[i].length; j++) {
-				if (j>0) doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), " OR ");
-				doc.append("%s", requiredAddons[i][j]);
-			}
-		}
-	}
-	
 	private static class Pair<V1,V2> {
 		final V1 v1;
 		final V2 v2;
@@ -893,6 +879,104 @@ public class SnowRunner {
 		if (requiredAddons==null || requiredAddons.length==0) return;
 		String[][] requiredAddonNames = getNamesFromIDs(requiredAddons, getName_StringID, language);
 		writeRequiredAddonsToDoc(doc, operatorColor, requiredAddonNames, indent);
+	}
+
+	public static void writeRequiredAddonsToDoc(StyledDocumentInterface doc, Color operatorColor, String[][] requiredAddons, String indent) {
+		for (int i=0; i<requiredAddons.length; i++) {
+			if (i>0) {
+				doc.append("%n%s", indent);
+				doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), "AND%n");
+			}
+			doc.append("%s", indent+"  ");
+			for (int j=0; j<requiredAddons[i].length; j++) {
+				if (j>0) doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), " OR ");
+				doc.append("%s", requiredAddons[i][j]);
+			}
+		}
+	}
+	
+	public static <Type> void forEach(Iterable<Type> array, BiConsumer<Boolean, Type> action)
+	{
+		boolean isFirst = true;
+		for (Type value : array)
+		{
+			action.accept(isFirst, value);
+			isFirst = false;
+		}
+	}
+	
+	public static <Type> void forEach(Type[] array, BiConsumer<Boolean, Type> action)
+	{
+		boolean isFirst = true;
+		for (Type value : array)
+		{
+			action.accept(isFirst, value);
+			isFirst = false;
+		}
+	}
+
+	public static void writeInstallSocketIssuesToDoc(StyledDocumentInterface doc, Color operatorColor, String installSocket, Truck.AddonSockets[] addonSockets, String indent, boolean addNewLineFirst)
+	{
+		boolean isFirst = true;
+		if (installSocket!=null && addonSockets!=null)
+			for (Truck.AddonSockets group : addonSockets)
+				for (Truck.AddonSockets.Socket socket : group.sockets)
+				{
+					if (Data.contains(socket.blockedSocketIDs, installSocket))
+					{
+						if (!isFirst || addNewLineFirst) doc.append("%n");
+						isFirst = false;
+						doc.append(StyledDocumentInterface.Style.BOLD, "Is Blocked");
+						doc.append(operatorColor, "%n%sif ", indent);
+						forEach( socket.socketIDs, (isFirstStr, str) -> {
+							if (!isFirstStr) doc.append(operatorColor, " or ");
+							doc.append(str);
+						});
+						doc.append(operatorColor, " is installed");
+					}
+					
+					if (Data.contains(socket.socketIDs, installSocket))
+					{
+						Vector<String[]> blockCombis = socket.isBlockedBy.get(installSocket);
+						if (blockCombis!=null && !blockCombis.isEmpty())
+						{
+							if (!isFirst || addNewLineFirst) doc.append("%n");
+							isFirst = false;
+							doc.append(StyledDocumentInterface.Style.BOLD, "Is Blocked");
+							forEach( blockCombis, (isFirstCombi, blockCombi) -> {
+								String orStr = "OR ";
+								if (isFirstCombi) orStr = "   ";
+								doc.append(operatorColor, "%n%s ", indent);
+								doc.append(new StyledDocumentInterface.Style(operatorColor,"Monospaced"), orStr);
+								
+								doc.append(operatorColor, "if ");
+								forEach( blockCombi, (isFirstStr, str) -> {
+									if (!isFirstStr) doc.append(operatorColor, " and ");
+									doc.append(str);
+								});
+								doc.append(operatorColor, " is installed");
+							});
+						}
+						
+						if (!socket.isShiftedBy.isEmpty())
+						{
+							for (Truck.AddonSockets.Socket.AddonsShift as : socket.isShiftedBy)
+							{
+								if (!isFirst || addNewLineFirst) doc.append("%n");
+								isFirst = false;
+								doc.append(StyledDocumentInterface.Style.BOLD,"Is Shifted");
+								doc.append(operatorColor,"%n%sif ", indent);
+								forEach( as.types(), (isFirstStr, str) -> {
+									if (!isFirstStr) doc.append(operatorColor, " and ");
+									doc.append(str);
+								});
+								doc.append(operatorColor, " is installed");
+								doc.append(operatorColor, "%n%s by offset ", indent);
+								doc.append(as.offset());
+							}
+						}
+					}
+				}
 	}
 
 	public static String joinAddonIDs(String[] strs, boolean emptyAndNullReturnsNull) {

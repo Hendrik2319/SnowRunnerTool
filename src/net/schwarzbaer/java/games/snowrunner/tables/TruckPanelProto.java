@@ -86,8 +86,8 @@ public class TruckPanelProto implements Finalizable {
 	private final JScrollPane truckInfoTextAreaScrollPane;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
 	private final AddonSocketsPanel addonSocketsPanel;
-	private final AddonsPanel addonsPanel;
-	private final AddonsPanel2 addonsPanel2;
+	private final AddonSocketGroupsPanel addonSocketGroupsPanel;
+	private final AddonCategoriesPanel addonCategoriesPanel;
 	private Language language;
 	private Truck truck;
 	private SaveGame saveGame;
@@ -113,10 +113,10 @@ public class TruckPanelProto implements Finalizable {
 		truckInfoTextAreaScrollPane = new JScrollPane(truckInfoTextArea);
 		truckInfoTextAreaScrollPane.setPreferredSize(new Dimension(300,300));
 		
-		finalizer.addSubComp(compatibleWheelsPanel = new CompatibleWheelsPanel(mainWindow, gfds));
-		finalizer.addSubComp(addonSocketsPanel     = new AddonSocketsPanel    (mainWindow, gfds));
-		finalizer.addSubComp(addonsPanel           = new AddonsPanel          (mainWindow, gfds));
-		finalizer.addSubComp(addonsPanel2          = new AddonsPanel2         (mainWindow, gfds));
+		finalizer.addSubComp(compatibleWheelsPanel  = new CompatibleWheelsPanel (mainWindow, gfds));
+		finalizer.addSubComp(addonSocketsPanel      = new AddonSocketsPanel     (mainWindow, gfds));
+		finalizer.addSubComp(addonSocketGroupsPanel = new AddonSocketGroupsPanel(mainWindow, gfds));
+		finalizer.addSubComp(addonCategoriesPanel   = new AddonCategoriesPanel  (mainWindow, gfds));
 		
 		finalizer.addLanguageListener(language->{
 			this.language = language;
@@ -182,16 +182,16 @@ public class TruckPanelProto implements Finalizable {
 	private void addStandardTabsTo(JTabbedPane tabbedPanel) {
 		tabbedPanel.addTab("Compatible Wheels"     , compatibleWheelsPanel);
 		tabbedPanel.addTab("Addon Sockets"         , addonSocketsPanel.rootComp);
-		tabbedPanel.addTab("Addons by Socket Group", addonsPanel);
-		tabbedPanel.addTab("Addons by Category"    , addonsPanel2);
+		tabbedPanel.addTab("Addons by Socket Group", addonSocketGroupsPanel);
+		tabbedPanel.addTab("Addons by Category"    , addonCategoriesPanel);
 	}
 
 	public void setTruck(Truck truck, Data data) {
 		this.truck = truck;
-		compatibleWheelsPanel.setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : truck.id, truck==null ? null : truck.gameData.name_StringID);
-		addonSocketsPanel    .setData(truck==null ? null : truck.addonSockets);
-		addonsPanel          .setData(truck==null ? null : truck.addonSockets);
-		addonsPanel2         .setData(truck, data);
+		compatibleWheelsPanel .setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : truck.id, truck==null ? null : truck.gameData.name_StringID);
+		addonSocketsPanel     .setData(truck==null ? null : truck.addonSockets);
+		addonSocketGroupsPanel.setData(truck==null ? null : truck.addonSockets);
+		addonCategoriesPanel  .setData(truck, data);
 		updateTruckImage();
 		updateOutput();
 	}
@@ -264,7 +264,7 @@ public class TruckPanelProto implements Finalizable {
 		if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(truckInfoTextAreaScrollPane));
 	}
 
-	private static class AddonsPanel2 extends CombinedTableTabPaneTextPanePanel implements Finalizable {
+	private static class AddonCategoriesPanel extends CombinedTableTabPaneTextPanePanel implements Finalizable {
 		private static final long serialVersionUID = 4098254083170104250L;
 
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
@@ -278,7 +278,7 @@ public class TruckPanelProto implements Finalizable {
 		private SaveGame saveGame;
 		private final GlobalFinalDataStructures gfds;
 
-		AddonsPanel2(Window mainWindow, GlobalFinalDataStructures gfds) {
+		AddonCategoriesPanel(Window mainWindow, GlobalFinalDataStructures gfds) {
 			this.mainWindow = mainWindow;
 			this.gfds = gfds;
 			this.finalizer = gfds.controllers.createNewFinalizer();
@@ -320,7 +320,7 @@ public class TruckPanelProto implements Finalizable {
 			
 			if (this.truck!=null) {
 				
-				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, gfds, false, data, saveGame));
+				createTab("Trailers"  , this.truck.compatibleTrailers    , () -> new TrailersTableModel   (mainWindow, gfds, false, data, saveGame).set(this.truck));
 				createTab("engine"    , this.truck.compatibleEngines     , () -> new EnginesTableModel    (mainWindow, gfds, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultEngine_ItemID    , Data.Engine    .class)));
 				createTab("gearbox"   , this.truck.compatibleGearboxes   , () -> new GearboxesTableModel  (mainWindow, gfds, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultGearbox_ItemID   , Data.Gearbox   .class)));
 				createTab("suspension", this.truck.compatibleSuspensions , () -> new SuspensionsTableModel(mainWindow, gfds, false, saveGame, true, createDefaultColumn_Single(tr->tr.defaultSuspension_ItemID, Data.Suspension.class)));
@@ -333,7 +333,7 @@ public class TruckPanelProto implements Finalizable {
 					createTab(category, compatibleTruckAddons.get(category), () ->
 						new TruckAddonsTableModel(
 							mainWindow, gfds, false, true, createDefaultColumn_List(tr->tr.defaultAddonIDs,TruckAddon.class)
-						).set(data, saveGame)
+						).set(data, saveGame).set(this.truck)
 					);
 			}
 		}
@@ -419,7 +419,7 @@ public class TruckPanelProto implements Finalizable {
 		}
 	}
 
-	private static class AddonsPanel extends JPanel implements Finalizable {
+	private static class AddonSocketGroupsPanel extends JPanel implements Finalizable {
 		private static final long serialVersionUID = 5515829836865733889L;
 		
 		private final JLabel socketIndexLabel;
@@ -432,7 +432,7 @@ public class TruckPanelProto implements Finalizable {
 		private Language language;
 		private final Finalizer finalizer;
 
-		AddonsPanel(Window mainWindow, GlobalFinalDataStructures gfds) {
+		AddonSocketGroupsPanel(Window mainWindow, GlobalFinalDataStructures gfds) {
 			super(new GridBagLayout());
 			
 			finalizer = gfds.controllers.createNewFinalizer();
@@ -559,9 +559,9 @@ public class TruckPanelProto implements Finalizable {
 		{
 			AddonSocketsTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
 				super(mainWindow, gfds, new ColumnID[] {
-						new ColumnID( "IndexAS         ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexAS                            )), 
+						new ColumnID( "IndexAS         ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexAS+1                          )), 
 						new ColumnID( "DefaultAddon    ", "Default Addon"    ,  String.class, 210,   null,    null, false, get(row -> row.as.defaultAddonID                  )),
-						new ColumnID( "IndexSocket     ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexSocket                        )),
+						new ColumnID( "IndexSocket     ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexSocket+1                      )),
 						new ColumnID( "SocketID        ", "SocketID"         ,  String.class, 230,   null,    null, false, get(row -> toString( row.socket.socketIDs )       )),
 						new ColumnID( "InCockpit       ", "In Cockpit"       , Boolean.class,  60,   null,    null, false, get(row -> row.socket.isInCockpit                 )),
 						new ColumnID( "BlockedSocketIDs", "Blocked SocketIDs",  String.class, 700,   null,    null, false, get(row -> toString( row.socket.blockedSocketIDs ))), 
@@ -597,7 +597,7 @@ public class TruckPanelProto implements Finalizable {
 			
 			@Override protected String getRowName(RowItem row)
 			{
-				return row==null ? null : String.format("Socket[%d][%d]", row.indexAS, row.indexSocket);
+				return row==null ? null : String.format("Socket %d_%d", row.indexAS+1, row.indexSocket+1);
 			}
 
 			@Override
@@ -621,14 +621,25 @@ public class TruckPanelProto implements Finalizable {
 					}
 				}
 				
-				if (row.socket.addonsShifts.length>0)
+				if (!row.socket.isShiftedBy.isEmpty())
+				{
+					if (!out.isEmpty()) out.addEmptyLine();
+					for (AddonSockets.Socket.AddonsShift as : row.socket.isShiftedBy)
+					{
+						out.add(0, "is shifted");
+						out.add(1, "by"    , "%s", toString(as.types()));
+						out.add(1, "offset", "%s", as.offset());
+					}
+				}
+				
+				if (row.socket.rawAddonsShifts.length>0)
 				{
 					if (!out.isEmpty()) out.addEmptyLine();
 					out.add(0, "Addons Shifts");
-					AddonSockets.Socket.AddonsShift[] addonsShifts = row.socket.addonsShifts;
+					AddonSockets.Socket.RawAddonsShift[] addonsShifts = row.socket.rawAddonsShifts;
 					for (int i=0; i<addonsShifts.length; i++)
 					{
-						AddonSockets.Socket.AddonsShift as = addonsShifts[i];
+						AddonSockets.Socket.RawAddonsShift as = addonsShifts[i];
 						out.add(1, String.format("Addons Shift [%d]", i+1));
 						if (as.types_            !=null) out.add(2, "Types"            , "%s", toString(as.types_)  );
 						if (as.trailerNamesBlock_!=null) out.add(2, "TrailerNamesBlock", "%s", as.trailerNamesBlock_);

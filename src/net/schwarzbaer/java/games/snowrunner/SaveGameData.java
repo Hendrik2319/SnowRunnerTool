@@ -581,7 +581,6 @@ public class SaveGameData {
 					.add("rank"                    , JSON_Data.Value.Type.Integer)
 					.add("ownedTrucks"             , JSON_Data.Value.Type.Object )
 					.add("trucksInWarehouse"       , JSON_Data.Value.Type.Array  )
-					.add("ownedTrucks"             , JSON_Data.Value.Type.Object )
 					.add("contestAttempts"         , JSON_Data.Value.Type.Object )
 					.add("contestLastTimes"        , JSON_Data.Value.Type.Object )
 					.add("contestTimes"            , JSON_Data.Value.Type.Object )
@@ -673,7 +672,7 @@ public class SaveGameData {
 					.add("selectedSlot"  , JSON_Data.Value.Type.String)
 					.add("slotsDatas"    , JSON_Data.Value.Type.Object);
 			
-			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_slotsDatas = KJV_FACTORY.create("Garage.slotsDatas")
+			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_slotsDatas = KJV_FACTORY.create(Garage.class, " -> slotsDatas")
 					.add("garage_interior_slot_1", JSON_Data.Value.Type.Object)
 					.add("garage_interior_slot_2", JSON_Data.Value.Type.Object)
 					.add("garage_interior_slot_3", JSON_Data.Value.Type.Object)
@@ -681,7 +680,7 @@ public class SaveGameData {
 					.add("garage_interior_slot_5", JSON_Data.Value.Type.Object)
 					.add("garage_interior_slot_6", JSON_Data.Value.Type.Object);
 			
-			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_garageSlot = KJV_FACTORY.create("Garage.slotsDatas.garageSlot")
+			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_garageSlot = KJV_FACTORY.create(Garage.class, " -> slotsDatas.garageSlot")
 					.add("garageSlotZoneId", JSON_Data.Value.Type.String)
 					.add("truckDesc"       , JSON_Data.Value.Type.Null  )
 					.add("truckDesc"       , JSON_Data.Value.Type.Object);
@@ -772,9 +771,9 @@ public class SaveGameData {
 					.add("addons"                    , JSON_Data.Value.Type.Array  )
 					.add("constraints"               , JSON_Data.Value.Type.Array  )
 					.add("controlConstrPosition"     , JSON_Data.Value.Type.Array  )
-					.add("customizationPreset"       , JSON_Data.Value.Type.Object )
+					.add("customizationPreset"       , JSON_Data.Value.Type.Object ) // unparsed
 					.add("damage"                    , JSON_Data.Value.Type.Integer)
-					.add("damageDecals"              , JSON_Data.Value.Type.Array  )
+					.add("damageDecals"              , JSON_Data.Value.Type.Array  ) // unparsed
 					.add("engine"                    , JSON_Data.Value.Type.Object )
 					.add("engineDamage"              , JSON_Data.Value.Type.Integer)
 					.add("fuel"                      , JSON_Data.Value.Type.Float  )
@@ -794,9 +793,9 @@ public class SaveGameData {
 					.add("trailerGlobalId"           , JSON_Data.Value.Type.String )
 					.add("truckCRC"                  , JSON_Data.Value.Type.Integer)
 					.add("wheelRepairs"              , JSON_Data.Value.Type.Integer)
-					.add("wheelsDamage"              , JSON_Data.Value.Type.Array  )
+					.add("wheelsDamage"              , JSON_Data.Value.Type.Array  ) // unparsed
 					.add("wheelsScale"               , JSON_Data.Value.Type.Float  )
-					.add("wheelsSuspHeight"          , JSON_Data.Value.Type.Array  )
+					.add("wheelsSuspHeight"          , JSON_Data.Value.Type.Array  ) // unparsed
 					.add("wheelsType"                , JSON_Data.Value.Type.String )
 					.add("winchUpgrade"              , JSON_Data.Value.Type.Object )
 					;

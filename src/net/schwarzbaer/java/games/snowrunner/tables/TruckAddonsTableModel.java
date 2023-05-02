@@ -36,6 +36,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	private HashMap<String, Trailer> trailers;
 	private TruckAddon clickedItem;
 	private SaveGame saveGame;
+	private Truck truck;
 	
 	public TruckAddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData) {
 		this(mainWindow, gfds, connectToGlobalData, true);
@@ -89,6 +90,8 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		truckAddons = null;
 		trailers    = null;
 		saveGame    = null;
+		truck       = null;
+		
 		if (connectToGlobalData)
 			connectToGlobalData(true, data->{
 				truckAddons = data==null ? null : data.truckAddons;
@@ -155,6 +158,11 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	public TruckAddonsTableModel set(Data data, SaveGame saveGame) {
 		setExtraData(data);
 		this.saveGame = saveGame;
+		return this;
+	}
+
+	public TruckAddonsTableModel set(Truck truck) {
+		this.truck = truck;
 		return this;
 	}
 
@@ -235,22 +243,27 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	}
 
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, TruckAddon row) {
-		String description_StringID = SnowRunner.selectNonNull( row.gameData.description_StringID, row.gameData.cargoDescription_StringID );
-		String[][] requiredAddons   = row.gameData.requiredAddons;
-		String[] excludedCargoTypes = row.gameData.excludedCargoTypes;
-		Vector<Truck> usableBy = row.usableBy;
-		generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers, saveGame);
+		generateText(
+				doc,
+				SnowRunner.selectNonNull( row.gameData.description_StringID, row.gameData.cargoDescription_StringID ),
+				row.gameData, row.usableBy,
+				language,
+				truckAddons, trailers, truck,
+				saveGame
+		);
 	}
 
 	static void generateText(
 			StyledDocumentInterface doc,
 			String description_StringID,
-			String[][] requiredAddons,
-			String[] excludedCargoTypes,
+			Data.GameData.GameDataT3NonTruck gameData,
 			Vector<Truck> usableBy,
-			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, SaveGame saveGame) {
+			Language language, HashMap<String, TruckAddon> truckAddons, HashMap<String, Trailer> trailers, Truck truck, SaveGame saveGame) {
 		boolean isFirst = true;
 		
+		String[][] requiredAddons   = gameData==null ? null : gameData.requiredAddons;
+		String[] excludedCargoTypes = gameData==null ? null : gameData.excludedCargoTypes;
+		String installSocket        = gameData==null ? null : gameData.installSocket;
 		
 		String description = SnowRunner.solveStringID(description_StringID, language);
 		if (description!=null && !"EMPTY_LINE".equals(description)) {
@@ -258,6 +271,14 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			doc.append(new Style(Color.GRAY,false,true,"Monospaced"),"<%s>%n", description_StringID);
 			doc.append("%s", description);
 			isFirst = false;
+		}
+		
+		if (installSocket!=null && truck!=null) {
+			if (!isFirst) doc.append("%n%n");
+			isFirst = false;
+			doc.append(Style.BOLD,"Install Socket: ");
+			doc.append("%s", installSocket);
+			SnowRunner.writeInstallSocketIssuesToDoc(doc, Color.GRAY, installSocket, truck.addonSockets, "    ", true);
 		}
 		
 		if (requiredAddons!=null && requiredAddons.length>0) {

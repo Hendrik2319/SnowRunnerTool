@@ -4,7 +4,6 @@ import java.awt.Point;
 import java.awt.Window;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Vector;
 
 import javax.swing.JMenuItem;
 import javax.swing.JTable;
@@ -26,6 +25,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 	private HashMap<String, Trailer> trailers;
 	private SaveGame saveGame;
 	private Trailer clickedRow;
+	private Truck truck;
 
 	public TrailersTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, Data data, SaveGame saveGame) {
 		this(mainWindow, gfds, connectToGlobalData);
@@ -61,6 +61,8 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		truckAddons = null;
 		trailers    = null;
 		saveGame    = null;
+		truck       = null;
+		
 		if (connectToGlobalData)
 			connectToGlobalData(true, data->{
 				truckAddons = data==null ? null : data.truckAddons;
@@ -99,12 +101,20 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		trailers    = data==null ? null : data.trailers;
 	}
 
+	public TrailersTableModel set(Truck truck) {
+		this.truck = truck;
+		return this;
+	}
+
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, Trailer row) {
-		String description_StringID = row.gameData.description_StringID;
-		String[][] requiredAddons   = row.gameData.requiredAddons;
-		String[] excludedCargoTypes = row.gameData.excludedCargoTypes;
-		Vector<Truck> usableBy = row.usableBy;
-		TruckAddonsTableModel.generateText(doc, description_StringID, requiredAddons, excludedCargoTypes, usableBy, language, truckAddons, trailers, saveGame);
+		TruckAddonsTableModel.generateText(
+				doc,
+				row.gameData.description_StringID,
+				row.gameData, row.usableBy,
+				language,
+				truckAddons, trailers, truck,
+				saveGame
+		);
 	}
 
 	@Override protected String getRowName(Trailer row)

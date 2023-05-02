@@ -2,13 +2,11 @@ package net.schwarzbaer.java.games.snowrunner.tables;
 
 import java.awt.Window;
 import java.util.Comparator;
-import java.util.Vector;
 
 import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.games.snowrunner.Data.Engine;
 import net.schwarzbaer.java.games.snowrunner.Data.Gearbox;
 import net.schwarzbaer.java.games.snowrunner.Data.Suspension;
-import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
@@ -31,9 +29,14 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 	}
 
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, RowType row) {
-		String description_StringID = row.gameData.description_StringID;
-		Vector<Truck> usableBy = row.usableBy;
-		TruckAddonsTableModel.generateText(doc, description_StringID, null, null, usableBy, language, null, null, saveGame);
+		TruckAddonsTableModel.generateText(
+				doc,
+				row.gameData.description_StringID,
+				null, row.usableBy,
+				language,
+				null, null, null,
+				saveGame
+		);
 	}
 
 	@Override protected String getRowName(RowType row)
