@@ -632,10 +632,15 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					out.add(1, clc.stationName);
 					for (String cargoType : SnowRunner.getSorted(clc.counts.keySet()))
 					{
-						out.add(2, String.format("<%s>", cargoType), clc.counts.get(cargoType));
+						// ∞
+						
+						Long count = clc.counts.get(cargoType);
+						if    (count==null) out.add(2, String.format( "??? <%s>",        cargoType));
+						else if (count>= 0) out.add(2, String.format( "%dx <%s>", count, cargoType));
+						else if (count==-1) out.add(2, String.format(   "∞ <%s>",        cargoType));
+						else                out.add(2, String.format("(%d) <%s>", count, cargoType));
 						String name = getNameOfCargoType(cargoType, data, language);
-						if (name!=null)
-							out.add(3, name);
+						if (name!=null) out.add(3, name);
 					}
 				}
 				sb.append(out.generateOutput());
