@@ -61,6 +61,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				new ColumnID("Price"    ,"Price"                   , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((TruckAddon)row).gameData.price), 
 				new ColumnID("UnlExpl"  ,"Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.unlockByExploration), 
 				new ColumnID("UnlRank"  ,"Unlock By Rank"          , Integer.class, 100, CENTER, "Rank %d", false, row->((TruckAddon)row).gameData.unlockByRank), 
+				new ColumnID("Unlocked" ,"Unlocked"                , Boolean.class,  60,   null,      null, false, get((model, lang, row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
 				new ColumnID("Desc"     ,"Description"             ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.gameData.description_StringID!=null ? row.gameData.description_StringID : row.gameData.cargoDescription_StringID; }), 
 				new ColumnID("ExclCargo","Excluded Cargo Types"    ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((TruckAddon)row).gameData.excludedCargoTypes,true)),
 				new ColumnID("RequAddon","Required Addons"         ,  String.class, 200,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((TruckAddon)row).gameData.requiredAddons)),

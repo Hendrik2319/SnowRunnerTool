@@ -132,6 +132,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	private void updateTextOutput()
 	{
 		ValueListOutput out = new ValueListOutput();
+		StringBuilder sb = new StringBuilder();
 		
 		if (saveGame==null)
 			out.add(0, "<No SaveGame>");
@@ -156,21 +157,68 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					out.add(0, null, "%s", mapName);
 			}
 			out.add(0, "<Last Map State>", saveGame.lastLevelState);
+			if (saveGame.gameStat.sessionNumber!=null) out.add(0, "Session №", saveGame.gameStat.sessionNumber);
 			
+			Long moneyEarned = saveGame.gameStat.moneyEarned;
+			Long moneySpent  = saveGame.gameStat.moneySpent;
 			if (saveGame.ppd!=null)
 			{
 				out.addEmptyLine();
+				
 				out.add(0, "Experience", saveGame.ppd.experience);	
 				out.add(0, "Rank"      , saveGame.ppd.rank);
-				out.addEmptyLine();
-				out.add(0, "Money"                     , saveGame.ppd.money);	
-				out.add(0, "<RefundMoney>"             , saveGame.ppd.refundMoney);	
-				out.add(0, "<CustomizationRefundMoney>", saveGame.ppd.customizationRefundMoney);	
+				
+				sb.append(out.generateOutput());
+				out.clear();
 				out.addEmptyLine();
 				
+				if (moneyEarned == null && moneySpent == null)
+					out.add(0, "Money", saveGame.ppd.money);
+				else
+				{
+					out.add(0, "Money");
+					out.add(1, "current", saveGame.ppd.money);
+					if (moneyEarned!=null) out.add(1, "Earned", moneyEarned);	
+					if (moneySpent !=null) out.add(1, "Spent" , moneySpent );
+				}
+				out.add(0, "<RefundMoney>"             , saveGame.ppd.refundMoney);	
+				out.add(0, "<CustomizationRefundMoney>", saveGame.ppd.customizationRefundMoney);	
+			}
+			else
+			{
+				if (moneyEarned!=null) out.add(0, "Money Earned", moneyEarned);	
+				if (moneySpent !=null) out.add(0, "Money Spent" , moneySpent );	
+			}
+			
+			Long multiSePla = saveGame.gameStat.multiplayerSessionsPlayed;
+			Long multiMiFin = saveGame.gameStat.multiplayerMissionsFinished;
+			Long multiMoEar = saveGame.gameStat.multiplayerMoneyEarned;
+			if (multiSePla!=null || multiMiFin!=null || multiMoEar!=null)
+			{
+				out.addEmptyLine();
+				out.add(0, "Multiplayer");
+				if (multiSePla!=null) out.add(1, "Sessions Played"  , multiSePla);
+				if (multiMiFin!=null) out.add(1, "Missions Finished", multiMiFin);
+				if (multiMoEar!=null) out.add(1, "Money Earned"     , multiMoEar);
+			}
+			
+			sb.append(out.generateOutput());
+			out.clear();
+			out.addEmptyLine();
+			
+			addBoughtAndSold(out, "Trucks"  , saveGame.gameStat.  trucksBought, saveGame.gameStat.  trucksSold);
+			addBoughtAndSold(out, "Trailers", saveGame.gameStat.trailersBought, saveGame.gameStat.trailersSold);
+			addBoughtAndSold(out, "Addons"  , saveGame.gameStat.  addonsBought, saveGame.gameStat.  addonsSold);
+			
+			if (saveGame.ppd!=null)
+			{
 				TruckName[] truckNames = TruckName.getNames(saveGame.trucks.keySet(), data, language);
 				if (truckNames.length>0)
 				{
+					sb.append(out.generateOutput());
+					out.clear();
+					out.addEmptyLine();
+					
 					out.add(0, "Trucks", truckNames.length);	
 					for (TruckName truckName : truckNames)
 					{
@@ -181,7 +229,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				}
 			}
 			
+			sb.append(out.generateOutput());
+			out.clear();
 			out.addEmptyLine();
+			
 			out.add(0, "<ObjVersion>"             , saveGame.objVersion);
 			out.add(0, "<Birth Version>"          , saveGame.birthVersion);
 			out.add(0, "<Save ID>"                , saveGame.saveId);
@@ -194,7 +245,20 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			add(out,0, "<DLC Notes>"              , saveGame.ppd.dlcNotes     , out::add);
 		}
 		
-		textArea.setText(out.generateOutput());
+		sb.append(out.generateOutput());
+		out.clear();
+		
+		textArea.setText(sb.toString());
+	}
+
+	private void addBoughtAndSold(ValueListOutput out, String label, Long bought, Long sold)
+	{
+		if (bought!=null || sold!=null)
+		{
+			if      (bought==null) out.add(0, label, "%d sold"  , sold );
+			else if (sold  ==null) out.add(0, label, "%d bought", bought);
+			else out.add(0, label, "%d bought / %d sold", bought, sold);
+		}
 	}
 
 	private static void showObjective(ValueListOutput out, int indentLevel, String objective, Language language, int maxLineLength)
@@ -333,7 +397,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("Name"    , "Name"    , String .class, 250,   null, null, false, get((model,lang,row)->getMapName(row.region, lang, true))),
 					new ColumnID("DLC"     , "DLC"     , String .class, 170,   null, null, false, get((model,lang,row)->getDLC(row, model, r->r.region.originalMapID(), SnowRunner.DLCs.ItemType.Region))),
 					new ColumnID("Known"   , "Known"   , Boolean.class,  60,   null, null, false, row->((RegionInfos)row).isKnown),
-					new ColumnID("distance", "Distance", Long   .class,  60,   null, null, false, row->((RegionInfos)row).distance),
+					new ColumnID("Distance", "Distance", Long   .class,  60,   null, null, false, row->((RegionInfos)row).distance),
+					new ColumnID("Payments", "Payments", Long   .class,  60,   null, null, false, row->((RegionInfos)row).paymentsReceived),
 			});
 			clickedItem = null;
 			finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));

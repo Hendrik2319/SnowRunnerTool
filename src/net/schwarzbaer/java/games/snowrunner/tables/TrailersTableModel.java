@@ -49,6 +49,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 				new ColumnID("Price"    ,"Price"                , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((Trailer)row).gameData.price), 
 				new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Trailer)row).gameData.unlockByExploration), 
 				new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, row->((Trailer)row).gameData.unlockByRank), 
+				new ColumnID("Unlocked" ,"Unlocked"             , Boolean.class,  60,   null,      null, false, get((model, lang, row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
 				new ColumnID("AttachTyp","Attach Type"          ,  String.class,  70,   null,      null, false, row->((Trailer)row).attachType),
 				new ColumnID("AddonType","Addon Type"           ,  String.class,  70,   null,      null, false, row->((Trailer)row).gameData.addonType),
 				new ColumnID("Desc"     ,"Description"          ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.description_StringID), 

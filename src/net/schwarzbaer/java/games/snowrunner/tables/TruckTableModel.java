@@ -102,6 +102,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "UnlExpl"  , "Unlock By Exploration" ,              Boolean.class, 120,             null,   null,      null, false, row -> ((Truck)row).gameData.unlockByExploration), 
 				new ColumnID( "UnlObject", "Unlock By Objective"   ,               String.class, 120,             null,   null,      null, false, row -> ((Truck)row).gameData.unlockByObjective), 
 				new ColumnID( "UnlRank"  , "Unlock By Rank"        ,              Integer.class, 100,             null, CENTER, "Rank %d", false, row -> ((Truck)row).gameData.unlockByRank), 
+				new ColumnID( "Unlocked" , "Unlocked"              ,              Boolean.class,  60,             null,   null,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> SaveGame.isUnlockedItem(model_.saveGame, truck_.id))),
 				new ColumnID( "Desc"     , "Description"           ,               String.class, 200,             null,   null,      null,  true, row -> ((Truck)row).gameData.description_StringID), 
 				new ColumnID( "DefEngine", "Default Engine"        ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultEngine    , ((Truck)row).defaultEngine_ItemID, lang)),
 				new ColumnID( "DefGearbx", "Default Gearbox"       ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultGearbox   , ((Truck)row).defaultGearbox_ItemID, lang)),

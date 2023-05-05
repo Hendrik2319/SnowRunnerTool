@@ -247,6 +247,8 @@ public class SaveGameData {
 				.add("SslType"        , JSON_Data.Value.Type.String);
 		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_watchPointsData = KJV_FACTORY.create()
 				.add("data"           , JSON_Data.Value.Type.Object);
+		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_gameStatByRegion = KJV_FACTORY.create()
+				.add("PAYMENTS_RECEIVED", JSON_Data.Value.Type.Object);
 		
 		private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_SslValue = KJV_FACTORY.create("[SaveGame]<root>.CompleteSave#.SslValue")
 				.add("birthVersion"                      , JSON_Data.Value.Type.Integer)
@@ -258,8 +260,8 @@ public class SaveGameData {
 				.add("gameDifficultyMode"                , JSON_Data.Value.Type.Integer)
 				.add("gameDifficultySettings"            , JSON_Data.Value.Type.Object ) // unparsed
 				.add("gameDifficultySettings"            , JSON_Data.Value.Type.Null   ) // unparsed
-				.add("gameStat"                          , JSON_Data.Value.Type.Object ) // unparsed
-				.add("gameStatByRegion"                  , JSON_Data.Value.Type.Object ) // unparsed
+				.add("gameStat"                          , JSON_Data.Value.Type.Object )
+				.add("gameStatByRegion"                  , JSON_Data.Value.Type.Object )
 				.add("gameTime"                          , JSON_Data.Value.Type.Float  )
 				.add("garagesData"                       , JSON_Data.Value.Type.Object )
 				.add("garagesShopData"                   , JSON_Data.Value.Type.Object ) // empty
@@ -298,7 +300,7 @@ public class SaveGameData {
 				.add("waypoints"                         , JSON_Data.Value.Type.Object )
 				.add("worldConfiguration"                , JSON_Data.Value.Type.String )
 				;
-	
+
 		public final String fileName;
 		public final String indexStr;
 		public final JSON_Data.Value<NV, V> data;
@@ -330,6 +332,7 @@ public class SaveGameData {
 		public final String trackedObjective;
 		public final HashMap<String, Boolean> tutorialStates;
 		public final HashMap<String, String> forcedModelStates;
+		public final GameStat gameStat;
 
 		private SaveGame(String fileName, String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
 			if (data==null)
@@ -354,7 +357,7 @@ public class SaveGameData {
 			String debugOutputPrefixStr = "CompleteSave"+indexStr+".SslValue";
 			
 			@SuppressWarnings("unused")
-			JSON_Object<NV, V> cargoLoadingCounts, forcedModelStates, garagesData, garagesShopData, hiddenCargoes, justDiscoveredObjects, levelGarageStatuses,
+			JSON_Object<NV, V> cargoLoadingCounts, forcedModelStates, gameStat, gameStatByRegion, garagesData, garagesShopData, hiddenCargoes, justDiscoveredObjects, levelGarageStatuses,
 				modTruckOnLevels, modTruckRefundValues, modTruckTypesRefundValues, objectiveStates, persistentProfileData,
 				savedCargoNeedToBeRemovedOnRestart, tutorialStates, upgradesGiverData, watchPointsData, waypoints;
 			
@@ -370,6 +373,8 @@ public class SaveGameData {
 			finishedObjs                       = JSON_Data.getArrayValue    (sslValueObj, "finishedObjs"                      , true, false, debugOutputPrefixStr);
 			forcedModelStates                  = JSON_Data.getObjectValue   (sslValueObj, "forcedModelStates"                 , debugOutputPrefixStr);
 			gameDifficultyMode                 = JSON_Data.getIntegerValue  (sslValueObj, "gameDifficultyMode"                , true, false, debugOutputPrefixStr);
+			gameStat                           = JSON_Data.getObjectValue   (sslValueObj, "gameStat"                          , debugOutputPrefixStr);
+			gameStatByRegion                   = JSON_Data.getObjectValue   (sslValueObj, "gameStatByRegion"                  , debugOutputPrefixStr);
 			gameTime                           = JSON_Data.getFloatValue    (sslValueObj, "gameTime"                          , debugOutputPrefixStr);
 			garagesData                        = JSON_Data.getObjectValue   (sslValueObj, "garagesData"                       , debugOutputPrefixStr);
 			garagesShopData                    = JSON_Data.getObjectValue   (sslValueObj, "garagesShopData"                   , true, true, debugOutputPrefixStr);
@@ -408,7 +413,7 @@ public class SaveGameData {
 			worldConfiguration                 = JSON_Data.getStringValue   (sslValueObj, "worldConfiguration"                , debugOutputPrefixStr);
 			/*
 				unparsed:
-					gameDifficultySettings, gameStat, gameStatByRegion
+					gameDifficultySettings
 					
 				unparsed, but interesting:
 					upgradableGarages
@@ -428,6 +433,7 @@ public class SaveGameData {
 			checkEmptyObjectOrUnsetOrNull(garagesShopData_Value, debugOutputPrefixStr+".garagesShopData");
 			
 			ppd = parseObjectOrNull(persistentProfileData, persistentProfileData_Null, PersistentProfileData::new, debugOutputPrefixStr+".persistentProfileData");
+			this.gameStat = new GameStat(gameStat, debugOutputPrefixStr+".gameStat");
 			
 			this.forcedModelStates = new HashMap<String,String>();
 			parseObject(forcedModelStates, debugOutputPrefixStr+".forcedModelStates", (value, modelName, localPrefixStr) -> {
@@ -455,6 +461,18 @@ public class SaveGameData {
 				watchPointsData_data = JSON_Data.getObjectValue(watchPointsData, "data", debugOutputPrefixStr+".watchPointsData");
 				KNOWN_JSON_VALUES_watchPointsData.scanUnexpectedValues(watchPointsData, debugOutputPrefixStr+".watchPointsData");
 			}
+			
+			parseObject(gameStatByRegion, debugOutputPrefixStr+".gameStatByRegion", (value, name, localPrefixStr) -> {
+				JSON_Object<NV, V> object;
+				switch (name)
+				{
+					case "PAYMENTS_RECEIVED":
+						object = JSON_Data.getObjectValue(value, localPrefixStr);
+						RegionInfos.parsePaymentsReceived(regions, object, localPrefixStr);
+						break;
+				}
+			});
+			KNOWN_JSON_VALUES_gameStatByRegion.scanUnexpectedValues(gameStatByRegion, debugOutputPrefixStr+".gameStatByRegion");
 			
 			MapInfos .parseCargoLoadingCounts                (maps      , cargoLoadingCounts                , debugOutputPrefixStr+".cargoLoadingCounts"                );
 			MapInfos .parseDiscoveredObjects                 (maps      , discoveredObjects                 , debugOutputPrefixStr+".discoveredObjects"                 );
@@ -491,14 +509,6 @@ public class SaveGameData {
 			TruckInfos truckInfos = trucks.get(truckId);
 			return truckInfos==null || truckInfos.owned==null ? 0 : truckInfos.owned.longValue();
 		}
-
-//		public long getOwnedTruckCount(Truck truck) {
-//			if (truck==null) return 0;
-//			if (ppd==null) return 0;
-//			if (ppd.ownedTrucks==null) return 0;
-//			Long amount = ppd.ownedTrucks.get(truck.id);
-//			return amount==null ? 0 : amount.longValue();
-//		}
 
 		public boolean playerOwnsTruck(Truck truck) {
 			return getOwnedTruckCount(truck)>0;
@@ -566,6 +576,18 @@ public class SaveGameData {
 			return count;
 		}
 		
+		public static Boolean isUnlockedItem(SaveGame saveGame, String id)
+		{
+			return saveGame==null ? null : saveGame.isUnlockedItem(id);
+		}
+
+		public Boolean isUnlockedItem(String id)
+		{
+			if (id==null) return null;
+			if (ppd==null) return null;
+			return ppd.unlockedItemNames.get(id);
+		}
+
 		public static class Coord3F
 		{
 			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Coord3F.class)
@@ -586,6 +608,71 @@ public class SaveGameData {
 			}
 
 			public boolean isZero() { return x==0.0 && y==0.0 && z==0.0; }
+		}
+
+		public class GameStat
+		{
+			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(GameStat.class)
+					.add("ADDON_BOUGHT"                 , JSON_Data.Value.Type.Integer)
+					.add("ADDON_SOLD"                   , JSON_Data.Value.Type.Integer)
+					.add("MONEY_EARNED"                 , JSON_Data.Value.Type.Integer)
+					.add("MONEY_SPENT"                  , JSON_Data.Value.Type.Integer)
+					.add("MULTIPLAYER_MISSIONS_FINISHED", JSON_Data.Value.Type.Integer)
+					.add("MULTIPLAYER_MONEY_EARNED"     , JSON_Data.Value.Type.Integer)
+					.add("MULTIPLAYER_SESSIONS_PLAYED"  , JSON_Data.Value.Type.Integer)
+					.add("SESSION_NUMBER"               , JSON_Data.Value.Type.Integer)
+					.add("TRAILER_BOUGHT"               , JSON_Data.Value.Type.Integer)
+					.add("TRAILER_SOLD"                 , JSON_Data.Value.Type.Integer)
+					.add("TRUCK_BOUGHT"                 , JSON_Data.Value.Type.Integer)
+					.add("TRUCK_SOLD"                   , JSON_Data.Value.Type.Integer)
+					;
+			/*
+			    Block "[SaveGameData.SaveGame.GameStat]" [12]
+			        ADDON_BOUGHT                 :[Integer, <unset>]
+			        ADDON_SOLD                   :[Integer, <unset>]
+			        MONEY_EARNED                 :[Integer, <unset>]
+			        MONEY_SPENT                  :[Integer, <unset>]
+			        MULTIPLAYER_MISSIONS_FINISHED:[Integer, <unset>]
+			        MULTIPLAYER_MONEY_EARNED     :[Integer, <unset>]
+			        MULTIPLAYER_SESSIONS_PLAYED  :[Integer, <unset>]
+			        SESSION_NUMBER               :[Integer, <unset>]
+			        TRAILER_BOUGHT               :[Integer, <unset>]
+			        TRAILER_SOLD                 :[Integer, <unset>]
+			        TRUCK_BOUGHT                 :[Integer, <unset>]
+			        TRUCK_SOLD                   :[Integer, <unset>]
+			 */
+			public final Long addonsBought;
+			public final Long addonsSold;
+			public final Long moneyEarned;
+			public final Long moneySpent;
+			public final Long multiplayerMissionsFinished;
+			public final Long multiplayerMoneyEarned;
+			public final Long multiplayerSessionsPlayed;
+			public final Long sessionNumber;
+			public final Long trailersBought;
+			public final Long trailersSold;
+			public final Long trucksBought;
+			public final Long trucksSold;
+			
+			private GameStat(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				//scanJSON(object, this);
+				
+				addonsBought                = JSON_Data.getIntegerValue(object, "ADDON_BOUGHT"                 , true, false, debugOutputPrefixStr);
+				addonsSold                  = JSON_Data.getIntegerValue(object, "ADDON_SOLD"                   , true, false, debugOutputPrefixStr);
+				moneyEarned                 = JSON_Data.getIntegerValue(object, "MONEY_EARNED"                 , true, false, debugOutputPrefixStr);
+				moneySpent                  = JSON_Data.getIntegerValue(object, "MONEY_SPENT"                  , true, false, debugOutputPrefixStr);
+				multiplayerMissionsFinished = JSON_Data.getIntegerValue(object, "MULTIPLAYER_MISSIONS_FINISHED", true, false, debugOutputPrefixStr);
+				multiplayerMoneyEarned      = JSON_Data.getIntegerValue(object, "MULTIPLAYER_MONEY_EARNED"     , true, false, debugOutputPrefixStr);
+				multiplayerSessionsPlayed   = JSON_Data.getIntegerValue(object, "MULTIPLAYER_SESSIONS_PLAYED"  , true, false, debugOutputPrefixStr);
+				sessionNumber               = JSON_Data.getIntegerValue(object, "SESSION_NUMBER"               , true, false, debugOutputPrefixStr);
+				trailersBought              = JSON_Data.getIntegerValue(object, "TRAILER_BOUGHT"               , true, false, debugOutputPrefixStr);
+				trailersSold                = JSON_Data.getIntegerValue(object, "TRAILER_SOLD"                 , true, false, debugOutputPrefixStr);
+				trucksBought                = JSON_Data.getIntegerValue(object, "TRUCK_BOUGHT"                 , true, false, debugOutputPrefixStr);
+				trucksSold                  = JSON_Data.getIntegerValue(object, "TRUCK_SOLD"                   , true, false, debugOutputPrefixStr);
+				
+				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+			}
 		}
 
 		public class PersistentProfileData
@@ -611,7 +698,7 @@ public class SaveGameData {
 					.add("refundGarageTruckDescs"  , JSON_Data.Value.Type.Array  ) // empty array
 					.add("refundMoney"             , JSON_Data.Value.Type.Integer)
 					.add("refundTruckDescs"        , JSON_Data.Value.Type.Object ) // empty object
-					.add("unlockedItemNames"       , JSON_Data.Value.Type.Object ) // unparsed
+					.add("unlockedItemNames"       , JSON_Data.Value.Type.Object )
 					.add("userId"                  , JSON_Data.Value.Type.Object ) // empty object
 					;
 			
@@ -622,10 +709,12 @@ public class SaveGameData {
 			public final long refundMoney;
 			public final Vector<TruckDesc> trucksInWarehouse;
 			public final Vector<String> dlcNotes;
+			public final HashMap<String, Boolean> unlockedItemNames;
 			
 			private PersistentProfileData(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
-				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons, discoveredTrucks, discoveredUpgrades, distance, refundTruckDescs, userId;
+				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons,
+					discoveredTrucks, discoveredUpgrades, distance, refundTruckDescs, unlockedItemNames, userId;
 				JSON_Array<NV, V> dlcNotes, knownRegions, newTrucks, refundGarageTruckDescs, trucksInWarehouse;
 				experience                = JSON_Data.getIntegerValue(object, "experience"              , debugOutputPrefixStr);
 				money                     = JSON_Data.getIntegerValue(object, "money"                   , debugOutputPrefixStr);
@@ -648,12 +737,12 @@ public class SaveGameData {
 				refundGarageTruckDescs    = JSON_Data.getArrayValue  (object, "refundGarageTruckDescs"  , debugOutputPrefixStr);
 				refundMoney               = JSON_Data.getIntegerValue(object, "refundMoney"             , debugOutputPrefixStr);
 				refundTruckDescs          = JSON_Data.getObjectValue (object, "refundTruckDescs"        , debugOutputPrefixStr);
+				unlockedItemNames         = JSON_Data.getObjectValue (object, "unlockedItemNames"       , debugOutputPrefixStr);
 				userId                    = JSON_Data.getObjectValue (object, "userId"                  , debugOutputPrefixStr);
 				/*
 					unparsed:
 						
 					unparsed, but interesting:
-						unlockedItemNames -> differentiate addons from trucks
 						
 					empty:
 						refundGarageTruckDescs, refundTruckDescs, userId
@@ -667,6 +756,12 @@ public class SaveGameData {
 				
 				this.dlcNotes          = parseArray_String(dlcNotes         , debugOutputPrefixStr+".dlcNotes"         , new Vector<>());
 				this.trucksInWarehouse = parseArray_Object(trucksInWarehouse, debugOutputPrefixStr+".trucksInWarehouse", TruckDesc::new, new Vector<>());
+				
+				this.unlockedItemNames = new HashMap<>();
+				parseObject(unlockedItemNames, debugOutputPrefixStr+".unlockedItemNames", (value, name, localPrefixStr) -> {
+					boolean boolValue = JSON_Data.getBoolValue(value, localPrefixStr);
+					this.unlockedItemNames.put(name, boolValue);
+				});
 				
 				TruckInfos .parseOwnedTrucks       (SaveGame.this.trucks    , ownedTrucks       , debugOutputPrefixStr+".ownedTrucks"       );
 				TruckInfos .parseNewTrucks         (SaveGame.this.trucks    , newTrucks         , debugOutputPrefixStr+".newTrucks"         );
@@ -1175,6 +1270,7 @@ public class SaveGameData {
 			public final MapIndex region;
 			public Long distance = null;
 			public Boolean isKnown = null;
+			public Long paymentsReceived = null;
 			
 			private RegionInfos(String regionId)
 			{
@@ -1192,6 +1288,13 @@ public class SaveGameData {
 			{
 				helper.parseObject(regions, object, debugOutputPrefixStr, (region, value, local) -> {
 					region.distance = JSON_Data.getIntegerValue(value, local);
+				});
+			}
+			
+			private static void parsePaymentsReceived(HashMap<String, RegionInfos> regions, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(regions, object, debugOutputPrefixStr, (region, value, local) -> {
+					region.paymentsReceived = JSON_Data.getIntegerValue(value, local);
 				});
 			}
 		}
