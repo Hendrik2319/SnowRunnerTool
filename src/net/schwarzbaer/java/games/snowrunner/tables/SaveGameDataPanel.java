@@ -39,8 +39,10 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos.Carg
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos.Waypoint;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.RegionInfos;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.InstalledAddon;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckInfos;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
@@ -77,11 +79,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		textAreaScrollPane.setPreferredSize(new Dimension(400,100));
 		
 		JTabbedPane tableTabPanel = new JTabbedPane();
-		       TruckTableModel        truckTableModel = addTab(finalizer, tableTabPanel, "Trucks"    , new        TruckTableModel(mainWindow, gfds));
-		KnownRegionsTableModel knownRegionsTableModel = addTab(finalizer, tableTabPanel, "Regions"   , new KnownRegionsTableModel(mainWindow, gfds));
-		         MapTableModel          mapTableModel = addTab(finalizer, tableTabPanel, "Maps"      , new          MapTableModel(mainWindow, gfds));
-		       AddonTableModel        addonTableModel = addTab(finalizer, tableTabPanel, "Addons"    , new        AddonTableModel(mainWindow, gfds));
-		   ObjectiveTableModel    objectiveTableModel = addTab(finalizer, tableTabPanel, "Objectives", new    ObjectiveTableModel(mainWindow, gfds));
+		StoredTrucksTableModel storedTrucksTableModel = addTab(finalizer, tableTabPanel, "Stored Trucks", new StoredTrucksTableModel(mainWindow, gfds));
+		     RegionsTableModel      regionsTableModel = addTab(finalizer, tableTabPanel, "Regions"      , new      RegionsTableModel(mainWindow, gfds));
+		        MapsTableModel         mapsTableModel = addTab(finalizer, tableTabPanel, "Maps"         , new         MapsTableModel(mainWindow, gfds));
+		      AddonsTableModel       addonsTableModel = addTab(finalizer, tableTabPanel, "Addons"       , new       AddonsTableModel(mainWindow, gfds));
+		  ObjectivesTableModel   objectivesTableModel = addTab(finalizer, tableTabPanel, "Objectives"   , new   ObjectivesTableModel(mainWindow, gfds));
 		
 		setLeftComponent(textAreaScrollPane);
 		setRightComponent(tableTabPanel);
@@ -96,22 +98,22 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		finalizer.addDataReceiver(data_->{
 			data = data_;
 			updateTextOutput();
-			truckTableModel       .setData(data);
-		//	knownRegionsTableModel.setData(data);
-			mapTableModel         .setData(data);
-			addonTableModel       .setData(data, saveGame);
-			objectiveTableModel   .setData(data);
+			storedTrucksTableModel.setData(data);
+		//	regionsTableModel     .setData(data);
+			mapsTableModel        .setData(data);
+			addonsTableModel      .setData(data, saveGame);
+			objectivesTableModel  .setData(data);
 		});
 		
 		saveGame = null;
 		finalizer.addSaveGameListener(saveGame_->{
 			saveGame = saveGame_;
 			updateTextOutput();
-			truckTableModel       .setData(saveGame);
-			knownRegionsTableModel.setData(saveGame);
-			mapTableModel         .setData(saveGame);
-			addonTableModel       .setData(data, saveGame);
-			objectiveTableModel   .setData(saveGame);
+			storedTrucksTableModel.setData(saveGame);
+			regionsTableModel     .setData(saveGame);
+			mapsTableModel        .setData(saveGame);
+			addonsTableModel      .setData(data, saveGame);
+			objectivesTableModel  .setData(saveGame);
 		});
 	}
 	
@@ -166,12 +168,16 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				out.add(0, "<CustomizationRefundMoney>", saveGame.ppd.customizationRefundMoney);	
 				out.addEmptyLine();
 				
-				TruckName[] truckNames = TruckName.getNames(saveGame.ppd.ownedTrucks.keySet(), data, language);
+				TruckName[] truckNames = TruckName.getNames(saveGame.trucks.keySet(), data, language);
 				if (truckNames.length>0)
 				{
-					out.add(0, "Owned Trucks", truckNames.length);	
+					out.add(0, "Trucks", truckNames.length);	
 					for (TruckName truckName : truckNames)
-						out.add(1, truckName.name, saveGame.ppd.ownedTrucks.get(truckName.id));
+					{
+						TruckInfos truckInfos = saveGame.trucks.get(truckName.id);
+						long owned = truckInfos==null || truckInfos.owned==null ? 0 : truckInfos.owned.longValue();
+						out.add(1, truckName.name, "%d%s", owned, truckInfos!=null && truckInfos.isNew ? " (new)" : "");
+					}
 				}
 			}
 			
@@ -184,6 +190,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(0, "<Objectives Validated>"   , saveGame.objectivesValidated);
 			add(out,0, "<Forced Model States>"    , saveGame.forcedModelStates, out::add);
 			add(out,0, "<Tutorial States>"        , saveGame.tutorialStates   , out::add);
+			if (saveGame.ppd!=null)
+			add(out,0, "<DLC Notes>"              , saveGame.ppd.dlcNotes     , out::add);
 		}
 		
 		textArea.setText(out.generateOutput());
@@ -222,6 +230,17 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		if (map!=null)
 			for (String key : SnowRunner.getSorted(map.keySet()))
 				outAdd.add(indentLevel+1, String.format("\"%s\"", key), map.get(key));
+	}
+	
+	private static <ValueType> void add(ValueListOutput out, int indentLevel, String label, Collection<ValueType> list, OutAddFcn<ValueType> outAdd)
+	{
+		if (outAdd==null) throw new IllegalArgumentException();
+		if (label==null) throw new IllegalArgumentException();
+		
+		out.add(indentLevel, label, list==null ? 0 : list.size());
+		if (list!=null)
+			for (ValueType value : list)
+				outAdd.add(indentLevel+1, null, value);
 	}
 	
 	private static String getMapName(MapIndex mapIndex, Language lang, boolean nullIfNoName)
@@ -300,37 +319,46 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 
-	private static class KnownRegionsTableModel extends VerySimpleTableModel<MapIndex>
+	private static class RegionsTableModel extends VerySimpleTableModel<RegionInfos>
 	{
 
-		private MapIndex clickedItem;
+		private RegionInfos clickedItem;
 
-		KnownRegionsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		RegionsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("ID"     , "ID"     ,  String .class,  60,   null, null, false, row->((MapIndex)row).originalMapID()),
-					new ColumnID("Country", "Country",  String .class,  60, CENTER, null, false, row->((MapIndex)row).country()),
-					new ColumnID("Region" , "Region" ,  Integer.class,  60, CENTER, null, false, row->((MapIndex)row).region()),
-					new ColumnID("Name"   , "Name"   ,  String .class, 250,   null, null, false, get((model,lang,row)->getMapName(row, lang, true))),
-					new ColumnID("DLC"    ,"DLC"     ,  String .class, 170,   null, null, false, get((model,lang,row)->getDLC(row, model, MapIndex::originalMapID, SnowRunner.DLCs.ItemType.Region))),
+					new ColumnID("ID"      , "ID"      , String .class,  60,   null, null, false, row->((RegionInfos)row).region.originalMapID()),
+					new ColumnID("Country" , "Country" , String .class,  60, CENTER, null, false, row->((RegionInfos)row).region.country()),
+					new ColumnID("Region"  , "Region"  , Integer.class,  60, CENTER, null, false, row->((RegionInfos)row).region.region()),
+					new ColumnID("Name"    , "Name"    , String .class, 250,   null, null, false, get((model,lang,row)->getMapName(row.region, lang, true))),
+					new ColumnID("DLC"     , "DLC"     , String .class, 170,   null, null, false, get((model,lang,row)->getDLC(row, model, r->r.region.originalMapID(), SnowRunner.DLCs.ItemType.Region))),
+					new ColumnID("Known"   , "Known"   , Boolean.class,  60,   null, null, false, row->((RegionInfos)row).isKnown),
+					new ColumnID("distance", "Distance", Long   .class,  60,   null, null, false, row->((RegionInfos)row).distance),
 			});
 			clickedItem = null;
 			finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
 		}
 		
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,KnownRegionsTableModel,MapIndex> getFunction)
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,RegionsTableModel,RegionInfos> getFunction)
 		{
-			return ColumnID.get(KnownRegionsTableModel.class, MapIndex.class, getFunction);
+			return ColumnID.get(RegionsTableModel.class, RegionInfos.class, getFunction);
 		}
 
 		void setData(SaveGame saveGame)
 		{
-			setRowData(saveGame==null || saveGame.ppd==null ? null : saveGame.ppd.knownRegions);
+			if (saveGame!=null)
+			{
+				Vector<String> mapIDs = new Vector<>(saveGame.regions.keySet());
+				mapIDs.sort(null);
+				setRowData(mapIDs.stream().map(saveGame.regions::get).toList());
+			}
+			else
+				setRowData(null);
 		}
 
-		@Override protected String getRowName(MapIndex row)
+		@Override protected String getRowName(RegionInfos row)
 		{
-			return row.originalMapID();
+			return row.region.originalMapID();
 		}
 
 		@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
@@ -342,11 +370,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign map to an official DLC", true, e->{
 				if (clickedItem==null) return;
 				
-				String label = language.regionNames.getName(clickedItem, ()->"<"+clickedItem.originalMapID()+">");
+				String label = language.regionNames.getName(clickedItem.region, ()->"<"+clickedItem.region.originalMapID()+">");
 				AssignToDLCDialog dlg = new AssignToDLCDialog(
 						mainWindow,
 						SnowRunner.DLCs.ItemType.Region,
-						clickedItem.originalMapID(),
+						clickedItem.region.originalMapID(),
 						label,
 						gfds.dlcs
 				);
@@ -366,7 +394,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				miAssignToDLC.setText(
 					clickedItem==null
 					? "Assign region to an official DLC"
-					: String.format("Assign \"%s\" to an official DLC", language.regionNames.getName(clickedItem, ()->"<"+clickedItem.originalMapID()+">"))
+					: String.format("Assign \"%s\" to an official DLC", language.regionNames.getName(clickedItem.region, ()->"<"+clickedItem.region.originalMapID()+">"))
 				);
 			});
 		}
@@ -419,15 +447,15 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 
-	private static class TruckTableModel extends ExtendedVerySimpleTableModelUOS<TruckTableModel.Row>
+	private static class StoredTrucksTableModel extends ExtendedVerySimpleTableModelUOS<StoredTrucksTableModel.Row>
 	{
 		private Data data;
 		private final InstalledAddonTableModel installedAddonTableModel;
 	
-		TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		StoredTrucksTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("Name"       ,"Name"                        ,  String .class, 175,   null,      null, false, row->((Row)row).name ),
+					new ColumnID("Location"   ,"Location"                    ,  String .class, 175,   null,      null, false, row->((Row)row).location),
 					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).map.originalMapID()),
 					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, get((model, data, lang, row)->getMapName(row.map,lang, true))),
 					new ColumnID("TrType"     ,"type"                        ,  String .class, 170,   null,      null, false, get((model, data, lang, row)->row.truckDesc.type         )),
@@ -485,9 +513,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			return getValue.apply(truck);
 		}
 	
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,TruckTableModel,Row> getFunction)
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,StoredTrucksTableModel,Row> getFunction)
 		{
-			return ColumnID.get(TruckTableModel.class, Row.class, model->model.data, getFunction);
+			return ColumnID.get(StoredTrucksTableModel.class, Row.class, model->model.data, getFunction);
 		}
 		
 		void setData(Data data)
@@ -525,7 +553,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			installedAddonTableModel.setRowData(null);
 		}
 	
-		@Override protected String getRowName(Row row) { return row==null ? null : row.name; }
+		@Override protected String getRowName(Row row) { return row==null ? null : row.location; }
 	
 		@Override
 		protected void setContentForRow(int rowIndex, Row row)
@@ -545,7 +573,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override public Boolean          putOutputInScrollPane() { return false; }
 		@Override public SplitOrientation getSplitOrientation  () { return SplitOrientation.VERTICAL_SPLIT; }
 
-		private record Row(String name, MapIndex map, TruckDesc truckDesc)
+		private record Row(String location, MapIndex map, TruckDesc truckDesc)
 		{
 			static Row createGarageTruck(TruckDesc truckDesc, MapIndex map, String garageName, int slotIndex)
 			{
@@ -561,12 +589,12 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 
-	private static class MapTableModel extends ExtendedVerySimpleTableModelTAOS<MapInfos> implements SplitPaneConfigurator
+	private static class MapsTableModel extends ExtendedVerySimpleTableModelTAOS<MapInfos> implements SplitPaneConfigurator
 	{
 		private MapInfos clickedItem;
 		private Data data;
 
-		MapTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		MapsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("MapID"     ,"Map ID"                ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
@@ -585,9 +613,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
 		}
 		
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,MapTableModel,MapInfos> getFunction)
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,MapsTableModel,MapInfos> getFunction)
 		{
-			return ColumnID.get(MapTableModel.class, MapInfos.class, getFunction);
+			return ColumnID.get(MapsTableModel.class, MapInfos.class, getFunction);
 		}
 
 		void setData(Data data)
@@ -726,11 +754,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 
-	private static class AddonTableModel extends VerySimpleTableModel<AddonTableModel.Row>
+	private static class AddonsTableModel extends VerySimpleTableModel<AddonsTableModel.Row>
 	{
 		private Data data;
 		
-		AddonTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		AddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("ID"       ,"ID"       , String             .class, 300,   null, null, false, row->((Row)row).addon.addonId),
@@ -742,9 +770,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			data = null;
 		}
 		
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,AddonTableModel,Row> getFunction)
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,AddonsTableModel,Row> getFunction)
 		{
-			return ColumnID.get(AddonTableModel.class, Row.class, m->m.data, getFunction);
+			return ColumnID.get(AddonsTableModel.class, Row.class, m->m.data, getFunction);
 		}
 		
 		private enum AddonType { TruckAddon, Trailer, Engine, Gearbox, Suspensions, Winch }
@@ -785,11 +813,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override protected String getRowName(Row row) { return row==null ? null : row.addon.addonId; }
 	}
 
-	private static class ObjectiveTableModel extends ExtendedVerySimpleTableModelTAOS<Objective> implements SplitPaneConfigurator
+	private static class ObjectivesTableModel extends ExtendedVerySimpleTableModelTAOS<Objective> implements SplitPaneConfigurator
 	{
 		private Data data;
 		
-		ObjectiveTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		ObjectivesTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("ID"        ,"ID"                                       ,  String .class, 320,   null,    null, false, row->((Objective)row).objectiveId      ),
@@ -965,7 +993,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add   (     indentLevel+1, "Visit On Truck"    , data.isNeedVisitOnTruck, "Needed", "Not Needed");
 			out.add   (     indentLevel+1, "Model Building Tag", data.modelBuildingTag  );
 			out.add   (     indentLevel+1, "Unloading Mode"    , data.unloadingMode     );
-			writeArray(out, indentLevel+1, "Zones"             , data.zones, ObjectiveTableModel::write);
+			writeArray(out, indentLevel+1, "Zones"             , data.zones, ObjectivesTableModel::write);
 			write     (out, indentLevel+1, "CargoState"        , data.cargoState);
 		}
 		
@@ -1010,7 +1038,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add   (     indentLevel+1, "Map"           , data.mapDelivery  );
 			out.add   (     indentLevel+1, "Truck ID"      , data.truckId      );
 			out.add   (     indentLevel+1, "Is Delivered"  , data.isDelivered  , "Yes", "No");
-			writeArray(out, indentLevel+1, "Delivery Zones", data.deliveryZones, ObjectiveTableModel::write);
+			writeArray(out, indentLevel+1, "Delivery Zones", data.deliveryZones, ObjectivesTableModel::write);
 		}
 
 		private void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckRepairState data)

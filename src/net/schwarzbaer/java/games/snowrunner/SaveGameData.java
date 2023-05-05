@@ -313,9 +313,11 @@ public class SaveGameData {
 		
 		// complex values
 		public final PersistentProfileData ppd;
-		public final HashMap<String, MapInfos > maps;
-		public final HashMap<String, Objective> objectives;
-		public final HashMap<String, Addon    > addons;
+		public final HashMap<String, RegionInfos> regions;
+		public final HashMap<String, MapInfos   > maps;
+		public final HashMap<String, Objective  > objectives;
+		public final HashMap<String, Addon      > addons;
+		public final HashMap<String, TruckInfos > trucks;
 		
 		public final boolean isFirstGarageDiscovered;
 		public final long lastLevelState;
@@ -336,9 +338,11 @@ public class SaveGameData {
 			this.fileName = fileName;
 			this.indexStr = indexStr;
 			this.data = data;
+			regions    = new HashMap<>();
 			maps       = new HashMap<>();
 			objectives = new HashMap<>();
 			addons     = new HashMap<>();
+			trucks     = new HashMap<>();
 			
 			JSON_Object<NV, V> rootObject      = JSON_Data.getObjectValue(this.data      ,                          "SaveGame.<root>");
 			JSON_Object<NV, V> complSaveObject = JSON_Data.getObjectValue(rootObject     , "CompleteSave"+indexStr, "SaveGame.<root>");
@@ -479,11 +483,22 @@ public class SaveGameData {
 
 		public long getOwnedTruckCount(Truck truck) {
 			if (truck==null) return 0;
-			if (ppd==null) return 0;
-			if (ppd.ownedTrucks==null) return 0;
-			Long amount = ppd.ownedTrucks.get(truck.id);
-			return amount==null ? 0 : amount.longValue();
+			return getOwnedTruckCount(truck.id);
 		}
+
+		public long getOwnedTruckCount(String truckId)
+		{
+			TruckInfos truckInfos = trucks.get(truckId);
+			return truckInfos==null || truckInfos.owned==null ? 0 : truckInfos.owned.longValue();
+		}
+
+//		public long getOwnedTruckCount(Truck truck) {
+//			if (truck==null) return 0;
+//			if (ppd==null) return 0;
+//			if (ppd.ownedTrucks==null) return 0;
+//			Long amount = ppd.ownedTrucks.get(truck.id);
+//			return amount==null ? 0 : amount.longValue();
+//		}
 
 		public boolean playerOwnsTruck(Truck truck) {
 			return getOwnedTruckCount(truck)>0;
@@ -589,10 +604,10 @@ public class SaveGameData {
 					.add("damagableAddons"         , JSON_Data.Value.Type.Object )
 					.add("discoveredTrucks"        , JSON_Data.Value.Type.Object )
 					.add("discoveredUpgrades"      , JSON_Data.Value.Type.Object )
-					.add("distance"                , JSON_Data.Value.Type.Object ) // unparsed
-					.add("dlcNotes"                , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("distance"                , JSON_Data.Value.Type.Object )
+					.add("dlcNotes"                , JSON_Data.Value.Type.Array  )
 					.add("knownRegions"            , JSON_Data.Value.Type.Array  )
-					.add("newTrucks"               , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("newTrucks"               , JSON_Data.Value.Type.Array  )
 					.add("refundGarageTruckDescs"  , JSON_Data.Value.Type.Array  ) // empty array
 					.add("refundMoney"             , JSON_Data.Value.Type.Integer)
 					.add("refundTruckDescs"        , JSON_Data.Value.Type.Object ) // empty object
@@ -605,14 +620,13 @@ public class SaveGameData {
 			public final long money;
 			public final Long customizationRefundMoney;
 			public final long refundMoney;
-			public final HashMap<String, Long> ownedTrucks;
 			public final Vector<TruckDesc> trucksInWarehouse;
-			public final Vector<MapIndex> knownRegions;
+			public final Vector<String> dlcNotes;
 			
 			private PersistentProfileData(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
-				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons, discoveredTrucks, discoveredUpgrades, refundTruckDescs, userId;
-				JSON_Array<NV, V> knownRegions, refundGarageTruckDescs, trucksInWarehouse;
+				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons, discoveredTrucks, discoveredUpgrades, distance, refundTruckDescs, userId;
+				JSON_Array<NV, V> dlcNotes, knownRegions, newTrucks, refundGarageTruckDescs, trucksInWarehouse;
 				experience                = JSON_Data.getIntegerValue(object, "experience"              , debugOutputPrefixStr);
 				money                     = JSON_Data.getIntegerValue(object, "money"                   , debugOutputPrefixStr);
 				rank                      = JSON_Data.getIntegerValue(object, "rank"                    , debugOutputPrefixStr);
@@ -621,19 +635,22 @@ public class SaveGameData {
 				contestAttempts           = JSON_Data.getObjectValue (object, "contestAttempts"         , debugOutputPrefixStr);
 				contestLastTimes          = JSON_Data.getObjectValue (object, "contestLastTimes"        , true, false, debugOutputPrefixStr);
 				contestTimes              = JSON_Data.getObjectValue (object, "contestTimes"            , debugOutputPrefixStr);
+				
 				addons                    = JSON_Data.getObjectValue (object, "addons"                  , debugOutputPrefixStr);
 				customizationRefundMoney  = JSON_Data.getIntegerValue(object, "customizationRefundMoney", true, false, debugOutputPrefixStr);
 				damagableAddons           = JSON_Data.getObjectValue (object, "damagableAddons"         , debugOutputPrefixStr);
 				discoveredTrucks          = JSON_Data.getObjectValue (object, "discoveredTrucks"        , debugOutputPrefixStr);
 				discoveredUpgrades        = JSON_Data.getObjectValue (object, "discoveredUpgrades"      , debugOutputPrefixStr);
+				distance                  = JSON_Data.getObjectValue (object, "distance"                , debugOutputPrefixStr);
+				dlcNotes                  = JSON_Data.getArrayValue  (object, "dlcNotes"                , debugOutputPrefixStr);
 				knownRegions              = JSON_Data.getArrayValue  (object, "knownRegions"            , debugOutputPrefixStr);
+				newTrucks                 = JSON_Data.getArrayValue  (object, "newTrucks"            , debugOutputPrefixStr);
 				refundGarageTruckDescs    = JSON_Data.getArrayValue  (object, "refundGarageTruckDescs"  , debugOutputPrefixStr);
 				refundMoney               = JSON_Data.getIntegerValue(object, "refundMoney"             , debugOutputPrefixStr);
 				refundTruckDescs          = JSON_Data.getObjectValue (object, "refundTruckDescs"        , debugOutputPrefixStr);
 				userId                    = JSON_Data.getObjectValue (object, "userId"                  , debugOutputPrefixStr);
 				/*
 					unparsed:
-						distance, dlcNotes, newTrucks
 						
 					unparsed, but interesting:
 						unlockedItemNames -> differentiate addons from trucks
@@ -648,28 +665,20 @@ public class SaveGameData {
 				checkEmptyObject      (userId                , debugOutputPrefixStr+".userId"                );
 				checkEmptyArrayOrUnset(refundGarageTruckDescs, debugOutputPrefixStr+".refundGarageTruckDescs");
 				
-				this.ownedTrucks = new HashMap<>();
-				parseObject(ownedTrucks, debugOutputPrefixStr+".ownedTrucks", (value, name, local_debugOutputPrefixStr) -> {
-					long amount = JSON_Data.getIntegerValue(value, local_debugOutputPrefixStr);
-					this.ownedTrucks.put(name, amount);
-				});
-				
-				this.knownRegions = new Vector<>();
-				parseArray(knownRegions, debugOutputPrefixStr+".knownRegions", (value, i, local_debugOutputPrefixStr) -> {
-					String regionID = JSON_Data.getStringValue(value, local_debugOutputPrefixStr);
-					MapIndex region = MapIndex.parse(regionID);
-					this.knownRegions.add(region);
-				});
-				
+				this.dlcNotes          = parseArray_String(dlcNotes         , debugOutputPrefixStr+".dlcNotes"         , new Vector<>());
 				this.trucksInWarehouse = parseArray_Object(trucksInWarehouse, debugOutputPrefixStr+".trucksInWarehouse", TruckDesc::new, new Vector<>());
 				
-				MapInfos .parseDiscoveredTrucks  (maps                , discoveredTrucks  , debugOutputPrefixStr+".discoveredTrucks"  );
-				MapInfos .parseDiscoveredUpgrades(maps                , discoveredUpgrades, debugOutputPrefixStr+".discoveredUpgrades");
-				Objective.parseContestAttempts   (objectives          , contestAttempts   , debugOutputPrefixStr+".contestAttempts"   );
-				Objective.parseContestLastTimes  (objectives          , contestLastTimes  , debugOutputPrefixStr+".contestLastTimes"  );
-				Objective.parseContestTimes      (objectives          , contestTimes      , debugOutputPrefixStr+".contestTimes"      );
-				Addon    .parseOwned             (SaveGame.this.addons, addons            , debugOutputPrefixStr+".addons"            );
-				Addon    .parseDamagableAddons   (SaveGame.this.addons, damagableAddons   , debugOutputPrefixStr+".damagableAddons"   );
+				TruckInfos .parseOwnedTrucks       (SaveGame.this.trucks    , ownedTrucks       , debugOutputPrefixStr+".ownedTrucks"       );
+				TruckInfos .parseNewTrucks         (SaveGame.this.trucks    , newTrucks         , debugOutputPrefixStr+".newTrucks"         );
+				RegionInfos.parseDistances         (SaveGame.this.regions   , distance          , debugOutputPrefixStr+".distance"          );
+				RegionInfos.parseKnownRegions      (SaveGame.this.regions   , knownRegions      , debugOutputPrefixStr+".knownRegions"      );
+				MapInfos   .parseDiscoveredTrucks  (SaveGame.this.maps      , discoveredTrucks  , debugOutputPrefixStr+".discoveredTrucks"  );
+				MapInfos   .parseDiscoveredUpgrades(SaveGame.this.maps      , discoveredUpgrades, debugOutputPrefixStr+".discoveredUpgrades");
+				Objective  .parseContestAttempts   (SaveGame.this.objectives, contestAttempts   , debugOutputPrefixStr+".contestAttempts"   );
+				Objective  .parseContestLastTimes  (SaveGame.this.objectives, contestLastTimes  , debugOutputPrefixStr+".contestLastTimes"  );
+				Objective  .parseContestTimes      (SaveGame.this.objectives, contestTimes      , debugOutputPrefixStr+".contestTimes"      );
+				Addon      .parseOwned             (SaveGame.this.addons    , addons            , debugOutputPrefixStr+".addons"            );
+				Addon      .parseDamagableAddons   (SaveGame.this.addons    , damagableAddons   , debugOutputPrefixStr+".damagableAddons"   );
 				
 			}
 		}
@@ -1127,6 +1136,62 @@ public class SaveGameData {
 					String valueID = name.valueID;
 					ValueType value = get(valueMap, valueID);
 					parseValues.parseValues(value, name, jsonValue, local_debugOutputPrefixStr);
+				});
+			}
+		}
+		
+		public static class TruckInfos
+		{
+			private static final SpreadedValuesHelper<TruckInfos> helper = new SpreadedValuesHelper<>(TruckInfos::new);
+			
+			public final String truckId;
+			public Long    owned = null;
+			public boolean isNew = false;
+			
+			private TruckInfos(String truckId)
+			{
+				this.truckId = truckId;
+			}
+			
+			private static void parseNewTrucks(HashMap<String, TruckInfos> trucks, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseStringArray(trucks, array, debugOutputPrefixStr, truck -> {
+					truck.isNew = true;
+				});
+			}
+			
+			private static void parseOwnedTrucks(HashMap<String, TruckInfos> trucks, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(trucks, object, debugOutputPrefixStr, (truck, value, local) -> {
+					truck.owned = JSON_Data.getIntegerValue(value, local);
+				});
+			}
+		}
+		
+		public static class RegionInfos
+		{
+			private static final SpreadedValuesHelper<RegionInfos> helper = new SpreadedValuesHelper<>(RegionInfos::new);
+			
+			public final MapIndex region;
+			public Long distance = null;
+			public Boolean isKnown = null;
+			
+			private RegionInfos(String regionId)
+			{
+				this.region = MapIndex.parse(regionId);
+			}
+			
+			private static void parseKnownRegions(HashMap<String, RegionInfos> regions, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseStringArray(regions, array, debugOutputPrefixStr, map -> {
+					map.isKnown = true;
+				});
+			}
+			
+			private static void parseDistances(HashMap<String, RegionInfos> regions, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(regions, object, debugOutputPrefixStr, (region, value, local) -> {
+					region.distance = JSON_Data.getIntegerValue(value, local);
 				});
 			}
 		}
