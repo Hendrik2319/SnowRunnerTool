@@ -1205,8 +1205,9 @@ public class SnowRunner {
 		}
 		
 		public enum ItemType {
-			Truck(dlcs->dlcs.trucks),
-			Map  (dlcs->dlcs.maps  );
+			Truck (dlcs->dlcs.trucks ),
+			Region(dlcs->dlcs.regions),
+			Map   (dlcs->dlcs.maps   );
 			private Function<DLCs, HashMap<String,String>> getAssignments;
 			private ItemType(Function<DLCs, HashMap<String,String>> getAssignments)
 			{
@@ -1214,29 +1215,26 @@ public class SnowRunner {
 			}
 		}
 		
-		private final HashMap<String,String> trucks = new HashMap<>();
-		private final HashMap<String,String> maps   = new HashMap<>();
+		private final HashMap<String,String> trucks  = new HashMap<>();
+		private final HashMap<String,String> regions = new HashMap<>();
+		private final HashMap<String,String> maps    = new HashMap<>();
 		
 		public Vector<String> getAllDLCs()
 		{
 			checkInitialized();
 			HashSet<String> dlcSet = new HashSet<>();
-			dlcSet.addAll(trucks.values());
-			dlcSet.addAll(maps  .values());
+			dlcSet.addAll(trucks .values());
+			dlcSet.addAll(regions.values());
+			dlcSet.addAll(maps   .values());
 			
 			Vector<String> sortedDLCs = new Vector<>(dlcSet);
 			sortedDLCs.sort(null);
 			
 			return sortedDLCs;
 		}
-		public void   setDLC(String id, ItemType type, String dlc) { checkInitialized();        type.getAssignments.apply(this).put(id, dlc); }
-		public String getDLC(String id, ItemType type            ) { checkInitialized(); return type.getAssignments.apply(this).get(id     ); }
-		
-		public String getDLCofTruck(String truckID) { checkInitialized(); return trucks.get(truckID); }
-		public String getDLCofMap  (String   mapID) { checkInitialized(); return maps  .get(  mapID); }
-
-		public Collection<String> getTruckIDs() { checkInitialized(); return trucks.keySet(); }
-		public Collection<String> getMapIDs  () { checkInitialized(); return maps  .keySet(); }
+		public void               setDLC(String id, ItemType type, String dlc) { checkInitialized();        type.getAssignments.apply(this).put(id, dlc); }
+		public String             getDLC(String id, ItemType type            ) { checkInitialized(); return type.getAssignments.apply(this).get(id     ); }
+		public Collection<String> getIDs(           ItemType type            ) { checkInitialized(); return type.getAssignments.apply(this).keySet(); }
 		
 		private static HashMap<String,Vector<String>> getReversedMap(HashMap<String,String> assignments)
 		{
@@ -1250,53 +1248,56 @@ public class SnowRunner {
 			return reversedMap;
 		}
 		
-		void saveData() {
+		void saveData()
+		{
 			checkInitialized();
 			
 			File file = new File(DLCAssignmentsFile);
 			System.out.printf("Write DLCs to file \"%s\" ...%n", file.getAbsolutePath());
 			
-			HashMap<String,Vector<String>> reversedTruckMap = getReversedMap(trucks);
-			HashMap<String,Vector<String>> reversedMapMap   = getReversedMap(maps);
+			HashMap<String,Vector<String>> reversedTruckMap  = getReversedMap(trucks );
+			HashMap<String,Vector<String>> reversedRegionMap = getReversedMap(regions);
+			HashMap<String,Vector<String>> reversedMapMap    = getReversedMap(maps   );
 			
 			HashSet<String> dlcs = new HashSet<>();
-			dlcs.addAll(reversedTruckMap.keySet());
-			dlcs.addAll(reversedMapMap  .keySet());
+			dlcs.addAll(reversedTruckMap .keySet());
+			dlcs.addAll(reversedMapMap   .keySet());
+			dlcs.addAll(reversedRegionMap.keySet());
 			Vector<String> sortedDLCs = new Vector<>(dlcs);
 			sortedDLCs.sort(null);
 			
-			try (PrintWriter out = new PrintWriter( new OutputStreamWriter( new FileOutputStream( file ), StandardCharsets.UTF_8) )) {
-				
-				for (String dlc : sortedDLCs) {
+			try (PrintWriter out = new PrintWriter( new OutputStreamWriter( new FileOutputStream( file ), StandardCharsets.UTF_8) ))
+			{
+				for (String dlc : sortedDLCs)
+				{
 					out.printf("[DLC]%n");
 					out.printf("name = %s%n", dlc);
-					
-					Vector<String> trucks = reversedTruckMap.get(dlc);
-					if (trucks!=null)
-						for (String truck : trucks)
-							out.printf("truck = %s%n", truck);
-					
-					Vector<String> maps = reversedMapMap.get(dlc);
-					if (maps!=null)
-						for (String map : maps)
-							out.printf("map = %s%n", map);
-					
+					writeIDs(reversedTruckMap , dlc, out, "truck" );
+					writeIDs(reversedRegionMap, dlc, out, "region");
+					writeIDs(reversedMapMap   , dlc, out, "map"   );
 					out.println();
 				}
-				
-				
-			} catch (FileNotFoundException e) {
 			}
+			catch (FileNotFoundException e) {}
 			
 			System.out.printf("... done%n");
+		}
+		
+		private void writeIDs(HashMap<String, Vector<String>> reversedMap, String dlc, PrintWriter out, String fieldName)
+		{
+			Vector<String> ids = reversedMap.get(dlc);
+			if (ids!=null)
+				for (String id : ids)
+					out.printf("%s = %s%n", fieldName, id);
 		}
 
 		void loadStoredData() {
 			File file = new File(DLCAssignmentsFile);
 			System.out.printf("Read DLCs from file \"%s\" ...%n", file.getAbsolutePath());
 			
-			trucks.clear();
-			maps  .clear();
+			trucks .clear();
+			regions.clear();
+			maps   .clear();
 			
 			try (BufferedReader in = new BufferedReader( new InputStreamReader( new FileInputStream( file ), StandardCharsets.UTF_8) )) {
 				
@@ -1309,11 +1310,9 @@ public class SnowRunner {
 					if ( (value = Data.getLineValue(line, "name = "))!=null )
 						lastDLC = value;
 					
-					if ( (value = Data.getLineValue(line, "truck = "))!=null && lastDLC!=null)
-						trucks.put(value, lastDLC);
-					
-					if ( (value = Data.getLineValue(line, "map = "))!=null && lastDLC!=null)
-						maps  .put(value, lastDLC);
+					if ( (value = Data.getLineValue(line, "truck = " ))!=null && lastDLC!=null) trucks .put(value, lastDLC);
+					if ( (value = Data.getLineValue(line, "region = "))!=null && lastDLC!=null) regions.put(value, lastDLC);
+					if ( (value = Data.getLineValue(line, "map = "   ))!=null && lastDLC!=null) maps   .put(value, lastDLC);
 				}
 				
 				

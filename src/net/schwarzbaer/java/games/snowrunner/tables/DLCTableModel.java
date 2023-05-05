@@ -31,7 +31,7 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		data = null;
 		rows = new Vector<>();
 		
-		finalizer = gfds.controllers.createNewFinalizer();
+		finalizer = this.gfds.controllers.createNewFinalizer();
 		finalizer.addLanguageListener(language->{
 			this.language = language;
 			fireTableUpdate();
@@ -55,36 +55,57 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	
 	private void rebuildRows() {
 		HashSet<String> truckIDs = new HashSet<>();
-		truckIDs.addAll(gfds.dlcs.getTruckIDs());
+		truckIDs.addAll(gfds.dlcs.getIDs(SnowRunner.DLCs.ItemType.Truck));
 		if (data!=null) truckIDs.addAll(data.trucks.keySet());
 		Vector<String> sortedTruckIDs = new Vector<>(truckIDs);
 		sortedTruckIDs.sort(null);
 		
+		HashSet<String> regionIDs = new HashSet<>();
+		regionIDs.addAll(gfds.dlcs.getIDs(SnowRunner.DLCs.ItemType.Region));
+		if (savegame!=null) regionIDs.addAll(savegame.maps.keySet());
+		Vector<String> sortedRegionIDs = new Vector<>(regionIDs);
+		sortedRegionIDs.sort(null);
+		
 		HashSet<String> mapIDs = new HashSet<>();
-		mapIDs.addAll(gfds.dlcs.getMapIDs());
+		mapIDs.addAll(gfds.dlcs.getIDs(SnowRunner.DLCs.ItemType.Map));
 		if (savegame!=null) mapIDs.addAll(savegame.maps.keySet());
 		Vector<String> sortedMapIDs = new Vector<>(mapIDs);
 		sortedMapIDs.sort(null);
 		
 		rows.clear();
-		for (String truckID : sortedTruckIDs) {
-			Truck truck = data==null ? null : data.trucks.get(truckID);
-			String updateLevel = truck==null ? null : truck.updateLevel==null ? "<Launch>" : truck.updateLevel;
-			String dlc = gfds.dlcs.getDLCofTruck(truckID);
-			if ((updateLevel!=null && !updateLevel.equals("<Launch>")) || dlc!=null)
-				rows.add(new RowItem(updateLevel, dlc, truckID, null));
-		}
-		for (String mapID : sortedMapIDs) {
-			//SaveGame.MapInfos map = savegame==null ? null : savegame.maps.get(mapID);
-			String updateLevel = null;
-			String dlc = gfds.dlcs.getDLCofMap(mapID);
-			if (dlc!=null)
-				rows.add(new RowItem(updateLevel, dlc, null, Data.MapIndex.parse(mapID)));
-		}
+		for (SnowRunner.DLCs.ItemType itemType : SnowRunner.DLCs.ItemType.values())
+			switch (itemType)
+			{
+				case Truck:
+					for (String truckID : sortedTruckIDs) {
+						Truck truck = data==null ? null : data.trucks.get(truckID);
+						String updateLevel = truck==null ? null : truck.updateLevel==null ? "<Launch>" : truck.updateLevel;
+						String dlc = gfds.dlcs.getDLC(truckID, itemType);
+						if ((updateLevel!=null && !updateLevel.equals("<Launch>")) || dlc!=null)
+							rows.add(new RowItem(updateLevel, dlc, truckID, null, null));
+					}
+					break;
+					
+				case Region:
+					for (String regionID : sortedRegionIDs) {
+						String dlc = gfds.dlcs.getDLC(regionID, itemType);
+						if (dlc!=null)
+							rows.add(new RowItem(null, dlc, null, null, Data.MapIndex.parse(regionID)));
+					}
+					break;
+					
+				case Map:
+					for (String mapID : sortedMapIDs) {
+						String dlc = gfds.dlcs.getDLC(mapID, itemType);
+						if (dlc!=null)
+							rows.add(new RowItem(null, dlc, null, Data.MapIndex.parse(mapID), null));
+					}
+					break;
+			}
 		fireTableUpdate();
 	}
 
-	private record RowItem(String updateLevel, String dlc, String truckID, Data.MapIndex mapIndex) {}
+	private record RowItem(String updateLevel, String dlc, String truckID, Data.MapIndex mapIndex, Data.MapIndex regionIndex) {}
 
 
 	@Override public int getRowCount() {
@@ -99,11 +120,15 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 			case OfficialDLC: return row.dlc;
 			case Truck:
 				Truck truck = data==null || row.truckID==null ? null : data.trucks.get(row.truckID);
-				if (truck == null) return String.format("<%s>", row.truckID);
-				return SnowRunner.getTruckLabel(truck, language);
+				if (truck       != null) return SnowRunner.getTruckLabel(truck, language);
+				if (row.truckID != null) return String.format("<%s>", row.truckID);
+				return null;
+			case Region:
+				if (row.regionIndex==null) return null;
+				return language.regionNames.getName(row.regionIndex, ()->"<"+row.regionIndex.originalMapID()+">");
 			case Map:
 				if (row.mapIndex==null) return null;
-				return language.regionNames.getNameForMap(row.mapIndex, ()->"<"+row.mapIndex.originalMapID()+">");
+				return language.regionNames.getName(row.mapIndex, ()->"<"+row.mapIndex.originalMapID()+">");
 		}
 		return null;
 	}
@@ -112,7 +137,8 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		UpdateLevel ("Update Level", String .class, 100),
 		OfficialDLC ("Official DLC", String .class, 200),
 		Truck       ("Truck"       , String .class, 200),
-		Map         ("Map"         , String .class, 200),
+		Region      ("Region"      , String .class, 200),
+		Map         ("Map"         , String .class, 350),
 		;
 	
 		private final SimplifiedColumnConfig config;

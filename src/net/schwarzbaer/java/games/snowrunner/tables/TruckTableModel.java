@@ -62,7 +62,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		super(mainWindow, gfds, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
-				new ColumnID( "DLC"      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLCofTruck(((Truck)row).id)),
+				new ColumnID( "DLC"      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLC(((Truck)row).id, SnowRunner.DLCs.ItemType.Truck)),
 				new ColumnID( "Country"  , "Country"               ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                  ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                  ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),

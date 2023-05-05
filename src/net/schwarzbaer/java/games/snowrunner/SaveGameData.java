@@ -591,7 +591,7 @@ public class SaveGameData {
 					.add("discoveredUpgrades"      , JSON_Data.Value.Type.Object )
 					.add("distance"                , JSON_Data.Value.Type.Object ) // unparsed
 					.add("dlcNotes"                , JSON_Data.Value.Type.Array  ) // unparsed
-					.add("knownRegions"            , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("knownRegions"            , JSON_Data.Value.Type.Array  )
 					.add("newTrucks"               , JSON_Data.Value.Type.Array  ) // unparsed
 					.add("refundGarageTruckDescs"  , JSON_Data.Value.Type.Array  ) // empty array
 					.add("refundMoney"             , JSON_Data.Value.Type.Integer)
@@ -607,11 +607,12 @@ public class SaveGameData {
 			public final long refundMoney;
 			public final HashMap<String, Long> ownedTrucks;
 			public final Vector<TruckDesc> trucksInWarehouse;
+			public final Vector<MapIndex> knownRegions;
 			
 			private PersistentProfileData(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons, discoveredTrucks, discoveredUpgrades, refundTruckDescs, userId;
-				JSON_Array<NV, V> trucksInWarehouse, refundGarageTruckDescs;
+				JSON_Array<NV, V> knownRegions, refundGarageTruckDescs, trucksInWarehouse;
 				experience                = JSON_Data.getIntegerValue(object, "experience"              , debugOutputPrefixStr);
 				money                     = JSON_Data.getIntegerValue(object, "money"                   , debugOutputPrefixStr);
 				rank                      = JSON_Data.getIntegerValue(object, "rank"                    , debugOutputPrefixStr);
@@ -625,6 +626,7 @@ public class SaveGameData {
 				damagableAddons           = JSON_Data.getObjectValue (object, "damagableAddons"         , debugOutputPrefixStr);
 				discoveredTrucks          = JSON_Data.getObjectValue (object, "discoveredTrucks"        , debugOutputPrefixStr);
 				discoveredUpgrades        = JSON_Data.getObjectValue (object, "discoveredUpgrades"      , debugOutputPrefixStr);
+				knownRegions              = JSON_Data.getArrayValue  (object, "knownRegions"            , debugOutputPrefixStr);
 				refundGarageTruckDescs    = JSON_Data.getArrayValue  (object, "refundGarageTruckDescs"  , debugOutputPrefixStr);
 				refundMoney               = JSON_Data.getIntegerValue(object, "refundMoney"             , debugOutputPrefixStr);
 				refundTruckDescs          = JSON_Data.getObjectValue (object, "refundTruckDescs"        , debugOutputPrefixStr);
@@ -634,7 +636,6 @@ public class SaveGameData {
 						distance, dlcNotes, newTrucks
 						
 					unparsed, but interesting:
-						knownRegions
 						unlockedItemNames -> differentiate addons from trucks
 						
 					empty:
@@ -651,6 +652,13 @@ public class SaveGameData {
 				parseObject(ownedTrucks, debugOutputPrefixStr+".ownedTrucks", (value, name, local_debugOutputPrefixStr) -> {
 					long amount = JSON_Data.getIntegerValue(value, local_debugOutputPrefixStr);
 					this.ownedTrucks.put(name, amount);
+				});
+				
+				this.knownRegions = new Vector<>();
+				parseArray(knownRegions, debugOutputPrefixStr+".knownRegions", (value, i, local_debugOutputPrefixStr) -> {
+					String regionID = JSON_Data.getStringValue(value, local_debugOutputPrefixStr);
+					MapIndex region = MapIndex.parse(regionID);
+					this.knownRegions.add(region);
 				});
 				
 				this.trucksInWarehouse = parseArray_Object(trucksInWarehouse, debugOutputPrefixStr+".trucksInWarehouse", TruckDesc::new, new Vector<>());

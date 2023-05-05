@@ -552,44 +552,46 @@ public class Data {
 			data = new HashMap<>();
 		}
 
-		public String getNameForMap(MapIndex mapIndex)
+		public String getName(MapIndex mapIndex)
 		{
-			Supplier<String> getDefaultForNoName = ()->String.format("No Name for Map (%s,%02d,%02d)", mapIndex.country, mapIndex.region, mapIndex.map);
-			Supplier<String> getDefaultForNoMap  = ()->String.format("No Name for Map \"%s\"", mapIndex.originalMapID);
-			return getNameForMap( mapIndex, getDefaultForNoName, getDefaultForNoMap );
+			Supplier<String> getDefaultIfNoName = ()->String.format("No Name for \"%s\"", mapIndex.originalMapID);
+			Supplier<String> getDefaultIfNotMapOrRegion  = getDefaultIfNoName;
+			if (mapIndex.isMap())
+			{
+				getDefaultIfNoName          = ()->String.format("No Name for Map (%s,%02d,%02d)", mapIndex.country, mapIndex.region, mapIndex.map);
+				getDefaultIfNotMapOrRegion  = ()->String.format("Unknown Map \"%s\"", mapIndex.originalMapID);
+			}
+			else if (mapIndex.isRegion())
+			{
+				getDefaultIfNoName          = ()->String.format("No Name for Region (%s,%02d)", mapIndex.country, mapIndex.region);
+				getDefaultIfNotMapOrRegion  = ()->String.format("Unknown Region \"%s\"", mapIndex.originalMapID);
+			}
+			return getName( mapIndex, getDefaultIfNoName, getDefaultIfNotMapOrRegion );
 		}
 
-		public String getNameForMap(
+		public String getName(
 				MapIndex mapIndex,
 				Supplier<String> getDefault)
 		{
-			return getNameForMap(mapIndex, getDefault, getDefault);
+			return getName(mapIndex, getDefault, getDefault);
 		}
 
-		public String getNameForMap(
+		public String getName(
 				MapIndex mapIndex,
-				Supplier<String> getDefaultForNoName,
-				Supplier<String> getDefaultForNoMap)
+				Supplier<String> getDefaultIfNoName,
+				Supplier<String> getDefaultIfNotMapOrRegion)
 		{
-			if (mapIndex.isMap())
+			if (mapIndex.isMap() || mapIndex.isRegion())
 			{
-				String name = getNameForMap(mapIndex.country, mapIndex.region.intValue(), mapIndex.map.intValue());
+				String name = getName(mapIndex.country, mapIndex.region, mapIndex.map);
 				if (name != null) return name;
-				return getDefaultForNoName.get();
+				return getDefaultIfNoName.get();
 			}
 
-			return getDefaultForNoMap.get();
+			return getDefaultIfNotMapOrRegion.get();
 		}
 
-		public String getNameForMap(String country, int regionIndex, int mapIndex)
-		{
-			MapAndRegion mr = getMap(country, regionIndex, mapIndex);
-			if (mr==null) return null;
-			
-			return mr.toString();
-		}
-
-		private MapAndRegion getMap(String country, int regionIndex, int mapIndex)
+		public String getName(String country, int regionIndex, Integer mapIndex)
 		{
 			NameDesc[][] regions = data.get(country);
 			if (regions == null) return null;
@@ -597,10 +599,23 @@ public class Data {
 			if (regionIndex<1 || regionIndex>regions.length) return null;
 			NameDesc[] maps = regions[regionIndex-1];
 			
-			if (mapIndex<1 || mapIndex>maps.length) return null;
+			if (maps==null) return null;
+			NameDesc region = maps.length==0 ? null : maps[0];
 			
-			NameDesc region = maps.length==0 ? null : maps[0]; 
-			return new MapAndRegion(region, maps[mapIndex]);
+			NameDesc map = null;
+			if (mapIndex != null)
+			{
+				if (mapIndex<1 || mapIndex>=maps.length) return null;
+				map = maps[mapIndex];
+			}
+			
+			String regionStr = region!=null && region.name!=null ? region.name : null;
+			String mapStr    = map   !=null && map   .name!=null ? map   .name : null;
+			
+			if (regionStr==null && mapStr==null) return null;
+			if (regionStr==null) return mapStr;
+			if (mapStr   ==null) return regionStr;
+			return mapStr+" / "+regionStr;
 		}
 
 		private void scanRegionNames(Language language, boolean verbose)
@@ -614,7 +629,10 @@ public class Data {
 				
 				for (int region=1; region<=maxRegion; region++) {
 					String regionName_ID = String.format("%s_%02d", country, region);
-					String regionName = language.dictionary.get(regionName_ID);
+					String regionName    = null;
+					
+					if (regionName==null) regionName = language.dictionary.get(regionName_ID);
+					if (regionName==null) regionName = language.dictionary.get(regionName_ID.toLowerCase());
 					
 					if (regionName!=null)
 					{
@@ -683,20 +701,6 @@ public class Data {
 						}
 					}
 				}
-			}
-		}
-		
-		private record MapAndRegion(NameDesc region, NameDesc map)
-		{
-			@Override
-			public String toString()
-			{
-				String regionStr = region!=null && region.name!=null ? region.name : null;
-				String mapStr    = map   !=null && map   .name!=null ? map   .name : null;
-				
-				if (regionStr==null && mapStr==null) return "<No Name>";
-				if (regionStr==null) return mapStr;
-				return mapStr+" / "+regionStr;
 			}
 		}
 	

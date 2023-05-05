@@ -1984,7 +1984,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		}
 		
 		public static <ResultType, RowType>
-		Function<Object, ResultType>
+			Function<Object, ResultType>
 			get(
 					Class<RowType> rowClass,
 					Function<RowType, ResultType> getFunction

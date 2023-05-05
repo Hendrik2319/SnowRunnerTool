@@ -225,7 +225,7 @@ public class TruckPanelProto implements Finalizable {
 			outTop.add(0, "Update Level", truck.updateLevel);
 		
 		if (truck.id!=null) {
-			String dlc = gfds.dlcs.getDLCofTruck(truck.id);
+			String dlc = gfds.dlcs.getDLC(truck.id, SnowRunner.DLCs.ItemType.Truck);
 			if (dlc!=null)
 				outTop.add(0, "DLC", dlc);
 		}

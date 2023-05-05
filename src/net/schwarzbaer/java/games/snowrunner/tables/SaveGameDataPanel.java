@@ -77,10 +77,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		textAreaScrollPane.setPreferredSize(new Dimension(400,100));
 		
 		JTabbedPane tableTabPanel = new JTabbedPane();
-		    TruckTableModel     truckTableModel = addTab(finalizer, tableTabPanel, "Trucks"    , new     TruckTableModel(mainWindow, gfds));
-		      MapTableModel       mapTableModel = addTab(finalizer, tableTabPanel, "Maps"      , new       MapTableModel(mainWindow, gfds));
-		    AddonTableModel     addonTableModel = addTab(finalizer, tableTabPanel, "Addons"    , new     AddonTableModel(mainWindow, gfds));
-		ObjectiveTableModel objectiveTableModel = addTab(finalizer, tableTabPanel, "Objectives", new ObjectiveTableModel(mainWindow, gfds));
+		       TruckTableModel        truckTableModel = addTab(finalizer, tableTabPanel, "Trucks"    , new        TruckTableModel(mainWindow, gfds));
+		KnownRegionsTableModel knownRegionsTableModel = addTab(finalizer, tableTabPanel, "Regions"   , new KnownRegionsTableModel(mainWindow, gfds));
+		         MapTableModel          mapTableModel = addTab(finalizer, tableTabPanel, "Maps"      , new          MapTableModel(mainWindow, gfds));
+		       AddonTableModel        addonTableModel = addTab(finalizer, tableTabPanel, "Addons"    , new        AddonTableModel(mainWindow, gfds));
+		   ObjectiveTableModel    objectiveTableModel = addTab(finalizer, tableTabPanel, "Objectives", new    ObjectiveTableModel(mainWindow, gfds));
 		
 		setLeftComponent(textAreaScrollPane);
 		setRightComponent(tableTabPanel);
@@ -95,20 +96,22 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		finalizer.addDataReceiver(data_->{
 			data = data_;
 			updateTextOutput();
-			truckTableModel    .setData(data);
-			mapTableModel      .setData(data);
-			addonTableModel    .setData(data, saveGame);
-			objectiveTableModel.setData(data);
+			truckTableModel       .setData(data);
+		//	knownRegionsTableModel.setData(data);
+			mapTableModel         .setData(data);
+			addonTableModel       .setData(data, saveGame);
+			objectiveTableModel   .setData(data);
 		});
 		
 		saveGame = null;
 		finalizer.addSaveGameListener(saveGame_->{
 			saveGame = saveGame_;
 			updateTextOutput();
-			truckTableModel    .setData(saveGame);
-			mapTableModel      .setData(saveGame);
-			addonTableModel    .setData(data, saveGame);
-			objectiveTableModel.setData(saveGame);
+			truckTableModel       .setData(saveGame);
+			knownRegionsTableModel.setData(saveGame);
+			mapTableModel         .setData(saveGame);
+			addonTableModel       .setData(data, saveGame);
+			objectiveTableModel   .setData(saveGame);
 		});
 	}
 	
@@ -146,7 +149,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			if (saveGame.lastLoadedLevel!=null && language!=null)
 			{
 				Data.MapIndex mapIndex = Data.MapIndex.parse(saveGame.lastLoadedLevel);
-				String mapName = language.regionNames.getNameForMap(mapIndex, ()->null);
+				String mapName = language.regionNames.getName(mapIndex, ()->null);
 				if (mapName!=null)
 					out.add(0, null, "%s", mapName);
 			}
@@ -225,9 +228,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	{
 		if (lang==null || lang.regionNames==null) return null;
 		if (nullIfNoName)
-			return lang.regionNames.getNameForMap(mapIndex, ()->null, ()->null);
+			return lang.regionNames.getName(mapIndex, ()->null);
 		else
-			return lang.regionNames.getNameForMap(mapIndex);
+			return lang.regionNames.getName(mapIndex);
 	}
 
 	private static String getNameOfCargoType(String cargoType, Data data, Language language)
@@ -241,6 +244,13 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 						return name;
 				}
 		return null;
+	}
+
+	private static <RowType> String getDLC(RowType row, VerySimpleTableModel<RowType> model, Function<RowType,String> getID, SnowRunner.DLCs.ItemType itemType)
+	{
+		if (row==null) return null;
+		if (model==null) return null;
+		return model.gfds.dlcs.getDLC(getID.apply(row), itemType);
 	}
 
 	private static String toString(Collection<Boolean> boolCollection)
@@ -287,6 +297,78 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			Truck truck = data==null ? null : data.trucks.get(truckID);
 			if (truck==null) return "<"+truckID+">";
 			return SnowRunner.getTruckLabel(truck, language);
+		}
+	}
+
+	private static class KnownRegionsTableModel extends VerySimpleTableModel<MapIndex>
+	{
+
+		private MapIndex clickedItem;
+
+		KnownRegionsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		{
+			super(mainWindow, gfds, new ColumnID[] {
+					new ColumnID("ID"     , "ID"     ,  String .class,  60,   null, null, false, row->((MapIndex)row).originalMapID()),
+					new ColumnID("Country", "Country",  String .class,  60, CENTER, null, false, row->((MapIndex)row).country()),
+					new ColumnID("Region" , "Region" ,  Integer.class,  60, CENTER, null, false, row->((MapIndex)row).region()),
+					new ColumnID("Name"   , "Name"   ,  String .class, 250,   null, null, false, get((model,lang,row)->getMapName(row, lang, true))),
+					new ColumnID("DLC"    ,"DLC"     ,  String .class, 170,   null, null, false, get((model,lang,row)->getDLC(row, model, MapIndex::originalMapID, SnowRunner.DLCs.ItemType.Region))),
+			});
+			clickedItem = null;
+			finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
+		}
+		
+		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,KnownRegionsTableModel,MapIndex> getFunction)
+		{
+			return ColumnID.get(KnownRegionsTableModel.class, MapIndex.class, getFunction);
+		}
+
+		void setData(SaveGame saveGame)
+		{
+			setRowData(saveGame==null || saveGame.ppd==null ? null : saveGame.ppd.knownRegions);
+		}
+
+		@Override protected String getRowName(MapIndex row)
+		{
+			return row.originalMapID();
+		}
+
+		@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
+			super.modifyTableContextMenu(table_, contextMenu);
+			
+			
+			contextMenu.addSeparator();
+			
+			JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign map to an official DLC", true, e->{
+				if (clickedItem==null) return;
+				
+				String label = language.regionNames.getName(clickedItem, ()->"<"+clickedItem.originalMapID()+">");
+				AssignToDLCDialog dlg = new AssignToDLCDialog(
+						mainWindow,
+						SnowRunner.DLCs.ItemType.Region,
+						clickedItem.originalMapID(),
+						label,
+						gfds.dlcs
+				);
+				boolean assignmentsChanged = dlg.showDialog();
+				if (assignmentsChanged)
+					gfds.controllers.dlcListeners.updateAfterChange();
+			}));
+			
+			contextMenu.addContextMenuInvokeListener((table, x, y) -> {
+				Point p = x==null || y==null ? null : new Point(x,y);
+				int rowV = p==null ? -1 : table.rowAtPoint(p);
+				int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
+				clickedItem = rowM<0 ? null : getRow(rowM);
+				
+				miAssignToDLC.setEnabled(clickedItem!=null);
+				
+				miAssignToDLC.setText(
+					clickedItem==null
+					? "Assign region to an official DLC"
+					: String.format("Assign \"%s\" to an official DLC", language.regionNames.getName(clickedItem, ()->"<"+clickedItem.originalMapID()+">"))
+				);
+			});
 		}
 	}
 
@@ -489,7 +571,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("MapID"     ,"Map ID"                ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
 					new ColumnID("Name"      ,"Name"                  ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
-					new ColumnID("DLC"       ,"DLC"                   ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row,model))),
+					new ColumnID("DLC"       ,"DLC"                   ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row, model, r->r.map.originalMapID(), SnowRunner.DLCs.ItemType.Map))),
 					new ColumnID("Visited"   ,"Visited"               ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).wasVisited),
 					new ColumnID("Garage"    ,"Garage"                ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).garage!=null),
 					new ColumnID("GarageStat","Garage Status"         ,  Long                      .class,  85, CENTER, null, false, row->((MapInfos)row).garageStatus),
@@ -506,13 +588,6 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,MapTableModel,MapInfos> getFunction)
 		{
 			return ColumnID.get(MapTableModel.class, MapInfos.class, getFunction);
-		}
-
-		private static String getDLC(MapInfos row, MapTableModel model)
-		{
-			if (row==null) return null;
-			if (model==null) return null;
-			return model.gfds.dlcs.getDLCofMap(row.map.originalMapID());
 		}
 
 		void setData(Data data)
@@ -542,7 +617,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			JMenuItem miAssignToDLC = contextMenu.add(SnowRunner.createMenuItem("Assign map to an official DLC", true, e->{
 				if (clickedItem==null) return;
 				
-				String label = language.regionNames.getNameForMap(clickedItem.map, ()->"<"+clickedItem.map.originalMapID()+">");
+				String label = language.regionNames.getName(clickedItem.map, ()->"<"+clickedItem.map.originalMapID()+">");
 				AssignToDLCDialog dlg = new AssignToDLCDialog(
 						mainWindow,
 						SnowRunner.DLCs.ItemType.Map,
@@ -566,7 +641,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				miAssignToDLC.setText(
 					clickedItem==null
 					? "Assign map to an official DLC"
-					: String.format("Assign \"%s\" to an official DLC", language.regionNames.getNameForMap(clickedItem.map, ()->"<"+clickedItem.map.originalMapID()+">"))
+					: String.format("Assign \"%s\" to an official DLC", language.regionNames.getName(clickedItem.map, ()->"<"+clickedItem.map.originalMapID()+">"))
 				);
 			});
 		}
