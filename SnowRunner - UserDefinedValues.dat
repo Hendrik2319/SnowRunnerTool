@@ -9,6 +9,16 @@ AWD=Installed
 DiffLock=Installed
 
 [Truck]
+id=cat_770g
+AWD=None
+DiffLock=Permanent
+
+[Truck]
+id=cat_th357
+AWD=Permanent
+DiffLock=Permanent
+
+[Truck]
 id=chevrolet_ck1500
 AWD=Installed
 DiffLock=Able
