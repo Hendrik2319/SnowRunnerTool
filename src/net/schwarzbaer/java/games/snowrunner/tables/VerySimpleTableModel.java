@@ -1,5 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -39,13 +40,17 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.JToolBar;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
@@ -362,7 +367,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			originalRows.addAll(rows);
 			if (initialRowOrder != null)
 				originalRows.sort(initialRowOrder);
-			this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns, this::getValue));
+			this.rows.addAll(RowFiltering.filterRows(originalRows, Arrays.asList(originalColumns), this::getValue));
 		}
 		extraUpdate();
 		fireTableUpdate();
@@ -511,24 +516,38 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		contextMenu.addSeparator();
 		
 		contextMenu.add(SnowRunner.createMenuItem("Hide/Unhide Columns ...", true, e->{
-			ColumnHideDialog dlg = new ColumnHideDialog(mainWindow,originalColumns,getClass().getName());
+			ColumnHiding.ColumnHideDialog dlg = new ColumnHiding.ColumnHideDialog(mainWindow, originalColumns, getTableModelID());
 			boolean changed = dlg.showDialog();
 			if (changed) {
-				super.columns = ColumnHideDialog.removeHiddenColumns(originalColumns);
+				super.columns = ColumnHiding.removeHiddenColumns(originalColumns);
 				fireTableStructureUpdate();
 				reconfigureAfterTableStructureUpdate();
 			}
 		}));
 		
 		contextMenu.add(SnowRunner.createMenuItem("Filter Rows ...", true, e->{
-			FilterRowsDialog dlg = new FilterRowsDialog(mainWindow,originalColumns,getClass().getName());
+			RowFiltering.FilterRowsDialog dlg = new RowFiltering.FilterRowsDialog(mainWindow, originalColumns, getTableModelID());
 			boolean changed = dlg.showDialog();
 			if (changed) {
 				rows.clear();
 				clearCacheOfAllColumns();
-				this.rows.addAll(FilterRowsDialog.filterRows(originalRows, originalColumns, this::getValue));
+				this.rows.addAll(RowFiltering.filterRows(originalRows, Arrays.asList(originalColumns), this::getValue));
 				fireTableStructureUpdate();
 				reconfigureAfterTableStructureUpdate();
+			}
+		}));
+		
+		contextMenu.addSeparator();
+		
+		contextMenu.add(new JMenu("Row Colorings"));
+		
+		contextMenu.add(SnowRunner.createMenuItem("Configure Row Colorings ...", true, e->{
+			RowColoring.ConfigureDialog dlg = new RowColoring.ConfigureDialog(mainWindow, originalColumns, getTableModelID());
+			
+			boolean changed = dlg.showDialog();
+			if (changed) {
+				// TODO
+				
 			}
 		}));
 		
@@ -644,874 +663,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		return -1;
 	}
 	
-	private static class FilterRowsDialog extends ModelConfigureDialog<HashMap<String,FilterRowsDialog.Filter>> {
-		private static final long serialVersionUID = 6171301101675843952L;
-		private static final FilterRowsDialog.Presets presets = new Presets();
-		
-		private final FilterGuiElement[] columnElements;
-	
-		FilterRowsDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
-			super(owner, "Filter Rows", "Define filters", originalColumns, presets, tableModelIDstr);
-			
-			JPanel columnPanel = FilterGuiElement.createEmptyColumnPanel();
-			columnElements = new FilterGuiElement[originalColumns.length];
-			for (int i=0; i<this.originalColumns.length; i++) {
-				columnElements[i] = new FilterGuiElement(this.originalColumns[i]);
-				columnElements[i].addToPanel(columnPanel);
-			}
-			
-			GridBagConstraints c = new GridBagConstraints();
-			c.weighty = 1;
-			columnPanel.add(new JLabel(), c);
-			
-			columnScrollPane.setViewportView(columnPanel);
-			columnScrollPane.setPreferredSize(new Dimension(600,700));
-		}
-
-		@Override protected boolean resetValuesFinal() {
-			boolean hasChanged = false;
-			for (ColumnID columnID : this.originalColumns) {
-				if (columnID.filter!=null) {
-					columnID.filter = null;
-					hasChanged = true;
-				}
-			}
-			return hasChanged;
-		}
-
-		@Override protected boolean setValuesFinal() {
-			boolean hasChanged = false;
-			for (int i=0; i<this.originalColumns.length; i++) {
-				ColumnID columnID = this.originalColumns[i];
-				Filter filter = columnElements[i].getFilter();
-				
-				if (filter==null && columnID.filter!=null) {
-					columnID.filter.active = false;
-					hasChanged = true;
-					
-				} else if (filter!=null && !filter.equals(columnID.filter)) {
-					columnID.filter = filter;
-					hasChanged = true;
-				}
-			}
-			return hasChanged;
-		}
-
-		@Override protected void setPresetInGui(HashMap<String, Filter> preset) {
-			for (FilterGuiElement elem : columnElements)
-				elem.setValues(preset.get(elem.columnID.id));
-		}
-
-		@Override protected HashMap<String, Filter> getCopyOfCurrentPreset() {
-			HashMap<String, Filter> preset = new HashMap<>();
-			for (FilterGuiElement elem : columnElements) {
-				Filter filter = elem.getFilter();
-				if (filter!=null && filter.active)
-					preset.put(elem.columnID.id, filter.clone());
-			}
-			return preset;
-		}
-		
-		interface GetValue<RowType>
-		{
-			Object getValue(ColumnID columnID, int rowIndex, RowType row);
-		}
-
-		static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, ColumnID[] originalColumns, GetValue<RowType> getValue) {
-			Vector<RowType> filteredRows = new Vector<>();
-			for (int rowIndex=0; rowIndex<originalRows.size(); rowIndex++)
-			{
-				RowType row = originalRows.get(rowIndex);
-				boolean meetsFilter = true;
-				for (ColumnID columnID : originalColumns) {
-					if (columnID.filter==null || !columnID.filter.active)
-						continue;
-					
-					Object value = getValue.getValue(columnID, rowIndex, row);
-					if (!columnID.filter.valueMeetsFilter(value)) {
-						meetsFilter = false;
-						break;
-					}
-				}
-				if (meetsFilter)
-					filteredRows.add(row);
-			}
-			
-			return filteredRows;
-		}
-
-		static abstract class Filter {
-			
-			boolean active = false;
-			boolean allowUnset = false;
-
-			boolean valueMeetsFilter(Object value) {
-				if (allowUnset && value==null)
-					return true;
-				return valueMeetsFilter_SubType(value);
-			}
-
-			public static Filter parse(String str) {
-				int pos;
-				String valueStr;
-				
-				pos = str.indexOf(':');
-				if (pos<0) return null;
-				valueStr = str.substring(0, pos);
-				str = str.substring(pos+1);
-				boolean active;
-				switch (valueStr) {
-				case "true" : active = true; break;
-				case "false": active = false; break;
-				default: return null;
-				}
-				
-				pos = str.indexOf(':');
-				if (pos<0) return null;
-				valueStr = str.substring(0, pos);
-				str = str.substring(pos+1);
-				boolean allowUnset;
-				switch (valueStr) {
-				case "true" : allowUnset = true; break;
-				case "false": allowUnset = false; break;
-				default: return null;
-				}
-				
-				pos = str.indexOf(':');
-				if (pos<0) return null;
-				String simpleClassName = str.substring(0, pos);
-				str = str.substring(pos+1);
-				
-				Filter filter = null;
-				switch (simpleClassName) {
-				case "NumberFilter": filter = NumberFilter.parseNumberFilter(str); break;
-				case "BoolFilter"  : filter = BoolFilter.parseBoolFilter(str); break;
-				case "EnumFilter"  : filter = EnumFilter.parseEnumFilter(str); break;
-				}
-				
-				if (filter != null) {
-					filter.active = active;
-					filter.allowUnset = allowUnset;
-				}
-				
-				return filter;
-			}
-
-			final String toParsableString() {
-				return String.format("%s:%s:%s:%s", active, allowUnset, getClass().getSimpleName(), toParsableString_SubType());
-			}
-
-			@Override final public boolean equals(Object obj) {
-				if (!(obj instanceof Filter)) return false;
-				Filter other = (Filter) obj;
-				if (this.active    !=other.active    ) return false;
-				if (this.allowUnset!=other.allowUnset) return false;
-				return equals_SubType(other);
-			}
-			
-			@Override final protected Filter clone() {
-				Filter filter = clone_SubType();
-				filter.active     = active    ;
-				filter.allowUnset = allowUnset;
-				return filter;
-			}
-
-			protected abstract boolean valueMeetsFilter_SubType(Object value);
-			protected abstract String toParsableString_SubType();
-			protected abstract boolean equals_SubType(Filter other);
-			protected abstract Filter clone_SubType();
-			
-			
-			static class EnumFilter<E extends Enum<E>> extends Filter {
-				private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
-				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
-				static {
-					registerEnumFilter("DiffLockType", Truck.DiffLockType .class, Truck.DiffLockType ::valueOf);
-					registerEnumFilter("Country"     , Truck.Country      .class, Truck.Country      ::valueOf);
-					registerEnumFilter("TruckType"   , Truck.TruckType    .class, Truck.TruckType    ::valueOf);
-					registerEnumFilter("ItemStat"    , Truck.UDV.ItemState.class, Truck.UDV.ItemState::valueOf);
-				}
-
-				private static <E extends Enum<E>> void registerEnumFilter(String filterID, Class<E> valueClass, Function<String, E> parseValue) {
-					KnownFilterIDs.put(valueClass,filterID);
-					KnownTypes.put(filterID, values -> parseEnumFilter(valueClass, filterID, values, parseValue));
-				}
-
-				static String getFilterID(Class<?> valueClass) {
-					String filterID = KnownFilterIDs.get(valueClass);
-					if (filterID==null) throw new IllegalStateException(String.format("EnumFilter: Can't find filter id for value class \"%s\"", valueClass.getCanonicalName()));
-					return filterID;
-				}
-
-				private final String filterID;
-				private final Class<E> valueClass;
-				private final EnumSet<E> allowedValues;
-
-				EnumFilter(String filterID, Class<E> valueClass) {
-					this.filterID = filterID;
-					if (valueClass==null) throw new IllegalArgumentException();
-					this.valueClass = valueClass;
-					this.allowedValues = EnumSet.noneOf(valueClass);
-					EnumSet.allOf(valueClass);
-				}
-
-				@Override protected boolean valueMeetsFilter_SubType(Object value) {
-					if (valueClass.isInstance(value)) {
-						E e = valueClass.cast(value);
-						return allowedValues.contains(e);
-					} 
-					return false;
-				}
-
-				@Override protected boolean equals_SubType(Filter other) {
-					if (other instanceof EnumFilter) {
-						EnumFilter<?> otherEnumFilter = (EnumFilter<?>) other;
-						if (valueClass != otherEnumFilter.valueClass) return false;
-						if (!areAllValuesContainedIn(otherEnumFilter.allowedValues)) return false;
-						if (!otherEnumFilter.areAllValuesContainedIn(allowedValues)) return false;
-						return true;
-					}
-					return false;
-				}
-				
-				private boolean areAllValuesContainedIn(Set<?> values) {
-					for (E e : allowedValues) {
-						if (!values.contains(e))
-							return false;
-					}
-					return true;
-				}
-
-				@Override protected Filter clone_SubType() {
-					EnumFilter<E> enumFilter = new EnumFilter<>(filterID,valueClass);
-					enumFilter.allowedValues.addAll(allowedValues);
-					return enumFilter;
-				}
-
-				public static Filter parseEnumFilter(String str) {
-					int pos = str.indexOf(':');
-					if (pos<0) return null;
-					String filterID = str.substring(0, pos);
-					String namesStr = str.substring(pos+1);
-					String[] names = namesStr.split(",");
-					
-					Function<String[], EnumFilter<?>> parseFilter = KnownTypes.get(filterID);
-					if (parseFilter==null) {
-						System.err.printf("Can't parse EnumFilter: Unknown filter ID \"%s\" in \"%s\"%n", filterID, str);
-						return null;
-					}
-					
-					return parseFilter.apply(names);
-				}
-
-				private static <E extends Enum<E>> EnumFilter<E> parseEnumFilter(Class<E> valueClass, String filterID, String[] names, Function<String, E> parseEnumValue) {
-					EnumFilter<E> filter = new EnumFilter<>(filterID,valueClass);
-					for (String name : names)
-						try {
-							filter.allowedValues.add(parseEnumValue.apply(name));
-						} catch (Exception ex) {
-							System.err.printf("EnumFilter[%s]: Can't parse value \"%s\" for enum \"%s\"%n", filterID, name, valueClass.getCanonicalName());
-						}
-					return filter;
-				}
-
-				@Override protected String toParsableString_SubType() {
-					String[] names = allowedValues.stream().map(e->e.name()).toArray(String[]::new);
-					return String.format("%s:%s", filterID, String.join(",", names));
-				}
-				
-			}
-
-
-			static class NumberFilter<V extends Number> extends Filter {
-				
-				V min,max;
-				private final Class<V> valueClass;
-				private final Function<V, String> toParsableString;
-				private final BiFunction<V, V, Integer> compare;
-				
-				NumberFilter(Class<V> valueClass, V min, V max, BiFunction<V,V,Integer> compare, Function<V,String> toParsableString) {
-					this.valueClass = valueClass;
-					this.min = min;
-					this.max = max;
-					this.compare = compare;
-					this.toParsableString = toParsableString;
-					if (this.valueClass==null) throw new IllegalArgumentException();
-					if (this.toParsableString==null) throw new IllegalArgumentException();
-					if (this.min==null) throw new IllegalArgumentException();
-					if (this.max==null) throw new IllegalArgumentException();
-				}
-
-				@Override protected boolean valueMeetsFilter_SubType(Object value) {
-					if (valueClass.isInstance(value)) {
-						V v = valueClass.cast(value);
-						if (compare.apply(min, max)<=0)
-							// ---- min #### max ---- 
-							return compare.apply(min, v)<=0 && compare.apply(v, max)<=0;
-						// #### max ---- min #### 
-						return compare.apply(min, v)<=0 || compare.apply(v, max)<=0;
-					} 
-					return false;
-				}
-
-				@Override protected boolean equals_SubType(Filter other) {
-					if (other instanceof NumberFilter) {
-						NumberFilter<?> numberFilter = (NumberFilter<?>) other;
-						if (valueClass!=numberFilter.valueClass) return false;
-						if (!min.equals(numberFilter.min)) return false;
-						if (!max.equals(numberFilter.max)) return false;
-						return true;
-					}
-					return false;
-				}
-
-				@Override
-				protected Filter clone_SubType() {
-					return new NumberFilter<>(valueClass, min, max, compare, toParsableString);
-				}
-				
-				public static Filter parseNumberFilter(String str) {
-					String[] strs = str.split(":");
-					if (strs.length!=3) return null;
-					String valueClassName = strs[0];
-					String minStr = strs[1];
-					String maxStr = strs[2];
-					
-					switch (valueClassName) {
-					case "Integer":
-						try {
-							NumberFilter<Integer> filter = createIntFilter();
-							filter.min = Integer.parseInt(minStr);
-							filter.max = Integer.parseInt(maxStr);
-							return filter;
-						} catch (NumberFormatException e) {
-							return null;
-						}
-					case "Long":
-						try {
-							NumberFilter<Long> filter = createLongFilter();
-							filter.min = Long.parseLong(minStr);
-							filter.max = Long.parseLong(maxStr);
-							return filter;
-						} catch (NumberFormatException e) {
-							return null;
-						}
-					case "Float":
-						try {
-							NumberFilter<Float> filter = createFloatFilter();
-							filter.min = Float.intBitsToFloat( Integer.parseUnsignedInt(minStr,16) );
-							filter.max = Float.intBitsToFloat( Integer.parseUnsignedInt(maxStr,16) );
-							return filter;
-						} catch (NumberFormatException e) {
-							return null;
-						}
-					case "Double":
-						try {
-							NumberFilter<Double> filter = createDoubleFilter();
-							filter.min = Double.longBitsToDouble( Long.parseUnsignedLong(minStr,16) );
-							filter.max = Double.longBitsToDouble( Long.parseUnsignedLong(maxStr,16) );
-							return filter;
-						} catch (NumberFormatException e) {
-							return null;
-						}
-					}
-					return null;
-				}
-
-				@Override protected String toParsableString_SubType() {
-					String minStr = toParsableString.apply(min);
-					String maxStr = toParsableString.apply(max);
-					String simpleName = valueClass.getSimpleName();
-					return String.format("%s:%s:%s", simpleName, minStr, maxStr);
-				}
-
-				static NumberFilter<Integer> createIntFilter   () { return new NumberFilter<Integer>(Integer.class, 0 , 0 , Integer::compare, v->Integer.toString(v)); }
-				static NumberFilter<Long   > createLongFilter  () { return new NumberFilter<Long   >(Long   .class, 0L, 0L, Long   ::compare, v->Long.toString(v)); }
-				static NumberFilter<Float  > createFloatFilter () { return new NumberFilter<Float  >(Float  .class, 0f, 0f, Float  ::compare, v->String.format("%08X", Float.floatToIntBits(v))); }
-				static NumberFilter<Double > createDoubleFilter() { return new NumberFilter<Double >(Double .class, 0d, 0d, Double ::compare, v->String.format("%016X", Double.doubleToLongBits(v))); }
-				
-			}
-			
-			
-			static class BoolFilter extends Filter {
-			
-				boolean allowTrues = true;
-
-				@Override protected boolean valueMeetsFilter_SubType(Object value) {
-					if (value instanceof Boolean) {
-						Boolean v = (Boolean) value;
-						return allowTrues == v.booleanValue();
-					}
-					if (value instanceof Data.BooleanWithText) {
-						Data.BooleanWithText v = (Data.BooleanWithText) value;
-						return allowTrues == v.getBool();
-					}
-					return false;
-				}
-
-				@Override protected boolean equals_SubType(Filter other) {
-					if (other instanceof BoolFilter) {
-						BoolFilter boolFilter = (BoolFilter) other;
-						return this.allowTrues == boolFilter.allowTrues;
-					}
-					return false;
-				}
-			
-				@Override protected BoolFilter clone_SubType() {
-					BoolFilter boolFilter = new BoolFilter();
-					boolFilter.allowTrues = allowTrues;
-					return boolFilter;
-				}
-
-				public static Filter parseBoolFilter(String str) {
-					BoolFilter boolFilter = new BoolFilter();
-					switch (str) {
-					case "true" : boolFilter.allowTrues = true; break;
-					case "false": boolFilter.allowTrues = false; break;
-					default: return null;
-					}
-					return boolFilter;
-				}
-
-				@Override protected String toParsableString_SubType() {
-					return Boolean.toString(allowTrues);
-				}
-				
-			}
-			
-			
-			
-		}
-		
-		static class FilterGuiElement {
-			private static final HashMap<Class<?>,Supplier<OptionsPanel>> RegisteredOptionsPanels = new HashMap<>();
-			static {
-				RegisteredOptionsPanels.put(Boolean        .class, ()->new OptionsPanel.BoolOptions(new Filter.BoolFilter()));
-				RegisteredOptionsPanels.put(Data.Capability.class, ()->new OptionsPanel.BoolOptions(new Filter.BoolFilter()));
-				RegisteredOptionsPanels.put(Integer.class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null             ));
-				RegisteredOptionsPanels.put(Long   .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null             ));
-				RegisteredOptionsPanels.put(Float  .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite ));
-				RegisteredOptionsPanels.put(Double .class, ()->OptionsPanel.NumberOptions.create( Filter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite ));
-				RegisteredOptionsPanels.put(Truck.Country      .class, ()->OptionsPanel.EnumOptions.create(Truck.Country      .class, Truck.Country      .values()));
-				RegisteredOptionsPanels.put(Truck.DiffLockType .class, ()->OptionsPanel.EnumOptions.create(Truck.DiffLockType .class, Truck.DiffLockType .values()));
-				RegisteredOptionsPanels.put(Truck.TruckType    .class, ()->OptionsPanel.EnumOptions.create(Truck.TruckType    .class, Truck.TruckType    .values()));
-				RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, ()->OptionsPanel.EnumOptions.create(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values()));
-			}
-			
-			private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
-			final ColumnID columnID;
-			private final JCheckBox baseCheckBox;
-			private final OptionsPanel optionsPanel;
-			private final Color defaultBG;
-
-			FilterGuiElement(ColumnID columnID) {
-				this.columnID = columnID;
-				
-				Supplier<OptionsPanel> creator = RegisteredOptionsPanels.get(this.columnID.config.columnClass);
-				if (creator==null) optionsPanel = new OptionsPanel.DummyOptions(this.columnID.config.columnClass);
-				else               optionsPanel = creator.get();
-				
-				optionsPanel.setValues(this.columnID.filter);
-				if (optionsPanel.filter!=null)
-					optionsPanel.filter.active = this.columnID.filter!=null && this.columnID.filter.active;
-				
-				baseCheckBox = SnowRunner.createCheckBox(
-						this.columnID.config.name,
-						optionsPanel.filter!=null && optionsPanel.filter.active,
-						null, optionsPanel.filter!=null,
-						this::setActive);
-				defaultBG = baseCheckBox.getBackground();
-				
-				showActive(optionsPanel.filter!=null && optionsPanel.filter.active);
-			}
-
-			private void setActive(boolean isActive) {
-				if (optionsPanel.filter!=null)
-					optionsPanel.filter.active = isActive;
-				showActive(isActive);
-			}
-
-			private void showActive(boolean isActive) {
-				optionsPanel.setEnableOptions(isActive);
-				baseCheckBox.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
-				//optionsPanel.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
-			}
-
-			Filter getFilter() {
-				return optionsPanel.filter;
-			}
-
-			void setValues(Filter filter) {
-				if (optionsPanel.filter!=null) {
-					optionsPanel.filter.active = filter!=null && filter.active;
-					baseCheckBox.setSelected(optionsPanel.filter.active);
-					showActive(optionsPanel.filter.active);
-				}
-				optionsPanel.setValues(filter);
-			}
-
-			static JPanel createEmptyColumnPanel() {
-				return new JPanel(new GridBagLayout());
-			}
-
-			void addToPanel(JPanel columnPanel) {
-				
-				GridBagConstraints c = new GridBagConstraints();
-				c.fill = GridBagConstraints.BOTH;
-				
-				c.weightx = 0;
-				c.gridwidth = 1;
-				columnPanel.add(baseCheckBox, c);
-				
-				c.weightx = 1;
-				c.gridwidth = GridBagConstraints.REMAINDER;
-				columnPanel.add(optionsPanel, c);
-			}
-			
-			static abstract class OptionsPanel extends JPanel {
-				private static final long serialVersionUID = -8491252831775091069L;
-				
-				protected final GridBagConstraints c;
-				final Filter filter;
-				private final JCheckBox chkbxUnset;
-
-				OptionsPanel(Filter filter) {
-					super(new GridBagLayout());
-					this.filter = filter;
-					c = new GridBagConstraints();
-					c.fill = GridBagConstraints.BOTH;
-					c.weightx = 0;
-					if (this.filter!=null)
-						add(chkbxUnset = SnowRunner.createCheckBox("unset", false, null, true, b->this.filter.allowUnset = b), c);
-					else
-						chkbxUnset = null;
-				}
-
-				void setEnableOptions(boolean isEnabled) {
-					if (chkbxUnset!=null)
-						chkbxUnset.setEnabled(isEnabled);
-				}
-
-				void setValues(Filter filter) {
-					if (this.filter!=null) {
-						this.filter.allowUnset = filter!=null && filter.allowUnset;
-						chkbxUnset.setSelected(this.filter.allowUnset);
-					}
-				}
-
-
-				static class DummyOptions extends OptionsPanel {
-					private static final long serialVersionUID = 4500779916477896148L;
-
-					public DummyOptions(Class<?> columnClass) {
-						super(null);
-						c.weightx = 1;
-						String message;
-						if (columnClass==String.class) message = "No Filter for text values";
-						else message = String.format("No Filter for Column of %s", columnClass==null ? "<null>" : columnClass.getCanonicalName());
-						add(new JLabel(message), c);
-					}
-				
-				}
-
-
-				static class EnumOptions<E extends Enum<E>> extends OptionsPanel {
-					private static final long serialVersionUID = -458324264563153126L;
-					
-					private final Filter.EnumFilter<E> filter;
-					private final JCheckBox[] checkBoxes;
-					private final E[] values;
-
-					EnumOptions(Filter.EnumFilter<E> filter, E[] values) {
-						super(filter);
-						if (filter==null) throw new IllegalArgumentException();
-						if (values==null) throw new IllegalArgumentException();
-						
-						this.filter = filter;
-						this.values = values;
-						
-						checkBoxes = new JCheckBox[this.values.length];
-						c.weightx = 0;
-						for (int i=0; i<this.values.length; i++) {
-							E e = this.values[i];
-							boolean isSelected = this.filter.allowedValues.contains(e);
-							checkBoxes[i] = SnowRunner.createCheckBox(e.toString(), isSelected, null, true, b->{
-								if (b) this.filter.allowedValues.add(e);
-								else   this.filter.allowedValues.remove(e);
-							});
-							add(checkBoxes[i], c);
-						}
-						c.weightx = 1;
-						add(new JLabel(), c);
-					}
-
-					@Override void setEnableOptions(boolean isEnabled) {
-						super.setEnableOptions(isEnabled);
-						for (int i=0; i<checkBoxes.length; i++)
-							checkBoxes[i].setEnabled(isEnabled);
-					}
-
-					@Override void setValues(Filter filter) {
-						super.setValues(filter);
-						if (filter instanceof Filter.EnumFilter) {
-							Filter.EnumFilter<?> enumFilter = (Filter.EnumFilter<?>) filter;
-							
-							if (this.filter.valueClass!=enumFilter.valueClass)
-								throw new IllegalStateException();
-							
-							this.filter.allowedValues.clear();
-							for (int i=0; i<values.length; i++) {
-								E e = values[i];
-								if (enumFilter.allowedValues.contains(e)) {
-									this.filter.allowedValues.add(e);
-									checkBoxes[i].setSelected(true);
-								} else
-									checkBoxes[i].setSelected(false);
-							}
-						}
-					}
-
-					static <E extends Enum<E>> EnumOptions<E> create( Class<E> valueClass, E[] values) {
-						return new EnumOptions<>(new Filter.EnumFilter<>(Filter.EnumFilter.getFilterID(valueClass), valueClass), values);
-					}
-				}
-
-
-				static class NumberOptions<V extends Number> extends OptionsPanel {
-					private static final long serialVersionUID = -436186682804402478L;
-					
-					private final Filter.NumberFilter<V> filter;
-					private final JLabel labMin, labMax;
-					private final JTextField fldMin, fldMax;
-					private final Function<V, String> toString;
-
-					NumberOptions(Filter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
-						super(filter);
-						this.filter = filter;
-						this.toString = toString;
-						
-						if (filter==null) throw new IllegalArgumentException();
-						if (toString==null) throw new IllegalArgumentException();
-						if (convert==null) throw new IllegalArgumentException();
-						
-						c.weightx = 0;
-						add(labMin = new JLabel("   min: "), c);
-						add(fldMin = SnowRunner.createTextField(10, this.toString.apply(this.filter.min), convert, isOK, v->this.filter.min = v), c);
-						add(labMax = new JLabel("   max: "), c);
-						add(fldMax = SnowRunner.createTextField(10, this.toString.apply(this.filter.max), convert, isOK, v->this.filter.max = v), c);
-						c.weightx = 1;
-						add(new JLabel(), c);
-					}
-					
-					static <V extends Number> NumberOptions<V> create(Filter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
-						return new NumberOptions<V>( filter,
-								v -> v==null ? "<null>" : toString.apply(v),
-								str -> {
-									try { return convert.apply(str);
-									} catch (NumberFormatException e) { return null; }
-								},
-								isOK
-							);
-					}
-
-					@Override void setEnableOptions(boolean isEnabled) {
-						super.setEnableOptions(isEnabled);
-						labMin.setEnabled(isEnabled);
-						fldMin.setEnabled(isEnabled);
-						labMax.setEnabled(isEnabled);
-						fldMax.setEnabled(isEnabled);
-					}
-
-					@Override void setValues(Filter filter) {
-						super.setValues(filter);
-						if (filter instanceof Filter.NumberFilter) {
-							Filter.NumberFilter<?> numberFilter = (Filter.NumberFilter<?>) filter;
-							if (this.filter.valueClass!=numberFilter.valueClass)
-								throw new IllegalStateException(String.format("filter.valueClass(%s) != numberFilter.valueClass(%s)", this.filter.valueClass, numberFilter.valueClass));
-							this.filter.min = this.filter.valueClass.cast(numberFilter.min);
-							this.filter.max = this.filter.valueClass.cast(numberFilter.max);
-							fldMin.setText(toString.apply(this.filter.min));
-							fldMax.setText(toString.apply(this.filter.max));
-						}
-					}
-					
-				}
-
-
-				static class BoolOptions extends OptionsPanel {
-					private static final long serialVersionUID = 1821563263682227455L;
-					private final Filter.BoolFilter filter;
-					private final JRadioButton rbtnTrue;
-					private final JRadioButton rbtnFalse;
-					
-					BoolOptions(Filter.BoolFilter filter) {
-						super(filter);
-						this.filter = filter;
-						ButtonGroup bg = new ButtonGroup();
-						c.weightx = 0;
-						add(rbtnTrue  = SnowRunner.createRadioButton("TRUE" , bg, true,  this.filter.allowTrues, e->this.filter.allowTrues = true ), c);
-						add(rbtnFalse = SnowRunner.createRadioButton("FALSE", bg, true, !this.filter.allowTrues, e->this.filter.allowTrues = false), c);
-						c.weightx = 1;
-						add(new JLabel(), c);
-					}
-
-					@Override void setEnableOptions(boolean isEnabled) {
-						super.setEnableOptions(isEnabled);
-						rbtnTrue .setEnabled(isEnabled);
-						rbtnFalse.setEnabled(isEnabled);
-					}
-
-					@Override void setValues(Filter filter) {
-						super.setValues(filter);
-						if (filter instanceof Filter.BoolFilter) {
-							Filter.BoolFilter boolFilter = (Filter.BoolFilter) filter;
-							this.filter.allowTrues = boolFilter.allowTrues;
-							if (this.filter.allowTrues) rbtnTrue .setSelected(true);
-							else                        rbtnFalse.setSelected(true);
-						}
-					}
-					
-				}
-			}
-		}
-
-		private static class Presets extends PresetMaps<HashMap<String,Filter>> {
-		
-			Presets() {
-				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,Filter>::new);
-			}
-		
-			@Override protected void parseLine(String line, HashMap<String, Filter> preset) {
-				String valueStr;
-				if ( (valueStr=Data.getLineValue(line, "Filter="))!=null ) {
-					int endOfKey = valueStr.indexOf(':');
-					if (endOfKey<0) {
-						System.err.printf("Can't parse filter in line for FilterRowsPresets: \"%s\"%n", valueStr);
-						return;
-					}
-					String key = valueStr.substring(0, endOfKey);
-					String filterStr = valueStr.substring(endOfKey+1);
-					Filter filter = Filter.parse( filterStr );
-					if (filter!=null) preset.put(key, filter);
-					else System.err.printf("Can't parse filter in line for FilterRowsPresets: \"%s\"%n", valueStr);
-				}
-			}
-		
-			@Override protected void writePresetInLines(HashMap<String, Filter> preset, PrintWriter out) {
-				Vector<String> keys = new Vector<>(preset.keySet());
-				keys.sort(null);
-				for (String key : keys) {
-					Filter filter = preset.get(key);
-					out.printf("Filter=%s:%s%n", key, filter.toParsableString());
-				}
-			}
-			
-		}
-	
-	}
-
-	private static class ColumnHideDialog extends ModelConfigureDialog<HashSet<String>> {
-		private static final long serialVersionUID = 4240161527743718020L;
-		private static final ColumnHideDialog.Presets presets = new Presets();
-		
-		private final JCheckBox[] columnElements;
-		private final HashSet<String> currentPreset;
-		
-		ColumnHideDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
-			super(owner, "Visible Columns", "Define visible columns", originalColumns, presets, tableModelIDstr);
-			
-			currentPreset = new HashSet<>();
-			JPanel columnPanel = new JPanel(new GridLayout(0,1));
-			columnElements = new JCheckBox[originalColumns.length];
-			for (int i=0; i<originalColumns.length; i++) {
-				JCheckBox columnElement = createColumnElement(this.originalColumns[i]);
-				columnElements[i] = columnElement;
-				columnPanel.add(columnElement);
-			}
-			
-			GridBagConstraints c = new GridBagConstraints();
-			c.weighty = 1;
-			columnPanel.add(new JLabel(), c);
-			
-			columnScrollPane.setViewportView(columnPanel);
-		}
-
-		@Override protected HashSet<String> getCopyOfCurrentPreset() {
-			return new HashSet<>(currentPreset);
-		}
-		
-		@Override protected void setPresetInGui(HashSet<String> preset) {
-			currentPreset.clear();
-			currentPreset.addAll(preset);
-			for (int i=0; i<this.originalColumns.length; i++) {
-				ColumnID column = this.originalColumns[i];
-				boolean isVisible = preset.contains(column.id);
-				columnElements[i].setSelected(isVisible);
-			}
-		}
-
-		private JCheckBox createColumnElement(ColumnID columnID) {
-			if (columnID.isVisible) currentPreset.add(columnID.id);
-			JCheckBox checkBox = SnowRunner.createCheckBox(columnID.config.name, columnID.isVisible, null, true, b->{
-				if (b) currentPreset.add(columnID.id);
-				else   currentPreset.remove(columnID.id);
-			});
-			return checkBox;
-		}
-
-//			@Override protected void addColumnElementToPanel(JPanel columnPanel, JCheckBox columnElement) {
-//				columnPanel.add(columnElement);
-//			}
-
-		@Override protected boolean resetValuesFinal() {
-			boolean hasChanged = false;
-			for (ColumnID columnID : this.originalColumns) {
-				if (!columnID.isVisible) {
-					columnID.isVisible = true;
-					hasChanged = true;
-				}
-			}
-			return hasChanged;
-		}
-
-		@Override protected boolean setValuesFinal() {
-			boolean hasChanged = false;
-			for (ColumnID columnID : originalColumns) {
-				boolean isVisible = currentPreset.contains(columnID.id);
-				if (columnID.isVisible != isVisible) {
-					columnID.isVisible = isVisible;
-					hasChanged = true;
-				}
-			}
-			return hasChanged;
-		}
-		
-		static ColumnID[] removeHiddenColumns(ColumnID[] originalColumns) {
-			return Arrays.stream(originalColumns).filter(column->column.isVisible).toArray(ColumnID[]::new);
-		}
-
-		private static class Presets extends PresetMaps<HashSet<String>> {
-		
-			Presets() {
-				super("ColumnHidePresets", SnowRunner.ColumnHidePresetsFile, HashSet<String>::new);
-			}
-			
-			@Override protected void parseLine(String line, HashSet<String> preset) {
-				String valueStr;
-				if ( (valueStr=Data.getLineValue(line, "Columns="))!=null ) {
-					String[] columnIDs = valueStr.split(",");
-					preset.clear();
-					preset.addAll(Arrays.asList(columnIDs));
-				}
-			}
-			
-			@Override protected void writePresetInLines(HashSet<String> preset, PrintWriter out) {
-				Vector<String> sortedPreset = new Vector<>(preset);
-				sortedPreset.sort(null);
-				out.printf("Columns=%s%n", String.join(",", sortedPreset));
-			}
-			
-		}
+	protected String getTableModelID()
+	{
+		return getClass().getName();
 	}
 
 	private static abstract class ModelConfigureDialog<Preset> extends JDialog {
@@ -1521,26 +675,23 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private boolean hasChanged;
 		private boolean ignorePresetComboBoxEvent;
 		private final HashMap<String, Preset> modelPresets;
-		protected final ColumnID[] originalColumns;
 		private final Vector<String> presetNames;
 		private final JComboBox<String> presetComboBox;
 		private final PresetMaps<Preset> presetMaps;
-		protected final JScrollPane columnScrollPane;
-
-		
-		ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, ColumnID[] originalColumns, PresetMaps<Preset> presetMaps, String tableModelID) {
+		protected final JScrollPane filterListScrollPane;
+	
+		ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, PresetMaps<Preset> presetMaps, String tableModelID) {
 			super(owner, title, ModalityType.APPLICATION_MODAL);
 			this.owner = owner;
-			this.originalColumns = originalColumns;
 			this.presetMaps = presetMaps;
 			this.modelPresets = this.presetMaps.getModelPresets(tableModelID);
 			this.hasChanged = false;
 			GridBagConstraints c;
 			
-			columnScrollPane = new JScrollPane();
-			columnScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-			columnScrollPane.setPreferredSize(new Dimension(300,400));
-			columnScrollPane.getVerticalScrollBar().setUnitIncrement(10);
+			filterListScrollPane = new JScrollPane();
+			filterListScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			filterListScrollPane.setPreferredSize(new Dimension(300,400));
+			filterListScrollPane.getVerticalScrollBar().setUnitIncrement(10);
 			
 			presetNames = new Vector<>(modelPresets.keySet());
 			presetNames.sort(null);
@@ -1602,19 +753,19 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			c.weighty = 0;
 			contentPane.add(new JLabel(columnPanelHeadline+":"), c);
 			c.weighty = 1;
-			contentPane.add(columnScrollPane, c);
+			contentPane.add(filterListScrollPane, c);
 			c.weighty = 0;
 			contentPane.add(presetPanel, c);
 			contentPane.add(dlgButtonPanel, c);
 			
 			setContentPane(contentPane);
 		}
-
+	
 		protected abstract boolean resetValuesFinal();
 		protected abstract boolean setValuesFinal();
 		protected abstract void setPresetInGui(Preset preset);
 		protected abstract Preset getCopyOfCurrentPreset();
-
+	
 		private void addPreset() {
 			String presetName = JOptionPane.showInputDialog(this, "Enter preset name:", "Preset Name", JOptionPane.QUESTION_MESSAGE);
 			if (presetName==null)
@@ -1635,7 +786,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			modelPresets.put(presetName, getCopyOfCurrentPreset());
 			presetMaps.write();
 		}
-
+	
 		private void removePreset() {
 			int index = presetComboBox.getSelectedIndex();
 			String presetName = getPresetName(index);
@@ -1649,14 +800,14 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				updatePresetComboBoxModel(null);
 			}
 		}
-
+	
 		private void updatePresetComboBoxModel(String presetName) {
 			ignorePresetComboBoxEvent = true;
 			presetComboBox.setModel(new DefaultComboBoxModel<>(presetNames));
 			presetComboBox.setSelectedItem(presetName);
 			ignorePresetComboBoxEvent = false;
 		}
-
+	
 		private void overwriteSelectedPreset() {
 			int index = presetComboBox.getSelectedIndex();
 			String presetName = getPresetName(index);
@@ -1665,7 +816,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				presetMaps.write();
 			}
 		}
-
+	
 		private void setSelectedPresetInGui(int index) {
 			String presetName = getPresetName(index);
 			if (presetName!=null) {
@@ -1673,7 +824,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				setPresetInGui(preset);
 			}
 		}
-
+	
 		private String getPresetName(int index) {
 			return index<0 ? null : presetNames.get(index);
 		}
@@ -1684,107 +835,1263 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			setVisible(true);
 			return hasChanged;
 		}
-
-		protected static abstract class PresetMaps<Preset> {
-			
-			private final String label;
-			private final String pathname;
-			private final Supplier<Preset> createEmptyPreset;
-			private final HashMap<String,HashMap<String,Preset>> presets;
-			
-			PresetMaps(String label, String pathname, Supplier<Preset> createEmptyPreset) {
-				if (pathname         ==null) throw new IllegalArgumentException();
-				if (createEmptyPreset==null) throw new IllegalArgumentException();
-				this.label = label;
-				this.createEmptyPreset = createEmptyPreset;
-				this.pathname = pathname;
-				this.presets = new HashMap<>();
-				read();
-			}
-		
-			HashMap<String, Preset> getModelPresets(String tableModelID) {
-				HashMap<String, Preset> modelPresets = presets.get(tableModelID);
-				if (modelPresets==null)
-					presets.put(tableModelID, modelPresets = new HashMap<>());
-				return modelPresets;
-			}
-		
-			void read() {
-				presets.clear();
-				
-				File file = new File(pathname);
-				try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-					
-					System.out.printf("Read %s from file \"%s\" ...%n", label, file.getAbsolutePath());
-					
-					HashMap<String, Preset> modelPresets = null;
-					Preset preset = null;
-					String line, valueStr;
-					while ( (line=in.readLine())!=null ) {
-						
-						if (line.equals("[Preset]") || line.isEmpty()) {
-							modelPresets = null;
-							preset = null;
-						}
-						if ( (valueStr=Data.getLineValue(line, "TableModel="))!=null ) {
-							modelPresets = getModelPresets(valueStr);
-							preset = null;
-						}
-						if ( (valueStr=Data.getLineValue(line, "Preset="))!=null ) {
-							preset = modelPresets.get(valueStr);
-							if (preset==null)
-								modelPresets.put(valueStr, preset = createEmptyPreset.get());
-						}
-						parseLine(line, preset);
-						
-					}
-					
-					System.out.printf("... done%n");
-					
-				} catch (FileNotFoundException ex) {
-					//ex.printStackTrace();
-				} catch (IOException ex) {
-					System.err.printf("IOException while reading %s from file \"%s\": %s", label, file.getAbsolutePath(), ex.getMessage());
-					//ex.printStackTrace();
-				}
-			}
-		
-			void write() {
-				File file = new File(pathname);
-				try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
-					
-					System.out.printf("Write %s to file \"%s\" ...%n", label, file.getAbsolutePath());
-					
-					Vector<String> tableModelIDs = new Vector<>(presets.keySet());
-					tableModelIDs.sort(null);
-					for (String tableModelID : tableModelIDs) {
-						HashMap<String, Preset> modelPresets = presets.get(tableModelID);
-						Vector<String> presetNames = new Vector<>(modelPresets.keySet());
-						presetNames.sort(null);
-						for (String presetName : presetNames) {
-							out.printf("[Preset]%n");
-							out.printf("TableModel=%s%n", tableModelID);
-							out.printf("Preset=%s%n", presetName);
-							writePresetInLines(modelPresets.get(presetName), out);
-							out.printf("%n");
-						}
-					}
-					
-					System.out.printf("... done%n");
-					
-				} catch (IOException ex) {
-					System.err.printf("IOException while writing %s to file \"%s\": %s", label, file.getAbsolutePath(), ex.getMessage());
-					//ex.printStackTrace();
-				}
-			}
-		
-			protected abstract void parseLine(String line, Preset preset);
-			protected abstract void writePresetInLines(Preset preset, PrintWriter out);
-		}
 	
 	}
+	
+	private static class RowColoring
+	{
+		static final RowColoringsMap coloringsMap = new RowColoringsMap();
+		
+		static class ConfigureDialog extends JDialog
+		{
+			private final Window owner;
+			private boolean hasChanged;
+			private final HashMap<String, RowColoringPreset> tableColorings;
+			private final ColumnID[] originalColumns;
+			private final RowFiltering.RowFilterPanel rowFilterPanel;
+			private ColoringsTabelModel.Row selectedPreset;
+			private boolean saveChangesAutomatically;
+			private final JButton btnAdd;
+			private final JButton btnCopy;
+			private final JButton btnRemove;
+			private final JButton btnMoveUp;
+			private final JButton btnMoveDown;
+			private final JButton btnSave;
+			private final JCheckBox chkbxSaveAutomatically;
 
-	public static class ColumnID implements Tables.SimplifiedColumnIDInterface {
+			ConfigureDialog(Window owner, ColumnID[] originalColumns, String tableModelID)
+			{
+				super(owner, "Configure RowColorings", ModalityType.APPLICATION_MODAL);
+				this.owner = owner;
+				this.tableColorings = coloringsMap.getModelPresets(tableModelID);
+				this.hasChanged = false;
+				this.originalColumns = originalColumns;
+				saveChangesAutomatically = false;
+				
+				rowFilterPanel = new RowFiltering.RowFilterPanel(this.originalColumns);
+				
+				JScrollPane filterListScrollPane = new JScrollPane(rowFilterPanel.panel);
+				filterListScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+				filterListScrollPane.setPreferredSize(new Dimension(600,700));
+				filterListScrollPane.getVerticalScrollBar().setUnitIncrement(10);
+				
+				ColoringsTabelModel coloringsTabelModel = new ColoringsTabelModel(tableColorings);
+				JTable coloringsTable = new JTable(coloringsTabelModel);
+				JScrollPane coloringsTableScrollPane = new JScrollPane(coloringsTable);
+				
+				coloringsTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+				coloringsTabelModel.setTable(coloringsTable);
+				coloringsTabelModel.setColumnWidths(coloringsTable);
+				//coloringsTabelModel.setCellRenderer(ColoringsTabelModel.ColumnID.Color, new ...); // TODO: CellRenderer for ColumnID.Color
+				coloringsTableScrollPane.setPreferredSize(new Dimension(300,100));
+				coloringsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+				coloringsTable.getSelectionModel().addListSelectionListener(e -> {
+					int rowV = coloringsTable.getSelectedRow();
+					int rowM = rowV<0 ? -1 : coloringsTable.convertRowIndexToModel(rowV);
+					ColoringsTabelModel.Row row = rowM<0 ? null : coloringsTabelModel.getRow(rowM);
+					// TODO: save previous data
+					selectedPreset = row;
+					rowFilterPanel.setPresetInGui(selectedPreset==null ? null : selectedPreset.preset.filterMap);
+				});
+				
+				JToolBar topToolBar = new JToolBar();
+				topToolBar.setFloatable(false);
+				topToolBar.add(btnAdd = SnowRunner.createButton("Add", true, e->{
+					// TODO
+				}));
+				topToolBar.add(btnCopy = SnowRunner.createButton("Copy", false, e->{
+					// TODO
+				}));
+				topToolBar.add(btnRemove = SnowRunner.createButton("Remove", false, e->{
+					// TODO
+				}));
+				topToolBar.addSeparator();
+				topToolBar.add(btnMoveUp = SnowRunner.createButton("Move Up", true, e->{
+					// TODO
+				}));
+				topToolBar.add(btnMoveDown = SnowRunner.createButton("Move Down", true, e->{
+					// TODO
+				}));
+				
+				JPanel topPanel = new JPanel(new BorderLayout());
+				topPanel.add(topToolBar, BorderLayout.PAGE_START);
+				topPanel.add(coloringsTableScrollPane, BorderLayout.CENTER);
+				
+				
+				JToolBar bottomToolBar = new JToolBar();
+				bottomToolBar.setFloatable(false);
+				bottomToolBar.add(btnSave = SnowRunner.createButton("Save Changes", false, e->{
+					// TODO
+				}));
+				bottomToolBar.add(chkbxSaveAutomatically = SnowRunner.createCheckBox("Save Changes Automatically", saveChangesAutomatically, null, true, b->{
+					saveChangesAutomatically = b;
+					if (saveChangesAutomatically) btnSave.setEnabled(false);
+					// TODO
+				}));
+				
+				JPanel bottomPanel = new JPanel(new BorderLayout());
+				bottomPanel.add(bottomToolBar, BorderLayout.PAGE_START);
+				bottomPanel.add(filterListScrollPane, BorderLayout.CENTER);
+				
+				
+				JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
+				splitPane.setTopComponent(topPanel);
+				splitPane.setBottomComponent(bottomPanel);
+				
+				JPanel dlgButtonPanel = new JPanel(new GridBagLayout());
+				dlgButtonPanel.setBorder(BorderFactory.createEmptyBorder(5,0,0,0));
+				GridBagConstraints c = new GridBagConstraints();
+				c.fill = GridBagConstraints.BOTH;
+				c.weightx = 1;
+				dlgButtonPanel.add(new JLabel(),c);
+				c.weightx = 0;
+				dlgButtonPanel.add(SnowRunner.createButton("Close", true, e->{
+					hasChanged = false; // TODO
+					setVisible(false);
+				}),c);
+				
+				JPanel contentPane = new JPanel(new BorderLayout());
+				contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+				contentPane.add(splitPane, BorderLayout.CENTER);
+				contentPane.add(dlgButtonPanel, BorderLayout.SOUTH);
+				
+				setContentPane(contentPane);
+			}
+			
+			boolean showDialog() {
+				pack();
+				setLocationRelativeTo(owner);
+				setVisible(true);
+				return hasChanged;
+			}
+			
+			static class ColoringsTabelModel extends Tables.SimplifiedTableModel<ColoringsTabelModel.ColumnID>
+			{
+				enum ColumnID implements Tables.SimplifiedColumnIDInterface
+				{
+					Name ( "Name" , String.class, 150),
+					Color( "Color", String.class,  70),
+					;
+					private final Tables.SimplifiedColumnConfig config;
+					ColumnID(String name, Class<?> columnClass, int width)
+					{
+						config = new Tables.SimplifiedColumnConfig(name, columnClass, 20, -1, width, width);
+					}
+					@Override public Tables.SimplifiedColumnConfig getColumnConfig() { return config; }
+				}
+				
+				private final Vector<Row> data;
+
+				ColoringsTabelModel(HashMap<String, RowColoringPreset> tableColorings)
+				{
+					super(ColumnID.values());
+					data = new Vector<>();
+					tableColorings.forEach((name, preset) -> data.add(new Row(name, preset)));
+					data.sort(Comparator.<Row,Integer>comparing(row -> row.preset.orderIndex).thenComparing(row -> row.name));
+					for (int i=0; i<data.size(); i++)
+						data.get(i).preset.orderIndex = i+1;
+				}
+
+				record Row(String name, RowColoringPreset preset) {}
+
+				@Override public int getRowCount() { return data.size(); }
+				
+				Row getRow(int rowIndex)
+				{
+					if (rowIndex<0) return null;
+					if (rowIndex>=data.size()) return null;
+					return data.get(rowIndex);
+				}
+
+				@Override
+				public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID)
+				{
+					Row row = getRow(rowIndex);
+					if (row==null) return null;
+					
+					switch (columnID)
+					{
+						case Name : return row.name;
+						case Color: return "Text";
+					}
+					return null;
+				}
+			}
+		}
+
+		static class RowColoringPreset
+		{
+			private final HashMap<String,RowFiltering.ValueFilter> filterMap = new HashMap<>();
+			private int orderIndex = 0;
+			private Color foreground = null;
+			private Color background = null;
+		}
+
+		static class RowColoringsMap extends PresetMaps<RowColoringPreset>
+		{
+			RowColoringsMap()
+			{
+				super("RowColoringsMap", SnowRunner.RowColoringsFile, RowColoringPreset::new);
+			}
+		
+			@Override protected void parseLine(String line, RowColoringPreset preset)
+			{
+				String valueStr;
+				if ( (valueStr=Data.getLineValue(line, "OrderIndex="))!=null ) preset.orderIndex = parseInt(valueStr, -1);
+				if ( (valueStr=Data.getLineValue(line, "Foreground="))!=null ) preset.foreground = parseColor(valueStr);
+				if ( (valueStr=Data.getLineValue(line, "Background="))!=null ) preset.background = parseColor(valueStr);
+				
+				RowFiltering.parseFilterLine(line, preset.filterMap);
+			}
+
+			private static int parseInt(String valueStr, int defaultValue)
+			{
+				try { return Integer.parseInt(valueStr); }
+				catch (NumberFormatException e) { return defaultValue; }
+			}
+
+			private static Color parseColor(String valueStr)
+			{
+				try { return new Color(Integer.parseInt(valueStr, 16) & 0xFFFFFF); }
+				catch (NumberFormatException e) { return null; }
+			}
+		
+			@Override protected void writePresetInLines(RowColoringPreset preset, PrintWriter out)
+			{
+				out.printf("OrderIndex=%06X%n", preset.orderIndex);
+				if (preset.foreground!=null) out.printf("Foreground=%06X%n", preset.foreground.getRGB() & 0xFFFFFF);
+				if (preset.background!=null) out.printf("Background=%06X%n", preset.background.getRGB() & 0xFFFFFF);
+				RowFiltering.writeFilterLines(preset.filterMap, out);
+			}
+			
+		}
+	}
+	
+	
+	private static class RowFiltering
+	{
+		static final Presets presets = new Presets();
+
+		static class Presets extends PresetMaps<HashMap<String,RowFiltering.ValueFilter>> {
+		
+			Presets() {
+				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,RowFiltering.ValueFilter>::new);
+			}
+		
+			@Override protected void parseLine(String line, HashMap<String, RowFiltering.ValueFilter> preset) {
+				RowFiltering.parseFilterLine(line, preset);
+			}
+		
+			@Override protected void writePresetInLines(HashMap<String, RowFiltering.ValueFilter> preset, PrintWriter out) {
+				RowFiltering.writeFilterLines(preset, out);
+			}
+			
+		}
+
+		static void parseFilterLine(String line, HashMap<String, RowFiltering.ValueFilter> preset)
+		{
+			String valueStr;
+			if ( (valueStr=Data.getLineValue(line, "Filter="))!=null ) {
+				int endOfKey = valueStr.indexOf(':');
+				if (endOfKey<0) {
+					System.err.printf("Can't parse filter in line for FilterRowsPresets: \"%s\"%n", valueStr);
+					return;
+				}
+				String key = valueStr.substring(0, endOfKey);
+				String filterStr = valueStr.substring(endOfKey+1);
+				RowFiltering.ValueFilter filter = RowFiltering.ValueFilter.parse( filterStr );
+				if (filter!=null) preset.put(key, filter);
+				else System.err.printf("Can't parse filter in line for FilterRowsPresets: \"%s\"%n", valueStr);
+			}
+		}
+
+		static void writeFilterLines(HashMap<String, RowFiltering.ValueFilter> filterMap, PrintWriter out)
+		{
+			Vector<String> keys = new Vector<>(filterMap.keySet());
+			keys.sort(null);
+			for (String key : keys) {
+				RowFiltering.ValueFilter filter = filterMap.get(key);
+				out.printf("Filter=%s:%s%n", key, filter.toParsableString());
+			}
+		}
+
+		interface GetValue<RowType>
+		{
+			Object getValue(ColumnID columnID, int rowIndex, RowType row);
+		}
+
+		static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, Collection<RowFiltering.ValueFilterContainer> filterContainers, GetValue<RowType> getValue) {
+			Vector<RowType> filteredRows = new Vector<>();
+			for (int rowIndex=0; rowIndex<originalRows.size(); rowIndex++)
+			{
+				RowType row = originalRows.get(rowIndex);
+				int rowIndex_ = rowIndex;
+				boolean meetsFilter = meetsFilter(filterContainers, columnID -> getValue.getValue(columnID, rowIndex_, row));
+				if (meetsFilter)
+					filteredRows.add(row);
+			}
+			
+			return filteredRows;
+		}
+
+		static boolean meetsFilter(Collection<ValueFilterContainer> filterContainers, Function<ColumnID, Object> getValue)
+		{
+			for (ValueFilterContainer filterContainer : filterContainers)
+			{
+				ValueFilter filter = filterContainer.getFilter();
+				if (filter!=null && filter.active)
+				{
+					Object value = getValue.apply(filterContainer.getColumnID());
+					if (!filter.valueMeetsFilter(value))
+						return false;
+				}
+			}
+			return true;
+		}
+
+		interface ValueFilterContainer
+		{
+			ColumnID getColumnID();
+			void setFilter(ValueFilter filter);
+			ValueFilter getFilter();
+		}
+
+		static abstract class ValueFilter {
+			
+			boolean active = false;
+			boolean allowUnset = false;
+		
+			boolean valueMeetsFilter(Object value) {
+				if (allowUnset && value==null)
+					return true;
+				return valueMeetsFilter_SubType(value);
+			}
+		
+			public static ValueFilter parse(String str) {
+				int pos;
+				String valueStr;
+				
+				pos = str.indexOf(':');
+				if (pos<0) return null;
+				valueStr = str.substring(0, pos);
+				str = str.substring(pos+1);
+				
+				boolean active;
+				switch (valueStr) {
+					case "true" : active = true; break;
+					case "false": active = false; break;
+					default: return null;
+				}
+				
+				pos = str.indexOf(':');
+				if (pos<0) return null;
+				valueStr = str.substring(0, pos);
+				str = str.substring(pos+1);
+				
+				boolean allowUnset;
+				switch (valueStr) {
+					case "true" : allowUnset = true; break;
+					case "false": allowUnset = false; break;
+					default: return null;
+				}
+				
+				pos = str.indexOf(':');
+				if (pos<0) return null;
+				String simpleClassName = str.substring(0, pos);
+				str = str.substring(pos+1);
+				
+				ValueFilter filter = null;
+				switch (simpleClassName) {
+				case "NumberFilter": filter = NumberFilter.parseNumberFilter(str); break;
+				case "BoolFilter"  : filter = BoolFilter.parseBoolFilter(str); break;
+				case "EnumFilter"  : filter = EnumFilter.parseEnumFilter(str); break;
+				}
+				
+				if (filter != null) {
+					filter.active = active;
+					filter.allowUnset = allowUnset;
+				}
+				
+				return filter;
+			}
+		
+			final String toParsableString() {
+				return String.format("%s:%s:%s:%s", active, allowUnset, getClass().getSimpleName(), toParsableString_SubType());
+			}
+		
+			@Override final public boolean equals(Object obj) {
+				if (!(obj instanceof ValueFilter)) return false;
+				ValueFilter other = (ValueFilter) obj;
+				if (this.active    !=other.active    ) return false;
+				if (this.allowUnset!=other.allowUnset) return false;
+				return equals_SubType(other);
+			}
+			
+			@Override final protected ValueFilter clone() {
+				ValueFilter filter = clone_SubType();
+				filter.active     = active    ;
+				filter.allowUnset = allowUnset;
+				return filter;
+			}
+		
+			protected abstract boolean valueMeetsFilter_SubType(Object value);
+			protected abstract String toParsableString_SubType();
+			protected abstract boolean equals_SubType(ValueFilter other);
+			protected abstract ValueFilter clone_SubType();
+			
+			
+			static class EnumFilter<E extends Enum<E>> extends ValueFilter {
+				private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
+				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
+				static {
+					registerEnumFilter("DiffLockType", Truck.DiffLockType .class, Truck.DiffLockType ::valueOf);
+					registerEnumFilter("Country"     , Truck.Country      .class, Truck.Country      ::valueOf);
+					registerEnumFilter("TruckType"   , Truck.TruckType    .class, Truck.TruckType    ::valueOf);
+					registerEnumFilter("ItemStat"    , Truck.UDV.ItemState.class, Truck.UDV.ItemState::valueOf);
+				}
+		
+				private static <E extends Enum<E>> void registerEnumFilter(String filterID, Class<E> valueClass, Function<String, E> parseValue) {
+					KnownFilterIDs.put(valueClass,filterID);
+					KnownTypes.put(filterID, values -> parseEnumFilter(valueClass, filterID, values, parseValue));
+				}
+		
+				static String getFilterID(Class<?> valueClass) {
+					String filterID = KnownFilterIDs.get(valueClass);
+					if (filterID==null) throw new IllegalStateException(String.format("EnumFilter: Can't find filter id for value class \"%s\"", valueClass.getCanonicalName()));
+					return filterID;
+				}
+		
+				private final String filterID;
+				private final Class<E> valueClass;
+				private final EnumSet<E> allowedValues;
+		
+				EnumFilter(String filterID, Class<E> valueClass) {
+					this.filterID = filterID;
+					if (valueClass==null) throw new IllegalArgumentException();
+					this.valueClass = valueClass;
+					this.allowedValues = EnumSet.noneOf(valueClass);
+					EnumSet.allOf(valueClass);
+				}
+		
+				@Override protected boolean valueMeetsFilter_SubType(Object value) {
+					if (valueClass.isInstance(value)) {
+						E e = valueClass.cast(value);
+						return allowedValues.contains(e);
+					} 
+					return false;
+				}
+		
+				@Override protected boolean equals_SubType(ValueFilter other) {
+					if (other instanceof EnumFilter) {
+						EnumFilter<?> otherEnumFilter = (EnumFilter<?>) other;
+						if (valueClass != otherEnumFilter.valueClass) return false;
+						if (!areAllValuesContainedIn(otherEnumFilter.allowedValues)) return false;
+						if (!otherEnumFilter.areAllValuesContainedIn(allowedValues)) return false;
+						return true;
+					}
+					return false;
+				}
+				
+				private boolean areAllValuesContainedIn(Set<?> values) {
+					for (E e : allowedValues) {
+						if (!values.contains(e))
+							return false;
+					}
+					return true;
+				}
+		
+				@Override protected ValueFilter clone_SubType() {
+					EnumFilter<E> enumFilter = new EnumFilter<>(filterID,valueClass);
+					enumFilter.allowedValues.addAll(allowedValues);
+					return enumFilter;
+				}
+		
+				public static ValueFilter parseEnumFilter(String str) {
+					int pos = str.indexOf(':');
+					if (pos<0) return null;
+					String filterID = str.substring(0, pos);
+					String namesStr = str.substring(pos+1);
+					String[] names = namesStr.split(",");
+					
+					Function<String[], EnumFilter<?>> parseFilter = KnownTypes.get(filterID);
+					if (parseFilter==null) {
+						System.err.printf("Can't parse EnumFilter: Unknown filter ID \"%s\" in \"%s\"%n", filterID, str);
+						return null;
+					}
+					
+					return parseFilter.apply(names);
+				}
+		
+				private static <E extends Enum<E>> EnumFilter<E> parseEnumFilter(Class<E> valueClass, String filterID, String[] names, Function<String, E> parseEnumValue) {
+					EnumFilter<E> filter = new EnumFilter<>(filterID,valueClass);
+					for (String name : names)
+						try {
+							filter.allowedValues.add(parseEnumValue.apply(name));
+						} catch (Exception ex) {
+							System.err.printf("EnumFilter[%s]: Can't parse value \"%s\" for enum \"%s\"%n", filterID, name, valueClass.getCanonicalName());
+						}
+					return filter;
+				}
+		
+				@Override protected String toParsableString_SubType() {
+					String[] names = allowedValues.stream().map(e->e.name()).toArray(String[]::new);
+					return String.format("%s:%s", filterID, String.join(",", names));
+				}
+				
+			}
+		
+		
+			static class NumberFilter<V extends Number> extends ValueFilter {
+				
+				V min,max;
+				private final Class<V> valueClass;
+				private final Function<V, String> toParsableString;
+				private final BiFunction<V, V, Integer> compare;
+				
+				NumberFilter(Class<V> valueClass, V min, V max, BiFunction<V,V,Integer> compare, Function<V,String> toParsableString) {
+					this.valueClass = valueClass;
+					this.min = min;
+					this.max = max;
+					this.compare = compare;
+					this.toParsableString = toParsableString;
+					if (this.valueClass==null) throw new IllegalArgumentException();
+					if (this.toParsableString==null) throw new IllegalArgumentException();
+					if (this.min==null) throw new IllegalArgumentException();
+					if (this.max==null) throw new IllegalArgumentException();
+				}
+		
+				@Override protected boolean valueMeetsFilter_SubType(Object value) {
+					if (valueClass.isInstance(value)) {
+						V v = valueClass.cast(value);
+						if (compare.apply(min, max)<=0)
+							// ---- min #### max ---- 
+							return compare.apply(min, v)<=0 && compare.apply(v, max)<=0;
+						// #### max ---- min #### 
+						return compare.apply(min, v)<=0 || compare.apply(v, max)<=0;
+					} 
+					return false;
+				}
+		
+				@Override protected boolean equals_SubType(ValueFilter other) {
+					if (other instanceof NumberFilter) {
+						NumberFilter<?> numberFilter = (NumberFilter<?>) other;
+						if (valueClass!=numberFilter.valueClass) return false;
+						if (!min.equals(numberFilter.min)) return false;
+						if (!max.equals(numberFilter.max)) return false;
+						return true;
+					}
+					return false;
+				}
+		
+				@Override
+				protected ValueFilter clone_SubType() {
+					return new NumberFilter<>(valueClass, min, max, compare, toParsableString);
+				}
+				
+				public static ValueFilter parseNumberFilter(String str) {
+					String[] strs = str.split(":");
+					if (strs.length!=3) return null;
+					String valueClassName = strs[0];
+					String minStr = strs[1];
+					String maxStr = strs[2];
+					
+					switch (valueClassName) {
+					case "Integer":
+						try {
+							NumberFilter<Integer> filter = createIntFilter();
+							filter.min = Integer.parseInt(minStr);
+							filter.max = Integer.parseInt(maxStr);
+							return filter;
+						} catch (NumberFormatException e) {
+							return null;
+						}
+					case "Long":
+						try {
+							NumberFilter<Long> filter = createLongFilter();
+							filter.min = Long.parseLong(minStr);
+							filter.max = Long.parseLong(maxStr);
+							return filter;
+						} catch (NumberFormatException e) {
+							return null;
+						}
+					case "Float":
+						try {
+							NumberFilter<Float> filter = createFloatFilter();
+							filter.min = Float.intBitsToFloat( Integer.parseUnsignedInt(minStr,16) );
+							filter.max = Float.intBitsToFloat( Integer.parseUnsignedInt(maxStr,16) );
+							return filter;
+						} catch (NumberFormatException e) {
+							return null;
+						}
+					case "Double":
+						try {
+							NumberFilter<Double> filter = createDoubleFilter();
+							filter.min = Double.longBitsToDouble( Long.parseUnsignedLong(minStr,16) );
+							filter.max = Double.longBitsToDouble( Long.parseUnsignedLong(maxStr,16) );
+							return filter;
+						} catch (NumberFormatException e) {
+							return null;
+						}
+					}
+					return null;
+				}
+		
+				@Override protected String toParsableString_SubType() {
+					String minStr = toParsableString.apply(min);
+					String maxStr = toParsableString.apply(max);
+					String simpleName = valueClass.getSimpleName();
+					return String.format("%s:%s:%s", simpleName, minStr, maxStr);
+				}
+		
+				static NumberFilter<Integer> createIntFilter   () { return new NumberFilter<Integer>(Integer.class, 0 , 0 , Integer::compare, v->Integer.toString(v)); }
+				static NumberFilter<Long   > createLongFilter  () { return new NumberFilter<Long   >(Long   .class, 0L, 0L, Long   ::compare, v->Long.toString(v)); }
+				static NumberFilter<Float  > createFloatFilter () { return new NumberFilter<Float  >(Float  .class, 0f, 0f, Float  ::compare, v->String.format("%08X", Float.floatToIntBits(v))); }
+				static NumberFilter<Double > createDoubleFilter() { return new NumberFilter<Double >(Double .class, 0d, 0d, Double ::compare, v->String.format("%016X", Double.doubleToLongBits(v))); }
+				
+			}
+			
+			
+			static class BoolFilter extends ValueFilter {
+			
+				boolean allowTrues = true;
+		
+				@Override protected boolean valueMeetsFilter_SubType(Object value) {
+					if (value instanceof Boolean) {
+						Boolean v = (Boolean) value;
+						return allowTrues == v.booleanValue();
+					}
+					if (value instanceof Data.BooleanWithText) {
+						Data.BooleanWithText v = (Data.BooleanWithText) value;
+						return allowTrues == v.getBool();
+					}
+					return false;
+				}
+		
+				@Override protected boolean equals_SubType(ValueFilter other) {
+					if (other instanceof BoolFilter) {
+						BoolFilter boolFilter = (BoolFilter) other;
+						return this.allowTrues == boolFilter.allowTrues;
+					}
+					return false;
+				}
+			
+				@Override protected BoolFilter clone_SubType() {
+					BoolFilter boolFilter = new BoolFilter();
+					boolFilter.allowTrues = allowTrues;
+					return boolFilter;
+				}
+		
+				public static ValueFilter parseBoolFilter(String str) {
+					BoolFilter boolFilter = new BoolFilter();
+					switch (str) {
+					case "true" : boolFilter.allowTrues = true; break;
+					case "false": boolFilter.allowTrues = false; break;
+					default: return null;
+					}
+					return boolFilter;
+				}
+		
+				@Override protected String toParsableString_SubType() {
+					return Boolean.toString(allowTrues);
+				}
+				
+			}
+		}
+		
+		static class RowFilterPanel
+		{
+			private final ValueFilterGuiElement[] columnElements;
+			final JPanel panel;
+
+			RowFilterPanel(ColumnID[] originalColumns)
+			{
+				panel = new JPanel(new GridBagLayout());
+				
+				GridBagConstraints c = new GridBagConstraints();
+				c.fill = GridBagConstraints.BOTH;
+				
+				columnElements = new ValueFilterGuiElement[originalColumns.length];
+				ValueFilterGuiElement ce;
+				for (int i=0; i<originalColumns.length; i++)
+				{
+					columnElements[i] = ce = new ValueFilterGuiElement(originalColumns[i]);
+					
+					c.weightx = 0;
+					c.gridwidth = 1;
+					panel.add(ce.baseCheckBox, c);
+					
+					c.weightx = 1;
+					c.gridwidth = GridBagConstraints.REMAINDER;
+					panel.add(ce.optionsPanel, c);
+				}
+				
+				c.weighty = 1;
+				panel.add(new JLabel(), c);
+			}
+
+			boolean setFilterFinal(boolean hasChanged, int i, ValueFilterContainer vfc)
+			{
+				ValueFilter filterInGui = columnElements[i].getFilter();
+				
+				ValueFilter storedFilter = vfc.getFilter();
+				if (filterInGui==null && storedFilter!=null) {
+					storedFilter.active = false;
+					hasChanged = true;
+					
+				} else if (filterInGui!=null && !filterInGui.equals(storedFilter)) {
+					vfc.setFilter(filterInGui);
+					hasChanged = true;
+				}
+				return hasChanged;
+			}
+
+			HashMap<String, ValueFilter> getCopyOfCurrentPreset()
+			{
+				HashMap<String, ValueFilter> preset = new HashMap<>();
+				for (ValueFilterGuiElement elem : columnElements) {
+					ValueFilter filter = elem.getFilter();
+					if (filter!=null && filter.active)
+						preset.put(elem.id, filter.clone());
+				}
+				return preset;
+			}
+
+			void setPresetInGui(HashMap<String, ValueFilter> preset)
+			{
+				for (ValueFilterGuiElement elem : columnElements)
+					elem.setValues(preset==null ? null : preset.get(elem.id));
+			}
+		}
+
+		static class ValueFilterGuiElement
+		{
+			private static final HashMap<Class<?>,Supplier<OptionsPanel<?>>> RegisteredOptionsPanels = new HashMap<>();
+			static {
+				RegisteredOptionsPanels.put(Boolean            .class, ()->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter()));
+				RegisteredOptionsPanels.put(Data.Capability    .class, ()->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter()));
+				RegisteredOptionsPanels.put(Integer            .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null             ));
+				RegisteredOptionsPanels.put(Long               .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null             ));
+				RegisteredOptionsPanels.put(Float              .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite ));
+				RegisteredOptionsPanels.put(Double             .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite ));
+				RegisteredOptionsPanels.put(Truck.Country      .class, ()->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values()));
+				RegisteredOptionsPanels.put(Truck.DiffLockType .class, ()->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, Truck.DiffLockType .values()));
+				RegisteredOptionsPanels.put(Truck.TruckType    .class, ()->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, Truck.TruckType    .values()));
+				RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, ()->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values()));
+			}
+			
+			private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
+			private final String id;
+			private final JCheckBox baseCheckBox;
+			private final OptionsPanel<?> optionsPanel;
+			private final Color defaultBG;
+		
+			ValueFilterGuiElement(ColumnID columnID)
+			{
+				this(
+					columnID.id,
+					columnID.config.name,
+					columnID.config.columnClass,
+					columnID.filter
+				);
+			}
+			ValueFilterGuiElement(String id, String label, Class<?> valueClass, ValueFilter filter)
+			{
+				this.id = id;
+				
+				Supplier<OptionsPanel<?>> creator = RegisteredOptionsPanels.get(valueClass);
+				if (creator==null) optionsPanel = new OptionsPanel.DummyOptions(valueClass);
+				else               optionsPanel = creator.get();
+				
+				optionsPanel.setValues(filter);
+				if (optionsPanel.filter!=null)
+					optionsPanel.filter.active = filter!=null && filter.active;
+				
+				baseCheckBox = SnowRunner.createCheckBox(
+						label,
+						optionsPanel.filter!=null && optionsPanel.filter.active,
+						null, optionsPanel.filter!=null,
+						this::setActive);
+				defaultBG = baseCheckBox.getBackground();
+				
+				showActive(optionsPanel.filter!=null && optionsPanel.filter.active);
+			}
+		
+			private void setActive(boolean isActive) {
+				if (optionsPanel.filter!=null)
+					optionsPanel.filter.active = isActive;
+				showActive(isActive);
+			}
+		
+			private void showActive(boolean isActive) {
+				optionsPanel.setEnableOptions(isActive);
+				baseCheckBox.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
+				//optionsPanel.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
+			}
+		
+			ValueFilter getFilter() {
+				return optionsPanel.filter;
+			}
+		
+			void setValues(ValueFilter filter) {
+				if (optionsPanel.filter!=null) {
+					optionsPanel.filter.active = filter!=null && filter.active;
+					baseCheckBox.setSelected(optionsPanel.filter.active);
+					showActive(optionsPanel.filter.active);
+				}
+				optionsPanel.setValues(filter);
+			}
+		
+			static abstract class OptionsPanel<FilterType extends ValueFilter> extends JPanel {
+				private static final long serialVersionUID = -8491252831775091069L;
+				
+				protected final GridBagConstraints c;
+				final FilterType filter;
+				private final JCheckBox chkbxUnset;
+		
+				OptionsPanel(FilterType filter) {
+					super(new GridBagLayout());
+					this.filter = filter;
+					c = new GridBagConstraints();
+					c.fill = GridBagConstraints.BOTH;
+					c.weightx = 0;
+					if (this.filter!=null)
+						add(chkbxUnset = SnowRunner.createCheckBox("unset", false, null, true, b->this.filter.allowUnset = b), c);
+					else
+						chkbxUnset = null;
+				}
+		
+				void setEnableOptions(boolean isEnabled) {
+					if (chkbxUnset!=null)
+						chkbxUnset.setEnabled(isEnabled);
+				}
+		
+				void setValues(ValueFilter filter) {
+					if (this.filter!=null) {
+						this.filter.allowUnset = filter!=null && filter.allowUnset;
+						chkbxUnset.setSelected(this.filter.allowUnset);
+					}
+				}
+		
+		
+				static class DummyOptions extends OptionsPanel<ValueFilter.BoolFilter> {
+					private static final long serialVersionUID = 4500779916477896148L;
+		
+					public DummyOptions(Class<?> columnClass) {
+						super(null);
+						c.weightx = 1;
+						String message;
+						if (columnClass==String.class) message = "No Filter for text values";
+						else message = String.format("No Filter for Column of %s", columnClass==null ? "<null>" : columnClass.getCanonicalName());
+						add(new JLabel(message), c);
+					}
+				
+				}
+		
+		
+				static class EnumOptions<E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumFilter<E>> {
+					private static final long serialVersionUID = -458324264563153126L;
+					
+					private final JCheckBox[] checkBoxes;
+					private final E[] values;
+		
+					EnumOptions( Class<E> valueClass, E[] values) {
+						this(new ValueFilter.EnumFilter<>(ValueFilter.EnumFilter.getFilterID(valueClass), valueClass), values);
+					}
+		
+					EnumOptions(ValueFilter.EnumFilter<E> filter, E[] values) {
+						super(filter);
+						if (filter==null) throw new IllegalArgumentException();
+						if (values==null) throw new IllegalArgumentException();
+						
+						this.values = values;
+						
+						checkBoxes = new JCheckBox[this.values.length];
+						c.weightx = 0;
+						for (int i=0; i<this.values.length; i++) {
+							E e = this.values[i];
+							boolean isSelected = this.filter.allowedValues.contains(e);
+							checkBoxes[i] = SnowRunner.createCheckBox(e.toString(), isSelected, null, true, b->{
+								if (b) this.filter.allowedValues.add(e);
+								else   this.filter.allowedValues.remove(e);
+							});
+							add(checkBoxes[i], c);
+						}
+						c.weightx = 1;
+						add(new JLabel(), c);
+					}
+		
+					@Override void setEnableOptions(boolean isEnabled) {
+						super.setEnableOptions(isEnabled);
+						for (int i=0; i<checkBoxes.length; i++)
+							checkBoxes[i].setEnabled(isEnabled);
+					}
+		
+					@Override void setValues(ValueFilter filter) {
+						super.setValues(filter);
+						if (filter instanceof ValueFilter.EnumFilter) {
+							ValueFilter.EnumFilter<?> enumFilter = (ValueFilter.EnumFilter<?>) filter;
+							
+							if (this.filter.valueClass!=enumFilter.valueClass)
+								throw new IllegalStateException();
+							
+							this.filter.allowedValues.clear();
+							for (int i=0; i<values.length; i++) {
+								E e = values[i];
+								if (enumFilter.allowedValues.contains(e)) {
+									this.filter.allowedValues.add(e);
+									checkBoxes[i].setSelected(true);
+								} else
+									checkBoxes[i].setSelected(false);
+							}
+						}
+					}
+				}
+		
+		
+				static class NumberOptions<V extends Number> extends OptionsPanel<ValueFilter.NumberFilter<V>> {
+					private static final long serialVersionUID = -436186682804402478L;
+					
+					private final JLabel labMin, labMax;
+					private final JTextField fldMin, fldMax;
+					private final Function<V, String> toString;
+					private final Function<String,V> convert;
+		
+					NumberOptions(ValueFilter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
+						super(filter);
+						if (filter  ==null) throw new IllegalArgumentException();
+						if (toString==null) throw new IllegalArgumentException();
+						if (convert ==null) throw new IllegalArgumentException();
+						
+						this.toString = v -> v==null ? "<null>" : toString.apply(v);
+						
+						this.convert = str -> {
+							try { return convert.apply(str);
+							} catch (NumberFormatException e) { return null; }
+						};
+						
+						c.weightx = 0;
+						add(labMin = new JLabel("   min: "), c);
+						add(fldMin = SnowRunner.createTextField(10, this.toString.apply(this.filter.min), this.convert, isOK, v->this.filter.min = v), c);
+						add(labMax = new JLabel("   max: "), c);
+						add(fldMax = SnowRunner.createTextField(10, this.toString.apply(this.filter.max), this.convert, isOK, v->this.filter.max = v), c);
+						c.weightx = 1;
+						add(new JLabel(), c);
+					}
+		
+					@Override void setEnableOptions(boolean isEnabled) {
+						super.setEnableOptions(isEnabled);
+						labMin.setEnabled(isEnabled);
+						fldMin.setEnabled(isEnabled);
+						labMax.setEnabled(isEnabled);
+						fldMax.setEnabled(isEnabled);
+					}
+		
+					@Override void setValues(ValueFilter filter) {
+						super.setValues(filter);
+						if (filter instanceof ValueFilter.NumberFilter) {
+							ValueFilter.NumberFilter<?> numberFilter = (ValueFilter.NumberFilter<?>) filter;
+							if (this.filter.valueClass!=numberFilter.valueClass)
+								throw new IllegalStateException(String.format("filter.valueClass(%s) != numberFilter.valueClass(%s)", this.filter.valueClass, numberFilter.valueClass));
+							this.filter.min = this.filter.valueClass.cast(numberFilter.min);
+							this.filter.max = this.filter.valueClass.cast(numberFilter.max);
+							fldMin.setText(toString.apply(this.filter.min));
+							fldMax.setText(toString.apply(this.filter.max));
+						}
+					}
+					
+				}
+		
+		
+				static class BoolOptions extends OptionsPanel<ValueFilter.BoolFilter> {
+					private static final long serialVersionUID = 1821563263682227455L;
+					private final JRadioButton rbtnTrue;
+					private final JRadioButton rbtnFalse;
+					
+					BoolOptions(ValueFilter.BoolFilter filter) {
+						super(filter);
+						ButtonGroup bg = new ButtonGroup();
+						c.weightx = 0;
+						add(rbtnTrue  = SnowRunner.createRadioButton("TRUE" , bg, true,  this.filter.allowTrues, e->this.filter.allowTrues = true ), c);
+						add(rbtnFalse = SnowRunner.createRadioButton("FALSE", bg, true, !this.filter.allowTrues, e->this.filter.allowTrues = false), c);
+						c.weightx = 1;
+						add(new JLabel(), c);
+					}
+		
+					@Override void setEnableOptions(boolean isEnabled) {
+						super.setEnableOptions(isEnabled);
+						rbtnTrue .setEnabled(isEnabled);
+						rbtnFalse.setEnabled(isEnabled);
+					}
+		
+					@Override void setValues(ValueFilter filter) {
+						super.setValues(filter);
+						if (filter instanceof ValueFilter.BoolFilter) {
+							ValueFilter.BoolFilter boolFilter = (ValueFilter.BoolFilter) filter;
+							this.filter.allowTrues = boolFilter.allowTrues;
+							if (this.filter.allowTrues) rbtnTrue .setSelected(true);
+							else                        rbtnFalse.setSelected(true);
+						}
+					}
+					
+				}
+			}
+		}
+
+		static class FilterRowsDialog extends ModelConfigureDialog<HashMap<String,RowFiltering.ValueFilter>> {
+			private static final long serialVersionUID = 6171301101675843952L;
+			private final ColumnID[] originalColumns;
+			private final RowFiltering.RowFilterPanel rowFilterPanel;
+		
+			FilterRowsDialog(Window owner, ColumnID[] originalColumns, String tableModelID) {
+				super(owner, "Filter Rows", "Define filters", presets, tableModelID);
+				this.originalColumns = originalColumns;
+				
+				rowFilterPanel = new RowFiltering.RowFilterPanel(this.originalColumns);
+				
+				filterListScrollPane.setViewportView(rowFilterPanel.panel);
+				filterListScrollPane.setPreferredSize(new Dimension(600,700));
+			}
+		
+			@Override protected boolean resetValuesFinal() {
+				boolean hasChanged = false;
+				for (ColumnID columnID : originalColumns) {
+					if (columnID.filter!=null) {
+						columnID.filter = null;
+						hasChanged = true;
+					}
+				}
+				return hasChanged;
+			}
+		
+			@Override protected boolean setValuesFinal() {
+				boolean hasChanged = false;
+				for (int i=0; i<originalColumns.length; i++) {
+					ColumnID columnID = originalColumns[i];
+					hasChanged = rowFilterPanel.setFilterFinal(hasChanged, i, columnID);
+				}
+				return hasChanged;
+			}
+		
+			@Override protected void setPresetInGui(HashMap<String, RowFiltering.ValueFilter> preset) {
+				rowFilterPanel.setPresetInGui(preset);
+			}
+		
+			@Override protected HashMap<String, RowFiltering.ValueFilter> getCopyOfCurrentPreset() {
+				return rowFilterPanel.getCopyOfCurrentPreset();
+			}
+		
+		}
+		
+	}
+	
+	private static class ColumnHiding
+	{
+		static final Presets presets = new Presets();
+
+		static class Presets extends PresetMaps<HashSet<String>> {
+		
+			Presets() {
+				super("ColumnHidePresets", SnowRunner.ColumnHidePresetsFile, HashSet<String>::new);
+			}
+			
+			@Override protected void parseLine(String line, HashSet<String> preset) {
+				String valueStr;
+				if ( (valueStr=Data.getLineValue(line, "Columns="))!=null ) {
+					String[] columnIDs = valueStr.split(",");
+					preset.clear();
+					preset.addAll(Arrays.asList(columnIDs));
+				}
+			}
+			
+			@Override protected void writePresetInLines(HashSet<String> preset, PrintWriter out) {
+				Vector<String> sortedPreset = new Vector<>(preset);
+				sortedPreset.sort(null);
+				out.printf("Columns=%s%n", String.join(",", sortedPreset));
+			}
+			
+		}
+
+		static ColumnID[] removeHiddenColumns(ColumnID[] originalColumns) {
+			return Arrays.stream(originalColumns).filter(column->column.isVisible).toArray(ColumnID[]::new);
+		}
+
+		static class ColumnHideDialog extends ModelConfigureDialog<HashSet<String>> {
+			private static final long serialVersionUID = 4240161527743718020L;
+			private final JCheckBox[] columnElements;
+			private final HashSet<String> currentPreset;
+			private final ColumnID[] originalColumns;
+			
+			ColumnHideDialog(Window owner, ColumnID[] originalColumns, String tableModelIDstr) {
+				super(owner, "Visible Columns", "Define visible columns", presets, tableModelIDstr);
+				this.originalColumns = originalColumns;
+				
+				currentPreset = new HashSet<>();
+				JPanel columnPanel = new JPanel(new GridLayout(0,1));
+				columnElements = new JCheckBox[originalColumns.length];
+				for (int i=0; i<originalColumns.length; i++) {
+					JCheckBox columnElement = createColumnElement(this.originalColumns[i]);
+					columnElements[i] = columnElement;
+					columnPanel.add(columnElement);
+				}
+				
+				GridBagConstraints c = new GridBagConstraints();
+				c.weighty = 1;
+				columnPanel.add(new JLabel(), c);
+				
+				filterListScrollPane.setViewportView(columnPanel);
+			}
+	
+			@Override protected HashSet<String> getCopyOfCurrentPreset() {
+				return new HashSet<>(currentPreset);
+			}
+			
+			@Override protected void setPresetInGui(HashSet<String> preset) {
+				currentPreset.clear();
+				currentPreset.addAll(preset);
+				for (int i=0; i<this.originalColumns.length; i++) {
+					ColumnID column = this.originalColumns[i];
+					boolean isVisible = preset.contains(column.id);
+					columnElements[i].setSelected(isVisible);
+				}
+			}
+	
+			private JCheckBox createColumnElement(ColumnID columnID) {
+				if (columnID.isVisible) currentPreset.add(columnID.id);
+				JCheckBox checkBox = SnowRunner.createCheckBox(columnID.config.name, columnID.isVisible, null, true, b->{
+					if (b) currentPreset.add(columnID.id);
+					else   currentPreset.remove(columnID.id);
+				});
+				return checkBox;
+			}
+	
+	//			@Override protected void addColumnElementToPanel(JPanel columnPanel, JCheckBox columnElement) {
+	//				columnPanel.add(columnElement);
+	//			}
+	
+			@Override protected boolean resetValuesFinal() {
+				boolean hasChanged = false;
+				for (ColumnID columnID : this.originalColumns) {
+					if (!columnID.isVisible) {
+						columnID.isVisible = true;
+						hasChanged = true;
+					}
+				}
+				return hasChanged;
+			}
+	
+			@Override protected boolean setValuesFinal() {
+				boolean hasChanged = false;
+				for (ColumnID columnID : originalColumns) {
+					boolean isVisible = currentPreset.contains(columnID.id);
+					if (columnID.isVisible != isVisible) {
+						columnID.isVisible = isVisible;
+						hasChanged = true;
+					}
+				}
+				return hasChanged;
+			}
+		}
+		
+	}
+
+	private static abstract class PresetMaps<Preset> {
+		
+		private final String label;
+		private final String pathname;
+		private final Supplier<Preset> createEmptyPreset;
+		private final HashMap<String,HashMap<String,Preset>> presets;
+		
+		PresetMaps(String label, String pathname, Supplier<Preset> createEmptyPreset) {
+			if (pathname         ==null) throw new IllegalArgumentException();
+			if (createEmptyPreset==null) throw new IllegalArgumentException();
+			this.label = label;
+			this.createEmptyPreset = createEmptyPreset;
+			this.pathname = pathname;
+			this.presets = new HashMap<>();
+			read();
+		}
+	
+		HashMap<String, Preset> getModelPresets(String tableModelID) {
+			HashMap<String, Preset> modelPresets = presets.get(tableModelID);
+			if (modelPresets==null)
+				presets.put(tableModelID, modelPresets = new HashMap<>());
+			return modelPresets;
+		}
+	
+		void read() {
+			presets.clear();
+			
+			File file = new File(pathname);
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+				
+				System.out.printf("Read %s from file \"%s\" ...%n", label, file.getAbsolutePath());
+				
+				HashMap<String, Preset> modelPresets = null;
+				Preset preset = null;
+				String line, valueStr;
+				while ( (line=in.readLine())!=null ) {
+					
+					if (line.equals("[Preset]") || line.isEmpty()) {
+						modelPresets = null;
+						preset = null;
+					}
+					if ( (valueStr=Data.getLineValue(line, "TableModel="))!=null ) {
+						modelPresets = getModelPresets(valueStr);
+						preset = null;
+					}
+					if ( (valueStr=Data.getLineValue(line, "Preset="))!=null ) {
+						preset = modelPresets.get(valueStr);
+						if (preset==null)
+							modelPresets.put(valueStr, preset = createEmptyPreset.get());
+					}
+					parseLine(line, preset);
+					
+				}
+				
+				System.out.printf("... done%n");
+				
+			} catch (FileNotFoundException ex) {
+				//ex.printStackTrace();
+			} catch (IOException ex) {
+				System.err.printf("IOException while reading %s from file \"%s\": %s", label, file.getAbsolutePath(), ex.getMessage());
+				//ex.printStackTrace();
+			}
+		}
+	
+		void write() {
+			File file = new File(pathname);
+			try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
+				
+				System.out.printf("Write %s to file \"%s\" ...%n", label, file.getAbsolutePath());
+				
+				Vector<String> tableModelIDs = new Vector<>(presets.keySet());
+				tableModelIDs.sort(null);
+				for (String tableModelID : tableModelIDs) {
+					HashMap<String, Preset> modelPresets = presets.get(tableModelID);
+					Vector<String> presetNames = new Vector<>(modelPresets.keySet());
+					presetNames.sort(null);
+					for (String presetName : presetNames) {
+						out.printf("[Preset]%n");
+						out.printf("TableModel=%s%n", tableModelID);
+						out.printf("Preset=%s%n", presetName);
+						writePresetInLines(modelPresets.get(presetName), out);
+						out.printf("%n");
+					}
+				}
+				
+				System.out.printf("... done%n");
+				
+			} catch (IOException ex) {
+				System.err.printf("IOException while writing %s to file \"%s\": %s", label, file.getAbsolutePath(), ex.getMessage());
+				//ex.printStackTrace();
+			}
+		}
+	
+		protected abstract void parseLine(String line, Preset preset);
+		protected abstract void writePresetInLines(Preset preset, PrintWriter out);
+	}
+
+	public static class ColumnID implements Tables.SimplifiedColumnIDInterface, RowFiltering.ValueFilterContainer {
 		
 		public interface TableModelBasedBuilder<ValueType> {
 			ValueType getValue(Object value, VerySimpleTableModel<?> tableModel);
@@ -1816,7 +2123,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private final Color background;
 		private final String format;
 		private boolean isVisible;
-		private FilterRowsDialog.Filter filter;
+		private RowFiltering.ValueFilter filter;
 		private final EnumSet<Update> cacheUpdateEvents;
 		private final HashMap<Integer, Object> valueCache;
 		
@@ -1873,8 +2180,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			cacheUpdateEvents = EnumSet.noneOf(Update.class);
 			valueCache = new HashMap<>();
 		}
-		@Override public SimplifiedColumnConfig getColumnConfig() { return config; }
 		
+		@Override public SimplifiedColumnConfig   getColumnConfig() { return config; }
+		@Override public ColumnID                 getColumnID    () { return this;   }
+		@Override public RowFiltering.ValueFilter getFilter      () { return filter; }
+		@Override public void setFilter(RowFiltering.ValueFilter filter) { this.filter = filter; }
+
 		public enum Update { Data, Language, SaveGame, DLCAssignment, SpecialTruckAddons }
 		
 		public ColumnID configureCaching(Update... updateEvents)

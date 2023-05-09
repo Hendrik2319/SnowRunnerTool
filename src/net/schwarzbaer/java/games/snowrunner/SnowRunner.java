@@ -115,6 +115,7 @@ public class SnowRunner {
 	public static final String UserDefinedValuesFile   = "SnowRunner - UserDefinedValues.dat";
 	public static final String FilterRowsPresetsFile   = "SnowRunner - FilterRowsPresets.dat";
 	public static final String ColumnHidePresetsFile   = "SnowRunner - ColumnHidePresets.dat";
+	public static final String RowColoringsFile        = "SnowRunner - RowColorings.dat";
 	public static final String SpecialTruckAddonsFile  = "SnowRunner - SpecialTruckAddons.dat";
 	public static final String TruckImagesFile         = "SnowRunner - TruckImages.zip";
 	public static final String WheelsQualityRangesFile = "SnowRunner - WheelsQualityRanges.dat";
