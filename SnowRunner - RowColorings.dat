@@ -1,0 +1,18 @@
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset=c1
+OrderIndex=3
+Foreground=74FF8D
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset=c3
+OrderIndex=1
+Background=FFFF00
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset=color 2
+OrderIndex=2
+Foreground=FFFF00
+

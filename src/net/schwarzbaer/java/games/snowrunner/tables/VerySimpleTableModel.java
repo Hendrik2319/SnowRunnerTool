@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -56,6 +57,9 @@ import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 
+import net.schwarzbaer.gui.GeneralIcons.GrayCommandIcons;
+import net.schwarzbaer.gui.HSColorChooser;
+import net.schwarzbaer.gui.StandardDialog;
 import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
@@ -543,12 +547,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		
 		contextMenu.add(SnowRunner.createMenuItem("Configure Row Colorings ...", true, e->{
 			RowColoring.ConfigureDialog dlg = new RowColoring.ConfigureDialog(mainWindow, originalColumns, getTableModelID());
-			
 			boolean changed = dlg.showDialog();
-			if (changed) {
-				// TODO
-				
-			}
+			if (changed) table.repaint();
 		}));
 		
 		contextMenu.addSeparator();
@@ -844,20 +844,22 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		
 		static class ConfigureDialog extends JDialog
 		{
+			private static final long serialVersionUID = 3994955199504822407L;
+
+			private static HSColorChooser.UserdefinedColors userdefinedColors = new HSColorChooser.UserdefinedColors();
+			
 			private final Window owner;
-			private boolean hasChanged;
-			private final HashMap<String, RowColoringPreset> tableColorings;
 			private final ColumnID[] originalColumns;
+			private final HashMap<String, RowColoringPreset> tableColorings;
 			private final RowFiltering.RowFilterPanel rowFilterPanel;
-			private ColoringsTabelModel.Row selectedPreset;
+			private final JTable coloringsTable;
+			private final ColoringsTableModel coloringsTableModel;
+			private final ColoringsTableToolBar coloringsTableToolBar;
+			private final FilterListToolBar filterListToolBar;
 			private boolean saveChangesAutomatically;
-			private final JButton btnAdd;
-			private final JButton btnCopy;
-			private final JButton btnRemove;
-			private final JButton btnMoveUp;
-			private final JButton btnMoveDown;
-			private final JButton btnSave;
-			private final JCheckBox chkbxSaveAutomatically;
+			private int selectedRowM;
+			private ColoringsTableModel.Row selectedPreset;
+			private boolean hasChanged;
 
 			ConfigureDialog(Window owner, ColumnID[] originalColumns, String tableModelID)
 			{
@@ -867,6 +869,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				this.hasChanged = false;
 				this.originalColumns = originalColumns;
 				saveChangesAutomatically = false;
+				selectedRowM = -1;
+				selectedPreset = null;
 				
 				rowFilterPanel = new RowFiltering.RowFilterPanel(this.originalColumns);
 				
@@ -875,64 +879,31 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				filterListScrollPane.setPreferredSize(new Dimension(600,700));
 				filterListScrollPane.getVerticalScrollBar().setUnitIncrement(10);
 				
-				ColoringsTabelModel coloringsTabelModel = new ColoringsTabelModel(tableColorings);
-				JTable coloringsTable = new JTable(coloringsTabelModel);
+				coloringsTableModel = new ColoringsTableModel(tableColorings, coloringsMap::write);
+				coloringsTable = new JTable(coloringsTableModel);
 				JScrollPane coloringsTableScrollPane = new JScrollPane(coloringsTable);
 				
 				coloringsTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-				coloringsTabelModel.setTable(coloringsTable);
-				coloringsTabelModel.setColumnWidths(coloringsTable);
-				//coloringsTabelModel.setCellRenderer(ColoringsTabelModel.ColumnID.Color, new ...); // TODO: CellRenderer for ColumnID.Color
+				coloringsTableModel.setTable(coloringsTable);
+				coloringsTableModel.setColumnWidths(coloringsTable);
+				coloringsTableModel.setCellRenderer(ColoringsTableModel.ColumnID.Colors, new ExampleCellRenderer(coloringsTableModel));
 				coloringsTableScrollPane.setPreferredSize(new Dimension(300,100));
 				coloringsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 				coloringsTable.getSelectionModel().addListSelectionListener(e -> {
 					int rowV = coloringsTable.getSelectedRow();
-					int rowM = rowV<0 ? -1 : coloringsTable.convertRowIndexToModel(rowV);
-					ColoringsTabelModel.Row row = rowM<0 ? null : coloringsTabelModel.getRow(rowM);
-					// TODO: save previous data
-					selectedPreset = row;
+					selectedRowM = rowV<0 ? -1 : coloringsTable.convertRowIndexToModel(rowV);
+					selectedPreset = selectedRowM<0 ? null : coloringsTableModel.getRow(selectedRowM);
 					rowFilterPanel.setPresetInGui(selectedPreset==null ? null : selectedPreset.preset.filterMap);
+					updateButtons();
 				});
 				
-				JToolBar topToolBar = new JToolBar();
-				topToolBar.setFloatable(false);
-				topToolBar.add(btnAdd = SnowRunner.createButton("Add", true, e->{
-					// TODO
-				}));
-				topToolBar.add(btnCopy = SnowRunner.createButton("Copy", false, e->{
-					// TODO
-				}));
-				topToolBar.add(btnRemove = SnowRunner.createButton("Remove", false, e->{
-					// TODO
-				}));
-				topToolBar.addSeparator();
-				topToolBar.add(btnMoveUp = SnowRunner.createButton("Move Up", true, e->{
-					// TODO
-				}));
-				topToolBar.add(btnMoveDown = SnowRunner.createButton("Move Down", true, e->{
-					// TODO
-				}));
-				
 				JPanel topPanel = new JPanel(new BorderLayout());
-				topPanel.add(topToolBar, BorderLayout.PAGE_START);
+				topPanel.add(coloringsTableToolBar = new ColoringsTableToolBar(), BorderLayout.PAGE_START);
 				topPanel.add(coloringsTableScrollPane, BorderLayout.CENTER);
 				
-				
-				JToolBar bottomToolBar = new JToolBar();
-				bottomToolBar.setFloatable(false);
-				bottomToolBar.add(btnSave = SnowRunner.createButton("Save Changes", false, e->{
-					// TODO
-				}));
-				bottomToolBar.add(chkbxSaveAutomatically = SnowRunner.createCheckBox("Save Changes Automatically", saveChangesAutomatically, null, true, b->{
-					saveChangesAutomatically = b;
-					if (saveChangesAutomatically) btnSave.setEnabled(false);
-					// TODO
-				}));
-				
 				JPanel bottomPanel = new JPanel(new BorderLayout());
-				bottomPanel.add(bottomToolBar, BorderLayout.PAGE_START);
+				bottomPanel.add(filterListToolBar = new FilterListToolBar(), BorderLayout.PAGE_START);
 				bottomPanel.add(filterListScrollPane, BorderLayout.CENTER);
-				
 				
 				JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true);
 				splitPane.setTopComponent(topPanel);
@@ -956,8 +927,211 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				contentPane.add(dlgButtonPanel, BorderLayout.SOUTH);
 				
 				setContentPane(contentPane);
+				updateButtons();
 			}
 			
+			private class ColoringsTableToolBar extends JToolBar
+			{
+				private static final long serialVersionUID = -638019696789518107L;
+				
+				private final JButton btnAdd;
+				private final JButton btnCopy;
+				private final JButton btnRemove;
+				private final JButton btnMoveUp;
+				private final JButton btnMoveDown;
+				private final JButton btnSetForeground;
+				private final JButton btnSetBackground;
+				private final JButton btnRemoveForeground;
+				private final JButton btnRemoveBackground;
+				
+				ColoringsTableToolBar()
+				{
+					setFloatable(false);
+					
+					add(btnAdd = SnowRunner.createButton("Add", true, GrayCommandIcons.Add.getIcon(), GrayCommandIcons.Add_Dis.getIcon(), e->{
+						addPreset(new RowColoringPreset());
+						updateButtons();
+					}));
+					add(btnCopy = SnowRunner.createButton("Copy", false, GrayCommandIcons.Copy.getIcon(), GrayCommandIcons.Copy_Dis.getIcon(), e->{
+						if (selectedPreset!=null)
+						{
+							addPreset(new RowColoringPreset(selectedPreset.preset));
+							updateButtons();
+						}
+					}));
+					add(btnRemove = SnowRunner.createButton("Remove", false, GrayCommandIcons.Delete.getIcon(), GrayCommandIcons.Delete_Dis.getIcon(), e->{
+						if (selectedPreset!=null)
+						{
+							tableColorings.remove(selectedPreset.name);
+							coloringsTableModel.removeRow(selectedPreset, true);
+							coloringsTable.clearSelection();
+							coloringsMap.write();
+							updateButtons();
+						}
+					}));
+					
+					addSeparator();
+					
+					add(btnMoveUp = SnowRunner.createButton("Move Up", true, GrayCommandIcons.Up.getIcon(), GrayCommandIcons.Up_Dis.getIcon(), e->{
+						if (selectedRowM > 0)
+						{
+							coloringsTableModel.moveRowUp(selectedRowM, true);
+							selectedRowM--;
+							coloringsTable.setRowSelectionInterval(selectedRowM, selectedRowM);
+							coloringsMap.write();
+							updateButtons();
+						}
+					}));
+					add(btnMoveDown = SnowRunner.createButton("Move Down", true, GrayCommandIcons.Down.getIcon(), GrayCommandIcons.Down_Dis.getIcon(), e->{
+						if (selectedRowM < coloringsTableModel.getRowCount()-1)
+						{
+							coloringsTableModel.moveRowDown(selectedRowM, true);
+							selectedRowM++;
+							coloringsTable.setRowSelectionInterval(selectedRowM, selectedRowM);
+							coloringsMap.write();
+							updateButtons();
+						}
+					}));
+					
+					addSeparator();
+					
+					add(btnSetForeground = SnowRunner.createButton("Set Foreground", true, e->{
+						if (selectedPreset!=null)
+							changeColor(
+								"Foreground",
+								selectedPreset.name,
+								selectedPreset.preset.foreground,
+								coloringsTable.getForeground(),
+								c -> selectedPreset.preset.foreground = c
+							);
+					}));
+					
+					add(btnSetBackground = SnowRunner.createButton("Set Background", true, e->{
+						if (selectedPreset!=null)
+							changeColor(
+								"Background",
+								selectedPreset.name,
+								selectedPreset.preset.background,
+								coloringsTable.getBackground(),
+								c -> selectedPreset.preset.background = c
+							);
+					}));
+					
+					add(btnRemoveForeground = SnowRunner.createButton("Foreground", true, GrayCommandIcons.Delete.getIcon(), GrayCommandIcons.Delete_Dis.getIcon(), e->{
+						if (selectedPreset!=null)
+						{
+							selectedPreset.preset.foreground = null;
+							updateAfterColorChange();
+						}
+					}));
+					
+					add(btnRemoveBackground = SnowRunner.createButton("Background", true, GrayCommandIcons.Delete.getIcon(), GrayCommandIcons.Delete_Dis.getIcon(), e->{
+						if (selectedPreset!=null)
+						{
+							selectedPreset.preset.background = null;
+							updateAfterColorChange();
+						}
+					}));
+				}
+
+				private void changeColor(String colorLabel, String presetName, Color initialValue, Color defaultinitialValue, Consumer<Color> setValue)
+				{
+					Color newColor = HSColorChooser.showDialog(
+							ConfigureDialog.this,
+							String.format("%s Color of \"%s\"", colorLabel, presetName),
+							initialValue==null ? defaultinitialValue : initialValue,
+							userdefinedColors,
+							StandardDialog.Position.PARENT_CENTER
+					);
+					if (newColor!=null)
+					{
+						setValue.accept(newColor);
+						updateAfterColorChange();
+					}
+				}
+
+				private void updateAfterColorChange()
+				{
+					coloringsTableModel.fireTableColumnUpdate(ColoringsTableModel.ColumnID.Colors);
+					coloringsMap.write();
+					updateButtons();
+				}
+
+				void updateToolbarButtons()
+				{
+					btnAdd             .setEnabled(true);
+					btnCopy            .setEnabled(selectedPreset!=null);
+					btnRemove          .setEnabled(selectedPreset!=null);
+					btnMoveUp          .setEnabled(selectedRowM >  0 && selectedRowM < coloringsTableModel.getRowCount()  );
+					btnMoveDown        .setEnabled(selectedRowM >= 0 && selectedRowM < coloringsTableModel.getRowCount()-1);
+					btnSetForeground   .setEnabled(selectedPreset!=null);
+					btnSetBackground   .setEnabled(selectedPreset!=null);
+					btnRemoveForeground.setEnabled(selectedPreset!=null && selectedPreset.preset.foreground!=null);
+					btnRemoveBackground.setEnabled(selectedPreset!=null && selectedPreset.preset.background!=null);
+				}
+			}
+			
+			private class FilterListToolBar extends JToolBar
+			{
+				private static final long serialVersionUID = 1058473217213473561L;
+				
+				private final JButton btnSave;
+				private final JCheckBox chkbxSaveAutomatically;
+				
+				FilterListToolBar()
+				{
+					setFloatable(false);
+					
+					add(btnSave = SnowRunner.createButton("Save Changes", false, GrayCommandIcons.Save.getIcon(), GrayCommandIcons.Save_Dis.getIcon(), e->{
+						// TODO
+					}));
+					
+					add(chkbxSaveAutomatically = SnowRunner.createCheckBox("Save Changes Automatically", saveChangesAutomatically, null, true, b->{
+						//saveChangesAutomatically = b;
+						//if (saveChangesAutomatically) btnSave.setEnabled(false);
+						// TODO
+					}));
+				}
+
+				void updateToolbarButtons()
+				{
+					btnSave.setEnabled(true); // TODO: btnSave disabled, if no changes
+					chkbxSaveAutomatically.setEnabled(true);
+				}
+			}
+
+			private void updateButtons()
+			{
+				coloringsTableToolBar.updateToolbarButtons();
+				filterListToolBar.updateToolbarButtons();
+			}
+
+			private void addPreset(RowColoringPreset preset)
+			{
+				String name = askUserForNewName();
+				if (name==null) return;
+				tableColorings.put(name, preset);
+				coloringsTableModel.addRow(name, preset, true);
+				coloringsMap.write();
+			}
+			
+			private String askUserForNewName()
+			{
+				String title1 = "Enter Name";
+				String msg1 = "Enter a new name: ";
+				
+				while (true)
+				{
+					String newName = JOptionPane.showInputDialog(this, msg1, title1, JOptionPane.QUESTION_MESSAGE);
+					if (newName==null) return null;
+					if (!tableColorings.keySet().contains(newName)) return newName;
+					
+					String title2 = "Name already used";
+					Object msg2 = String.format("Name \"%s\" is already in use.", newName);
+					JOptionPane.showMessageDialog(this, msg2, title2, JOptionPane.ERROR_MESSAGE);
+				}
+			}
+
 			boolean showDialog() {
 				pack();
 				setLocationRelativeTo(owner);
@@ -965,12 +1139,40 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				return hasChanged;
 			}
 			
-			static class ColoringsTabelModel extends Tables.SimplifiedTableModel<ColoringsTabelModel.ColumnID>
+			private static class ExampleCellRenderer implements TableCellRenderer
+			{
+				private final Tables.LabelRendererComponent rendComp;
+				private final ColoringsTableModel tableModel;
+
+				ExampleCellRenderer(ColoringsTableModel tableModel)
+				{
+					this.tableModel = tableModel;
+					rendComp = new Tables.LabelRendererComponent();
+				}
+
+				@Override
+				public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV)
+				{
+					String valuestr = value==null ? null : value.toString();
+					
+					int rowM = table.convertRowIndexToModel(rowV);
+					ColoringsTableModel.Row row = tableModel.getRow(rowM);
+					
+					Supplier<Color> getCustomBackground = () -> row==null ? null : row.preset.background;
+					Supplier<Color> getCustomForeground = () -> row==null ? null : row.preset.foreground;
+					rendComp.configureAsTableCellRendererComponent(table, null, valuestr, isSelected, hasFocus, getCustomBackground, getCustomForeground);
+					
+					return rendComp;
+				}
+				
+			}
+			
+			static class ColoringsTableModel extends Tables.SimplifiedTableModel<ColoringsTableModel.ColumnID>
 			{
 				enum ColumnID implements Tables.SimplifiedColumnIDInterface
 				{
-					Name ( "Name" , String.class, 150),
-					Color( "Color", String.class,  70),
+					Name  ( "Name"  , String.class, 150),
+					Colors( "Colors", String.class, 150),
 					;
 					private final Tables.SimplifiedColumnConfig config;
 					ColumnID(String name, Class<?> columnClass, int width)
@@ -982,14 +1184,71 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				
 				private final Vector<Row> data;
 
-				ColoringsTabelModel(HashMap<String, RowColoringPreset> tableColorings)
+				ColoringsTableModel(HashMap<String, RowColoringPreset> tableColorings, Runnable writeColoringsToFile)
 				{
 					super(ColumnID.values());
 					data = new Vector<>();
 					tableColorings.forEach((name, preset) -> data.add(new Row(name, preset)));
 					data.sort(Comparator.<Row,Integer>comparing(row -> row.preset.orderIndex).thenComparing(row -> row.name));
+					
+					boolean orderIndexesChanged = fixOrderIndexes(data);
+					if (orderIndexesChanged)
+						writeColoringsToFile.run();
+				}
+
+				void moveRowUp  (int rowIndex, boolean fixOrderIndex) { swapRows(rowIndex, rowIndex-1, fixOrderIndex); }
+				void moveRowDown(int rowIndex, boolean fixOrderIndex) { swapRows(rowIndex, rowIndex+1, fixOrderIndex); }
+
+				private void swapRows(int rowIndex1, int rowIndex2, boolean fixOrderIndex)
+				{
+					Row row1 = getRow(rowIndex1);
+					Row row2 = getRow(rowIndex2);
+					if (row1==null || row2==null) return;
+					
+					data.set(rowIndex1, row2);
+					data.set(rowIndex2, row1);
+					
+					if (fixOrderIndex)
+					{
+						row1.preset.orderIndex = rowIndex2+1;
+						row2.preset.orderIndex = rowIndex1+1;
+					}
+				}
+
+				private static boolean fixOrderIndexes(Vector<Row> data)
+				{
+					boolean changed = false;
 					for (int i=0; i<data.size(); i++)
-						data.get(i).preset.orderIndex = i+1;
+					{
+						RowColoringPreset preset = data.get(i).preset;
+						if (preset.orderIndex != i+1)
+						{
+							changed = true;
+							preset.orderIndex = i+1;
+						}
+					}
+					return changed;
+				}
+
+				void addRow(String name, RowColoringPreset preset, boolean fixOrderIndex)
+				{
+					data.add(new Row(name, preset));
+					if (fixOrderIndex)
+						preset.orderIndex = data.size();
+					fireTableRowAdded(data.size()-1);
+				}
+
+				boolean removeRow(Row preset, boolean fixOrderIndexes)
+				{
+					int rowIndex = data.indexOf(preset);
+					if (rowIndex<0) return false;
+					
+					data.remove(rowIndex);
+					if (fixOrderIndexes)
+						fixOrderIndexes(data);
+					
+					fireTableRowRemoved(rowIndex);
+					return true;
 				}
 
 				record Row(String name, RowColoringPreset preset) {}
@@ -1012,36 +1271,57 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					switch (columnID)
 					{
 						case Name : return row.name;
-						case Color: return "Text";
+						case Colors: return String.format("%s / %s", toDisplayString(row.preset.foreground), toDisplayString(row.preset.background));
 					}
 					return null;
+				}
+
+				private String toDisplayString(Color color)
+				{
+					if (color==null) return "-------";
+					return String.format("#%06X", color.getRGB() & 0xFFFFFF);
 				}
 			}
 		}
 
 		static class RowColoringPreset
 		{
-			private final HashMap<String,RowFiltering.ValueFilter> filterMap = new HashMap<>();
-			private int orderIndex = 0;
-			private Color foreground = null;
-			private Color background = null;
-		}
-
-		static class RowColoringsMap extends PresetMaps<RowColoringPreset>
-		{
-			RowColoringsMap()
+			private final HashMap<String,RowFiltering.ValueFilter> filterMap;
+			private int orderIndex;
+			private Color foreground;
+			private Color background;
+			
+			RowColoringPreset()
 			{
-				super("RowColoringsMap", SnowRunner.RowColoringsFile, RowColoringPreset::new);
+				filterMap = new HashMap<>();
+				orderIndex = 0;
+				foreground = null;
+				background = null;
 			}
-		
-			@Override protected void parseLine(String line, RowColoringPreset preset)
+			
+			RowColoringPreset(RowColoringPreset other)
+			{
+				filterMap = deepCopyOf(other.filterMap);
+				orderIndex = other.orderIndex;
+				foreground = other.foreground;
+				background = other.background;
+			}
+			
+			private static HashMap<String, RowFiltering.ValueFilter> deepCopyOf(HashMap<String, RowFiltering.ValueFilter> filterMap)
+			{
+				HashMap<String, RowFiltering.ValueFilter> newMap = new HashMap<>();
+				filterMap.forEach((id, filter) -> newMap.put(id, filter.clone()));
+				return newMap;
+			}
+
+			void parseLine(String line)
 			{
 				String valueStr;
-				if ( (valueStr=Data.getLineValue(line, "OrderIndex="))!=null ) preset.orderIndex = parseInt(valueStr, -1);
-				if ( (valueStr=Data.getLineValue(line, "Foreground="))!=null ) preset.foreground = parseColor(valueStr);
-				if ( (valueStr=Data.getLineValue(line, "Background="))!=null ) preset.background = parseColor(valueStr);
+				if ( (valueStr=Data.getLineValue(line, "OrderIndex="))!=null ) orderIndex = parseInt(valueStr, Integer.MAX_VALUE);
+				if ( (valueStr=Data.getLineValue(line, "Foreground="))!=null ) foreground = parseColor(valueStr);
+				if ( (valueStr=Data.getLineValue(line, "Background="))!=null ) background = parseColor(valueStr);
 				
-				RowFiltering.parseFilterLine(line, preset.filterMap);
+				RowFiltering.parseFilterLine(line, filterMap);
 			}
 
 			private static int parseInt(String valueStr, int defaultValue)
@@ -1055,15 +1335,32 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				try { return new Color(Integer.parseInt(valueStr, 16) & 0xFFFFFF); }
 				catch (NumberFormatException e) { return null; }
 			}
+
+			void writeLines(PrintWriter out)
+			{
+				out.printf("OrderIndex=%d%n", orderIndex);
+				if (foreground!=null) out.printf("Foreground=%06X%n", foreground.getRGB() & 0xFFFFFF);
+				if (background!=null) out.printf("Background=%06X%n", background.getRGB() & 0xFFFFFF);
+				RowFiltering.writeFilterLines(filterMap, out);
+			}
+		}
+
+		static class RowColoringsMap extends PresetMaps<RowColoringPreset>
+		{
+			RowColoringsMap()
+			{
+				super("RowColoringsMap", SnowRunner.RowColoringsFile, RowColoringPreset::new);
+			}
+		
+			@Override protected void parseLine(String line, RowColoringPreset preset)
+			{
+				preset.parseLine(line);
+			}
 		
 			@Override protected void writePresetInLines(RowColoringPreset preset, PrintWriter out)
 			{
-				out.printf("OrderIndex=%06X%n", preset.orderIndex);
-				if (preset.foreground!=null) out.printf("Foreground=%06X%n", preset.foreground.getRGB() & 0xFFFFFF);
-				if (preset.background!=null) out.printf("Background=%06X%n", preset.background.getRGB() & 0xFFFFFF);
-				RowFiltering.writeFilterLines(preset.filterMap, out);
+				preset.writeLines(out);
 			}
-			
 		}
 	}
 	
@@ -2039,12 +2336,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						modelPresets = getModelPresets(valueStr);
 						preset = null;
 					}
-					if ( (valueStr=Data.getLineValue(line, "Preset="))!=null ) {
+					if ( (valueStr=Data.getLineValue(line, "Preset="))!=null && modelPresets!=null ) {
 						preset = modelPresets.get(valueStr);
 						if (preset==null)
 							modelPresets.put(valueStr, preset = createEmptyPreset.get());
 					}
-					parseLine(line, preset);
+					if (preset!=null)
+						parseLine(line, preset);
 					
 				}
 				

@@ -50,6 +50,7 @@ import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JCheckBoxMenuItem;
@@ -618,46 +619,52 @@ public class SnowRunner {
 		return values;
 	}
 
-	private static <Comp extends AbstractButton> Comp configureAbstractButton(Comp comp, String title, Boolean isSelected, ButtonGroup bg, boolean isEnabled, Insets margin, Consumer<Boolean> setValue)
+	private static <Comp extends AbstractButton> Comp configureAbstractButton(Comp comp, String title, Icon icon, Icon disabledIcon, Boolean isSelected, ButtonGroup bg, boolean isEnabled, Insets margin, Consumer<Boolean> setValue)
 	{
-		return configureAbstractButton(comp, title, isSelected, bg, isEnabled, margin, setValue == null ? null : (ActionListener) (e->{
+		return configureAbstractButton(comp, title, icon, disabledIcon, isSelected, bg, isEnabled, margin, setValue == null ? null : (ActionListener) (e->{
 			setValue.accept(comp.isSelected());			
 		}));
 	}
 
-	private static <Comp extends AbstractButton> Comp configureAbstractButton(Comp comp, String title, Boolean isSelected, ButtonGroup bg, boolean isEnabled, Insets margin, ActionListener al)
+	private static <Comp extends AbstractButton> Comp configureAbstractButton(Comp comp, String title, Icon icon, Icon disabledIcon, Boolean isSelected, ButtonGroup bg, boolean isEnabled, Insets margin, ActionListener al)
 	{
 		comp.setEnabled(isEnabled);
-		if (title     !=null) comp.setText(title);
-		if (bg        !=null) bg.add(comp);
-		if (isSelected!=null) comp.setSelected(isSelected);
-		if (al        !=null) comp.addActionListener(al);
-		if (margin    !=null) comp.setMargin(margin);
+		if (icon        !=null) comp.setIcon(icon);
+		if (disabledIcon!=null) comp.setDisabledIcon(disabledIcon);
+		if (title       !=null) comp.setText(title);
+		if (bg          !=null) bg.add(comp);
+		if (isSelected  !=null) comp.setSelected(isSelected);
+		if (al          !=null) comp.addActionListener(al);
+		if (margin      !=null) comp.setMargin(margin);
 		return comp;
 	}
 
 	public static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Consumer<Boolean> setValue) {
-		return configureAbstractButton(new JCheckBoxMenuItem(), title, isSelected, bg, isEnabled, null, setValue);
+		return configureAbstractButton(new JCheckBoxMenuItem(), title, null, null, isSelected, bg, isEnabled, null, setValue);
 	}
 
 	public static JCheckBoxMenuItem createCheckBoxMenuItem(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Runnable al) {
-		return configureAbstractButton(new JCheckBoxMenuItem(), title, isSelected, bg, isEnabled, null, (ActionListener) e->al.run());
+		return configureAbstractButton(new JCheckBoxMenuItem(), title, null, null, isSelected, bg, isEnabled, null, (ActionListener) e->al.run());
 	}
 
 	public static JMenuItem createMenuItem(String title, boolean isEnabled, ActionListener al) {
-		return configureAbstractButton(new JMenuItem(), title, null, null, isEnabled, null, al);
+		return configureAbstractButton(new JMenuItem(), title, null, null, null, null, isEnabled, null, al);
 	}
 	
 	public static JCheckBox createCheckBox(String title, boolean isSelected, ButtonGroup bg, boolean isEnabled, Consumer<Boolean> setValue) {
-		return configureAbstractButton(new JCheckBox(), title, isSelected, bg, isEnabled, null, setValue);
+		return configureAbstractButton(new JCheckBox(), title, null, null, isSelected, bg, isEnabled, null, setValue);
+	}
+
+	public static JButton createButton(String title, boolean isEnabled, Icon icon, Icon disabledIcon, ActionListener al) {
+		return configureAbstractButton(new JButton(), title, icon, disabledIcon, null, null, isEnabled, null, al);
 	}
 
 	public static JButton createButton(String title, boolean isEnabled, ActionListener al) {
-		return configureAbstractButton(new JButton(), title, null, null, isEnabled, null, al);
+		return configureAbstractButton(new JButton(), title, null, null, null, null, isEnabled, null, al);
 	}
 	
 	public static JButton createButton(String title, boolean isEnabled, Insets margin, ActionListener al) {
-		return configureAbstractButton(new JButton(), title, null, null, isEnabled, margin, al);
+		return configureAbstractButton(new JButton(), title, null, null, null, null, isEnabled, margin, al);
 	}
 	public static <AC> JButton createButton(String title, boolean isEnabled, Disabler<AC> disabler, AC ac, ActionListener al) {
 		JButton comp = createButton(title, isEnabled, al);
@@ -666,7 +673,7 @@ public class SnowRunner {
 	}
 
 	public static JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, ActionListener al) {
-		return configureAbstractButton(new JRadioButton(), title, isSelected, bg, isEnabled, null, al);
+		return configureAbstractButton(new JRadioButton(), title, null, null, isSelected, bg, isEnabled, null, al);
 	}
 	public static <AC> JRadioButton createRadioButton(String title, ButtonGroup bg, boolean isEnabled, boolean isSelected, Disabler<AC> disabler, AC ac, ActionListener al) {
 		JRadioButton comp = createRadioButton(title, bg, isEnabled, isSelected, al);
