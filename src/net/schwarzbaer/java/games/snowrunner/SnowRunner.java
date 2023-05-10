@@ -1999,6 +1999,7 @@ public class SnowRunner {
 			TruckTableModel_enableDLCTrucksHighlighting,
 			TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting,
 			Tables_WriteCalculationDetailsToConsole,
+			Tables_ConfigureRowColoringDialog_SaveChangesAutomatically,
 			
 			Tables_CalcDetailsDialog_WindowX,
 			Tables_CalcDetailsDialog_WindowY,

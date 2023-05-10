@@ -10,6 +10,8 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -88,6 +90,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	@SuppressWarnings("unused")
 	private   final Float columns; // to hide super.columns
+	private   final String tableModelID;
 	private   final ColumnID[] originalColumns;
 	protected final Vector<RowType> rows;
 	private   final Vector<RowType> originalRows;
@@ -109,6 +112,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		this.finalizer = this.gfds.controllers.createNewFinalizer();
 		this.originalColumns = columns;
 		this.columns = null; // to hide super.columns
+		tableModelID = getClass().getName();
 		language = null;
 		initialRowOrder = null;
 		rows = new Vector<>();
@@ -200,6 +204,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private final HashSet<Integer> columnsWithActiveSpecialColoring = new HashSet<>();
 		
 		private final VerySimpleTableModel<RowType> tablemodel;
+		private UserDefinedRowColorizer<RowType> getUserDefinedRowForeground = null;
+		private UserDefinedRowColorizer<RowType> getUserDefinedRowBackground = null;
+		
+		interface UserDefinedRowColorizer<RowType>
+		{
+			Color getColor(RowType row, int rowIndex);
+		}
 		
 		Coloring(VerySimpleTableModel<RowType> tablemodel) {
 			this.tablemodel = tablemodel;
@@ -212,6 +223,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					classColorizersBGspecial.containsKey(columnClass) /*||
 					specialForegroundColumnColorizers.containsKey(clickedColumnIndex) ||
 					specialBackgroundColumnColorizers.containsKey(clickedColumnIndex)*/;
+		}
+
+		void setUserDefinedRowColorings(UserDefinedRowColorizer<RowType> getForeground, UserDefinedRowColorizer<RowType> getBackground)
+		{
+			this.getUserDefinedRowForeground = getForeground;
+			this.getUserDefinedRowBackground = getBackground;
 		}
 
 		void addForegroundRowColorizer(Function<RowType,Color> colorizer) {
@@ -284,6 +301,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			HashMap<Class<?>, BiFunction<RowType, Object, Color>> classColorizers;        // prio 4
 			Vector<Function<RowType,Color>> rowColorizers;  // prio 5
 			Color defaultColor;  // prio 6
+			UserDefinedRowColorizer<RowType> getUserDefinedRowColor;
 			
 			if (isForeground) {
 				columnColorizersSpecial = columnColorizersFGspecial;
@@ -291,6 +309,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				classColorizersSpecial = classColorizersFGspecial;
 				classColorizers        = classColorizersFG;
 				rowColorizers          = rowColorizersFG;
+				getUserDefinedRowColor = getUserDefinedRowForeground;
 				defaultColor = columnID.foreground;
 			} else {
 				columnColorizersSpecial = columnColorizersBGspecial;
@@ -298,6 +317,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				classColorizersSpecial = classColorizersBGspecial;
 				classColorizers        = classColorizersBG;
 				rowColorizers          = rowColorizersBG;
+				getUserDefinedRowColor = getUserDefinedRowBackground;
 				defaultColor = columnID.background;
 			}
 			Color color = null;
@@ -320,14 +340,16 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			if (color==null && classColorizer!=null)
 				color = classColorizer.apply(row, value);
 			
+			if (color==null && getUserDefinedRowColor!=null)
+				color = getUserDefinedRowColor.getColor(row, rowM);
+			
 			if (color==null && !rowColorizers.isEmpty())
 				color = getRowColor(rowColorizers,row);
 			
 			if (color==null) color = defaultColor;
 			
-			if (!isForeground && color==null && tablemodel.isCellEditable(rowM, columnM, columnID)) {
+			if (!isForeground && color==null && tablemodel.isCellEditable(rowM, columnM, columnID))
 				color = COLOR_BG_EDITABLECELL;
-			}
 			
 			return color;
 		}
@@ -520,7 +542,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		contextMenu.addSeparator();
 		
 		contextMenu.add(SnowRunner.createMenuItem("Hide/Unhide Columns ...", true, e->{
-			ColumnHiding.ColumnHideDialog dlg = new ColumnHiding.ColumnHideDialog(mainWindow, originalColumns, getTableModelID());
+			ColumnHiding.ColumnHideDialog dlg = new ColumnHiding.ColumnHideDialog(mainWindow, originalColumns, tableModelID);
 			boolean changed = dlg.showDialog();
 			if (changed) {
 				super.columns = ColumnHiding.removeHiddenColumns(originalColumns);
@@ -530,7 +552,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		}));
 		
 		contextMenu.add(SnowRunner.createMenuItem("Filter Rows ...", true, e->{
-			RowFiltering.FilterRowsDialog dlg = new RowFiltering.FilterRowsDialog(mainWindow, originalColumns, getTableModelID());
+			RowFiltering.FilterRowsDialog dlg = new RowFiltering.FilterRowsDialog(mainWindow, originalColumns, tableModelID);
 			boolean changed = dlg.showDialog();
 			if (changed) {
 				rows.clear();
@@ -543,12 +565,17 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		
 		contextMenu.addSeparator();
 		
-		contextMenu.add(new JMenu("Row Colorings"));
+		HashSet<String> activeColorings = new HashSet<>();
+		JMenu rowColoringsMenu = new JMenu("Row Colorings");
+		contextMenu.add(rowColoringsMenu);
+		RowColoring.rebuildMenu(this, rowColoringsMenu, activeColorings, table);
 		
 		contextMenu.add(SnowRunner.createMenuItem("Configure Row Colorings ...", true, e->{
-			RowColoring.ConfigureDialog dlg = new RowColoring.ConfigureDialog(mainWindow, originalColumns, getTableModelID());
-			boolean changed = dlg.showDialog();
-			if (changed) table.repaint();
+			RowColoring.ConfigureDialog dlg = new RowColoring.ConfigureDialog(mainWindow, originalColumns, tableModelID);
+			dlg.showDialog();
+			RowColoring.rebuildMenu(this, rowColoringsMenu, activeColorings, table);
+			RowColoring.updateColoring(this, activeColorings);
+			table.repaint();
 		}));
 		
 		contextMenu.addSeparator();
@@ -651,8 +678,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	protected void fireTableColumnUpdate(String id)
 	{
-		int colV = findColumnByID("DLC");
-		if (colV>=0) fireTableColumnUpdate(colV);
+		int colM = findColumnByID("DLC");
+		if (colM>=0) fireTableColumnUpdate(colM);
 	}
 	
 	protected int findColumnByID(String id) {
@@ -663,185 +690,93 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		return -1;
 	}
 	
-	protected String getTableModelID()
+	protected ColumnID getColumnID(String id)
 	{
-		return getClass().getName();
+		for (ColumnID columnID : originalColumns)
+			if (columnID.id.equals(id))
+				return columnID;
+		return null;
 	}
 
-	private static abstract class ModelConfigureDialog<Preset> extends JDialog {
-		private static final long serialVersionUID = 8159900024537014376L;
-		
-		private final Window owner;
-		private boolean hasChanged;
-		private boolean ignorePresetComboBoxEvent;
-		private final HashMap<String, Preset> modelPresets;
-		private final Vector<String> presetNames;
-		private final JComboBox<String> presetComboBox;
-		private final PresetMaps<Preset> presetMaps;
-		protected final JScrollPane filterListScrollPane;
-	
-		ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, PresetMaps<Preset> presetMaps, String tableModelID) {
-			super(owner, title, ModalityType.APPLICATION_MODAL);
-			this.owner = owner;
-			this.presetMaps = presetMaps;
-			this.modelPresets = this.presetMaps.getModelPresets(tableModelID);
-			this.hasChanged = false;
-			GridBagConstraints c;
-			
-			filterListScrollPane = new JScrollPane();
-			filterListScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-			filterListScrollPane.setPreferredSize(new Dimension(300,400));
-			filterListScrollPane.getVerticalScrollBar().setUnitIncrement(10);
-			
-			presetNames = new Vector<>(modelPresets.keySet());
-			presetNames.sort(null);
-			presetComboBox = new JComboBox<>(new Vector<>(presetNames));
-			presetComboBox.setSelectedItem(null);
-			//presetComboBox.setMinimumSize(new Dimension(100,20));
-			
-			JButton btnOverwrite, btnRemove;
-			JPanel presetPanel = new JPanel(new GridBagLayout());
-			//presetPanel.setPreferredSize(new Dimension(200,20));
-			c = new GridBagConstraints();
-			c.fill = GridBagConstraints.BOTH;
-			c.weightx=0;
-			presetPanel.add(new JLabel("Presets: "),c);
-			c.weightx=1;
-			presetPanel.add(presetComboBox,c);
-			c.weightx=0;
-			Insets smallButtonMargin = new Insets(3,3,3,3);
-			presetPanel.add(btnOverwrite = SnowRunner.createButton("Overwrite", false, smallButtonMargin, e->overwriteSelectedPreset()),c);
-			presetPanel.add(               SnowRunner.createButton("Add"      ,  true, smallButtonMargin, e->addPreset()),c);
-			presetPanel.add(btnRemove    = SnowRunner.createButton("Remove"   , false, smallButtonMargin, e->removePreset()),c);
-			
-			ignorePresetComboBoxEvent = false;
-			presetComboBox.addActionListener(e->{
-				if (ignorePresetComboBoxEvent) return;
-				int index = presetComboBox.getSelectedIndex();
-				setSelectedPresetInGui(index);
-				btnOverwrite.setEnabled(index>=0);
-				btnRemove.setEnabled(index>=0);
-			});
-			
-			
-			JPanel dlgButtonPanel = new JPanel(new GridBagLayout());
-			dlgButtonPanel.setBorder(BorderFactory.createEmptyBorder(5,0,0,0));
-			c = new GridBagConstraints();
-			c.fill = GridBagConstraints.BOTH;
-			c.weightx = 1;
-			dlgButtonPanel.add(new JLabel(),c);
-			c.weightx = 0;
-			dlgButtonPanel.add(SnowRunner.createButton("Reset", true, e->{
-				hasChanged = resetValuesFinal();
-				setVisible(false);
-			}),c);
-			dlgButtonPanel.add(SnowRunner.createButton("Set", true, e->{
-				hasChanged = setValuesFinal();
-				setVisible(false);
-			}),c);
-			dlgButtonPanel.add(SnowRunner.createButton("Cancel", true, e->{
-				setVisible(false);
-			}),c);
-			
-			
-			JPanel contentPane = new JPanel(new GridBagLayout());
-			contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-			c = new GridBagConstraints();
-			c.fill = GridBagConstraints.BOTH;
-			c.gridwidth = GridBagConstraints.REMAINDER;
-			c.weightx = 1;
-			c.weighty = 0;
-			contentPane.add(new JLabel(columnPanelHeadline+":"), c);
-			c.weighty = 1;
-			contentPane.add(filterListScrollPane, c);
-			c.weighty = 0;
-			contentPane.add(presetPanel, c);
-			contentPane.add(dlgButtonPanel, c);
-			
-			setContentPane(contentPane);
-		}
-	
-		protected abstract boolean resetValuesFinal();
-		protected abstract boolean setValuesFinal();
-		protected abstract void setPresetInGui(Preset preset);
-		protected abstract Preset getCopyOfCurrentPreset();
-	
-		private void addPreset() {
-			String presetName = JOptionPane.showInputDialog(this, "Enter preset name:", "Preset Name", JOptionPane.QUESTION_MESSAGE);
-			if (presetName==null)
-				return;
-			if (presetNames.contains(presetName)) {
-				String message = String.format("Preset name \"%s\" is already in use. Do you want to overwrite this preset?", presetName);
-				if (JOptionPane.showConfirmDialog(this, message, "Overwrite?", JOptionPane.YES_NO_CANCEL_OPTION)!=JOptionPane.YES_OPTION)
-					return;
-				ignorePresetComboBoxEvent = true;
-				presetComboBox.setSelectedItem(presetName);
-				ignorePresetComboBoxEvent = false;
-				
-			} else {
-				presetNames.add(presetName);
-				presetNames.sort(null);
-				updatePresetComboBoxModel(presetName);
-			}
-			modelPresets.put(presetName, getCopyOfCurrentPreset());
-			presetMaps.write();
-		}
-	
-		private void removePreset() {
-			int index = presetComboBox.getSelectedIndex();
-			String presetName = getPresetName(index);
-			if (presetName!=null) {
-				String message = String.format("Do you really want to remove preset \"%s\"?", presetName);
-				if (JOptionPane.showConfirmDialog(this, message, "Are you sure?", JOptionPane.YES_NO_CANCEL_OPTION)!=JOptionPane.YES_OPTION)
-					return;
-				modelPresets.remove(presetName);
-				presetMaps.write();
-				presetNames.remove(presetName);
-				updatePresetComboBoxModel(null);
-			}
-		}
-	
-		private void updatePresetComboBoxModel(String presetName) {
-			ignorePresetComboBoxEvent = true;
-			presetComboBox.setModel(new DefaultComboBoxModel<>(presetNames));
-			presetComboBox.setSelectedItem(presetName);
-			ignorePresetComboBoxEvent = false;
-		}
-	
-		private void overwriteSelectedPreset() {
-			int index = presetComboBox.getSelectedIndex();
-			String presetName = getPresetName(index);
-			if (presetName!=null) {
-				modelPresets.put(presetName, getCopyOfCurrentPreset());
-				presetMaps.write();
-			}
-		}
-	
-		private void setSelectedPresetInGui(int index) {
-			String presetName = getPresetName(index);
-			if (presetName!=null) {
-				Preset preset = modelPresets.get(presetName);
-				setPresetInGui(preset);
-			}
-		}
-	
-		private String getPresetName(int index) {
-			return index<0 ? null : presetNames.get(index);
-		}
-	
-		boolean showDialog() {
-			pack();
-			setLocationRelativeTo(owner);
-			setVisible(true);
-			return hasChanged;
-		}
-	
-	}
-	
 	private static class RowColoring
 	{
 		static final RowColoringsMap coloringsMap = new RowColoringsMap();
 		
+		static <RowType> void rebuildMenu(
+				VerySimpleTableModel<RowType> tableModel,
+				JMenu rowColoringsMenu,
+				HashSet<String> activeColorings,
+				JTable table
+		)
+		{
+			rowColoringsMenu.removeAll();
+			
+			HashMap<String, RowColoringPreset> presets = coloringsMap.getModelPresets(tableModel.tableModelID);
+			for (String name : SnowRunner.getSorted(presets.keySet()))
+				rowColoringsMenu.add(SnowRunner.createCheckBoxMenuItem(name, activeColorings.contains(name), null, true, b -> {
+					if (b) activeColorings.add(name);
+					else   activeColorings.remove(name);
+					
+					updateColoring(tableModel, activeColorings);
+					table.repaint();
+				}));
+		}
+
+		static <RowType> void updateColoring(VerySimpleTableModel<RowType> tableModel, HashSet<String> activeColorings)
+		{
+			HashMap<String, RowColoringPreset> presets = coloringsMap.getModelPresets(tableModel.tableModelID);
+			Coloring.UserDefinedRowColorizer<RowType> getForeground = generateRowColoringFunction(presets, activeColorings, preset -> preset.foreground, tableModel::getValue, tableModel::getColumnID);
+			Coloring.UserDefinedRowColorizer<RowType> getBackground = generateRowColoringFunction(presets, activeColorings, preset -> preset.background, tableModel::getValue, tableModel::getColumnID);
+			tableModel.coloring.setUserDefinedRowColorings(getForeground, getBackground);
+		}
+		
+		private static <RowType> Coloring.UserDefinedRowColorizer<RowType>
+			generateRowColoringFunction(
+				HashMap<String, RowColoringPreset> presets,
+				HashSet<String> activeColorings,
+				Function<RowColoringPreset,Color> getColor,
+				RowFiltering.GetValue<RowType> getValue,
+				Function<String, ColumnID> getColumnID
+		)
+		{
+			Vector<RowColorizer> activeColorizers = new Vector<>();
+			for (String name : activeColorings)
+			{
+				RowColoringPreset preset = presets.get(name);
+				Color color = getColor.apply(preset);
+				if (color!=null)
+					activeColorizers.add(new RowColorizer(preset.filterMap, preset.orderIndex, color, getColumnID));
+			}
+			activeColorizers.sort(Comparator.<RowColorizer,Integer>comparing(rc -> rc.orderIndex));
+			
+			return (row, rowIndex) -> {
+				for (RowColorizer rc : activeColorizers)
+				{
+					boolean meetsFilter = RowFiltering.meetsFilter(rc.filters, columnID -> getValue.getValue(columnID, rowIndex, row));
+					if (meetsFilter) return rc.color;
+				}
+				return null;
+			};
+		}
+
+		private static class RowColorizer
+		{
+			private final Color color;
+			private final int orderIndex;
+			private final Vector<RowFiltering.FixedValueFilterContainer.Pair> filters;
+
+			RowColorizer(HashMap<String,RowFiltering.ValueFilter> filterMap, int orderIndex, Color color, Function<String,ColumnID> getColumnID)
+			{
+				this.color = color;
+				this.orderIndex = orderIndex;
+				this.filters = new Vector<RowFiltering.FixedValueFilterContainer.Pair>();
+				filterMap.forEach((id,filter) -> {
+					ColumnID columnID = getColumnID.apply(id);
+					filters.add(new RowFiltering.FixedValueFilterContainer.Pair(columnID, filter));
+				});
+			}
+		}
+
 		static class ConfigureDialog extends JDialog
 		{
 			private static final long serialVersionUID = 3994955199504822407L;
@@ -857,22 +792,25 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			private final ColoringsTableToolBar coloringsTableToolBar;
 			private final FilterListToolBar filterListToolBar;
 			private boolean saveChangesAutomatically;
+			private boolean rowFilterPanelHasChanges;
 			private int selectedRowM;
 			private ColoringsTableModel.Row selectedPreset;
-			private boolean hasChanged;
 
 			ConfigureDialog(Window owner, ColumnID[] originalColumns, String tableModelID)
 			{
 				super(owner, "Configure RowColorings", ModalityType.APPLICATION_MODAL);
 				this.owner = owner;
-				this.tableColorings = coloringsMap.getModelPresets(tableModelID);
-				this.hasChanged = false;
 				this.originalColumns = originalColumns;
-				saveChangesAutomatically = false;
+				tableColorings = coloringsMap.getModelPresets(tableModelID);
+				saveChangesAutomatically = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.Tables_ConfigureRowColoringDialog_SaveChangesAutomatically, false);
 				selectedRowM = -1;
 				selectedPreset = null;
 				
-				rowFilterPanel = new RowFiltering.RowFilterPanel(this.originalColumns);
+				rowFilterPanel = new RowFiltering.RowFilterPanel(this.originalColumns, true, ()->{
+					rowFilterPanelHasChanges = true;
+					updateButtons();
+				});
+				rowFilterPanel.setEnabled(false);
 				
 				JScrollPane filterListScrollPane = new JScrollPane(rowFilterPanel.panel);
 				filterListScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -890,10 +828,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				coloringsTableScrollPane.setPreferredSize(new Dimension(300,100));
 				coloringsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 				coloringsTable.getSelectionModel().addListSelectionListener(e -> {
+					if (saveChangesAutomatically && rowFilterPanelHasChanges) saveChanges();
 					int rowV = coloringsTable.getSelectedRow();
 					selectedRowM = rowV<0 ? -1 : coloringsTable.convertRowIndexToModel(rowV);
 					selectedPreset = selectedRowM<0 ? null : coloringsTableModel.getRow(selectedRowM);
 					rowFilterPanel.setPresetInGui(selectedPreset==null ? null : selectedPreset.preset.filterMap);
+					rowFilterPanel.setEnabled(selectedPreset!=null);
+					rowFilterPanelHasChanges = false;
 					updateButtons();
 				});
 				
@@ -917,7 +858,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				dlgButtonPanel.add(new JLabel(),c);
 				c.weightx = 0;
 				dlgButtonPanel.add(SnowRunner.createButton("Close", true, e->{
-					hasChanged = false; // TODO
+					if (saveChangesAutomatically && rowFilterPanelHasChanges) saveChanges();
 					setVisible(false);
 				}),c);
 				
@@ -928,6 +869,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				
 				setContentPane(contentPane);
 				updateButtons();
+				
+				addWindowListener(new WindowAdapter() {
+					@Override public void windowClosing(WindowEvent e)
+					{
+						if (saveChangesAutomatically && rowFilterPanelHasChanges) saveChanges();
+					}
+				});
 			}
 			
 			private class ColoringsTableToolBar extends JToolBar
@@ -1083,20 +1031,35 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					setFloatable(false);
 					
 					add(btnSave = SnowRunner.createButton("Save Changes", false, GrayCommandIcons.Save.getIcon(), GrayCommandIcons.Save_Dis.getIcon(), e->{
-						// TODO
+						saveChanges();
+						updateToolbarButtons();
 					}));
 					
 					add(chkbxSaveAutomatically = SnowRunner.createCheckBox("Save Changes Automatically", saveChangesAutomatically, null, true, b->{
-						//saveChangesAutomatically = b;
-						//if (saveChangesAutomatically) btnSave.setEnabled(false);
-						// TODO
+						saveChangesAutomatically = b;
+						SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.Tables_ConfigureRowColoringDialog_SaveChangesAutomatically, saveChangesAutomatically);
+						if (saveChangesAutomatically && rowFilterPanelHasChanges)
+							saveChanges();
+						updateToolbarButtons();
 					}));
 				}
 
 				void updateToolbarButtons()
 				{
-					btnSave.setEnabled(true); // TODO: btnSave disabled, if no changes
+					btnSave.setEnabled(selectedPreset!=null && !saveChangesAutomatically && rowFilterPanelHasChanges);
 					chkbxSaveAutomatically.setEnabled(true);
+				}
+			}
+
+			private void saveChanges()
+			{
+				if (selectedPreset!=null && rowFilterPanelHasChanges)
+				{
+					HashMap<String, RowFiltering.ValueFilter> filterMap = selectedPreset.preset.filterMap;
+					filterMap.clear();
+					filterMap.putAll(rowFilterPanel.getCopyOfCurrentPreset());
+					coloringsMap.write();
+					rowFilterPanelHasChanges = false;
 				}
 			}
 
@@ -1132,11 +1095,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 			}
 
-			boolean showDialog() {
+			void showDialog() {
 				pack();
 				setLocationRelativeTo(owner);
 				setVisible(true);
-				return hasChanged;
 			}
 			
 			private static class ExampleCellRenderer implements TableCellRenderer
@@ -1369,23 +1331,23 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	{
 		static final Presets presets = new Presets();
 
-		static class Presets extends PresetMaps<HashMap<String,RowFiltering.ValueFilter>> {
+		static class Presets extends PresetMaps<HashMap<String,ValueFilter>> {
 		
 			Presets() {
-				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,RowFiltering.ValueFilter>::new);
+				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,ValueFilter>::new);
 			}
 		
-			@Override protected void parseLine(String line, HashMap<String, RowFiltering.ValueFilter> preset) {
+			@Override protected void parseLine(String line, HashMap<String, ValueFilter> preset) {
 				RowFiltering.parseFilterLine(line, preset);
 			}
 		
-			@Override protected void writePresetInLines(HashMap<String, RowFiltering.ValueFilter> preset, PrintWriter out) {
+			@Override protected void writePresetInLines(HashMap<String, ValueFilter> preset, PrintWriter out) {
 				RowFiltering.writeFilterLines(preset, out);
 			}
 			
 		}
 
-		static void parseFilterLine(String line, HashMap<String, RowFiltering.ValueFilter> preset)
+		static void parseFilterLine(String line, HashMap<String, ValueFilter> preset)
 		{
 			String valueStr;
 			if ( (valueStr=Data.getLineValue(line, "Filter="))!=null ) {
@@ -1396,18 +1358,18 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 				String key = valueStr.substring(0, endOfKey);
 				String filterStr = valueStr.substring(endOfKey+1);
-				RowFiltering.ValueFilter filter = RowFiltering.ValueFilter.parse( filterStr );
+				ValueFilter filter = ValueFilter.parse( filterStr );
 				if (filter!=null) preset.put(key, filter);
 				else System.err.printf("Can't parse filter in line for FilterRowsPresets: \"%s\"%n", valueStr);
 			}
 		}
 
-		static void writeFilterLines(HashMap<String, RowFiltering.ValueFilter> filterMap, PrintWriter out)
+		static void writeFilterLines(HashMap<String, ValueFilter> filterMap, PrintWriter out)
 		{
 			Vector<String> keys = new Vector<>(filterMap.keySet());
 			keys.sort(null);
 			for (String key : keys) {
-				RowFiltering.ValueFilter filter = filterMap.get(key);
+				ValueFilter filter = filterMap.get(key);
 				out.printf("Filter=%s:%s%n", key, filter.toParsableString());
 			}
 		}
@@ -1417,7 +1379,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			Object getValue(ColumnID columnID, int rowIndex, RowType row);
 		}
 
-		static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, Collection<RowFiltering.ValueFilterContainer> filterContainers, GetValue<RowType> getValue) {
+		static <RowType> Vector<RowType> filterRows(Vector<RowType> originalRows, Collection<? extends FixedValueFilterContainer> filterContainers, GetValue<RowType> getValue) {
 			Vector<RowType> filteredRows = new Vector<>();
 			for (int rowIndex=0; rowIndex<originalRows.size(); rowIndex++)
 			{
@@ -1431,9 +1393,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			return filteredRows;
 		}
 
-		static boolean meetsFilter(Collection<ValueFilterContainer> filterContainers, Function<ColumnID, Object> getValue)
+		static boolean meetsFilter(Collection<? extends FixedValueFilterContainer> filterContainers, Function<ColumnID, Object> getValue)
 		{
-			for (ValueFilterContainer filterContainer : filterContainers)
+			for (FixedValueFilterContainer filterContainer : filterContainers)
 			{
 				ValueFilter filter = filterContainer.getFilter();
 				if (filter!=null && filter.active)
@@ -1446,11 +1408,21 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			return true;
 		}
 
-		interface ValueFilterContainer
+		interface FixedValueFilterContainer
 		{
 			ColumnID getColumnID();
-			void setFilter(ValueFilter filter);
 			ValueFilter getFilter();
+			
+			record Pair(ColumnID columnID, ValueFilter filter) implements FixedValueFilterContainer
+			{
+				@Override public ColumnID getColumnID() { return columnID; }
+				@Override public ValueFilter getFilter() { return filter; }
+			}
+		}
+
+		interface ValueFilterContainer extends FixedValueFilterContainer
+		{
+			void setFilter(ValueFilter filter);
 		}
 
 		static abstract class ValueFilter {
@@ -1800,7 +1772,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			private final ValueFilterGuiElement[] columnElements;
 			final JPanel panel;
 
-			RowFilterPanel(ColumnID[] originalColumns)
+			RowFilterPanel(ColumnID[] originalColumns) { this(originalColumns, false, null); }
+			RowFilterPanel(ColumnID[] originalColumns, boolean ignoreFilterInColumnID, Runnable updateAfterChange)
 			{
 				panel = new JPanel(new GridBagLayout());
 				
@@ -1811,7 +1784,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				ValueFilterGuiElement ce;
 				for (int i=0; i<originalColumns.length; i++)
 				{
-					columnElements[i] = ce = new ValueFilterGuiElement(originalColumns[i]);
+					columnElements[i] = ce = new ValueFilterGuiElement(originalColumns[i], ignoreFilterInColumnID, updateAfterChange);
 					
 					c.weightx = 0;
 					c.gridwidth = 1;
@@ -1826,6 +1799,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				panel.add(new JLabel(), c);
 			}
 
+			void setEnabled(boolean enabled)
+			{
+				for (ValueFilterGuiElement ce : columnElements)
+					ce.setEnabled(enabled);
+			}
+			
 			boolean setFilterFinal(boolean hasChanged, int i, ValueFilterContainer vfc)
 			{
 				ValueFilter filterInGui = columnElements[i].getFilter();
@@ -1858,292 +1837,322 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				for (ValueFilterGuiElement elem : columnElements)
 					elem.setValues(preset==null ? null : preset.get(elem.id));
 			}
-		}
 
-		static class ValueFilterGuiElement
-		{
-			private static final HashMap<Class<?>,Supplier<OptionsPanel<?>>> RegisteredOptionsPanels = new HashMap<>();
-			static {
-				RegisteredOptionsPanels.put(Boolean            .class, ()->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter()));
-				RegisteredOptionsPanels.put(Data.Capability    .class, ()->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter()));
-				RegisteredOptionsPanels.put(Integer            .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null             ));
-				RegisteredOptionsPanels.put(Long               .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null             ));
-				RegisteredOptionsPanels.put(Float              .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite ));
-				RegisteredOptionsPanels.put(Double             .class, ()->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite ));
-				RegisteredOptionsPanels.put(Truck.Country      .class, ()->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values()));
-				RegisteredOptionsPanels.put(Truck.DiffLockType .class, ()->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, Truck.DiffLockType .values()));
-				RegisteredOptionsPanels.put(Truck.TruckType    .class, ()->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, Truck.TruckType    .values()));
-				RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, ()->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values()));
-			}
+			static class ValueFilterGuiElement
+			{
+				interface OptionsPanelConstructor
+				{
+					OptionsPanel<?> create(Runnable updateAfterChange);
+				}
+				
+				private static final HashMap<Class<?>,OptionsPanelConstructor> RegisteredOptionsPanels = new HashMap<>();
+				static {
+					RegisteredOptionsPanels.put(Boolean            .class, uac->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter(), uac));
+					RegisteredOptionsPanels.put(Data.Capability    .class, uac->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter(), uac));
+					RegisteredOptionsPanels.put(Integer            .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null            , uac ));
+					RegisteredOptionsPanels.put(Long               .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null            , uac ));
+					RegisteredOptionsPanels.put(Float              .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite, uac ));
+					RegisteredOptionsPanels.put(Double             .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite, uac ));
+					RegisteredOptionsPanels.put(Truck.Country      .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values(), uac));
+					RegisteredOptionsPanels.put(Truck.DiffLockType .class, uac->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, Truck.DiffLockType .values(), uac));
+					RegisteredOptionsPanels.put(Truck.TruckType    .class, uac->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, Truck.TruckType    .values(), uac));
+					RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, uac->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values(), uac));
+				}
+				
+				private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
+				private final String id;
+				private final JCheckBox baseCheckBox;
+				private final OptionsPanel<?> optionsPanel;
+				private final Color defaultBG;
+				private final Runnable updateAfterChange;
 			
-			private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
-			private final String id;
-			private final JCheckBox baseCheckBox;
-			private final OptionsPanel<?> optionsPanel;
-			private final Color defaultBG;
-		
-			ValueFilterGuiElement(ColumnID columnID)
-			{
-				this(
-					columnID.id,
-					columnID.config.name,
-					columnID.config.columnClass,
-					columnID.filter
-				);
-			}
-			ValueFilterGuiElement(String id, String label, Class<?> valueClass, ValueFilter filter)
-			{
-				this.id = id;
-				
-				Supplier<OptionsPanel<?>> creator = RegisteredOptionsPanels.get(valueClass);
-				if (creator==null) optionsPanel = new OptionsPanel.DummyOptions(valueClass);
-				else               optionsPanel = creator.get();
-				
-				optionsPanel.setValues(filter);
-				if (optionsPanel.filter!=null)
-					optionsPanel.filter.active = filter!=null && filter.active;
-				
-				baseCheckBox = SnowRunner.createCheckBox(
-						label,
-						optionsPanel.filter!=null && optionsPanel.filter.active,
-						null, optionsPanel.filter!=null,
-						this::setActive);
-				defaultBG = baseCheckBox.getBackground();
-				
-				showActive(optionsPanel.filter!=null && optionsPanel.filter.active);
-			}
-		
-			private void setActive(boolean isActive) {
-				if (optionsPanel.filter!=null)
-					optionsPanel.filter.active = isActive;
-				showActive(isActive);
-			}
-		
-			private void showActive(boolean isActive) {
-				optionsPanel.setEnableOptions(isActive);
-				baseCheckBox.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
-				//optionsPanel.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
-			}
-		
-			ValueFilter getFilter() {
-				return optionsPanel.filter;
-			}
-		
-			void setValues(ValueFilter filter) {
-				if (optionsPanel.filter!=null) {
-					optionsPanel.filter.active = filter!=null && filter.active;
-					baseCheckBox.setSelected(optionsPanel.filter.active);
-					showActive(optionsPanel.filter.active);
+				ValueFilterGuiElement(ColumnID columnID, boolean ignoreFilterInColumnID, Runnable updateAfterChange)
+				{
+					this(
+						columnID.id,
+						columnID.config.name,
+						columnID.config.columnClass,
+						ignoreFilterInColumnID ? null : columnID.filter,
+						updateAfterChange
+					);
 				}
-				optionsPanel.setValues(filter);
-			}
-		
-			static abstract class OptionsPanel<FilterType extends ValueFilter> extends JPanel {
-				private static final long serialVersionUID = -8491252831775091069L;
-				
-				protected final GridBagConstraints c;
-				final FilterType filter;
-				private final JCheckBox chkbxUnset;
-		
-				OptionsPanel(FilterType filter) {
-					super(new GridBagLayout());
-					this.filter = filter;
-					c = new GridBagConstraints();
-					c.fill = GridBagConstraints.BOTH;
-					c.weightx = 0;
-					if (this.filter!=null)
-						add(chkbxUnset = SnowRunner.createCheckBox("unset", false, null, true, b->this.filter.allowUnset = b), c);
-					else
-						chkbxUnset = null;
-				}
-		
-				void setEnableOptions(boolean isEnabled) {
-					if (chkbxUnset!=null)
-						chkbxUnset.setEnabled(isEnabled);
-				}
-		
-				void setValues(ValueFilter filter) {
-					if (this.filter!=null) {
-						this.filter.allowUnset = filter!=null && filter.allowUnset;
-						chkbxUnset.setSelected(this.filter.allowUnset);
-					}
-				}
-		
-		
-				static class DummyOptions extends OptionsPanel<ValueFilter.BoolFilter> {
-					private static final long serialVersionUID = 4500779916477896148L;
-		
-					public DummyOptions(Class<?> columnClass) {
-						super(null);
-						c.weightx = 1;
-						String message;
-						if (columnClass==String.class) message = "No Filter for text values";
-						else message = String.format("No Filter for Column of %s", columnClass==null ? "<null>" : columnClass.getCanonicalName());
-						add(new JLabel(message), c);
-					}
-				
-				}
-		
-		
-				static class EnumOptions<E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumFilter<E>> {
-					private static final long serialVersionUID = -458324264563153126L;
+				ValueFilterGuiElement(String id, String label, Class<?> valueClass, ValueFilter filter, Runnable updateAfterChange)
+				{
+					this.id = id;
+					this.updateAfterChange = updateAfterChange;
 					
-					private final JCheckBox[] checkBoxes;
-					private final E[] values;
-		
-					EnumOptions( Class<E> valueClass, E[] values) {
-						this(new ValueFilter.EnumFilter<>(ValueFilter.EnumFilter.getFilterID(valueClass), valueClass), values);
+					OptionsPanelConstructor creator = RegisteredOptionsPanels.get(valueClass);
+					if (creator==null) optionsPanel = new OptionsPanel.DummyOptions(valueClass);
+					else               optionsPanel = creator.create(updateAfterChange);
+					
+					optionsPanel.setValues(filter);
+					if (optionsPanel.filter!=null)
+						optionsPanel.filter.active = filter!=null && filter.active;
+					
+					baseCheckBox = SnowRunner.createCheckBox(
+							label,
+							optionsPanel.filter!=null && optionsPanel.filter.active,
+							null, optionsPanel.filter!=null,
+							this::setActive);
+					defaultBG = baseCheckBox.getBackground();
+					
+					showActive(optionsPanel.filter!=null && optionsPanel.filter.active);
+				}
+			
+				void setEnabled(boolean isEnabled)
+				{
+					baseCheckBox.setEnabled(isEnabled && optionsPanel.filter!=null);
+					showActive             (isEnabled && optionsPanel.filter!=null && optionsPanel.filter.active);
+				}
+				
+				private void setActive(boolean isActive) {
+					if (optionsPanel.filter!=null)
+						optionsPanel.filter.active = isActive;
+					showActive(isActive);
+					if (updateAfterChange!=null)
+						updateAfterChange.run();
+				}
+			
+				private void showActive(boolean isActive) {
+					optionsPanel.setEnableOptions(isActive);
+					baseCheckBox.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
+					//optionsPanel.setBackground(isActive ? COLOR_BG_ACTIVE_FILTER : defaultBG);
+				}
+			
+				ValueFilter getFilter() {
+					return optionsPanel.filter;
+				}
+			
+				void setValues(ValueFilter filter) {
+					if (optionsPanel.filter!=null) {
+						optionsPanel.filter.active = filter!=null && filter.active;
+						baseCheckBox.setSelected(optionsPanel.filter.active);
+						showActive(optionsPanel.filter.active);
 					}
-		
-					EnumOptions(ValueFilter.EnumFilter<E> filter, E[] values) {
-						super(filter);
-						if (filter==null) throw new IllegalArgumentException();
-						if (values==null) throw new IllegalArgumentException();
-						
-						this.values = values;
-						
-						checkBoxes = new JCheckBox[this.values.length];
+					optionsPanel.setValues(filter);
+				}
+			
+				static abstract class OptionsPanel<FilterType extends ValueFilter> extends JPanel {
+					private static final long serialVersionUID = -8491252831775091069L;
+					
+					protected final GridBagConstraints c;
+					final FilterType filter;
+					private final JCheckBox chkbxUnset;
+					protected final Runnable updateAfterChange;
+			
+					OptionsPanel(FilterType filter, Runnable updateAfterChange) {
+						super(new GridBagLayout());
+						this.filter = filter;
+						this.updateAfterChange = updateAfterChange;
+						c = new GridBagConstraints();
+						c.fill = GridBagConstraints.BOTH;
 						c.weightx = 0;
-						for (int i=0; i<this.values.length; i++) {
-							E e = this.values[i];
-							boolean isSelected = this.filter.allowedValues.contains(e);
-							checkBoxes[i] = SnowRunner.createCheckBox(e.toString(), isSelected, null, true, b->{
-								if (b) this.filter.allowedValues.add(e);
-								else   this.filter.allowedValues.remove(e);
-							});
-							add(checkBoxes[i], c);
+						if (this.filter!=null)
+							add(chkbxUnset = SnowRunner.createCheckBox("unset", false, null, true, b->{ this.filter.allowUnset = b; updateAfterChange(); }), c);
+						else
+							chkbxUnset = null;
+					}
+					
+					protected void updateAfterChange() 
+					{
+						if (updateAfterChange!=null)
+							updateAfterChange.run();
+					}
+
+					void setEnableOptions(boolean isEnabled) {
+						if (chkbxUnset!=null)
+							chkbxUnset.setEnabled(isEnabled);
+					}
+			
+					void setValues(ValueFilter filter) {
+						if (this.filter!=null) {
+							this.filter.allowUnset = filter!=null && filter.allowUnset;
+							chkbxUnset.setSelected(this.filter.allowUnset);
 						}
-						c.weightx = 1;
-						add(new JLabel(), c);
 					}
-		
-					@Override void setEnableOptions(boolean isEnabled) {
-						super.setEnableOptions(isEnabled);
-						for (int i=0; i<checkBoxes.length; i++)
-							checkBoxes[i].setEnabled(isEnabled);
+			
+			
+					static class DummyOptions extends OptionsPanel<ValueFilter.BoolFilter>
+					{
+						private static final long serialVersionUID = 4500779916477896148L;
+			
+						public DummyOptions(Class<?> columnClass) {
+							super(null, null);
+							
+							String message;
+							if (columnClass==String.class) message = "---   No Filter for text values   ---";
+							else message = String.format("---   No Filter for Column of %s   ---", columnClass==null ? "<null>" : columnClass.getCanonicalName());
+							
+							JLabel msgComp = new JLabel(message);
+							msgComp.setEnabled(false);
+							
+							c.weightx = 1;
+							add(msgComp, c);
+						}
 					}
-		
-					@Override void setValues(ValueFilter filter) {
-						super.setValues(filter);
-						if (filter instanceof ValueFilter.EnumFilter) {
-							ValueFilter.EnumFilter<?> enumFilter = (ValueFilter.EnumFilter<?>) filter;
+			
+			
+					static class EnumOptions<E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumFilter<E>> {
+						private static final long serialVersionUID = -458324264563153126L;
+						
+						private final JCheckBox[] checkBoxes;
+						private final E[] values;
+			
+						EnumOptions( Class<E> valueClass, E[] values, Runnable updateAfterChange) {
+							this(new ValueFilter.EnumFilter<>(ValueFilter.EnumFilter.getFilterID(valueClass), valueClass), values, updateAfterChange);
+						}
+			
+						EnumOptions(ValueFilter.EnumFilter<E> filter, E[] values, Runnable updateAfterChange) {
+							super(filter, updateAfterChange);
+							if (filter==null) throw new IllegalArgumentException();
+							if (values==null) throw new IllegalArgumentException();
 							
-							if (this.filter.valueClass!=enumFilter.valueClass)
-								throw new IllegalStateException();
+							this.values = values;
 							
-							this.filter.allowedValues.clear();
-							for (int i=0; i<values.length; i++) {
-								E e = values[i];
-								if (enumFilter.allowedValues.contains(e)) {
-									this.filter.allowedValues.add(e);
-									checkBoxes[i].setSelected(true);
-								} else
-									checkBoxes[i].setSelected(false);
+							checkBoxes = new JCheckBox[this.values.length];
+							c.weightx = 0;
+							for (int i=0; i<this.values.length; i++) {
+								E e = this.values[i];
+								boolean isSelected = this.filter.allowedValues.contains(e);
+								checkBoxes[i] = SnowRunner.createCheckBox(e.toString(), isSelected, null, true, b->{
+									if (b) this.filter.allowedValues.add(e);
+									else   this.filter.allowedValues.remove(e);
+									updateAfterChange();
+								});
+								add(checkBoxes[i], c);
+							}
+							c.weightx = 1;
+							add(new JLabel(), c);
+						}
+			
+						@Override void setEnableOptions(boolean isEnabled) {
+							super.setEnableOptions(isEnabled);
+							for (int i=0; i<checkBoxes.length; i++)
+								checkBoxes[i].setEnabled(isEnabled);
+						}
+			
+						@Override void setValues(ValueFilter filter) {
+							super.setValues(filter);
+							if (filter instanceof ValueFilter.EnumFilter) {
+								ValueFilter.EnumFilter<?> enumFilter = (ValueFilter.EnumFilter<?>) filter;
+								
+								if (this.filter.valueClass!=enumFilter.valueClass)
+									throw new IllegalStateException();
+								
+								this.filter.allowedValues.clear();
+								for (int i=0; i<values.length; i++) {
+									E e = values[i];
+									if (enumFilter.allowedValues.contains(e)) {
+										this.filter.allowedValues.add(e);
+										checkBoxes[i].setSelected(true);
+									} else
+										checkBoxes[i].setSelected(false);
+								}
 							}
 						}
 					}
-				}
-		
-		
-				static class NumberOptions<V extends Number> extends OptionsPanel<ValueFilter.NumberFilter<V>> {
-					private static final long serialVersionUID = -436186682804402478L;
-					
-					private final JLabel labMin, labMax;
-					private final JTextField fldMin, fldMax;
-					private final Function<V, String> toString;
-					private final Function<String,V> convert;
-		
-					NumberOptions(ValueFilter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK) {
-						super(filter);
-						if (filter  ==null) throw new IllegalArgumentException();
-						if (toString==null) throw new IllegalArgumentException();
-						if (convert ==null) throw new IllegalArgumentException();
+			
+			
+					static class NumberOptions<V extends Number> extends OptionsPanel<ValueFilter.NumberFilter<V>> {
+						private static final long serialVersionUID = -436186682804402478L;
 						
-						this.toString = v -> v==null ? "<null>" : toString.apply(v);
-						
-						this.convert = str -> {
-							try { return convert.apply(str);
-							} catch (NumberFormatException e) { return null; }
-						};
-						
-						c.weightx = 0;
-						add(labMin = new JLabel("   min: "), c);
-						add(fldMin = SnowRunner.createTextField(10, this.toString.apply(this.filter.min), this.convert, isOK, v->this.filter.min = v), c);
-						add(labMax = new JLabel("   max: "), c);
-						add(fldMax = SnowRunner.createTextField(10, this.toString.apply(this.filter.max), this.convert, isOK, v->this.filter.max = v), c);
-						c.weightx = 1;
-						add(new JLabel(), c);
-					}
-		
-					@Override void setEnableOptions(boolean isEnabled) {
-						super.setEnableOptions(isEnabled);
-						labMin.setEnabled(isEnabled);
-						fldMin.setEnabled(isEnabled);
-						labMax.setEnabled(isEnabled);
-						fldMax.setEnabled(isEnabled);
-					}
-		
-					@Override void setValues(ValueFilter filter) {
-						super.setValues(filter);
-						if (filter instanceof ValueFilter.NumberFilter) {
-							ValueFilter.NumberFilter<?> numberFilter = (ValueFilter.NumberFilter<?>) filter;
-							if (this.filter.valueClass!=numberFilter.valueClass)
-								throw new IllegalStateException(String.format("filter.valueClass(%s) != numberFilter.valueClass(%s)", this.filter.valueClass, numberFilter.valueClass));
-							this.filter.min = this.filter.valueClass.cast(numberFilter.min);
-							this.filter.max = this.filter.valueClass.cast(numberFilter.max);
-							fldMin.setText(toString.apply(this.filter.min));
-							fldMax.setText(toString.apply(this.filter.max));
+						private final JLabel labMin, labMax;
+						private final JTextField fldMin, fldMax;
+						private final Function<V, String> toString;
+						private final Function<String,V> convert;
+			
+						NumberOptions(ValueFilter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK, Runnable updateAfterChange) {
+							super(filter, updateAfterChange);
+							if (filter  ==null) throw new IllegalArgumentException();
+							if (toString==null) throw new IllegalArgumentException();
+							if (convert ==null) throw new IllegalArgumentException();
+							
+							this.toString = v -> v==null ? "<null>" : toString.apply(v);
+							
+							this.convert = str -> {
+								try { return convert.apply(str);
+								} catch (NumberFormatException e) { return null; }
+							};
+							
+							c.weightx = 0;
+							add(labMin = new JLabel("   min: "), c);
+							add(fldMin = SnowRunner.createTextField(10, this.toString.apply(this.filter.min), this.convert, isOK, v->{ this.filter.min = v; updateAfterChange(); }), c);
+							add(labMax = new JLabel("   max: "), c);
+							add(fldMax = SnowRunner.createTextField(10, this.toString.apply(this.filter.max), this.convert, isOK, v->{ this.filter.max = v; updateAfterChange(); }), c);
+							c.weightx = 1;
+							add(new JLabel(), c);
 						}
-					}
-					
-				}
-		
-		
-				static class BoolOptions extends OptionsPanel<ValueFilter.BoolFilter> {
-					private static final long serialVersionUID = 1821563263682227455L;
-					private final JRadioButton rbtnTrue;
-					private final JRadioButton rbtnFalse;
-					
-					BoolOptions(ValueFilter.BoolFilter filter) {
-						super(filter);
-						ButtonGroup bg = new ButtonGroup();
-						c.weightx = 0;
-						add(rbtnTrue  = SnowRunner.createRadioButton("TRUE" , bg, true,  this.filter.allowTrues, e->this.filter.allowTrues = true ), c);
-						add(rbtnFalse = SnowRunner.createRadioButton("FALSE", bg, true, !this.filter.allowTrues, e->this.filter.allowTrues = false), c);
-						c.weightx = 1;
-						add(new JLabel(), c);
-					}
-		
-					@Override void setEnableOptions(boolean isEnabled) {
-						super.setEnableOptions(isEnabled);
-						rbtnTrue .setEnabled(isEnabled);
-						rbtnFalse.setEnabled(isEnabled);
-					}
-		
-					@Override void setValues(ValueFilter filter) {
-						super.setValues(filter);
-						if (filter instanceof ValueFilter.BoolFilter) {
-							ValueFilter.BoolFilter boolFilter = (ValueFilter.BoolFilter) filter;
-							this.filter.allowTrues = boolFilter.allowTrues;
-							if (this.filter.allowTrues) rbtnTrue .setSelected(true);
-							else                        rbtnFalse.setSelected(true);
+			
+						@Override void setEnableOptions(boolean isEnabled) {
+							super.setEnableOptions(isEnabled);
+							labMin.setEnabled(isEnabled);
+							fldMin.setEnabled(isEnabled);
+							labMax.setEnabled(isEnabled);
+							fldMax.setEnabled(isEnabled);
 						}
+			
+						@Override void setValues(ValueFilter filter) {
+							super.setValues(filter);
+							if (filter instanceof ValueFilter.NumberFilter) {
+								ValueFilter.NumberFilter<?> numberFilter = (ValueFilter.NumberFilter<?>) filter;
+								if (this.filter.valueClass!=numberFilter.valueClass)
+									throw new IllegalStateException(String.format("filter.valueClass(%s) != numberFilter.valueClass(%s)", this.filter.valueClass, numberFilter.valueClass));
+								this.filter.min = this.filter.valueClass.cast(numberFilter.min);
+								this.filter.max = this.filter.valueClass.cast(numberFilter.max);
+								fldMin.setText(toString.apply(this.filter.min));
+								fldMax.setText(toString.apply(this.filter.max));
+							}
+						}
+						
 					}
-					
+			
+			
+					static class BoolOptions extends OptionsPanel<ValueFilter.BoolFilter> {
+						private static final long serialVersionUID = 1821563263682227455L;
+						private final JRadioButton rbtnTrue;
+						private final JRadioButton rbtnFalse;
+						
+						BoolOptions(ValueFilter.BoolFilter filter, Runnable updateAfterChange) {
+							super(filter, updateAfterChange);
+							ButtonGroup bg = new ButtonGroup();
+							c.weightx = 0;
+							add(rbtnTrue  = SnowRunner.createRadioButton("TRUE" , bg, true,  this.filter.allowTrues, e->{ this.filter.allowTrues = true ; updateAfterChange(); } ), c);
+							add(rbtnFalse = SnowRunner.createRadioButton("FALSE", bg, true, !this.filter.allowTrues, e->{ this.filter.allowTrues = false; updateAfterChange(); }), c);
+							c.weightx = 1;
+							add(new JLabel(), c);
+						}
+			
+						@Override void setEnableOptions(boolean isEnabled) {
+							super.setEnableOptions(isEnabled);
+							rbtnTrue .setEnabled(isEnabled);
+							rbtnFalse.setEnabled(isEnabled);
+						}
+			
+						@Override void setValues(ValueFilter filter) {
+							super.setValues(filter);
+							if (filter instanceof ValueFilter.BoolFilter) {
+								ValueFilter.BoolFilter boolFilter = (ValueFilter.BoolFilter) filter;
+								this.filter.allowTrues = boolFilter.allowTrues;
+								if (this.filter.allowTrues) rbtnTrue .setSelected(true);
+								else                        rbtnFalse.setSelected(true);
+							}
+						}
+						
+					}
 				}
 			}
 		}
 
-		static class FilterRowsDialog extends ModelConfigureDialog<HashMap<String,RowFiltering.ValueFilter>> {
+		static class FilterRowsDialog extends ModelConfigureDialog<HashMap<String,ValueFilter>> {
 			private static final long serialVersionUID = 6171301101675843952L;
 			private final ColumnID[] originalColumns;
-			private final RowFiltering.RowFilterPanel rowFilterPanel;
+			private final RowFilterPanel rowFilterPanel;
 		
 			FilterRowsDialog(Window owner, ColumnID[] originalColumns, String tableModelID) {
 				super(owner, "Filter Rows", "Define filters", presets, tableModelID);
 				this.originalColumns = originalColumns;
 				
-				rowFilterPanel = new RowFiltering.RowFilterPanel(this.originalColumns);
+				rowFilterPanel = new RowFilterPanel(this.originalColumns);
 				
 				filterListScrollPane.setViewportView(rowFilterPanel.panel);
 				filterListScrollPane.setPreferredSize(new Dimension(600,700));
@@ -2169,11 +2178,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				return hasChanged;
 			}
 		
-			@Override protected void setPresetInGui(HashMap<String, RowFiltering.ValueFilter> preset) {
+			@Override protected void setPresetInGui(HashMap<String, ValueFilter> preset) {
 				rowFilterPanel.setPresetInGui(preset);
 			}
 		
-			@Override protected HashMap<String, RowFiltering.ValueFilter> getCopyOfCurrentPreset() {
+			@Override protected HashMap<String, ValueFilter> getCopyOfCurrentPreset() {
 				return rowFilterPanel.getCopyOfCurrentPreset();
 			}
 		
@@ -2289,6 +2298,176 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 		}
 		
+	}
+
+	private static abstract class ModelConfigureDialog<Preset> extends JDialog {
+		private static final long serialVersionUID = 8159900024537014376L;
+		
+		private final Window owner;
+		private boolean hasChanged;
+		private boolean ignorePresetComboBoxEvent;
+		private final HashMap<String, Preset> modelPresets;
+		private final Vector<String> presetNames;
+		private final JComboBox<String> presetComboBox;
+		private final PresetMaps<Preset> presetMaps;
+		protected final JScrollPane filterListScrollPane;
+	
+		ModelConfigureDialog(Window owner, String title, String columnPanelHeadline, PresetMaps<Preset> presetMaps, String tableModelID) {
+			super(owner, title, ModalityType.APPLICATION_MODAL);
+			this.owner = owner;
+			this.presetMaps = presetMaps;
+			this.modelPresets = this.presetMaps.getModelPresets(tableModelID);
+			this.hasChanged = false;
+			GridBagConstraints c;
+			
+			filterListScrollPane = new JScrollPane();
+			filterListScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			filterListScrollPane.setPreferredSize(new Dimension(300,400));
+			filterListScrollPane.getVerticalScrollBar().setUnitIncrement(10);
+			
+			presetNames = new Vector<>(modelPresets.keySet());
+			presetNames.sort(null);
+			presetComboBox = new JComboBox<>(new Vector<>(presetNames));
+			presetComboBox.setSelectedItem(null);
+			//presetComboBox.setMinimumSize(new Dimension(100,20));
+			
+			JButton btnOverwrite, btnRemove;
+			JPanel presetPanel = new JPanel(new GridBagLayout());
+			//presetPanel.setPreferredSize(new Dimension(200,20));
+			c = new GridBagConstraints();
+			c.fill = GridBagConstraints.BOTH;
+			c.weightx=0;
+			presetPanel.add(new JLabel("Presets: "),c);
+			c.weightx=1;
+			presetPanel.add(presetComboBox,c);
+			c.weightx=0;
+			Insets smallButtonMargin = new Insets(3,3,3,3);
+			presetPanel.add(btnOverwrite = SnowRunner.createButton("Overwrite", false, smallButtonMargin, e->overwriteSelectedPreset()),c);
+			presetPanel.add(               SnowRunner.createButton("Add"      ,  true, smallButtonMargin, e->addPreset()),c);
+			presetPanel.add(btnRemove    = SnowRunner.createButton("Remove"   , false, smallButtonMargin, e->removePreset()),c);
+			
+			ignorePresetComboBoxEvent = false;
+			presetComboBox.addActionListener(e->{
+				if (ignorePresetComboBoxEvent) return;
+				int index = presetComboBox.getSelectedIndex();
+				setSelectedPresetInGui(index);
+				btnOverwrite.setEnabled(index>=0);
+				btnRemove.setEnabled(index>=0);
+			});
+			
+			
+			JPanel dlgButtonPanel = new JPanel(new GridBagLayout());
+			dlgButtonPanel.setBorder(BorderFactory.createEmptyBorder(5,0,0,0));
+			c = new GridBagConstraints();
+			c.fill = GridBagConstraints.BOTH;
+			c.weightx = 1;
+			dlgButtonPanel.add(new JLabel(),c);
+			c.weightx = 0;
+			dlgButtonPanel.add(SnowRunner.createButton("Reset", true, e->{
+				hasChanged = resetValuesFinal();
+				setVisible(false);
+			}),c);
+			dlgButtonPanel.add(SnowRunner.createButton("Set", true, e->{
+				hasChanged = setValuesFinal();
+				setVisible(false);
+			}),c);
+			dlgButtonPanel.add(SnowRunner.createButton("Cancel", true, e->{
+				setVisible(false);
+			}),c);
+			
+			
+			JPanel contentPane = new JPanel(new GridBagLayout());
+			contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+			c = new GridBagConstraints();
+			c.fill = GridBagConstraints.BOTH;
+			c.gridwidth = GridBagConstraints.REMAINDER;
+			c.weightx = 1;
+			c.weighty = 0;
+			contentPane.add(new JLabel(columnPanelHeadline+":"), c);
+			c.weighty = 1;
+			contentPane.add(filterListScrollPane, c);
+			c.weighty = 0;
+			contentPane.add(presetPanel, c);
+			contentPane.add(dlgButtonPanel, c);
+			
+			setContentPane(contentPane);
+		}
+	
+		protected abstract boolean resetValuesFinal();
+		protected abstract boolean setValuesFinal();
+		protected abstract void setPresetInGui(Preset preset);
+		protected abstract Preset getCopyOfCurrentPreset();
+	
+		private void addPreset() {
+			String presetName = JOptionPane.showInputDialog(this, "Enter preset name:", "Preset Name", JOptionPane.QUESTION_MESSAGE);
+			if (presetName==null)
+				return;
+			if (presetNames.contains(presetName)) {
+				String message = String.format("Preset name \"%s\" is already in use. Do you want to overwrite this preset?", presetName);
+				if (JOptionPane.showConfirmDialog(this, message, "Overwrite?", JOptionPane.YES_NO_CANCEL_OPTION)!=JOptionPane.YES_OPTION)
+					return;
+				ignorePresetComboBoxEvent = true;
+				presetComboBox.setSelectedItem(presetName);
+				ignorePresetComboBoxEvent = false;
+				
+			} else {
+				presetNames.add(presetName);
+				presetNames.sort(null);
+				updatePresetComboBoxModel(presetName);
+			}
+			modelPresets.put(presetName, getCopyOfCurrentPreset());
+			presetMaps.write();
+		}
+	
+		private void removePreset() {
+			int index = presetComboBox.getSelectedIndex();
+			String presetName = getPresetName(index);
+			if (presetName!=null) {
+				String message = String.format("Do you really want to remove preset \"%s\"?", presetName);
+				if (JOptionPane.showConfirmDialog(this, message, "Are you sure?", JOptionPane.YES_NO_CANCEL_OPTION)!=JOptionPane.YES_OPTION)
+					return;
+				modelPresets.remove(presetName);
+				presetMaps.write();
+				presetNames.remove(presetName);
+				updatePresetComboBoxModel(null);
+			}
+		}
+	
+		private void updatePresetComboBoxModel(String presetName) {
+			ignorePresetComboBoxEvent = true;
+			presetComboBox.setModel(new DefaultComboBoxModel<>(presetNames));
+			presetComboBox.setSelectedItem(presetName);
+			ignorePresetComboBoxEvent = false;
+		}
+	
+		private void overwriteSelectedPreset() {
+			int index = presetComboBox.getSelectedIndex();
+			String presetName = getPresetName(index);
+			if (presetName!=null) {
+				modelPresets.put(presetName, getCopyOfCurrentPreset());
+				presetMaps.write();
+			}
+		}
+	
+		private void setSelectedPresetInGui(int index) {
+			String presetName = getPresetName(index);
+			if (presetName!=null) {
+				Preset preset = modelPresets.get(presetName);
+				setPresetInGui(preset);
+			}
+		}
+	
+		private String getPresetName(int index) {
+			return index<0 ? null : presetNames.get(index);
+		}
+	
+		boolean showDialog() {
+			pack();
+			setLocationRelativeTo(owner);
+			setVisible(true);
+			return hasChanged;
+		}
+	
 	}
 
 	private static abstract class PresetMaps<Preset> {

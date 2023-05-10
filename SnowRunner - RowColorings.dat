@@ -1,18 +1,24 @@
 [Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
-Preset=c1
-OrderIndex=3
-Foreground=74FF8D
-
-[Preset]
-TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
-Preset=c3
+Preset=Owned Offroad Trucks
 OrderIndex=1
-Background=FFFF00
+Foreground=00B500
+Background=FFF8D3
+Filter=AWDUser:true:true:EnumFilter:ItemStat:Able,Installed,Permanent
+Filter=DLUser:true:true:EnumFilter:ItemStat:Able,Installed,Permanent
+Filter=Owned:true:false:NumberFilter:Long:1:10000
 
 [Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
-Preset=color 2
+Preset=Owned Trucks
 OrderIndex=2
-Foreground=FFFF00
+Foreground=00AB00
+Filter=OwnedBool:true:false:BoolFilter:true
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset=US Trucks
+OrderIndex=3
+Background=FFFF00
+Filter=Country:true:false:EnumFilter:Country:US
 
