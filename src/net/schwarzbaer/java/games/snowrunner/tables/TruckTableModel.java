@@ -11,7 +11,6 @@ import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
@@ -40,8 +39,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
-	private static boolean enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
-	private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);
+	//private static boolean enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
+	//private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);
 	private static final String ID_HasImage  = "HasImage" ;
 	private static final String ID_MetalD    = "MetalD"   ;
 	private static final String ID_Seismic   = "Seismic"  ;
@@ -58,8 +57,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private Truck clickedItem;
 	private Function<Truck, Color> colorizeTrucksByTrailers;
 
-	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
-		super(mainWindow, gfds, new VerySimpleTableModel.ColumnID[] {
+	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
+		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
 				new ColumnID( "DLC"      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLC(((Truck)row).id, SnowRunner.DLCs.ItemType.Truck)),
@@ -131,18 +130,18 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		setInitialRowOrder(Comparator.<Truck,String>comparing(truck->truck.id));
 		
 		
-		coloring.addForegroundRowColorizer(truck->{
-			if (truck==null)
-				return null;
-			
-			if (enableOwnedTrucksHighlighting && saveGame!=null && saveGame.playerOwnsTruck(truck))
-				return SnowRunner.COLOR_FG_OWNEDTRUCK;
-			
-			if (enableDLCTrucksHighlighting && truck.updateLevel!=null)
-				return SnowRunner.COLOR_FG_DLCTRUCK;
-			
-			return null;
-		});
+		//coloring.addForegroundRowColorizer(truck->{
+		//	if (truck==null)
+		//		return null;
+		//	
+		//	if (enableOwnedTrucksHighlighting && saveGame!=null && saveGame.playerOwnsTruck(truck))
+		//		return SnowRunner.COLOR_FG_OWNEDTRUCK;
+		//	
+		//	if (enableDLCTrucksHighlighting && truck.updateLevel!=null)
+		//		return SnowRunner.COLOR_FG_DLCTRUCK;
+		//	
+		//	return null;
+		//});
 		
 		coloring.setBackgroundColumnColoring(true, Truck.UDV.ItemState.class, (truck, state) ->{
 			switch (state) {
@@ -451,19 +450,19 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			}
 		}));
 		
-		contextMenu.addSeparator();
+		//contextMenu.addSeparator();
 		
-		JCheckBoxMenuItem miEnableOwnedTrucksHighlighting, miEnableDLCTrucksHighlighting;
-		contextMenu.add(miEnableOwnedTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of owned trucks", enableOwnedTrucksHighlighting, null, true, ()->{
-			enableOwnedTrucksHighlighting = !enableOwnedTrucksHighlighting;
-			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, enableOwnedTrucksHighlighting);
-			if (table!=null) table.repaint();
-		}));
-		contextMenu.add(miEnableDLCTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of DLC trucks", enableDLCTrucksHighlighting, null, true, ()->{
-			enableDLCTrucksHighlighting = !enableDLCTrucksHighlighting;
-			SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting, enableDLCTrucksHighlighting);
-			if (table!=null) table.repaint();
-		}));
+		//JCheckBoxMenuItem miEnableOwnedTrucksHighlighting, miEnableDLCTrucksHighlighting;
+		//contextMenu.add(miEnableOwnedTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of owned trucks", enableOwnedTrucksHighlighting, null, true, ()->{
+		//	enableOwnedTrucksHighlighting = !enableOwnedTrucksHighlighting;
+		//	SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, enableOwnedTrucksHighlighting);
+		//	if (table!=null) table.repaint();
+		//}));
+		//contextMenu.add(miEnableDLCTrucksHighlighting = SnowRunner.createCheckBoxMenuItem("Highlighting of DLC trucks", enableDLCTrucksHighlighting, null, true, ()->{
+		//	enableDLCTrucksHighlighting = !enableDLCTrucksHighlighting;
+		//	SnowRunner.settings.putBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting, enableDLCTrucksHighlighting);
+		//	if (table!=null) table.repaint();
+		//}));
 		
 		contextMenu.addContextMenuInvokeListener((table, x, y) -> {
 			Point p = x==null || y==null ? null : new Point(x,y);
@@ -485,8 +484,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				: String.format("Copy image of \"%s\" from clipboard", SnowRunner.getTruckLabel(clickedItem,language))
 			);
 			
-			miEnableOwnedTrucksHighlighting.setSelected(enableOwnedTrucksHighlighting);
-			miEnableDLCTrucksHighlighting  .setSelected(enableDLCTrucksHighlighting  );
+			//miEnableOwnedTrucksHighlighting.setSelected(enableOwnedTrucksHighlighting);
+			//miEnableDLCTrucksHighlighting  .setSelected(enableDLCTrucksHighlighting  );
 		});
 		
 		//   why here?  ->  moved into constructor

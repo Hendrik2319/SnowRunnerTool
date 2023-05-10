@@ -201,7 +201,7 @@ public class SnowRunner {
 		
 		JTabbedPane contentPane = new JTabbedPane();
 		contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		contentPane.addTab("Trucks"          ,                        fin.addSubComp(new TrucksTablePanel         (mainWindow, gfds, truckImageDialogController)));
+		contentPane.addTab("Trucks"          ,                        fin.addSubComp(new TrucksTablePanel         (mainWindow, gfds, truckImageDialogController, "MainTrucksTable")));
 		contentPane.addTab("Trucks (old)"    ,                        fin.addSubComp(new TrucksListPanel          (mainWindow, gfds, truckImageDialogController)));
 		contentPane.addTab("Wheels"          , TableSimplifier.create(fin.addSubComp(new WheelsTableModel         (mainWindow, gfds))));
 		contentPane.addTab("DLCs"            , TableSimplifier.create(fin.addSubComp(new DLCTableModel            (            gfds))));
@@ -1022,6 +1022,13 @@ public class SnowRunner {
 			map.put(key, value = createNewValue.get());
 		return value;
 	}
+	
+	public static <K  extends Comparable<K>,V> void forEachSortedByKey(Map<K,V> map, BiConsumer<K,V> action)
+	{
+		for (K key : getSorted(map.keySet()))
+			action.accept(key, map.get(key));
+	}
+	
 
 	public static void lineWrap(String text, int maxLineLength, Consumer<String> writeLine)
 	{
@@ -1631,7 +1638,7 @@ public class SnowRunner {
 		private Data data;
 		private final Finalizer finalizer;
 
-		TrucksTablePanel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController) {
+		TrucksTablePanel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController, String tableModelInstanceID) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			finalizer = gfds.controllers.createNewFinalizer();
@@ -1646,7 +1653,7 @@ public class SnowRunner {
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
 			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
-			TruckTableModel truckTableModel = new TruckTableModel(mainWindow, gfds);
+			TruckTableModel truckTableModel = new TruckTableModel(mainWindow, gfds, tableModelInstanceID);
 			finalizer.addSubComp(truckTableModel);
 			JComponent truckTableScrollPane = TableSimplifier.create(
 					truckTableModel,
@@ -1995,11 +2002,12 @@ public class SnowRunner {
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted, XML_HideKnownBugs,
 			
-			TruckTableModel_enableOwnedTrucksHighlighting,
-			TruckTableModel_enableDLCTrucksHighlighting,
+			//TruckTableModel_enableOwnedTrucksHighlighting,
+			//TruckTableModel_enableDLCTrucksHighlighting,
 			TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting,
 			Tables_WriteCalculationDetailsToConsole,
 			Tables_ConfigureRowColoringDialog_SaveChangesAutomatically,
+			Tables_RowColorings_Active,
 			
 			Tables_CalcDetailsDialog_WindowX,
 			Tables_CalcDetailsDialog_WindowY,

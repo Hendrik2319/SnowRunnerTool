@@ -19,6 +19,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
@@ -91,6 +93,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	@SuppressWarnings("unused")
 	private   final Float columns; // to hide super.columns
 	private   final String tableModelID;
+	private   final String tableModelInstanceID;
 	private   final ColumnID[] originalColumns;
 	protected final Vector<RowType> rows;
 	private   final Vector<RowType> originalRows;
@@ -106,9 +109,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	protected final GlobalFinalDataStructures gfds;
 
 	protected VerySimpleTableModel(Window mainWindow, GlobalFinalDataStructures gfds, ColumnID[] columns) {
+		this(mainWindow, gfds, null, columns);
+	}
+	protected VerySimpleTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID, ColumnID[] columns) {
 		super(columns);
 		this.mainWindow = mainWindow;
 		this.gfds = gfds;
+		this.tableModelInstanceID = tableModelInstanceID;
 		this.finalizer = this.gfds.controllers.createNewFinalizer();
 		this.originalColumns = columns;
 		this.columns = null; // to hide super.columns
@@ -566,9 +573,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		contextMenu.addSeparator();
 		
 		HashSet<String> activeColorings = new HashSet<>();
+		if (tableModelInstanceID!=null)
+			RowColoring.activeColoringsStorage.get(tableModelID, tableModelInstanceID, activeColorings);
 		JMenu rowColoringsMenu = new JMenu("Row Colorings");
 		contextMenu.add(rowColoringsMenu);
 		RowColoring.rebuildMenu(this, rowColoringsMenu, activeColorings, table);
+		RowColoring.updateColoring(this, activeColorings);
 		
 		contextMenu.add(SnowRunner.createMenuItem("Configure Row Colorings ...", true, e->{
 			RowColoring.ConfigureDialog dlg = new RowColoring.ConfigureDialog(mainWindow, originalColumns, tableModelID);
@@ -701,6 +711,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	private static class RowColoring
 	{
 		static final RowColoringsMap coloringsMap = new RowColoringsMap();
+		static final ActiveColoringsStorage activeColoringsStorage = new ActiveColoringsStorage();
 		
 		static <RowType> void rebuildMenu(
 				VerySimpleTableModel<RowType> tableModel,
@@ -716,6 +727,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				rowColoringsMenu.add(SnowRunner.createCheckBoxMenuItem(name, activeColorings.contains(name), null, true, b -> {
 					if (b) activeColorings.add(name);
 					else   activeColorings.remove(name);
+					
+					if (tableModel.tableModelInstanceID!=null)
+						RowColoring.activeColoringsStorage.set(tableModel.tableModelID, tableModel.tableModelInstanceID, activeColorings);
 					
 					updateColoring(tableModel, activeColorings);
 					table.repaint();
@@ -1322,6 +1336,106 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			@Override protected void writePresetInLines(RowColoringPreset preset, PrintWriter out)
 			{
 				preset.writeLines(out);
+			}
+		}
+
+		static class ActiveColoringsStorage
+		{
+			private static final SnowRunner.AppSettings.ValueKey settingsKey = SnowRunner.AppSettings.ValueKey.Tables_RowColorings_Active;
+			private final HashMap<String, HashMap<String, HashSet<String>>> storage;
+			
+			ActiveColoringsStorage()
+			{
+				storage = new HashMap<>();
+				readFromAppSettings();
+			}
+
+			void get(String tableModelID, String tableModelInstanceID, HashSet<String> activeColorings)
+			{
+				HashMap<String, HashSet<String>> instanceMap = storage.get(tableModelID);
+				if (instanceMap==null) return;
+				
+				HashSet<String> storedActiveColorings = instanceMap.get(tableModelInstanceID);
+				if (storedActiveColorings==null) return;
+				
+				activeColorings.clear();
+				activeColorings.addAll(storedActiveColorings);
+			}
+
+			void set(String tableModelID, String tableModelInstanceID, HashSet<String> activeColorings)
+			{
+				HashMap<String, HashSet<String>> instanceMap = storage.get(tableModelID);
+				if (instanceMap==null) storage.put(tableModelID, instanceMap = new HashMap<>());
+				
+				HashSet<String> storedActiveColorings = instanceMap.get(tableModelInstanceID);
+				if (storedActiveColorings==null) instanceMap.put(tableModelInstanceID, storedActiveColorings = new HashSet<>());
+				
+				storedActiveColorings.clear();
+				storedActiveColorings.addAll(activeColorings);
+				
+				writeToAppSettings();
+			}
+
+			private void readFromAppSettings()
+			{
+				String storageContent = SnowRunner.settings.getString(settingsKey, "");
+				storage.clear();
+				
+				try (BufferedReader in = new BufferedReader(new StringReader(storageContent)))
+				{
+					String line, valueStr;
+					HashMap<String, HashSet<String>> instanceMap = null;
+					HashSet<String> storedActiveColorings = null;
+					while ( (line = in.readLine())!=null )
+					{
+						if (line.equals("[ActiveColorings]") || line.isEmpty())
+						{
+							instanceMap = null;
+							storedActiveColorings = null;
+						}
+						
+						if ( (valueStr=Data.getLineValue(line, "TableModel="))!=null )
+						{
+							instanceMap = SnowRunner.getOrCreate(storage, valueStr, HashMap<String, HashSet<String>>::new);
+							storedActiveColorings = null;
+						}
+						
+						if ( (valueStr=Data.getLineValue(line, "Instance="))!=null && instanceMap!=null)
+							storedActiveColorings = SnowRunner.getOrCreate(instanceMap, valueStr, HashSet<String>::new);
+						
+						if ( (valueStr=Data.getLineValue(line, "Active="))!=null && storedActiveColorings!=null)
+							storedActiveColorings.add(valueStr);
+					}
+				}
+				catch (IOException e)
+				{
+					System.err.printf("%s while reading ActiveColoringsStorage from SnowRunner.AppSettings: %s%n", e.getClass().getName(), e.getMessage());
+					//e.printStackTrace();
+				}
+			}
+
+			private void writeToAppSettings()
+			{
+				StringWriter stringWriter = new StringWriter();
+				try (PrintWriter out = new PrintWriter(stringWriter))
+				{
+					SnowRunner.forEachSortedByKey(storage, (tableModelID, instanceMap) -> {
+						SnowRunner.forEachSortedByKey(instanceMap, (tableModelInstanceID, storedActiveColorings) -> {
+							
+							out.printf("[ActiveColorings]%n");
+							out.printf("TableModel=%s%n", tableModelID);
+							out.printf("Instance=%s%n", tableModelInstanceID);
+							for (String activePreset : SnowRunner.getSorted(storedActiveColorings))
+								out.printf("Active=%s%n", activePreset);
+							out.printf("%n");
+							
+						});
+					});
+					out.flush();
+				}
+				
+				String storageContent = stringWriter.toString();
+				SnowRunner.settings.putString(settingsKey, storageContent);
 			}
 		}
 	}
