@@ -708,6 +708,16 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		return null;
 	}
 
+	@SuppressWarnings("unused")
+	public static void initializePresetMaps()
+	{
+		Object x;
+		x = ColumnHiding.presets;
+		x = RowFiltering.presets;
+		x = RowColoring.coloringsMap;
+		x = RowColoring.activeColoringsStorage;
+	}
+
 	private static class RowColoring
 	{
 		static final RowColoringsMap coloringsMap = new RowColoringsMap();
@@ -2608,7 +2618,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			return modelPresets;
 		}
 	
-		void read() {
+		void read()
+		{
 			presets.clear();
 			
 			File file = new File(pathname);
@@ -2649,7 +2660,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 		}
 	
-		void write() {
+		void write()
+		{
 			File file = new File(pathname);
 			try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
 				

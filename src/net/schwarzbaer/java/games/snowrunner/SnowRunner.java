@@ -106,6 +106,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.WheelsTableModel;
 import net.schwarzbaer.system.DateTimeFormatter;
 import net.schwarzbaer.system.Settings;
@@ -178,6 +179,8 @@ public class SnowRunner {
 	private final ImageDialogController truckImageDialogController;
 	
 	SnowRunner() {
+		VerySimpleTableModel.initializePresetMaps();
+		
 		data = null;
 		saveGameData = null;
 		selectedSaveGame = null;
@@ -1306,7 +1309,8 @@ public class SnowRunner {
 					out.printf("%s = %s%n", fieldName, id);
 		}
 
-		void loadStoredData() {
+		void loadStoredData()
+		{
 			File file = new File(DLCAssignmentsFile);
 			System.out.printf("Read DLCs from file \"%s\" ...%n", file.getAbsolutePath());
 			
@@ -1398,7 +1402,8 @@ public class SnowRunner {
 				lists.put(cat, new SpecialTruckAddonList(cat));
 		}
 
-		public void readFromFile() {
+		public void readFromFile()
+		{
 			File file = new File(SpecialTruckAddonsFile);
 			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 				
@@ -1438,7 +1443,8 @@ public class SnowRunner {
 			setInitialized();
 		}
 
-		public void writeToFile() {
+		public void writeToFile()
+		{
 			checkInitialized();
 			File file = new File(SpecialTruckAddonsFile);
 			try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {

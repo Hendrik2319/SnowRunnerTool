@@ -1,6 +1,7 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -271,11 +272,13 @@ public class Data {
 	{
 		private final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
 
-		void read() {
-			System.out.printf("Read UserDefinedValues from file \"%s\" ...%n", SnowRunner.UserDefinedValuesFile);
+		void read()
+		{
+			File file = new File(SnowRunner.UserDefinedValuesFile);
+			System.out.printf("Read UserDefinedValues from file \"%s\" ...%n", file.getAbsolutePath());
 			truckValues.clear();
 			
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 				
 				Truck.UDV truckValues = null;
 				String line, valueStr;
@@ -309,10 +312,12 @@ public class Data {
 			setInitialized();
 		}
 		
-		public void write() {
+		public void write()
+		{
 			checkInitialized();
-			System.out.printf("Write UserDefinedValues to file \"%s\" ...%n", SnowRunner.UserDefinedValuesFile);
-			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(SnowRunner.UserDefinedValuesFile), StandardCharsets.UTF_8))) {
+			File file = new File(SnowRunner.UserDefinedValuesFile);
+			System.out.printf("Write UserDefinedValues to file \"%s\" ...%n", file.getAbsolutePath());
+			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
 				
 				Vector<String> keys = new Vector<>(truckValues.keySet());
 				keys.sort(null);
