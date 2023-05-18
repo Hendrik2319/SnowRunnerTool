@@ -278,7 +278,9 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			if (!isFirst) doc.append("%n%n");
 			isFirst = false;
 			doc.append(Style.BOLD,"Install Socket: ");
-			doc.append("%s", installSocket);
+			doc.append("%s%n", installSocket);
+			doc.append(Style.BOLD,"Install Socket Pos.: ");
+			doc.append("%s", truck.getAddonSocketPosition(installSocket, (groupIndex, socketIndex) -> String.format("%d.%d", groupIndex+1, socketIndex+1)));
 			SnowRunner.writeInstallSocketIssuesToDoc(doc, Color.GRAY, installSocket, truck.addonSockets, "    ", true);
 		}
 		

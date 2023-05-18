@@ -314,6 +314,7 @@ public class TruckPanelProto implements Finalizable {
 		public void setData(Truck truck, Data data) {
 			this.truck = truck;
 			
+			String selectedCategory = getSelectedCategory();
 			currentTabs.clear();
 			removeAllTabs();
 			finalizer.removeVolatileSubCompsFromGUI(CONTROLLERS_CHILDLIST_TABTABLEMODELS);
@@ -336,6 +337,32 @@ public class TruckPanelProto implements Finalizable {
 						).set(data, saveGame).set(this.truck)
 					);
 			}
+			setSelectedCategory(selectedCategory);
+		}
+
+		private void setSelectedCategory(String category)
+		{
+			int tabIndex = getCategoryIndex(category);
+			if (tabIndex>=0) setSelectedTab(tabIndex);
+		}
+
+		private int getCategoryIndex(String category)
+		{
+			if (category!=null)
+				for (int tabIndex=0; tabIndex<currentTabs.size(); tabIndex++)
+				{
+					Tab tab = currentTabs.get(tabIndex);
+					if (category.equals(tab.category))
+						return tabIndex;
+				}
+			return -1;
+		}
+
+		private String getSelectedCategory()
+		{
+			int tabIndex = getSelectedTab();
+			Tab tab = tabIndex<0 || tabIndex>=currentTabs.size() ? null : currentTabs.get(tabIndex);
+			return tab== null ? null : tab.category;
 		}
 
 		private <RowType extends HasNameAndID> VerySimpleTableModel.ColumnID createDefaultColumn_List(Function<Truck,Collection<String>> getDefaultIDs, Class<RowType> rowType) {

@@ -2133,7 +2133,15 @@ public class Data {
 				for (AddonSockets.Socket s : as.sockets)
 					action.accept(as, s);
 		}
-			
+
+		public <Result> Result getAddonSocketPosition(String installSocket, BiFunction<Integer,Integer,Result> createResult)
+		{
+			for (AddonSockets as : addonSockets)
+				for (AddonSockets.Socket s : as.sockets)
+					if (contains(s.socketIDs, installSocket))
+						return createResult.apply(as.index, s.index);
+			return null;
+		}
 
 		@Override public String getName_StringID() { return gameData.name_StringID; }
 		@Override public String getID() { return id; }

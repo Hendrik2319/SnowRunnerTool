@@ -38,17 +38,31 @@ public abstract class CombinedTableTabTextOutputPanel extends JSplitPane {
 		tabbedPane.setMinimumSize(new Dimension(5,40));
 		SingleSelectionModel tabbedPaneSelectionModel = tabbedPane.getModel();
 		tabbedPaneSelectionModel.addChangeListener(e->{
-			int i = tabbedPaneSelectionModel.getSelectedIndex();
-			selectedTab = i;
-			if (i<0 || i>=updateMethods.size()) return;
-			updateMethods.get(i).run();
+			selectedTab = tabbedPaneSelectionModel.getSelectedIndex();
+			execUpdateMethod();
 		});
 		
 		setTopComponent(tabbedPane);
 		setBottomComponent(textAreaScrollPane);
 		setResizeWeight(1);
 	}
+
+	private void execUpdateMethod()
+	{
+		if (0 <= selectedTab && selectedTab < updateMethods.size())
+			updateMethods.get(selectedTab).run();
+	}
+
+	protected void setSelectedTab(int selectedTab)
+	{
+		if (selectedTab<0 || selectedTab>=tabbedPane.getTabCount()) return;
+		this.selectedTab = selectedTab;
+		tabbedPane.setSelectedIndex(this.selectedTab);
+		execUpdateMethod();
+	}
 	
+	protected int getSelectedTab() { return selectedTab; }
+
 	public static class CombinedTableTabPaneTextAreaPanel extends CombinedTableTabTextOutputPanel {
 		private static final long serialVersionUID = 4511036794520233512L;
 		
