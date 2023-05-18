@@ -94,6 +94,16 @@ AWD=Installed
 DiffLock=Installed
 
 [Truck]
+id=tatra_force_t815_7
+AWD=Installed
+DiffLock=Able
+
+[Truck]
+id=tatra_phoenix
+AWD=Installed
+DiffLock=Able
+
+[Truck]
 id=tayga_6436
 AWD=Permanent
 DiffLock=Permanent
