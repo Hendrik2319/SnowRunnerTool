@@ -409,12 +409,16 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	private class GeneralPurposeTCR implements TableCellRenderer {
 		private final Tables.LabelRendererComponent    label;
 		private final Tables.CheckBoxRendererComponent checkBox;
+		private final Tables.ColorRendererComponent    colorComp;
 		
 		GeneralPurposeTCR() {
 			label = new Tables.LabelRendererComponent();
 			checkBox = new Tables.CheckBoxRendererComponent();
 			checkBox.setHorizontalAlignment(SwingConstants.CENTER);
+			colorComp = new Tables.ColorRendererComponent();
 		}
+		
+		private enum RendComp { Label, CheckBox, Color }
 		
 		@Override
 		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowV, int columnV) {
@@ -429,8 +433,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			Supplier<Color> getCustomBackground = ()->coloring.getBackground(columnM, columnID, rowM, row, value);
 			
 			boolean isChecked = false;
-			boolean useCheckBox = false;
-				
+			RendComp usedRendComp = RendComp.Label;
+			
 			if (columnID!=null) {
 				
 				if (columnID.format!=null && value!=null)
@@ -445,17 +449,20 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				else
 					label.setHorizontalAlignment(SwingConstants.LEFT);
 				
+				if (columnID.config.columnClass == Color[].class && value instanceof Color[]) {
+					usedRendComp = RendComp.Color;
+				}
+				if (columnID.config.columnClass == Color.class && value instanceof Color) {
+					usedRendComp = RendComp.Color;
+				}
+				
 				if (columnID.config.columnClass == Boolean.class) {
 					checkBox.setHorizontalAlignment(SwingConstants.CENTER);
 					valueStr = null;
 					if (value instanceof Boolean) {
 						Boolean b = (Boolean) value;
 						isChecked = b.booleanValue();
-						useCheckBox = true;
-						
-					} else {
-						useCheckBox = false;
-						// -> empty JLabel -> No CheckBox
+						usedRendComp = RendComp.CheckBox;
 					}
 				}
 				
@@ -465,11 +472,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						Data.BooleanWithText bwt = (Data.BooleanWithText) value;
 						isChecked = bwt.getBool();
 						valueStr  = bwt.getText();
-						useCheckBox = true;
+						usedRendComp = RendComp.CheckBox;
 						
 					} else {
 						valueStr = null;
-						useCheckBox = false;
 						// -> empty JLabel -> No CheckBox
 					}
 				}
@@ -490,15 +496,20 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}*/
 			}
 			
-			if (useCheckBox)
+			switch (usedRendComp)
 			{
-				checkBox.configureAsTableCellRendererComponent(table, isChecked, valueStr, isSelected, hasFocus, getCustomForeground, getCustomBackground);
-				return checkBox;
-			}
-			else
-			{
-				label   .configureAsTableCellRendererComponent(table, null     , valueStr, isSelected, hasFocus, getCustomBackground, getCustomForeground);
-				return label;
+				default:
+				case Label:
+					label    .configureAsTableCellRendererComponent(table, null     , valueStr, isSelected, hasFocus,       getCustomBackground, getCustomForeground);
+					return label;
+					
+				case CheckBox:
+					checkBox .configureAsTableCellRendererComponent(table, isChecked, valueStr, isSelected, hasFocus,       getCustomForeground, getCustomBackground);
+					return checkBox;
+					
+				case Color:
+					colorComp.configureAsTableCellRendererComponent(table,               value, isSelected, hasFocus, null, getCustomBackground, getCustomForeground);
+					return colorComp;
 			}
 		}
 	}

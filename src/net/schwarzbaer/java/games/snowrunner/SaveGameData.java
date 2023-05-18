@@ -1,5 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.awt.Color;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -160,6 +161,30 @@ public class SaveGameData {
 				action.parse(array.get(i), i, debugOutputPrefixStr+"["+i+"]");
 	}
 	
+	private static long[] parseArray_Integer(JSON_Array<NV, V> jsonArray, String debugOutputPrefixStr) throws TraverseException
+	{
+		if (jsonArray==null) return null;
+		long[] arr = new long[jsonArray.size()];
+		parseArray(jsonArray, debugOutputPrefixStr, (jsonValue, index, local_debugOutputPrefixStr) -> arr[index] = JSON_Data.getIntegerValue(jsonValue, local_debugOutputPrefixStr) );
+		return arr;
+	}
+	
+	private static double[] parseArray_Float(JSON_Array<NV, V> jsonArray, String debugOutputPrefixStr) throws TraverseException
+	{
+		if (jsonArray==null) return null;
+		double[] arr = new double[jsonArray.size()];
+		parseArray(jsonArray, debugOutputPrefixStr, (jsonValue, index, local_debugOutputPrefixStr) -> arr[index] = JSON_Data.getFloatValue(jsonValue, local_debugOutputPrefixStr) );
+		return arr;
+	}
+	
+	private static boolean[] parseArray_Bool(JSON_Array<NV, V> jsonArray, String debugOutputPrefixStr) throws TraverseException
+	{
+		if (jsonArray==null) return null;
+		boolean[] arr = new boolean[jsonArray.size()];
+		parseArray(jsonArray, debugOutputPrefixStr, (jsonValue, index, local_debugOutputPrefixStr) -> arr[index] = JSON_Data.getBoolValue(jsonValue, local_debugOutputPrefixStr) );
+		return arr;
+	}
+	
 	private interface Constructor<Type>
 	{
 		Type create(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException;
@@ -291,7 +316,7 @@ public class SaveGameData {
 				.add("trackedObjective"                  , JSON_Data.Value.Type.String )
 				.add("tutorialStates"                    , JSON_Data.Value.Type.Object )
 				.add("tutorialStates"                    , JSON_Data.Value.Type.Null   )
-				.add("upgradableGarages"                 , JSON_Data.Value.Type.Object ) // unparsed
+				.add("upgradableGarages"                 , JSON_Data.Value.Type.Object )
 				.add("upgradesGiverData"                 , JSON_Data.Value.Type.Object )
 				.add("viewedUnactivatedObjectives"       , JSON_Data.Value.Type.Array  )
 				.add("visitedLevels"                     , JSON_Data.Value.Type.Array  )
@@ -357,9 +382,11 @@ public class SaveGameData {
 			String debugOutputPrefixStr = "CompleteSave"+indexStr+".SslValue";
 			
 			@SuppressWarnings("unused")
-			JSON_Object<NV, V> cargoLoadingCounts, forcedModelStates, gameStat, gameStatByRegion, garagesData, garagesShopData, hiddenCargoes, justDiscoveredObjects, levelGarageStatuses,
+			JSON_Object<NV, V> garagesShopData;
+			
+			JSON_Object<NV, V> cargoLoadingCounts, forcedModelStates, gameStat, gameStatByRegion, garagesData, hiddenCargoes, justDiscoveredObjects, levelGarageStatuses,
 				modTruckOnLevels, modTruckRefundValues, modTruckTypesRefundValues, objectiveStates, persistentProfileData,
-				savedCargoNeedToBeRemovedOnRestart, tutorialStates, upgradesGiverData, watchPointsData, waypoints;
+				savedCargoNeedToBeRemovedOnRestart, tutorialStates, upgradableGarages, upgradesGiverData, watchPointsData, waypoints;
 			
 			JSON_Array<NV, V> visitedLevels, discoveredObjectives, discoveredObjects, finishedObjs, givenTrialRewards, viewedUnactivatedObjectives;
 			
@@ -404,6 +431,7 @@ public class SaveGameData {
 			trackedObjective                   = JSON_Data.getStringValue   (sslValueObj, "trackedObjective"                  , debugOutputPrefixStr);
 			tutorialStates                     = JSON_Data.getObjectValue   (sslValueObj, "tutorialStates"                    , false, true, debugOutputPrefixStr);
 			tutorialStates_Null                = JSON_Data.getNullValue     (sslValueObj, "tutorialStates"                    , false, true, debugOutputPrefixStr);
+			upgradableGarages                  = JSON_Data.getObjectValue   (sslValueObj, "upgradableGarages"                 , true, false, debugOutputPrefixStr);
 			upgradesGiverData                  = JSON_Data.getObjectValue   (sslValueObj, "upgradesGiverData"                 , debugOutputPrefixStr);
 			viewedUnactivatedObjectives        = JSON_Data.getArrayValue    (sslValueObj, "viewedUnactivatedObjectives"       , debugOutputPrefixStr);
 			visitedLevels                      = JSON_Data.getArrayValue    (sslValueObj, "visitedLevels"                     , debugOutputPrefixStr);
@@ -416,7 +444,6 @@ public class SaveGameData {
 					gameDifficultySettings
 					
 				unparsed, but interesting:
-					upgradableGarages
 					
 				empty:
 					garagesShopData, givenTrialRewards, justDiscoveredObjects, modTruckRefundValues, modTruckTypesRefundValues
@@ -479,6 +506,7 @@ public class SaveGameData {
 			MapInfos .parseGaragesData                       (maps      , garagesData                       , debugOutputPrefixStr+".garagesData"                       );
 			MapInfos .parseLevelGarageStatuses               (maps      , levelGarageStatuses               , debugOutputPrefixStr+".levelGarageStatuses"               );
 			MapInfos .parseModTruckOnLevels                  (maps      , modTruckOnLevels                  , debugOutputPrefixStr+".modTruckOnLevels"                  );
+			MapInfos .parseUpgradableGarages                 (maps      , upgradableGarages                 , debugOutputPrefixStr+".upgradableGarages"                 );
 			MapInfos .parseUpgradesGiverData                 (maps      , upgradesGiverData                 , debugOutputPrefixStr+".upgradesGiverData"                 );
 			MapInfos .parseVisitedLevels                     (maps      , visitedLevels                     , debugOutputPrefixStr+".visitedLevels"                     );
 			MapInfos .parseWatchPoints                       (maps      , watchPointsData_data              , debugOutputPrefixStr+".watchPointsData.data"              );
@@ -870,6 +898,10 @@ public class SaveGameData {
 			public final double  wheelsScale;
 			public final String  wheels;
 			public final String  winch;
+			public final CustomizationPreset customizationPreset;
+			public final double[] damageDecals;
+			public final long[]   wheelsDamage;
+			public final double[] wheelsSuspHeight;
 
 			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(TruckDesc.class)
 					.add("type"                      , JSON_Data.Value.Type.String )
@@ -883,9 +915,9 @@ public class SaveGameData {
 					.add("addons"                    , JSON_Data.Value.Type.Array  )
 					.add("constraints"               , JSON_Data.Value.Type.Array  )
 					.add("controlConstrPosition"     , JSON_Data.Value.Type.Array  )
-					.add("customizationPreset"       , JSON_Data.Value.Type.Object ) // unparsed
+					.add("customizationPreset"       , JSON_Data.Value.Type.Object )
 					.add("damage"                    , JSON_Data.Value.Type.Integer)
-					.add("damageDecals"              , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("damageDecals"              , JSON_Data.Value.Type.Array  )
 					.add("engine"                    , JSON_Data.Value.Type.Object )
 					.add("engineDamage"              , JSON_Data.Value.Type.Integer)
 					.add("fuel"                      , JSON_Data.Value.Type.Float  )
@@ -905,9 +937,9 @@ public class SaveGameData {
 					.add("trailerGlobalId"           , JSON_Data.Value.Type.String )
 					.add("truckCRC"                  , JSON_Data.Value.Type.Integer)
 					.add("wheelRepairs"              , JSON_Data.Value.Type.Integer)
-					.add("wheelsDamage"              , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("wheelsDamage"              , JSON_Data.Value.Type.Array  )
 					.add("wheelsScale"               , JSON_Data.Value.Type.Float  )
-					.add("wheelsSuspHeight"          , JSON_Data.Value.Type.Array  ) // unparsed
+					.add("wheelsSuspHeight"          , JSON_Data.Value.Type.Array  )
 					.add("wheelsType"                , JSON_Data.Value.Type.String )
 					.add("winchUpgrade"              , JSON_Data.Value.Type.Object )
 					;
@@ -916,8 +948,9 @@ public class SaveGameData {
 			{
 				// scanJSON(object, this);
 				
-				//JSON_Object<NV, V> engine;
-				JSON_Array<NV, V> addons, constraints, controlConstrPosition, isPoweredEngaged, tmBodies;
+				JSON_Object<NV, V> customizationPreset;
+				JSON_Array<NV, V> addons, constraints, controlConstrPosition, damageDecals, isPoweredEngaged, tmBodies, wheelsDamage, wheelsSuspHeight;
+				
 				String retainedMapId;
 				type                       = JSON_Data.getStringValue (object, "type"                      , debugOutputPrefixStr);
 				globalId                   = JSON_Data.getStringValue (object, "globalId"                  , debugOutputPrefixStr);
@@ -930,7 +963,9 @@ public class SaveGameData {
 				addons                     = JSON_Data.getArrayValue  (object, "addons"                    , debugOutputPrefixStr);
 				constraints                = JSON_Data.getArrayValue  (object, "constraints"               , debugOutputPrefixStr);
 				controlConstrPosition      = JSON_Data.getArrayValue  (object, "controlConstrPosition"     , true, false, debugOutputPrefixStr);
+				customizationPreset        = JSON_Data.getObjectValue (object, "customizationPreset"       , debugOutputPrefixStr);
 				damage                     = JSON_Data.getIntegerValue(object, "damage"                    , debugOutputPrefixStr);
+				damageDecals               = JSON_Data.getArrayValue  (object, "damageDecals"              , debugOutputPrefixStr);
 				engine                     = parseNameValue           (object, "engine"                    , debugOutputPrefixStr);
 				engineDamage               = JSON_Data.getIntegerValue(object, "engineDamage"              , debugOutputPrefixStr);
 				fuel                       = JSON_Data.getFloatValue  (object, "fuel"                      , debugOutputPrefixStr);
@@ -950,16 +985,15 @@ public class SaveGameData {
 				trailerGlobalId            = JSON_Data.getStringValue (object, "trailerGlobalId"           , debugOutputPrefixStr);
 				truckCRC                   = JSON_Data.getIntegerValue(object, "truckCRC"                  , true, false, debugOutputPrefixStr);
 				wheelRepairs               = JSON_Data.getIntegerValue(object, "wheelRepairs"              , debugOutputPrefixStr);
-			//	wheelsDamage               = JSON_Data.getArrayValue  (object, "wheelsDamage"              , debugOutputPrefixStr);
+				wheelsDamage               = JSON_Data.getArrayValue  (object, "wheelsDamage"              , debugOutputPrefixStr);
 				wheelsScale                = JSON_Data.getFloatValue  (object, "wheelsScale"               , debugOutputPrefixStr);
+				wheelsSuspHeight           = JSON_Data.getArrayValue  (object, "wheelsSuspHeight"          , debugOutputPrefixStr);
 				wheels                     = JSON_Data.getStringValue (object, "wheelsType"                , debugOutputPrefixStr);
 				winch                      = parseNameValue           (object, "winchUpgrade"              , debugOutputPrefixStr);
 				/*
 					unparsed:
-						customizationPreset, damageDecals, wheelsSuspHeight
 						
 					unparsed, but interesting:
-						wheelsDamage
 						
 					empty:
 						constraints, controlConstrPosition, isPoweredEngaged, tmBodies
@@ -971,8 +1005,105 @@ public class SaveGameData {
 				checkEmptyArrayOrUnset(isPoweredEngaged     , debugOutputPrefixStr+".isPoweredEngaged"     );
 				checkEmptyArrayOrUnset(tmBodies             , debugOutputPrefixStr+".tmBodies"             );
 				
-				this.retainedMap = MapIndex.parse(retainedMapId);
-				this.addons = parseArray_Object(addons, debugOutputPrefixStr+".addons", InstalledAddon::new, new Vector<>());
+				this.addons              = parseArray_Object      (addons             , debugOutputPrefixStr+".addons"             , InstalledAddon::new, new Vector<>());
+				this.customizationPreset = new CustomizationPreset(customizationPreset, debugOutputPrefixStr+".customizationPreset");
+				this.damageDecals        = parseArray_Float       (damageDecals       , debugOutputPrefixStr+".damageDecals"       );
+				this.retainedMap         = MapIndex.parse(retainedMapId);
+				this.wheelsDamage        = parseArray_Integer     (wheelsDamage       , debugOutputPrefixStr+".wheelsDamage"       );
+				this.wheelsSuspHeight    = parseArray_Float       (wheelsSuspHeight   , debugOutputPrefixStr+".wheelsSuspHeight"   );
+			}
+			
+			public static class CustomizationPreset
+			{
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(CustomizationPreset.class)
+						.add("gameDataXmlNode"     , JSON_Data.Value.Type.Null   )
+						.add("id"                  , JSON_Data.Value.Type.Integer)
+						.add("isSpecialSkin"       , JSON_Data.Value.Type.Bool   )
+						.add("overrideMaterialName", JSON_Data.Value.Type.String )
+						.add("tintsColors"         , JSON_Data.Value.Type.Array  )
+						.add("uiName"              , JSON_Data.Value.Type.String )
+						;
+				public final long id;
+				public final boolean isSpecialSkin;
+				public final String overrideMaterialName;
+				public final String uiName;
+				public final Vector<Tint> colors;
+				/*
+				    Block "[SaveGameData.SaveGame.TruckDesc.CustomizationPreset]" [6]
+				        gameDataXmlNode      : Null
+				        id                   : Integer
+				        isSpecialSkin        : Bool
+				        overrideMaterialName : String
+				        tintsColors          : Array
+				        uiName               : String
+				        tintsColors[]:Object -> Tint
+				        
+				 */
+				public CustomizationPreset(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+				{
+					//scanJSON(object, this);
+					
+					@SuppressWarnings("unused")
+					JSON_Data.Null gameDataXmlNode_Null;
+					JSON_Array<NV, V> tintsColors;
+					gameDataXmlNode_Null = JSON_Data.getNullValue   (object, "gameDataXmlNode"     , debugOutputPrefixStr);
+					id                   = JSON_Data.getIntegerValue(object, "id"                  , debugOutputPrefixStr);
+					isSpecialSkin        = JSON_Data.getBoolValue   (object, "isSpecialSkin"       , debugOutputPrefixStr);
+					overrideMaterialName = JSON_Data.getStringValue (object, "overrideMaterialName", debugOutputPrefixStr);
+					tintsColors          = JSON_Data.getArrayValue  (object, "tintsColors"         , debugOutputPrefixStr);
+					uiName               = JSON_Data.getStringValue (object, "uiName"              , debugOutputPrefixStr);
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+					
+					colors = parseArray_Object(tintsColors, debugOutputPrefixStr, Tint::new, new Vector<>());
+				}
+				
+				public Color[] toColorArray()
+				{
+					if (colors==null || id<0) return null;
+					
+					Color[] colorArr = new Color[colors.size()];
+					for (int i=0; i<colors.size(); i++)
+					{
+						TruckDesc.CustomizationPreset.Tint t = colors.get(i);
+						colorArr[i] = new Color(
+								(int) Math.round(t.r),
+								(int) Math.round(t.g),
+								(int) Math.round(t.b)
+						);
+					}
+					
+					return colorArr;
+				}
+
+				public static class Tint
+				{
+					private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Tint.class)
+							.add("a", JSON_Data.Value.Type.Float)
+							.add("r", JSON_Data.Value.Type.Float)
+							.add("g", JSON_Data.Value.Type.Float)
+							.add("b", JSON_Data.Value.Type.Float);
+					/*
+					Block "[SaveGameData.SaveGame.TruckDesc.CustomizationPreset].tintsColors[]" [4]
+					    a:Float
+					    b:Float
+					    g:Float
+					    r:Float
+					 */
+					public final double a;
+					public final double r;
+					public final double g;
+					public final double b;
+					
+					public Tint(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+					{
+						//scanJSON(object, this);
+						a = JSON_Data.getFloatValue(object, "a", debugOutputPrefixStr);
+						r = JSON_Data.getFloatValue(object, "r", debugOutputPrefixStr);
+						g = JSON_Data.getFloatValue(object, "g", debugOutputPrefixStr);
+						b = JSON_Data.getFloatValue(object, "b", debugOutputPrefixStr);
+						KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+					}
+				}
 			}
 			
 			public static class InstalledAddon
@@ -1196,25 +1327,25 @@ public class SaveGameData {
 					this.valueID = valueID;
 				}
 				
-				static class TwoOrSplitName extends SpreadedValuesHelper.SplittedName
+				static class SplitName_TwoOrs extends SpreadedValuesHelper.SplittedName
 				{
 					private final String originalStr;
 					private final String secondPart;
 				
-					TwoOrSplitName(String originalStr, String valueId, String secondPart)
+					SplitName_TwoOrs(String originalStr, String valueId, String secondPart)
 					{
 						super(valueId);
 						this.originalStr = originalStr;
 						this.secondPart = secondPart;
 					}
 					
-					static TwoOrSplitName split(String fieldName)
+					static SplitName_TwoOrs split(String fieldName)
 					{
 						// "level_us_03_01 || US_03_01_CR_WD_01"
 						// "level_ru_02_01_crop || RU_02_01_BLD_GAS"
 						String[] parts = fieldName.split(" \\|\\| ", 2);
-						if (parts.length == 2) return new TwoOrSplitName(fieldName, parts[0], parts[1]);
-						return new TwoOrSplitName(fieldName, parts[0], null);
+						if (parts.length == 2) return new SplitName_TwoOrs(fieldName, parts[0], parts[1]);
+						return new SplitName_TwoOrs(fieldName, parts[0], null);
 					}
 				}
 			}
@@ -1310,6 +1441,7 @@ public class SaveGameData {
 			public DiscoveredObjects discoveredTrucks = null;
 			public DiscoveredObjects discoveredUpgrades = null;
 			public final HashMap<String, CargoLoadingCounts> cargoLoadingCounts = new HashMap<>();
+			public final HashMap<String, UpgradableGarage>    upgradableGarages = new HashMap<>();
 			public final HashMap<String, Long>                upgradesGiverData = new HashMap<>();
 			public final HashMap<String, Boolean>                   watchPoints = new HashMap<>();
 			public final Vector<Waypoint> waypoints         = new Vector<>();
@@ -1322,7 +1454,7 @@ public class SaveGameData {
 			
 			private static void parseCargoLoadingCounts(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
-				helper.parseObject(maps, object, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name, value, local_debugOutputPrefixStr) -> {
+				helper.parseObject(maps, object, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.SplitName_TwoOrs::split, (map, name, value, local_debugOutputPrefixStr) -> {
 					
 					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
 					CargoLoadingCounts station = new CargoLoadingCounts(object2, name.secondPart, local_debugOutputPrefixStr);
@@ -1335,11 +1467,27 @@ public class SaveGameData {
 						map.cargoLoadingCounts.put(name.secondPart, station);
 				});
 			}
+			
+			private static void parseUpgradableGarages(HashMap<String, MapInfos> maps, JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				helper.parseObject(maps, object, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.SplitName_TwoOrs::split, (map, name, value, local_debugOutputPrefixStr) -> {
+					
+					JSON_Object<NV, V> object2 = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
+					UpgradableGarage garage = new UpgradableGarage(object2, name.secondPart, local_debugOutputPrefixStr);
+					
+					if (name.secondPart==null)
+						System.err.printf("[UpgradableGarages] Found a garage with no name on 1 map: %s%n", local_debugOutputPrefixStr);
+					else if (map.upgradableGarages.containsKey(name.secondPart))
+						System.err.printf("[UpgradableGarages] Found more than 1 garage with same name on 1 map: %s%n", local_debugOutputPrefixStr);
+					else
+						map.upgradableGarages.put(name.secondPart, garage);
+				});
+			}
 		
 			private static void parseDiscoveredObjects(HashMap<String, MapInfos> maps, JSON_Array<NV, V> array, String debugOutputPrefixStr) throws TraverseException
 			{
 				// "level_us_03_01 || US_03_01_CR_WD_01"
-				helper.parseStringArray(maps, array, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.TwoOrSplitName::split, (map, name) -> {
+				helper.parseStringArray(maps, array, debugOutputPrefixStr, SpreadedValuesHelper.SplittedName.SplitName_TwoOrs::split, (map, name) -> {
 					if (name.secondPart==null)
 						System.err.printf("[DiscoveredObjects] Found a discovered object (\"%s\") with no name: %s%n", name.originalStr, debugOutputPrefixStr);
 					else
@@ -1506,6 +1654,41 @@ public class SaveGameData {
 						else
 							counts.put(cargoType, count);
 					});
+				}
+			}
+			
+			public static class UpgradableGarage
+			{
+				private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(UpgradableGarage.class)
+						.add("featureStates", JSON_Data.Value.Type.Array )
+						.add("isUpgradable" , JSON_Data.Value.Type.Bool  )
+						.add("zoneGlobalId" , JSON_Data.Value.Type.String)
+						;
+				/*
+				    Block "[SaveGameData.SaveGame.MapInfos.UpgradableGarage]" [3]
+				        featureStates:Array
+				        featureStates[]:Bool
+				        isUpgradable:Bool
+				        zoneGlobalId:String
+				 */
+				public final String zoneName;
+				public final boolean isUpgradable;
+				public final String zoneGlobalId;
+				public final boolean[] featureStates;
+			
+				private UpgradableGarage(JSON_Object<NV, V> object, String zoneName, String debugOutputPrefixStr) throws TraverseException
+				{
+					this.zoneName = zoneName;
+					//scanJSON(object, this);
+					
+					JSON_Array<NV, V> featureStates;
+					featureStates = JSON_Data.getArrayValue (object, "featureStates", debugOutputPrefixStr);
+					isUpgradable  = JSON_Data.getBoolValue  (object, "isUpgradable" , debugOutputPrefixStr);
+					zoneGlobalId  = JSON_Data.getStringValue(object, "zoneGlobalId" , debugOutputPrefixStr);
+					
+					this.featureStates = parseArray_Bool(featureStates, debugOutputPrefixStr+".featureStates");
+					
+					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 				}
 			}
 		}
