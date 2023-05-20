@@ -418,7 +418,9 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		contextMenu.addSeparator();
 		
 		contextMenu.add(SnowRunner.createMenuItem("Filter by Trailer -> context menu of any \"Trailers\" table", true, e->{}));
-		contextMenu.add(SnowRunner.createMenuItem("Reset Trailer Filter", true, e->setTrailerForFilter(null)));
+		contextMenu.add(SnowRunner.createMenuItem("Reset Trailer Filter", true, e->{
+			gfds.controllers.filterTrucksByTrailersListeners.setFilter(null);
+		}));
 		
 		contextMenu.addSeparator();
 		

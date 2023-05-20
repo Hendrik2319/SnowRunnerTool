@@ -8,9 +8,11 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Vector;
+import java.util.function.Function;
 
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JTable;
 
 import net.schwarzbaer.gui.StyledDocumentInterface;
@@ -29,7 +31,8 @@ import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.Extende
 
 public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<TruckAddon> {
 	
-	private static final Color COLOR_SPECIALTRUCKADDON = new Color(0xFFF3AD);
+	private static final Color BG_COLOR__CARRIER_CAN_LOAD_CARGO = new Color(0xCEFFC5);
+	private static final Color BG_COLOR__SPECIALTRUCKADDON      = new Color(0xFFF3AD);
 	private static boolean enableSpecialTruckAddonsHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting, true);
 	
 	private HashMap<String, TruckAddon> truckAddons;
@@ -37,6 +40,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	private TruckAddon clickedItem;
 	private SaveGame saveGame;
 	private Truck truck;
+	private Function<TruckAddon, Color> colorizeCarriersByCargo;
 	
 	public TruckAddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData) {
 		this(mainWindow, gfds, connectToGlobalData, true);
@@ -92,6 +96,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		trailers    = null;
 		saveGame    = null;
 		truck       = null;
+		colorizeCarriersByCargo = null;
 		
 		if (connectToGlobalData)
 			connectToGlobalData(true, data->{
@@ -115,7 +120,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			if (enableSpecialTruckAddonsHighlighting)
 				for (SpecialTruckAddons.AddonCategory listID : SpecialTruckAddons.AddonCategory.values()) {
 					SpecialTruckAddonList list = gfds.specialTruckAddons.getList(listID);
-					if (list.contains(addon)) return COLOR_SPECIALTRUCKADDON;
+					if (list.contains(addon)) return BG_COLOR__SPECIALTRUCKADDON;
 				}
 			return null;
 		});
@@ -124,6 +129,8 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			if (colM>=0) fireTableColumnUpdate(colM);
 			table.repaint();
 		});
+		
+		finalizer.addFilterCarriersByCargoListener(this::setCargoForFilter);
 		
 		Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 		setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.gameData.category,string_nullsLast).thenComparing(row->row.id));
@@ -172,8 +179,43 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		trailers    = data==null ? null : data.trailers;
 	}
 
+	public interface FilterCarriersByCargoListener
+	{
+		void setFilter(TruckAddon cargo);
+	}
+
+	private void setCargoForFilter(TruckAddon cargo)
+	{
+		if (colorizeCarriersByCargo != null)
+			coloring.removeBackgroundRowColorizer(colorizeCarriersByCargo);
+		
+		if (cargo==null)
+			colorizeCarriersByCargo = null;
+		else
+			colorizeCarriersByCargo = carrier -> {
+				if (carrier.compatibleCargo.contains(cargo))
+					return BG_COLOR__CARRIER_CAN_LOAD_CARGO;
+				return null;
+			};
+		
+		if (colorizeCarriersByCargo != null)
+			coloring.addBackgroundRowColorizer(colorizeCarriersByCargo);
+		
+		table.repaint();
+	}
+
 	@Override public void modifyTableContextMenu(JTable table_, TableSimplifier.ContextMenu contextMenu) {
 		super.modifyTableContextMenu(table_, contextMenu);
+		
+		contextMenu.addSeparator();
+		
+		JMenuItem miFilterTrailersByCargo = contextMenu.add(SnowRunner.createMenuItem("Filter Trailers and TruckAddons by compatibility of cargo", true, e->{
+			if (clickedItem != null && clickedItem.gameData.isCargo)
+				gfds.controllers.filterCarriersByCargoListeners.setFilter(clickedItem);
+		}));
+		contextMenu.add(SnowRunner.createMenuItem("Reset Cargo Filter", true, e->{
+			gfds.controllers.filterCarriersByCargoListeners.setFilter(null);
+		}));
 		
 		contextMenu.addSeparator();
 		
@@ -235,6 +277,14 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				: String.format("Add Addon \"%s\" to a list of known special Addons", SnowRunner.solveStringID(clickedItem, language))
 			);
 			miEnableSpecialTruckAddonsHighlighting.setSelected(enableSpecialTruckAddonsHighlighting);
+			
+			String itemName = clickedItem == null ? null : SnowRunner.solveStringID(clickedItem.getName_StringID(), language);
+			miFilterTrailersByCargo.setEnabled(clickedItem!=null && clickedItem.gameData.isCargo);
+			miFilterTrailersByCargo.setText(
+					itemName == null
+						?               "Filter Trailers and TruckAddons by compatibility of cargo"
+						: String.format("Filter Trailers and TruckAddons by compatibility of cargo \"%s\"", itemName)
+			);
 		});
 	}
 

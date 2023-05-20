@@ -1825,6 +1825,7 @@ public class SnowRunner {
 		public final DLCAssignmentController dlcListeners;
 		public final SpecialTruckAddOnsController specialTruckAddonsListeners;
 		public final FilterTrucksByTrailersController filterTrucksByTrailersListeners;
+		public final FilterCarriersByCargoController filterCarriersByCargoListeners;
 		public final TruckImagesController truckImagesListeners;
 		public final WheelsQualityRangesController wheelsQualityRangesListeners;
 		
@@ -1835,6 +1836,7 @@ public class SnowRunner {
 			dlcListeners                    = new DLCAssignmentController();
 			specialTruckAddonsListeners     = new SpecialTruckAddOnsController();
 			filterTrucksByTrailersListeners = new FilterTrucksByTrailersController();
+			filterCarriersByCargoListeners  = new FilterCarriersByCargoController(); 
 			truckImagesListeners            = new TruckImagesController();
 			wheelsQualityRangesListeners    = new WheelsQualityRangesController();
 		}
@@ -1849,6 +1851,7 @@ public class SnowRunner {
 			dlcListeners                   .showListeners(indent, "DLCAssignmentListeners"         );
 			specialTruckAddonsListeners    .showListeners(indent, "SpecialTruckAddOnsListeners"    );
 			filterTrucksByTrailersListeners.showListeners(indent, "FilterTrucksByTrailersListeners");
+			filterCarriersByCargoListeners .showListeners(indent, "FilterCarriersByCargoListeners" );
 			truckImagesListeners           .showListeners(indent, "TruckImagesListeners"           );
 			wheelsQualityRangesListeners   .showListeners(indent, "WheelsQualityRangesListeners"   );
 		}
@@ -1891,6 +1894,7 @@ public class SnowRunner {
 				dlcListeners                   .removeListenersOfSource(this);
 				specialTruckAddonsListeners    .removeListenersOfSource(this);
 				filterTrucksByTrailersListeners.removeListenersOfSource(this);
+				filterCarriersByCargoListeners .removeListenersOfSource(this);
 				truckImagesListeners           .removeListenersOfSource(this);
 				wheelsQualityRangesListeners   .removeListenersOfSource(this);
 			}
@@ -1903,14 +1907,15 @@ public class SnowRunner {
 				volatileSubComps.remove(listID);
 			}
 
-			public void addLanguageListener              (LanguageListener l                               ) { languageListeners              .add(this,l); }
-			public void addDataReceiver                  (DataReceiver l                                   ) { dataReceivers                  .add(this,l); }
-			public void addSaveGameListener              (SaveGameListener l                               ) { saveGameListeners              .add(this,l); }
-			public void addDLCListener                   (DLCs.Listener l                                  ) { dlcListeners                   .add(this,l); }
-			public void addSpecialTruckAddonsListener    (SpecialTruckAddons.Listener l                    ) { specialTruckAddonsListeners    .add(this,l); }
-			public void addFilterTrucksByTrailersListener(TruckTableModel.FilterTrucksByTrailersListener l ) { filterTrucksByTrailersListeners.add(this,l); }
-			public void addTruckImagesListener           (TruckImages.Listener l                           ) { truckImagesListeners           .add(this,l); }
-			public void addWheelsQualityRangesListener   (WheelsQualityRanges.Listener l                   ) { wheelsQualityRangesListeners   .add(this,l); }
+			public void addLanguageListener              (LanguageListener l                                    ) { languageListeners              .add(this,l); }
+			public void addDataReceiver                  (DataReceiver l                                        ) { dataReceivers                  .add(this,l); }
+			public void addSaveGameListener              (SaveGameListener l                                    ) { saveGameListeners              .add(this,l); }
+			public void addDLCListener                   (DLCs.Listener l                                       ) { dlcListeners                   .add(this,l); }
+			public void addSpecialTruckAddonsListener    (SpecialTruckAddons.Listener l                         ) { specialTruckAddonsListeners    .add(this,l); }
+			public void addFilterTrucksByTrailersListener(TruckTableModel.FilterTrucksByTrailersListener l      ) { filterTrucksByTrailersListeners.add(this,l); }
+			public void addFilterCarriersByCargoListener (TruckAddonsTableModel.FilterCarriersByCargoListener l ) { filterCarriersByCargoListeners .add(this,l); }
+			public void addTruckImagesListener           (TruckImages.Listener l                                ) { truckImagesListeners           .add(this,l); }
+			public void addWheelsQualityRangesListener   (WheelsQualityRanges.Listener l                        ) { wheelsQualityRangesListeners   .add(this,l); }
 		}
 
 		private static class AbstractController<Listener> {
@@ -1991,6 +1996,15 @@ public class SnowRunner {
 			{
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setFilter(trailer);
+			}
+		}
+
+		public static class FilterCarriersByCargoController extends AbstractController<TruckAddonsTableModel.FilterCarriersByCargoListener> implements TruckAddonsTableModel.FilterCarriersByCargoListener
+		{
+			@Override public void setFilter(TruckAddon cargo)
+			{
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).setFilter(cargo);
 			}
 		}
 		

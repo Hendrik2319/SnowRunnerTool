@@ -188,7 +188,6 @@ public class Data {
 			else
 				System.err.printf("No InstallSocket for trailer <%s>%n", trailer.id);
 		
-		
 		socketIDsUsedByTruckAddons = new StringVectorMap<>();
 		for (TruckAddon truckAddon : truckAddons.values())
 			if (truckAddon.gameData.installSocket!=null)
@@ -264,10 +263,42 @@ public class Data {
 				}
 		}
 		
+		for (TruckAddon cargo : truckAddons.values())
+			if (cargo.gameData.isCargo)
+			{
+				for (Trailer trailer : trailers.values())
+					if (isCompatibleCarrier(cargo, trailer.gameData))
+						trailer.compatibleCargo.add(cargo);
+				
+				for (TruckAddon truckAddon : truckAddons.values())
+					if (isCompatibleCarrier(cargo, truckAddon.gameData))
+						truckAddon.compatibleCargo.add(cargo);
+			}
+		
+		
 		if (!unexpectedValues.isEmpty())
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
 	
+	private static boolean isCompatibleCarrier(TruckAddon cargo, GameData.GameDataT3NonTruck carrierGameData)
+	{
+		if (carrierGameData==null) return false;
+		if ( cargo==null) return false;
+		if (!cargo.gameData.isCargo) return false;
+		if ( cargo.gameData.cargoLength==null) return false;
+		
+		if (carrierGameData.cargoSlots==null) return false;
+		if (carrierGameData.cargoSlots.intValue() < cargo.gameData.cargoLength.intValue()) return false;
+		
+		if (contains(carrierGameData.excludedCargoTypes, cargo.gameData.cargoType)) return false;
+		
+		if (cargo.gameData.cargoAddonSubtype!=null)
+			if (!hasItemACompatibleLoadArea(()->carrierGameData, cargo.gameData.cargoType, cargo.gameData.cargoAddonSubtype, false))
+				return false;
+			
+		return true;
+	}
+
 	public static class UserDefinedValues extends SnowRunner.Initializable
 	{
 		private final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
@@ -954,9 +985,7 @@ public class Data {
 		return result;
 	}
 
-	public static
-	<ItemType extends GameData.GameDataT3NonTruckContainer>
-	boolean hasItemACompatibleLoadArea(ItemType item, String requiredCargoType, String requiredCargoAddonSubtype, boolean ignoreTrailerLoad)
+	public static boolean hasItemACompatibleLoadArea(GameData.GameDataT3NonTruckContainer item, String requiredCargoType, String requiredCargoAddonSubtype, boolean ignoreTrailerLoad)
 	{
 		GameData.GameDataT3NonTruck gameData = item.getGameData();
 		if (gameData == null) throw new IllegalStateException();
@@ -971,9 +1000,7 @@ public class Data {
 		return false;
 	}
 
-	public static
-	<ItemType extends GameData.GameDataT3NonTruckContainer>
-	boolean hasItemACompatibleLoadArea(ItemType item, HashSet<CargoTypePair> cargoTypes, boolean ignoreTrailerLoad)
+	public static boolean hasItemACompatibleLoadArea(GameData.GameDataT3NonTruckContainer item, HashSet<CargoTypePair> cargoTypes, boolean ignoreTrailerLoad)
 	{
 		for (CargoTypePair ct : cargoTypes)
 			if (hasItemACompatibleLoadArea(item, ct.cargoType, ct.cargoAddonSubtype, ignoreTrailerLoad))
@@ -2419,6 +2446,7 @@ public class Data {
 		public final Integer fuelCapacity;
 		public final Integer waterCapacity;
 		public final Vector<Truck> usableBy;
+		public final Vector<TruckAddon> compatibleCargo;
 		
 		public final GameData.GameDataTrailer gameData;
 
@@ -2429,7 +2457,7 @@ public class Data {
 			
 			usableBy = new Vector<>();
 			attachType = item.content.attributes.get("AttachType");
-			
+			compatibleCargo = new Vector<>();
 			
 			GenericXmlNode truckDataNode = item.content.getNode("Truck", "TruckData");
 			repairsCapacity      = parseInt( getAttribute(truckDataNode, "RepairsCapacity"     ) );
@@ -2459,6 +2487,7 @@ public class Data {
 		public final Boolean enablesAllWheelDrive;
 		public final Boolean enablesDiffLock;
 		public final Vector<Truck> usableBy;
+		public final Vector<TruckAddon> compatibleCargo;
 		public final GameData.GameDataTruckAddon gameData;
 
 		private TruckAddon(Item item, HashMap<String, CargoType> cargoTypes) {
@@ -2467,6 +2496,7 @@ public class Data {
 				throw new IllegalStateException();
 			
 			usableBy = new Vector<>();
+			compatibleCargo = new Vector<>();
 			
 			GenericXmlNode[] truckDataNodes = item.content.getNodes("TruckAddon", "TruckData");
 			repairsCapacity      = parseInt ( getAttribute(truckDataNodes, "RepairsCapacity"       ) );

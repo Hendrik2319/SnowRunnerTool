@@ -1,9 +1,11 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
+import java.awt.Color;
 import java.awt.Point;
 import java.awt.Window;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.function.Function;
 
 import javax.swing.JMenuItem;
 import javax.swing.JTable;
@@ -21,11 +23,14 @@ import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.Extende
 
 public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer> {
 	
+	private static final Color BG_COLOR__CARRIER_CAN_LOAD_CARGO = new Color(0xCEFFC5);
+	
 	private HashMap<String, TruckAddon> truckAddons;
 	private HashMap<String, Trailer> trailers;
 	private SaveGame saveGame;
 	private Trailer clickedRow;
 	private Truck truck;
+	private Function<Trailer, Color> colorizeCarriersByCargo;
 
 	public TrailersTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, Data data, SaveGame saveGame) {
 		this(mainWindow, gfds, connectToGlobalData);
@@ -63,6 +68,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		trailers    = null;
 		saveGame    = null;
 		truck       = null;
+		colorizeCarriersByCargo = null;
 		
 		if (connectToGlobalData)
 			connectToGlobalData(true, data->{
@@ -80,6 +86,8 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 			this.saveGame = saveGame;
 			updateOutput();
 		});
+		
+		finalizer.addFilterCarriersByCargoListener(this::setCargoForFilter);
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 	}
@@ -107,6 +115,26 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		return this;
 	}
 
+	private void setCargoForFilter(TruckAddon cargo)
+	{
+		if (colorizeCarriersByCargo != null)
+			coloring.removeBackgroundRowColorizer(colorizeCarriersByCargo);
+		
+		if (cargo==null)
+			colorizeCarriersByCargo = null;
+		else
+			colorizeCarriersByCargo = carrier -> {
+				if (carrier.compatibleCargo.contains(cargo))
+					return BG_COLOR__CARRIER_CAN_LOAD_CARGO;
+				return null;
+			};
+		
+		if (colorizeCarriersByCargo != null)
+			coloring.addBackgroundRowColorizer(colorizeCarriersByCargo);
+		
+		table.repaint();
+	}
+	
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, Trailer row) {
 		TruckAddonsTableModel.generateText(
 				doc,
@@ -129,9 +157,16 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		
 		contextMenu.addSeparator();
 		
-		JMenuItem miFilterTrucksByTrailer = contextMenu.add(SnowRunner.createMenuItem("Filter table \"Trucks\" by usability of this trailer", true, e->{
+		JMenuItem miFilterTrucksByTrailer = contextMenu.add(SnowRunner.createMenuItem("Filter Trucks by usability of this trailer", true, e->{
 			if (clickedRow != null)
 				gfds.controllers.filterTrucksByTrailersListeners.setFilter(clickedRow);
+		}));
+		
+		contextMenu.addSeparator();
+		
+		contextMenu.add(SnowRunner.createMenuItem("Filter by Cargo -> context menu of any \"TruckAddon\" table", true, e->{}));
+		contextMenu.add(SnowRunner.createMenuItem("Reset Cargo Filter", true, e->{
+			gfds.controllers.filterCarriersByCargoListeners.setFilter(null);
 		}));
 		
 		contextMenu.addContextMenuInvokeListener((table, x, y) -> {
@@ -144,8 +179,8 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 			miFilterTrucksByTrailer.setEnabled(clickedRow!=null);
 			miFilterTrucksByTrailer.setText(
 					trailerName == null
-						?               "Filter table \"Trucks\" by usability of this trailer"
-						: String.format("Filter table \"Trucks\" by usability of trailer \"%s\"", trailerName)
+						?               "Filter Trucks by usability of this trailer"
+						: String.format("Filter Trucks by usability of trailer \"%s\"", trailerName)
 			);
 			
 		});
