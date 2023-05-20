@@ -14,6 +14,7 @@ import java.util.function.Function;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 
 import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
@@ -178,6 +179,10 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		
 		finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
 		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
+		
+		Trailer filter = gfds.controllers.filterTrucksByTrailersListeners.getFilter();
+		if (filter!=null)
+			SwingUtilities.invokeLater(()->setTrailerForFilter(filter));
 	}
 
 	public interface FilterTrucksByTrailersListener

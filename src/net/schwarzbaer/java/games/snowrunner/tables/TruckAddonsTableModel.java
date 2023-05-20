@@ -14,6 +14,7 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 
 import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.gui.StyledDocumentInterface.Style;
@@ -131,6 +132,10 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		});
 		
 		finalizer.addFilterCarriersByCargoListener(this::setCargoForFilter);
+		
+		TruckAddon filter = gfds.controllers.filterCarriersByCargoListeners.getFilter();
+		if (filter!=null)
+			SwingUtilities.invokeLater(()->setCargoForFilter(filter));
 		
 		Comparator<String> string_nullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 		setInitialRowOrder(Comparator.<TruckAddon,String>comparing(row->row.gameData.category,string_nullsLast).thenComparing(row->row.id));

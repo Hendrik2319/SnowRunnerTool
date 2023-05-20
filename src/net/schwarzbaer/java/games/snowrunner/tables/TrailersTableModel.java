@@ -9,6 +9,7 @@ import java.util.function.Function;
 
 import javax.swing.JMenuItem;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 
 import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.games.snowrunner.Data;
@@ -88,6 +89,10 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		});
 		
 		finalizer.addFilterCarriersByCargoListener(this::setCargoForFilter);
+		
+		TruckAddon filter = gfds.controllers.filterCarriersByCargoListeners.getFilter();
+		if (filter!=null)
+			SwingUtilities.invokeLater(()->setCargoForFilter(filter));
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
 	}

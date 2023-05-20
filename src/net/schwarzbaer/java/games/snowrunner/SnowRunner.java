@@ -1992,8 +1992,11 @@ public class SnowRunner {
 
 		public static class FilterTrucksByTrailersController extends AbstractController<TruckTableModel.FilterTrucksByTrailersListener> implements TruckTableModel.FilterTrucksByTrailersListener
 		{
+			private Trailer trailer = null;
+			public Trailer getFilter() { return trailer; }
 			@Override public void setFilter(Trailer trailer)
 			{
+				this.trailer = trailer;
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setFilter(trailer);
 			}
@@ -2001,8 +2004,11 @@ public class SnowRunner {
 
 		public static class FilterCarriersByCargoController extends AbstractController<TruckAddonsTableModel.FilterCarriersByCargoListener> implements TruckAddonsTableModel.FilterCarriersByCargoListener
 		{
+			private TruckAddon cargo = null;
+			public TruckAddon getFilter() { return cargo; }
 			@Override public void setFilter(TruckAddon cargo)
 			{
+				this.cargo = cargo;
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).setFilter(cargo);
 			}
