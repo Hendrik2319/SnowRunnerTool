@@ -33,6 +33,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
+import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Addon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Coord3F;
@@ -49,6 +50,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
@@ -478,11 +480,19 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			});
 		}
 	}
+	
+	public interface StoredTruckDisplayer
+	{
+		void setDisplayedTruck(TruckDesc displayedTruck);
+	}
 
 	private static class StoredTrucksTableModel extends ExtendedVerySimpleTableModelUOS<StoredTrucksTableModel.Row>
 	{
+		private static final Color BG_COLOR__DISPLAYED_TRUCK = new Color(0xFFDF00);
 		private Data data;
 		private final InfoPanel infoPanel;
+		private Row clickedRow;
+		private TruckDesc displayedTruck;
 	
 		StoredTrucksTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
@@ -511,6 +521,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrWheels"   ,"Wheels"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.wheels                    ),
 					new ColumnID("TrWheelReps","Wheel Repairs"               ,  Long   .class,  80, CENTER,      null, false, row->((Row)row).truckDesc.wheelRepairs              ),
 					new ColumnID("TrWheelsScl","Wheels Scale"                ,  Double .class,  75,   null,   "%1.3f", false, row->((Row)row).truckDesc.wheelsScale               ),
+					new ColumnID("TrWheelsSze","Wheels Size"                 ,  Integer.class,  75,   null,    "%d\"", false, row->CompatibleWheel.computeSize_inch(((Row)row).truckDesc.wheelsScale)),
 					new ColumnID("TrWheelsDmg","Wheels Damage"               ,  String .class, 170,   null,      null, false, row->SaveGameDataPanel.toString(((Row)row).truckDesc.wheelsDamage)),
 					new ColumnID("TrWheelsSHt","Wheels Susp. Height"         ,  String .class, 150,   null,      null, false, row->SaveGameDataPanel.toString(((Row)row).truckDesc.wheelsSuspHeight, "%1.3f")),
 					new ColumnID("TrWinch"    ,"Winch"                       ,  String .class, 140,   null,      null, false, row->((Row)row).truckDesc.winch                     ),
@@ -527,7 +538,14 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, row->((Row)row).truckDesc.needToInstallDefaultAddons),
 			});
 			data = null;
+			clickedRow = null;
+			displayedTruck = gfds.controllers.storedTruckDisplayers.getDisplayedTruck();
 			infoPanel = new InfoPanel(mainWindow, gfds);
+			finalizer.addStoredTruckDisplayer(displayedTruck -> {
+				this.displayedTruck = displayedTruck;
+				table.repaint();
+			});
+			coloring.addBackgroundRowColorizer(row -> row.truckDesc == displayedTruck ? BG_COLOR__DISPLAYED_TRUCK : null);
 		}
 
 		private static <ResultType,V1,V2> ResultType getNonNull2(V1 value1, V2 value2, BiFunction<V1,V2,ResultType> computeValue)
@@ -643,6 +661,36 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			}
 			
 			textArea.setText(out.generateOutput());
+		}
+
+		@Override
+		public void modifyTableContextMenu(JTable table, ContextMenu contextMenu)
+		{
+			super.modifyTableContextMenu(table, contextMenu);
+			
+			contextMenu.addSeparator();
+			
+			JMenuItem miShowTruckInTruckTable = contextMenu.add(SnowRunner.createMenuItem("Show truck in truck table", true, e->{
+				if (clickedRow!=null)
+					gfds.controllers.storedTruckDisplayers.setDisplayedTruck(clickedRow.truckDesc);
+			}));
+			JMenuItem miClearTruckDisplay = contextMenu.add(SnowRunner.createMenuItem("Clear truck display", true, e->{
+				if (displayedTruck!=null)
+					gfds.controllers.storedTruckDisplayers.setDisplayedTruck(null);
+			}));
+			
+			contextMenu.addContextMenuInvokeListener((table_, x, y) ->
+			{
+				clickedRow = getRowAt(table_, x, y);
+				
+				miClearTruckDisplay.setEnabled(displayedTruck!=null);
+				miShowTruckInTruckTable.setEnabled(clickedRow!=null);
+				miShowTruckInTruckTable.setText(
+					clickedRow == null
+						? "Show truck in truck table"
+						: String.format("Show \"%s\" in truck table", TruckName.getTruckLabel(clickedRow.truckDesc.type, data, language))
+				);
+			});
 		}
 
 		private static class InfoPanel extends JTabbedPane

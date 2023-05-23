@@ -113,10 +113,11 @@ public class TruckPanelProto implements Finalizable {
 		truckInfoTextAreaScrollPane = new JScrollPane(truckInfoTextArea);
 		truckInfoTextAreaScrollPane.setPreferredSize(new Dimension(300,300));
 		
-		finalizer.addSubComp(compatibleWheelsPanel  = new CompatibleWheelsPanel (mainWindow, gfds));
+		SaveGame.TruckDesc displayedTruck = gfds.controllers.storedTruckDisplayers.getDisplayedTruck();
+		finalizer.addSubComp(compatibleWheelsPanel  = new CompatibleWheelsPanel (mainWindow, gfds, displayedTruck));
 		finalizer.addSubComp(addonSocketsPanel      = new AddonSocketsPanel     (mainWindow, gfds));
 		finalizer.addSubComp(addonSocketGroupsPanel = new AddonSocketGroupsPanel(mainWindow, gfds));
-		finalizer.addSubComp(addonCategoriesPanel   = new AddonCategoriesPanel  (mainWindow, gfds));
+		finalizer.addSubComp(addonCategoriesPanel   = new AddonCategoriesPanel  (mainWindow, gfds, displayedTruck));
 		
 		finalizer.addLanguageListener(language->{
 			this.language = language;
@@ -137,6 +138,10 @@ public class TruckPanelProto implements Finalizable {
 			if (truck==null) return;
 			if (!truck.id.equals(truckID)) return;
 			updateTruckImage();
+		});
+		finalizer.addStoredTruckDisplayer(displayedTruck_ -> {
+			compatibleWheelsPanel.setDisplayedTruck(displayedTruck_);
+			addonCategoriesPanel .setDisplayedTruck(displayedTruck_);
 		});
 		
 		updateOutput();
@@ -264,7 +269,7 @@ public class TruckPanelProto implements Finalizable {
 		if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(truckInfoTextAreaScrollPane));
 	}
 
-	private static class AddonCategoriesPanel extends CombinedTableTabPaneTextPanePanel implements Finalizable {
+	static class AddonCategoriesPanel extends CombinedTableTabPaneTextPanePanel implements Finalizable {
 		private static final long serialVersionUID = 4098254083170104250L;
 
 		private static final String CONTROLLERS_CHILDLIST_TABTABLEMODELS = "TabTableModels";
@@ -273,14 +278,16 @@ public class TruckPanelProto implements Finalizable {
 		private final Finalizer finalizer;
 		private Language language;
 		private Truck truck;
-		private final Vector<Tab> currentTabs;
+		private final Vector<Tab<?>> currentTabs;
 		private AddonCategories addonCategories;
 		private SaveGame saveGame;
 		private final GlobalFinalDataStructures gfds;
+		private SaveGame.TruckDesc displayedTruck;
 
-		AddonCategoriesPanel(Window mainWindow, GlobalFinalDataStructures gfds) {
+		AddonCategoriesPanel(Window mainWindow, GlobalFinalDataStructures gfds, SaveGame.TruckDesc displayedTruck) {
 			this.mainWindow = mainWindow;
 			this.gfds = gfds;
+			this.displayedTruck = displayedTruck;
 			this.finalizer = gfds.controllers.createNewFinalizer();
 			this.truck = null;
 			saveGame = null;
@@ -301,12 +308,19 @@ public class TruckPanelProto implements Finalizable {
 			});
 		}
 		
+		public void setDisplayedTruck(SaveGame.TruckDesc displayedTruck)
+		{
+			this.displayedTruck = displayedTruck;
+			for (Tab<?> tab : currentTabs)
+				tab.updateDisplayedTruck();
+		}
+
 		@Override public void prepareRemovingFromGUI() {
 			finalizer.removeSubCompsAndListenersFromGUI();
 		}
 		
 		private void updateTabTitles() {
-			for (Tab tab : currentTabs)
+			for (Tab<?> tab : currentTabs)
 				tab.updateTabTitle();
 			repaint();
 		}
@@ -351,7 +365,7 @@ public class TruckPanelProto implements Finalizable {
 			if (category!=null)
 				for (int tabIndex=0; tabIndex<currentTabs.size(); tabIndex++)
 				{
-					Tab tab = currentTabs.get(tabIndex);
+					Tab<?> tab = currentTabs.get(tabIndex);
 					if (category.equals(tab.category))
 						return tabIndex;
 				}
@@ -361,7 +375,7 @@ public class TruckPanelProto implements Finalizable {
 		private String getSelectedCategory()
 		{
 			int tabIndex = getSelectedTab();
-			Tab tab = tabIndex<0 || tabIndex>=currentTabs.size() ? null : currentTabs.get(tabIndex);
+			Tab<?> tab = tabIndex<0 || tabIndex>=currentTabs.size() ? null : currentTabs.get(tabIndex);
 			return tab== null ? null : tab.category;
 		}
 
@@ -413,32 +427,53 @@ public class TruckPanelProto implements Finalizable {
 
 		private <ItemType> void createTab(String category, Collection<ItemType> usableItems, Supplier<ExtendedVerySimpleTableModelTPOS<ItemType>> constructor) {
 			if (!usableItems.isEmpty()) {
-				Tab tab = new Tab(category, usableItems.size());
+				Tab<ItemType> tab = new Tab<>(category, usableItems.size(), constructor.get()); // create TableModel only in case of usableItems
 				currentTabs.add(tab);
-				ExtendedVerySimpleTableModelTPOS<ItemType> tableModel = constructor.get(); // create TableModel only in case of usableItems
-				finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tableModel);
-				addTab("##", tableModel);
+				finalizer.addVolatileSubComp(CONTROLLERS_CHILDLIST_TABTABLEMODELS, tab.tableModel);
+				addTab("##", tab.tableModel);
 				setTabComponentAt(currentTabs.size()-1, tab.tabComp);
-				tableModel.setLanguage(language);
-				tableModel.setRowData(usableItems);
+				tab.tableModel.setLanguage(language);
+				tab.tableModel.setRowData(usableItems);
+				tab.updateDisplayedTruck();
 			}
 		}
+				
+		public interface DisplayedTruckComponentList
+		{
+			boolean setDisplayedTruck(SaveGame.TruckDesc displayedTruck);
+		}
 
-		private class Tab {
+		private class Tab<ItemType>
+		{
+			private static final Color COLOR_BG_DISPLAYED_TRUCK_COMP = new Color(0xFFDF00);
 			
 			final String category;
 			final int size;
 			final Tables.LabelRendererComponent tabComp;
+			final ExtendedVerySimpleTableModelTPOS<ItemType> tableModel;
 			
-			Tab(String category, int size) {
+			Tab(String category, int size, ExtendedVerySimpleTableModelTPOS<ItemType> tableModel) {
 				this.category = category;
 				this.size = size;
+				this.tableModel = tableModel;
 				this.tabComp = new Tables.LabelRendererComponent();
 				if (SnowRunner.CATEGORY_ORDER_LIST.contains(this.category))
 					this.tabComp.setFont(this.tabComp.getFont().deriveFont(Font.BOLD));
 				updateTabTitle();
 			}
 			
+			void updateDisplayedTruck()
+			{
+				if (tableModel instanceof DisplayedTruckComponentList)
+				{
+					DisplayedTruckComponentList tm = (DisplayedTruckComponentList) tableModel;
+					boolean isTruck = displayedTruck!=null && truck!=null && truck.id.equals(displayedTruck.type);
+					boolean hasHitRow = tm.setDisplayedTruck(isTruck ? displayedTruck : null);
+					tabComp.setBackground(hasHitRow ? COLOR_BG_DISPLAYED_TRUCK_COMP : null);
+					tabComp.setOpaque(hasHitRow);
+				}
+			}
+
 			private void updateTabTitle() {
 				String categoryLabel = AddonCategories.getCategoryLabel(category, addonCategories, language);
 				this.tabComp.setText(String.format("%s [%d]", categoryLabel, size));
@@ -718,7 +753,7 @@ public class TruckPanelProto implements Finalizable {
 		private CompatibleWheel[] compatibleWheels;
 		private String truckName_StringID;
 		
-		CompatibleWheelsPanel(Window mainWindow, GlobalFinalDataStructures gfds) {
+		CompatibleWheelsPanel(Window mainWindow, GlobalFinalDataStructures gfds, SaveGame.TruckDesc displayedTruck) {
 			super(JSplitPane.VERTICAL_SPLIT, true);
 			setResizeWeight(1);
 			this.mainWindow = mainWindow;
@@ -730,7 +765,7 @@ public class TruckPanelProto implements Finalizable {
 			finalizer = gfds.controllers.createNewFinalizer();
 			
 			JComponent tableScrollPane = TableSimplifier.create(
-					tableModel = new CWTableModel(mainWindow, gfds),
+					tableModel = new CWTableModel(mainWindow, gfds, displayedTruck),
 					(TableSimplifier.UnspecificOutputSource) rowIndex -> {
 						selectedWheel = tableModel.getRow(rowIndex);
 						updateWheelInfo();
@@ -792,6 +827,11 @@ public class TruckPanelProto implements Finalizable {
 			updateWheelInfo();
 		}
 
+		public void setDisplayedTruck(SaveGame.TruckDesc displayedTruck)
+		{
+			tableModel.setDisplayedTruck(displayedTruck);
+		}
+
 		@Override public void prepareRemovingFromGUI()
 		{
 			finalizer.removeSubCompsAndListenersFromGUI();
@@ -821,16 +861,20 @@ public class TruckPanelProto implements Finalizable {
 			private static final String ID_QUALITY_MUD     = "QualityMud";
 			private static final Color COLOR_BG_TRUCK_QV   = new Color(0xF1D5D5);
 			private static final Color COLOR_BG_GENERAL_QV = new Color(0xD5F1D5);
+			private static final Color COLOR_BG_DISPLAYED_TRUCK_WHEEL = new Color(0xFFDF00);
 			
 			private String truckId;
+			private SaveGame.TruckDesc displayedTruck;
 
-			CWTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+			CWTableModel(Window mainWindow, GlobalFinalDataStructures gfds, SaveGame.TruckDesc displayedTruck)
 			{
 				super(mainWindow, gfds, new ColumnID[] {
 						new ColumnID( "WheelsDefID"        , "WheelsDef"            , String                          .class, 140,   null,    null, false, get(row -> row.wheelsDefID                )),
+						new ColumnID( "TireDef"            , "TireDef"              , String                          .class, 110,   null,    null, false, get(row -> row.tire.tireDefID)),
 						new ColumnID( "Type"               , "Type"                 , String                          .class,  80,   null,    null,  true, get(row -> row.tire.tireType_StringID     )),
 						new ColumnID( "Name"               , "Name"                 , String                          .class, 130,   null,    null,  true, get(row -> row.tire.gameData.name_StringID)),
 						new ColumnID( "UpdateLevel"        , "Update Level"         , String                          .class,  80,   null,    null, false, get(row -> row.updateLevel                )),
+						new ColumnID( "Scale"              , "Scale"                , Float                           .class,  50,   null, "%1.4f", false, get(row -> row.scale                      )),
 						new ColumnID( "Size"               , "Size"                 , Integer                         .class,  50, CENTER,  "%d\"", false, get(row -> row.getSize()                  )),
 						new ColumnID( "FrictionHighway"    , "Highway"              , Float                           .class,  55,   null, "%1.2f", false, get(row -> row.tire.frictionHighway       )),
 						new ColumnID( "FrictionOffroad"    , "Offroad"              , Float                           .class,  50,   null, "%1.2f", false, get(row -> row.tire.frictionOffroad       )),
@@ -844,10 +888,45 @@ public class TruckPanelProto implements Finalizable {
 						new ColumnID( "UnlockByRank"       , "Unlock By Rank"       , Integer                         .class, 100, CENTER,    null, false, get(row -> row.tire.gameData.unlockByRank        )),
 						new ColumnID( "Description"        , "Description"          , String                          .class, 200,   null,    null,  true, get(row -> row.tire.gameData.description_StringID)),
 				});
+				this.displayedTruck = displayedTruck;
 				truckId = null;
 				setColumnBgColoring(coloring, ID_QUALITY_HIGHWAY, WheelsQualityRanges.WheelValue.Highway);
 				setColumnBgColoring(coloring, ID_QUALITY_OFFROAD, WheelsQualityRanges.WheelValue.Offroad);
 				setColumnBgColoring(coloring, ID_QUALITY_MUD    , WheelsQualityRanges.WheelValue.Mud    );
+				coloring.addBackgroundRowColorizer(row -> {
+					if (this.displayedTruck!=null)
+					{
+						if (
+							truckId!=null && truckId.equals(this.displayedTruck.type) &&
+							(
+								(this.displayedTruck.wheels!=null && this.displayedTruck.wheels.equals(row.wheelsDefID)) ||
+								(this.displayedTruck.wheels==null && row.wheelsDefID==null)
+							) && (
+								(this.displayedTruck.tires!=null && this.displayedTruck.tires.equals(row.tire.tireDefID)) ||
+								(this.displayedTruck.tires==null && row.tire.tireDefID==null)
+							) && (
+								isEqual( this.displayedTruck.wheelsScale, row.scale, 0.01 )
+							)
+						)
+							return COLOR_BG_DISPLAYED_TRUCK_WHEEL;
+					}
+					return null;
+				});
+			}
+
+			private boolean isEqual(double v1, Float v2, double tolerance)
+			{
+				if (v2==null) return false;
+				if (!Double.isFinite(v1)) return false;
+				if (!Float .isFinite(v2)) return false;
+				double q = v1/v2;
+				return 1-tolerance < q && q < 1+tolerance;
+			}
+
+			void setDisplayedTruck(SaveGame.TruckDesc displayedTruck)
+			{
+				this.displayedTruck = displayedTruck;
+				table.repaint();
 			}
 
 			private static void setColumnBgColoring(Coloring<RowItem> coloring, String columnID, WheelsQualityRanges.WheelValue wheelValue)

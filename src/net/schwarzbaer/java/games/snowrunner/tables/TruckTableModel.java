@@ -37,6 +37,7 @@ import net.schwarzbaer.system.ClipboardTools;
 public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
 	private static final Color BG_COLOR__TRUCK_CAN_USE_TRAILER = new Color(0xCEFFC5);
+	private static final Color BG_COLOR__DISPLAYED_TRUCK = new Color(0xFFDF00);
 
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
@@ -57,6 +58,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private SaveGame saveGame;
 	private Truck clickedItem;
 	private Function<Truck, Color> colorizeTrucksByTrailers;
+	private SaveGame.TruckDesc displayedTruck;
 
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
@@ -122,6 +124,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		this.data = null;
 		this.saveGame = null;
 		colorizeTrucksByTrailers = null;
+		displayedTruck = gfds.controllers.storedTruckDisplayers.getDisplayedTruck();
 		
 		connectToGlobalData(true, data->{
 			this.data = data;
@@ -144,6 +147,14 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		//	return null;
 		//});
 		
+		coloring.addBackgroundRowColorizer(truck -> {
+			if (truck!=null)
+			{
+				if (displayedTruck!=null && truck.id.equals(displayedTruck.type))
+					return BG_COLOR__DISPLAYED_TRUCK;
+			}
+			return null;
+		});
 		coloring.setBackgroundColumnColoring(true, Truck.UDV.ItemState.class, (truck, state) ->{
 			switch (state) {
 			case None:
@@ -179,6 +190,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		
 		finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
 		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
+		
+		finalizer.addStoredTruckDisplayer(displayedTruck -> {
+			this.displayedTruck = displayedTruck;
+			table.repaint();
+		});
 		
 		Trailer filter = gfds.controllers.filterTrucksByTrailersListeners.getFilter();
 		if (filter!=null)
@@ -443,7 +459,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				gfds.controllers.dlcListeners.updateAfterChange();
 		}));
 		
-		JMenuItem miSetTruckImage = contextMenu.add(SnowRunner.createMenuItem("Set image of truck", true, e->{
+		JMenuItem miSetTruckImage = contextMenu.add(SnowRunner.createMenuItem("Paste image of truck from clipboard", true, e->{
 			if (clickedItem==null) return;
 			BufferedImage image = ClipboardTools.getImageFromClipBoard();
 			if (image==null)
@@ -487,8 +503,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			miSetTruckImage.setEnabled(clickedItem!=null);
 			miSetTruckImage.setText(
 				clickedItem==null
-				? "Copy image of truck from clipboard"
-				: String.format("Copy image of \"%s\" from clipboard", SnowRunner.getTruckLabel(clickedItem,language))
+				? "Paste image of truck from clipboard"
+				: String.format("Paste image of \"%s\" from clipboard", SnowRunner.getTruckLabel(clickedItem,language))
 			);
 			
 			//miEnableOwnedTrucksHighlighting.setSelected(enableOwnedTrucksHighlighting);

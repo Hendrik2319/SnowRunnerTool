@@ -24,6 +24,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 	public WheelsTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
 		super(mainWindow, gfds, new ColumnID[] {
 				new ColumnID("ID"     , "ID"     , String      .class, 300,   null,    null, false, row -> ((RowItem)row).label),
+				new ColumnID("TireDef", "TireDef", String      .class, 110,   null,    null, false, row -> ((RowItem)row).tireValues.tireDefID),
 				new ColumnID("Names"  , "Names"  , String      .class, 130,   null,    null, (row,lang) -> SnowRunner.joinStringIDs(((RowItem)row).names_StringID, lang)),
 				new ColumnID("Sizes"  , "Sizes"  , String      .class, 300,   null,    null, false, row -> getSizeList ( ((RowItem)row).sizes  )),
 				new ColumnID("Highway", "Highway", Float       .class,  55,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionHighway), 
@@ -129,12 +130,14 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		
 		private static class TireValues {
 
+			final String tireDefID;
 			final Float frictionHighway;
 			final Float frictionOffroad;
 			final Float frictionMud;
 			final Boolean onIce;
 
 			public TireValues(TruckTire wheel) {
+				tireDefID       = wheel.tireDefID;
 				frictionHighway = wheel.frictionHighway;
 				frictionOffroad = wheel.frictionOffroad;
 				frictionMud     = wheel.frictionMud;
@@ -144,6 +147,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 			@Override
 			public int hashCode() {
 				int hashCode = 0;
+				if (tireDefID      !=null) hashCode ^= tireDefID      .hashCode();
 				if (frictionHighway!=null) hashCode ^= frictionHighway.hashCode();
 				if (frictionOffroad!=null) hashCode ^= frictionOffroad.hashCode();
 				if (frictionMud    !=null) hashCode ^= frictionMud    .hashCode();
@@ -157,12 +161,19 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 					return false;
 				
 				TireValues other = (TireValues) obj;
+				if (!equals( this.tireDefID      , other.tireDefID       )) return false;
 				if (!equals( this.frictionHighway, other.frictionHighway )) return false;
 				if (!equals( this.frictionOffroad, other.frictionOffroad )) return false;
 				if (!equals( this.frictionMud    , other.frictionMud     )) return false;
 				if (!equals( this.onIce          , other.onIce           )) return false;
 				
 				return true;
+			}
+
+			private boolean equals(String v1, String v2) {
+				if (v1==null && v2==null) return true;
+				if (v1==null || v2==null) return false;
+				return v1.equals(v2);
 			}
 
 			private boolean equals(Boolean v1, Boolean v2) {
@@ -178,7 +189,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 			}
 
 			@Override public String toString() {
-				return String.format("(H:%1.2f,O:%1.2f,M:%1.2f%s)\"", frictionHighway, frictionOffroad, frictionMud, onIce!=null && onIce ? ",Ice" : "");
+				return String.format("(T:%s,H:%1.2f,O:%1.2f,M:%1.2f%s)\"", tireDefID, frictionHighway, frictionOffroad, frictionMud, onIce!=null && onIce ? ",Ice" : "");
 			}
 			
 		}

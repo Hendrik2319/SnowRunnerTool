@@ -675,6 +675,14 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			miShowCalculationPath.setText( String.format( "Show calculation details of %s of %s", columnLabel, rowLabel ) );
 		});
 	}
+	
+	protected RowType getRowAt(JTable table, Integer x, Integer y)
+	{
+		Point p = x==null || y==null ? null : new Point(x,y);
+		int rowV = p==null ? -1 : table.rowAtPoint(p);
+		int rowM = rowV<0 ? -1 : table.convertRowIndexToModel(rowV);
+		return rowM<0 ? null : getRow(rowM);
+	}
 
 	@Override public int getRowCount() {
 		return rows.size();

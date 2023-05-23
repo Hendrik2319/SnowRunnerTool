@@ -877,6 +877,7 @@ public class SaveGameData {
 			public final boolean isPacked;
 			public final boolean isUnlocked;
 			public final Vector<InstalledAddon> addons;
+			public final HashSet<String> addonIDs;
 			public final long    damage;
 			public final String  engine;
 			public final long    engineDamage;
@@ -1011,6 +1012,10 @@ public class SaveGameData {
 				this.retainedMap         = MapIndex.parse(retainedMapId);
 				this.wheelsDamage        = parseArray_Integer     (wheelsDamage       , debugOutputPrefixStr+".wheelsDamage"       );
 				this.wheelsSuspHeight    = parseArray_Float       (wheelsSuspHeight   , debugOutputPrefixStr+".wheelsSuspHeight"   );
+				
+				this.addonIDs = new HashSet<String>();
+				for (InstalledAddon addon : this.addons)
+					addonIDs.add(addon.name);
 			}
 			
 			public static class CustomizationPreset

@@ -992,7 +992,7 @@ public class Data {
 		
 		for (GameData.GameDataT3NonTruck.LoadArea loadArea : gameData.loadAreas)
 			if (
-			//		(requiredCargoType         == null || requiredCargoType        .equals(loadArea.type   )) &&
+					(requiredCargoType         == null || requiredCargoType        .equals(loadArea.type   )) && // Cat 745C can only M logs and no S logs
 					(requiredCargoAddonSubtype == null || requiredCargoAddonSubtype.equals(loadArea.subtype)) &&
 					(ignoreTrailerLoad || (loadArea.trailerLoad != null && loadArea.trailerLoad.booleanValue()))
 			)
@@ -1920,19 +1920,37 @@ public class Data {
 		public final boolean onIce;
 		
 		public final GameData gameData;
+		public final String tireDefID;
 	
 		private TruckTire(GenericXmlNode node, String wheelsDefID, int indexInDef, String updateLevel) {
 			this.wheelsDefID = wheelsDefID;
 			this.indexInDef = indexInDef;
 			this.updateLevel = updateLevel;
 			
-			GenericXmlNode wheelFrictionNode = node.getNode("TruckTire", "WheelFriction");
+			//scanNode(node, "Class[wheels] <TruckWheels> <TruckTires>", "TruckTire");
+			/*
+			   Class[wheels] <TruckWheels> <TruckTires> <TruckTire ####="...">
+			      Mass
+			      Mesh
+			      Name
+			      RearMassScale
+			      Width
+			   Class[wheels] <TruckWheels> <TruckTires> <TruckTire> <####>
+			      GameData
+			      WheelFriction
+			      WheelSoftness
+			      WheelTracks
+			 */
+			tireDefID = node.attributes.get("Name") ;
 			
-//			BodyFriction="2.0"
-//			BodyFrictionAsphalt="0.9"
-//			IsIgnoreIce="true"
-//			SubstanceFriction="1.1"
-//			UiName="UI_TIRE_TYPE_CHAINS_NAME"
+			GenericXmlNode wheelFrictionNode = node.getNode("TruckTire", "WheelFriction");
+			/*
+				BodyFriction="2.0"
+				BodyFrictionAsphalt="0.9"
+				IsIgnoreIce="true"
+				SubstanceFriction="1.1"
+				UiName="UI_TIRE_TYPE_CHAINS_NAME"
+			 */
 			
 			tireType_StringID =             wheelFrictionNode.attributes.get("UiName");
 			frictionHighway   = parseFloat( wheelFrictionNode.attributes.get("BodyFrictionAsphalt") );
@@ -1945,6 +1963,7 @@ public class Data {
 		}
 	
 		void printValues(ValueListOutput out, int indentLevel) {
+			out.add(indentLevel, "TireDef ID", tireDefID);
 			out.add(indentLevel, "TireType [StringID]", "<%s>", tireType_StringID);
 			out.add(indentLevel, "Friction (highway)", frictionHighway);
 			out.add(indentLevel, "Friction (offroad)", frictionOffroad);
@@ -2394,6 +2413,9 @@ public class Data {
 		
 			public static Integer computeSize_inch(Float scale) {
 				return scale==null ? null : Math.round(scale.floatValue()*78.5f);
+			}
+			public static Integer computeSize_inch(Double scale) {
+				return scale==null ? null : (int)Math.round(scale.doubleValue()*78.5);
 			}
 		
 			public void printTireList(ValueListOutput out, int indentLevel) {

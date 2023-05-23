@@ -1714,6 +1714,7 @@ public class SnowRunner {
 			truckList.setCellRenderer(truckListCellRenderer);
 			finalizer.addLanguageListener(truckListCellRenderer);
 			finalizer.addSaveGameListener(truckListCellRenderer);
+			finalizer.addStoredTruckDisplayer(truckListCellRenderer);
 			
 			setLeftComponent(truckListScrollPane);
 			setRightComponent(splitPaneFromTruckPanel);
@@ -1771,20 +1772,23 @@ public class SnowRunner {
 			}
 		}
 	
-		private static class TruckListCellRenderer implements ListCellRenderer<Truck>, LanguageListener, SaveGameListener {
+		private static class TruckListCellRenderer implements ListCellRenderer<Truck>, LanguageListener, SaveGameListener, SaveGameDataPanel.StoredTruckDisplayer {
 			
 			private static final Color COLOR_FG_DLCTRUCK   = new Color(0x0070FF);
 			private static final Color COLOR_FG_OWNEDTRUCK = new Color(0x00AB00);
+			private static final Color COLOR_BG_DISPLAYED_TRUCK = new Color(0xFFDF00);
 			private final Tables.LabelRendererComponent rendererComp;
 			private final JList<Truck> truckList;
 			private Language language;
 			private SaveGame saveGame;
+			private SaveGame.TruckDesc displayedTruck;
 		
 			TruckListCellRenderer(JList<Truck> truckList) {
 				this.truckList = truckList;
 				rendererComp = new Tables.LabelRendererComponent();
 				language = null;
 				saveGame = null;
+				displayedTruck = null;
 			}
 			
 			@Override public void setLanguage(Language language) {
@@ -1797,12 +1801,28 @@ public class SnowRunner {
 				truckList.repaint();
 			}
 
+			@Override public void setDisplayedTruck(SaveGame.TruckDesc displayedTruck)
+			{
+				this.displayedTruck = displayedTruck;
+				truckList.repaint();
+			}
+
 			@Override
 			public Component getListCellRendererComponent( JList<? extends Truck> list, Truck value, int index, boolean isSelected, boolean cellHasFocus) {
-				rendererComp.configureAsListCellRendererComponent(list, null, getTruckLabel(value, language), index, isSelected, cellHasFocus, null, ()->getForeground(value));
+				rendererComp.configureAsListCellRendererComponent(list, null, getTruckLabel(value, language), index, isSelected, cellHasFocus, ()->getBackground(value), ()->getForeground(value));
 				return rendererComp;
 			}
 		
+			private Color getBackground(Truck truck)
+			{
+				if (truck!=null)
+				{
+					if (displayedTruck!=null && truck.id.equals(displayedTruck.type))
+						return COLOR_BG_DISPLAYED_TRUCK;
+				}
+				return null;
+			}
+
 			private Color getForeground(Truck truck) {
 				if (truck!=null) {
 					if (saveGame!=null && saveGame.playerOwnsTruck(truck))
@@ -1828,6 +1848,7 @@ public class SnowRunner {
 		public final FilterCarriersByCargoController filterCarriersByCargoListeners;
 		public final TruckImagesController truckImagesListeners;
 		public final WheelsQualityRangesController wheelsQualityRangesListeners;
+		public final StoredTruckDisplayerController storedTruckDisplayers;
 		
 		Controllers() {
 			languageListeners               = new LanguageController();
@@ -1839,6 +1860,7 @@ public class SnowRunner {
 			filterCarriersByCargoListeners  = new FilterCarriersByCargoController(); 
 			truckImagesListeners            = new TruckImagesController();
 			wheelsQualityRangesListeners    = new WheelsQualityRangesController();
+			storedTruckDisplayers           = new StoredTruckDisplayerController();
 		}
 		
 		void showListeners() {
@@ -1854,6 +1876,7 @@ public class SnowRunner {
 			filterCarriersByCargoListeners .showListeners(indent, "FilterCarriersByCargoListeners" );
 			truckImagesListeners           .showListeners(indent, "TruckImagesListeners"           );
 			wheelsQualityRangesListeners   .showListeners(indent, "WheelsQualityRangesListeners"   );
+			storedTruckDisplayers          .showListeners(indent, "StoredTruckDisplayers"          );
 		}
 		
 		public interface Finalizable {
@@ -1897,6 +1920,7 @@ public class SnowRunner {
 				filterCarriersByCargoListeners .removeListenersOfSource(this);
 				truckImagesListeners           .removeListenersOfSource(this);
 				wheelsQualityRangesListeners   .removeListenersOfSource(this);
+				storedTruckDisplayers          .removeListenersOfSource(this);
 			}
 			
 			public void removeVolatileSubCompsFromGUI(String listID) {
@@ -1916,6 +1940,7 @@ public class SnowRunner {
 			public void addFilterCarriersByCargoListener (TruckAddonsTableModel.FilterCarriersByCargoListener l ) { filterCarriersByCargoListeners .add(this,l); }
 			public void addTruckImagesListener           (TruckImages.Listener l                                ) { truckImagesListeners           .add(this,l); }
 			public void addWheelsQualityRangesListener   (WheelsQualityRanges.Listener l                        ) { wheelsQualityRangesListeners   .add(this,l); }
+			public void addStoredTruckDisplayer          (SaveGameDataPanel.StoredTruckDisplayer l              ) { storedTruckDisplayers          .add(this,l); }
 		}
 
 		private static class AbstractController<Listener> {
@@ -2019,6 +2044,22 @@ public class SnowRunner {
 			{
 				for (int i=0; i<listeners.size(); i++)
 					listeners.get(i).valueChanged(wheelsDefID, indexInDef, wheelValue);
+			}
+		}
+		
+		public static class StoredTruckDisplayerController extends AbstractController<SaveGameDataPanel.StoredTruckDisplayer> implements SaveGameDataPanel.StoredTruckDisplayer {
+			private SaveGame.TruckDesc displayedTruck = null;
+
+			@Override public void setDisplayedTruck(SaveGame.TruckDesc displayedTruck)
+			{
+				this.displayedTruck = displayedTruck;
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).setDisplayedTruck(this.displayedTruck);
+			}
+
+			public SaveGame.TruckDesc getDisplayedTruck()
+			{
+				return displayedTruck;
 			}
 		}
 	}

@@ -1,5 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner.tables;
 
+import java.awt.Color;
 import java.awt.Window;
 import java.util.Comparator;
 
@@ -12,20 +13,41 @@ import net.schwarzbaer.java.games.snowrunner.Data.Winch;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto.AddonCategoriesPanel.DisplayedTruckComponentList;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 
-public class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModelTPOS<RowType> {
+public abstract class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModelTPOS<RowType> implements DisplayedTruckComponentList
+{
+	private static final Color COLOR_BG_DISPLAYED_TRUCK_COMP = new Color(0xFFDF00);
 
 	protected SaveGame saveGame;
+	protected SaveGame.TruckDesc displayedTruck;
 
 	SetInstancesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, SaveGame saveGame, ColumnID[] columns) {
 		super(mainWindow, gfds, columns);
 		this.saveGame = saveGame;
+		displayedTruck = null;
 		setInitialRowOrder(Comparator.<RowType,String>comparing(e->e.setID).thenComparing(e->e.id));
 		finalizer.addSaveGameListener(saveGame_->{
 			this.saveGame = saveGame_;
 			updateOutput();
 		});
+		coloring.addBackgroundRowColorizer(row -> isComponentOfDisplayedTruck(row) ? COLOR_BG_DISPLAYED_TRUCK_COMP : null);
+	}
+	
+	abstract boolean isComponentOfDisplayedTruck(RowType row);
+
+	@Override public boolean setDisplayedTruck(SaveGame.TruckDesc displayedTruck)
+	{
+		this.displayedTruck = displayedTruck;
+		boolean hasHit = false;
+		for (RowType row : rows)
+			if (isComponentOfDisplayedTruck(row))
+			{
+				hasHit = true;
+				break;
+			}
+		return hasHit;
 	}
 
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, RowType row) {
@@ -82,6 +104,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		{
 			return ColumnID.get(EnginesTableModel.class, Engine.class, getFunction);
 		}
+		@Override boolean isComponentOfDisplayedTruck(Engine row)
+		{
+			return row!=null && displayedTruck!=null && row.id!=null && row.id.equals(displayedTruck.engine);
+		}
 	}
 
 	public static class GearboxesTableModel extends SetInstancesTableModel<Gearbox> {
@@ -117,6 +143,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		{
 			return ColumnID.get(GearboxesTableModel.class, Gearbox.class, getFunction);
 		}
+		@Override boolean isComponentOfDisplayedTruck(Gearbox row)
+		{
+			return row!=null && displayedTruck!=null && row.id!=null && row.id.equals(displayedTruck.gearbox);
+		}
 	}
 
 	public static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
@@ -144,6 +174,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,SuspensionsTableModel,Suspension> getFunction)
 		{
 			return ColumnID.get(SuspensionsTableModel.class, Suspension.class, getFunction);
+		}
+		@Override boolean isComponentOfDisplayedTruck(Suspension row)
+		{
+			return row!=null && displayedTruck!=null && row.id!=null && row.id.equals(displayedTruck.suspension);
 		}
 	}
 
@@ -173,6 +207,10 @@ public class SetInstancesTableModel<RowType extends TruckComponent> extends Exte
 		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,WinchesTableModel,Winch> getFunction)
 		{
 			return ColumnID.get(WinchesTableModel.class, Winch.class, getFunction);
+		}
+		@Override boolean isComponentOfDisplayedTruck(Winch row)
+		{
+			return row!=null && displayedTruck!=null && row.id!=null && row.id.equals(displayedTruck.winch);
 		}
 	}
 }

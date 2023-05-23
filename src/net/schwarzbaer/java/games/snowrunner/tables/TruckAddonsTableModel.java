@@ -28,12 +28,14 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto.AddonCategoriesPanel.DisplayedTruckComponentList;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 
-public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<TruckAddon> {
+public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<TruckAddon> implements DisplayedTruckComponentList{
 	
 	private static final Color BG_COLOR__CARRIER_CAN_LOAD_CARGO = new Color(0xCEFFC5);
 	private static final Color BG_COLOR__SPECIALTRUCKADDON      = new Color(0xFFF3AD);
+	private static final Color BG_COLOR__DISPLAYED_TRUCK_COMP   = new Color(0xFFDF00);
 	private static boolean enableSpecialTruckAddonsHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting, true);
 	
 	private HashMap<String, TruckAddon> truckAddons;
@@ -42,6 +44,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	private SaveGame saveGame;
 	private Truck truck;
 	private Function<TruckAddon, Color> colorizeCarriersByCargo;
+	private SaveGame.TruckDesc displayedTruck;
 	
 	public TruckAddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData) {
 		this(mainWindow, gfds, connectToGlobalData, true);
@@ -97,6 +100,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		trailers    = null;
 		saveGame    = null;
 		truck       = null;
+		displayedTruck = null;
 		colorizeCarriersByCargo = null;
 		
 		if (connectToGlobalData)
@@ -118,11 +122,21 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		});
 		
 		coloring.addBackgroundRowColorizer(addon->{
+			if (displayedTruck!=null)
+			{
+				if (
+					truck!=null && truck.id.equals(displayedTruck.type) &&
+					addon!=null && displayedTruck.addonIDs.contains(addon.id)
+				)
+					return BG_COLOR__DISPLAYED_TRUCK_COMP;
+			}
+			
 			if (enableSpecialTruckAddonsHighlighting)
 				for (SpecialTruckAddons.AddonCategory listID : SpecialTruckAddons.AddonCategory.values()) {
 					SpecialTruckAddonList list = gfds.specialTruckAddons.getList(listID);
 					if (list.contains(addon)) return BG_COLOR__SPECIALTRUCKADDON;
 				}
+			
 			return null;
 		});
 		finalizer.addSpecialTruckAddonsListener((list, change) -> {
@@ -168,6 +182,19 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		return String.join(", ", it);
 	}
 
+	@Override public boolean setDisplayedTruck(SaveGame.TruckDesc displayedTruck)
+	{
+		this.displayedTruck = displayedTruck;
+		if (this.displayedTruck==null) return false;
+		
+		if (truck==null || !truck.id.equals(this.displayedTruck.type)) return false;
+		
+		for (TruckAddon row : rows)
+			if (this.displayedTruck.addonIDs.contains(row.id))
+				return true;
+		
+		return false;
+	}
 	public TruckAddonsTableModel set(Data data, SaveGame saveGame) {
 		setExtraData(data);
 		this.saveGame = saveGame;
