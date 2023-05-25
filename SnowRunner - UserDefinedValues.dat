@@ -138,3 +138,8 @@ id=ws_6900xd_twin
 AWD=Able
 DiffLock=Installed
 
+[Truck]
+id=zikz_612h_mastodont
+AWD=Permanent
+DiffLock=Permanent
+
