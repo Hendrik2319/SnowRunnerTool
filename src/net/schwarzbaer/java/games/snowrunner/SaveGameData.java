@@ -721,6 +721,7 @@ public class SaveGameData {
 					.add("discoveredUpgrades"      , JSON_Data.Value.Type.Object )
 					.add("distance"                , JSON_Data.Value.Type.Object )
 					.add("dlcNotes"                , JSON_Data.Value.Type.Array  )
+					.add("isNewProfile"            , JSON_Data.Value.Type.Bool   )
 					.add("knownRegions"            , JSON_Data.Value.Type.Array  )
 					.add("newTrucks"               , JSON_Data.Value.Type.Array  )
 					.add("refundGarageTruckDescs"  , JSON_Data.Value.Type.Array  ) // empty array
@@ -735,6 +736,7 @@ public class SaveGameData {
 			public final long money;
 			public final Long customizationRefundMoney;
 			public final long refundMoney;
+			public final Boolean isNewProfile;
 			public final Vector<TruckDesc> trucksInWarehouse;
 			public final Vector<String> dlcNotes;
 			public final HashMap<String, Boolean> unlockedItemNames;
@@ -760,6 +762,7 @@ public class SaveGameData {
 				discoveredUpgrades        = JSON_Data.getObjectValue (object, "discoveredUpgrades"      , debugOutputPrefixStr);
 				distance                  = JSON_Data.getObjectValue (object, "distance"                , debugOutputPrefixStr);
 				dlcNotes                  = JSON_Data.getArrayValue  (object, "dlcNotes"                , debugOutputPrefixStr);
+				isNewProfile              = JSON_Data.getBoolValue   (object, "isNewProfile"            , true, false, debugOutputPrefixStr);
 				knownRegions              = JSON_Data.getArrayValue  (object, "knownRegions"            , debugOutputPrefixStr);
 				newTrucks                 = JSON_Data.getArrayValue  (object, "newTrucks"            , debugOutputPrefixStr);
 				refundGarageTruckDescs    = JSON_Data.getArrayValue  (object, "refundGarageTruckDescs"  , debugOutputPrefixStr);
@@ -895,6 +898,7 @@ public class SaveGameData {
 			public final String  tires;
 			public final String  trailerGlobalId;
 			public final Long    truckCRC;
+			public final Double  water;
 			public final long    wheelRepairs;
 			public final double  wheelsScale;
 			public final String  wheels;
@@ -937,6 +941,7 @@ public class SaveGameData {
 					.add("tmBodies"                  , JSON_Data.Value.Type.Array  )
 					.add("trailerGlobalId"           , JSON_Data.Value.Type.String )
 					.add("truckCRC"                  , JSON_Data.Value.Type.Integer)
+					.add("water"                     , JSON_Data.Value.Type.Float  )
 					.add("wheelRepairs"              , JSON_Data.Value.Type.Integer)
 					.add("wheelsDamage"              , JSON_Data.Value.Type.Array  )
 					.add("wheelsScale"               , JSON_Data.Value.Type.Float  )
@@ -985,6 +990,7 @@ public class SaveGameData {
 				tmBodies                   = JSON_Data.getArrayValue  (object, "tmBodies"                  , debugOutputPrefixStr);
 				trailerGlobalId            = JSON_Data.getStringValue (object, "trailerGlobalId"           , debugOutputPrefixStr);
 				truckCRC                   = JSON_Data.getIntegerValue(object, "truckCRC"                  , true, false, debugOutputPrefixStr);
+				water                      = JSON_Data.getFloatValue  (object, "water"                     , true, false, debugOutputPrefixStr);
 				wheelRepairs               = JSON_Data.getIntegerValue(object, "wheelRepairs"              , debugOutputPrefixStr);
 				wheelsDamage               = JSON_Data.getArrayValue  (object, "wheelsDamage"              , debugOutputPrefixStr);
 				wheelsScale                = JSON_Data.getFloatValue  (object, "wheelsScale"               , debugOutputPrefixStr);
@@ -2170,6 +2176,7 @@ public class SaveGameData {
 					{
 						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(CargoSpawnState.class)
 								.add("cargos"                             , JSON_Data.Value.Type.Array )
+								.add("ignoreHidingCargoWhenNotTracked"    , JSON_Data.Value.Type.Bool  )
 								.add("needToBeDiscoveredByMetallodetector", JSON_Data.Value.Type.Bool  )
 								.add("spawned"                            , JSON_Data.Value.Type.Bool  )
 								.add("zone"                               , JSON_Data.Value.Type.Object)
@@ -2177,6 +2184,7 @@ public class SaveGameData {
 						/*
 						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoSpawnState]" [4]
 						        cargos                             :Array
+						        ignoreHidingCargoWhenNotTracked    :Bool
 						        needToBeDiscoveredByMetallodetector:Bool
 						        spawned                            :Bool
 						        zone                               :Object   ->  Zone
@@ -2184,6 +2192,7 @@ public class SaveGameData {
 						        cargos[]:Object   ->  Cargo
 						 */
 						public final Vector<Cargo> cargos;
+						public final boolean ignoreHidingCargoWhenNotTracked;
 						public final boolean needToBeDiscoveredByMetallodetector;
 						public final boolean spawned;
 						public final Zone zone;
@@ -2194,6 +2203,7 @@ public class SaveGameData {
 							JSON_Object<NV, V> zone;
 							JSON_Array<NV, V> cargos;
 							cargos                              = JSON_Data.getArrayValue (object, "cargos"                             , debugOutputPrefixStr);
+							ignoreHidingCargoWhenNotTracked     = JSON_Data.getBoolValue  (object, "ignoreHidingCargoWhenNotTracked"    , debugOutputPrefixStr);
 							needToBeDiscoveredByMetallodetector = JSON_Data.getBoolValue  (object, "needToBeDiscoveredByMetallodetector", debugOutputPrefixStr);
 							spawned                             = JSON_Data.getBoolValue  (object, "spawned"                            , debugOutputPrefixStr);
 							zone                                = JSON_Data.getObjectValue(object, "zone"                               , debugOutputPrefixStr);

@@ -141,6 +141,10 @@ truck = tatra_805
 truck = tatra_t813
 
 [DLC]
+name = The Mastodon
+truck = zikz_612h_mastodont
+
+[DLC]
 name = Western Star 49X
 truck = western_star_49x
 

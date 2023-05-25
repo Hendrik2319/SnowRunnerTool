@@ -236,7 +236,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			sb.append(out.generateOutput());
 			out.clear();
 			out.addEmptyLine();
-			
+
+			if (saveGame.ppd!=null && saveGame.ppd.isNewProfile!=null)
+				out.add(0, "<isNewProfile>"       , saveGame.ppd.isNewProfile, "Yes", "No");
 			out.add(0, "<ObjVersion>"             , saveGame.objVersion);
 			out.add(0, "<Birth Version>"          , saveGame.birthVersion);
 			out.add(0, "<Save ID>"                , saveGame.saveId);
@@ -246,7 +248,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			add(out,0, "<Forced Model States>"    , saveGame.forcedModelStates, out::add);
 			add(out,0, "<Tutorial States>"        , saveGame.tutorialStates   , out::add);
 			if (saveGame.ppd!=null)
-			add(out,0, "<DLC Notes>"              , saveGame.ppd.dlcNotes     , out::add);
+				add(out,0, "<DLC Notes>"          , saveGame.ppd.dlcNotes     , out::add);
 		}
 		
 		sb.append(out.generateOutput());
@@ -506,7 +508,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrDamage"   ,"Damage"                      ,  Long   .class,  50,   null,      null, false, row->((Row)row).truckDesc.damage                    ),
 					new ColumnID("TrDmgDecals","Damage Decals"               ,  Integer.class,  85,   null,      null, false, row->((Row)row).truckDesc.damageDecals.length/4     ),
 					new ColumnID("TrRepairs"  ,"Repairs"                     ,  Long   .class,  50,   null,      null, false, row->((Row)row).truckDesc.repairs                   ),
-					new ColumnID("TrFuel"     ,"Fuel"                        ,  Double .class,  60,   null, "%1.1f L", false, get((model, data, lang, row)->row.truckDesc.fuel         )),
+					new ColumnID("TrWater"    ,"Water"                       ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).truckDesc.water                     ),
+					new ColumnID("TrFuel"     ,"Fuel"                        ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).truckDesc.fuel                      ),
 					new ColumnID("TrFuelMx"   ,"Max. Fuel"                   ,  Integer.class,  60,   null,    "%d L", false, get((model, data, lang, row)->getTruckValue(row,data,truck->truck.fuelCapacity))),
 					new ColumnID("TrFill"     ,"Fill Level"                  ,  Double .class,  60,   null,"%1.1f %%", false, get((model, data, lang, row)->getNonNull2(row.truckDesc.fuel,getTruckValue(row,data,truck->truck.fuelCapacity),(v1,v2)->v1/v2*100))),
 					new ColumnID("TrFuelTkDmg","Fuel Tank Damage"            ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).truckDesc.fuelTankDamage            ),
@@ -1216,6 +1219,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add   (     indentLevel  , label);
 			out.add   (     indentLevel+1, "Spawned"       , data.spawned, "Yes", "No");
 			out.add   (     indentLevel+1, "Metal Detector", data.needToBeDiscoveredByMetallodetector, "Needed", "Not Needed");
+			out.add   (     indentLevel+1, "Hiding Cargo when not tracked", data.ignoreHidingCargoWhenNotTracked, "Ignored", "Not Ignored");
 			writeArray(out, indentLevel+1, "Cargos"        , data.cargos , this::write);
 			write     (out, indentLevel+1, "Zone"          , data.zone   );
 		}
