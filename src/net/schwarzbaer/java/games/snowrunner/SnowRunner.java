@@ -74,13 +74,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
-import net.schwarzbaer.gui.ContextMenu;
-import net.schwarzbaer.gui.Disabler;
-import net.schwarzbaer.gui.ImageViewDialog;
-import net.schwarzbaer.gui.ProgressDialog;
-import net.schwarzbaer.gui.StandardMainWindow;
-import net.schwarzbaer.gui.StyledDocumentInterface;
-import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
@@ -101,6 +94,15 @@ import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.Engin
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.WinchesTableModel;
+import net.schwarzbaer.java.lib.gui.ContextMenu;
+import net.schwarzbaer.java.lib.gui.Disabler;
+import net.schwarzbaer.java.lib.gui.ImageViewDialog;
+import net.schwarzbaer.java.lib.gui.ProgressDialog;
+import net.schwarzbaer.java.lib.gui.StandardMainWindow;
+import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
+import net.schwarzbaer.java.lib.gui.Tables;
+import net.schwarzbaer.java.lib.system.DateTimeFormatter;
+import net.schwarzbaer.java.lib.system.Settings;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
 import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
@@ -108,8 +110,6 @@ import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.WheelsTableModel;
-import net.schwarzbaer.system.DateTimeFormatter;
-import net.schwarzbaer.system.Settings;
 
 public class SnowRunner {
 

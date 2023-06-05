@@ -3,9 +3,6 @@ package net.schwarzbaer.java.games.snowrunner.tables;
 import java.util.HashSet;
 import java.util.Vector;
 
-import net.schwarzbaer.gui.Tables;
-import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
-import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -13,6 +10,9 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
+import net.schwarzbaer.java.lib.gui.Tables;
+import net.schwarzbaer.java.lib.gui.Tables.SimplifiedColumnConfig;
+import net.schwarzbaer.java.lib.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 
 public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements Finalizable {

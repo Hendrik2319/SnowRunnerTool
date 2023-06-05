@@ -16,7 +16,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 
-import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
@@ -32,7 +31,8 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.TableModelBasedBuilder;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ColumnID.VerboseTableModelBasedBuilder;
-import net.schwarzbaer.system.ClipboardTools;
+import net.schwarzbaer.java.lib.gui.Tables;
+import net.schwarzbaer.java.lib.system.ClipboardTools;
 
 public class TruckTableModel extends VerySimpleTableModel<Truck> {
 

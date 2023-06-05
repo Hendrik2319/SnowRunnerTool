@@ -28,12 +28,12 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.InheritRemoveException;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.Source;
-import net.schwarzbaer.system.DateTimeFormatter;
+import net.schwarzbaer.java.lib.gui.TextAreaDialog;
+import net.schwarzbaer.java.lib.system.DateTimeFormatter;
 
 @SuppressWarnings("unused")
 class XMLTemplateStructure {

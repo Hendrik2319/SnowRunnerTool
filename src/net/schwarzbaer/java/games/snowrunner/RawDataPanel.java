@@ -16,8 +16,6 @@ import javax.swing.JTree;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 
-import net.schwarzbaer.gui.ContextMenu;
-import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.AbstractTreeNode;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
@@ -26,8 +24,10 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
+import net.schwarzbaer.java.lib.gui.ContextMenu;
+import net.schwarzbaer.java.lib.gui.TextAreaDialog;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
-import net.schwarzbaer.system.ClipboardTools;
+import net.schwarzbaer.java.lib.system.ClipboardTools;
 
 class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver, Finalizable {
 	private static final long serialVersionUID = 10671596986103400L;

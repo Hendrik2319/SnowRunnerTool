@@ -23,14 +23,14 @@ import javax.swing.SortOrder;
 import javax.swing.SwingUtilities;
 import javax.swing.text.DefaultStyledDocument;
 
-import net.schwarzbaer.gui.StyledDocumentInterface;
-import net.schwarzbaer.gui.Tables;
-import net.schwarzbaer.gui.Tables.SimplifiedRowSorter;
-import net.schwarzbaer.gui.Tables.SimplifiedTableModel;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
-import net.schwarzbaer.system.ClipboardTools;
+import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
+import net.schwarzbaer.java.lib.gui.Tables;
+import net.schwarzbaer.java.lib.gui.Tables.SimplifiedRowSorter;
+import net.schwarzbaer.java.lib.gui.Tables.SimplifiedTableModel;
+import net.schwarzbaer.java.lib.system.ClipboardTools;
 
 public class TableSimplifier {
 		

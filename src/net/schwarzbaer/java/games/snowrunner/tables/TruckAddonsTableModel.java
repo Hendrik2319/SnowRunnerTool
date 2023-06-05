@@ -16,8 +16,6 @@ import javax.swing.JMenuItem;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 
-import net.schwarzbaer.gui.StyledDocumentInterface;
-import net.schwarzbaer.gui.StyledDocumentInterface.Style;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
@@ -30,6 +28,8 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons.SpecialTruckAddonList;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto.AddonCategoriesPanel.DisplayedTruckComponentList;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
+import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
+import net.schwarzbaer.java.lib.gui.StyledDocumentInterface.Style;
 
 public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<TruckAddon> implements DisplayedTruckComponentList{
 	

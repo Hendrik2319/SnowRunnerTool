@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
 
-import net.schwarzbaer.gui.Tables;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
@@ -15,6 +14,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges.QualityValue;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges.WheelValue;
+import net.schwarzbaer.java.lib.gui.Tables;
 
 public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowItem> {
 

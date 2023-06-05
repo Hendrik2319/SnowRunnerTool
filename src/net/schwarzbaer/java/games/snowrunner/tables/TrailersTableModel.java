@@ -11,7 +11,6 @@ import javax.swing.JMenuItem;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 
-import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -21,6 +20,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
+import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
 
 public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer> {
 	

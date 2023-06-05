@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Window;
 import java.util.Comparator;
 
-import net.schwarzbaer.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.games.snowrunner.Data.Engine;
 import net.schwarzbaer.java.games.snowrunner.Data.Gearbox;
 import net.schwarzbaer.java.games.snowrunner.Data.Suspension;
@@ -15,6 +14,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto.AddonCategoriesPanel.DisplayedTruckComponentList;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
+import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
 
 public abstract class SetInstancesTableModel<RowType extends TruckComponent> extends ExtendedVerySimpleTableModelTPOS<RowType> implements DisplayedTruckComponentList
 {

@@ -19,12 +19,12 @@ import javax.swing.tree.TreeNode;
 
 import org.w3c.dom.Node;
 
-import net.schwarzbaer.gui.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.GenericXmlNode_TreeNode;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.Templates_TreeNode;
 import net.schwarzbaer.java.games.snowrunner.DataTrees.XmlNode_TreeNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.Source;
+import net.schwarzbaer.java.lib.gui.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Templates;
 
 class GenericXmlNodeParsingStateDialog extends JDialog {

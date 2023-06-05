@@ -40,13 +40,6 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
-import net.schwarzbaer.gui.ContextMenu;
-import net.schwarzbaer.gui.Disabler;
-import net.schwarzbaer.gui.ImageView;
-import net.schwarzbaer.gui.Tables;
-import net.schwarzbaer.gui.TextAreaDialog;
-import net.schwarzbaer.gui.ValueListOutput;
-import net.schwarzbaer.gui.ZoomableCanvas;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.HasNameAndID;
@@ -76,7 +69,14 @@ import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrienta
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
-import net.schwarzbaer.system.ValueContainer;
+import net.schwarzbaer.java.lib.gui.ContextMenu;
+import net.schwarzbaer.java.lib.gui.Disabler;
+import net.schwarzbaer.java.lib.gui.ImageView;
+import net.schwarzbaer.java.lib.gui.Tables;
+import net.schwarzbaer.java.lib.gui.TextAreaDialog;
+import net.schwarzbaer.java.lib.gui.ValueListOutput;
+import net.schwarzbaer.java.lib.gui.ZoomableCanvas;
+import net.schwarzbaer.java.lib.system.ValueContainer;
 
 public class TruckPanelProto implements Finalizable {
 	

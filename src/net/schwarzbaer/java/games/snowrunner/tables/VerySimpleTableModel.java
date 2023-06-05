@@ -61,13 +61,6 @@ import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 
-import net.schwarzbaer.gui.GeneralIcons.GrayCommandIcons;
-import net.schwarzbaer.gui.HSColorChooser;
-import net.schwarzbaer.gui.StandardDialog;
-import net.schwarzbaer.gui.StyledDocumentInterface;
-import net.schwarzbaer.gui.Tables;
-import net.schwarzbaer.gui.Tables.SimplifiedColumnConfig;
-import net.schwarzbaer.gui.TextAreaDialog;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -81,6 +74,13 @@ import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContext
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextPaneOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.UnspecificOutputSource;
+import net.schwarzbaer.java.lib.gui.HSColorChooser;
+import net.schwarzbaer.java.lib.gui.StandardDialog;
+import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
+import net.schwarzbaer.java.lib.gui.Tables;
+import net.schwarzbaer.java.lib.gui.TextAreaDialog;
+import net.schwarzbaer.java.lib.gui.GeneralIcons.GrayCommandIcons;
+import net.schwarzbaer.java.lib.gui.Tables.SimplifiedColumnConfig;
 
 public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, TableContextMenuModifier, Finalizable {
 	

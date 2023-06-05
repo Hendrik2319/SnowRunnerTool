@@ -23,7 +23,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.zip.ZipFile;
 
-import net.schwarzbaer.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.SetMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
@@ -31,6 +30,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
+import net.schwarzbaer.java.lib.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 
 public class Data {

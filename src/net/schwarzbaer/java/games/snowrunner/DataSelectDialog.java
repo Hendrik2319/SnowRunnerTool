@@ -17,7 +17,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.filechooser.FileFilter;
 
-import net.schwarzbaer.gui.Disabler;
+import net.schwarzbaer.java.lib.gui.Disabler;
 
 class DataSelectDialog extends JDialog {
 	private static final long serialVersionUID = 5535879419617093256L;

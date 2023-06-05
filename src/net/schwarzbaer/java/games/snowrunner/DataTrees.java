@@ -17,7 +17,6 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import net.schwarzbaer.gui.IconSource;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.NV;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.V;
 import net.schwarzbaer.java.games.snowrunner.XML.NodeType;
@@ -25,6 +24,7 @@ import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Templates;
+import net.schwarzbaer.java.lib.gui.IconSource;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 
 class DataTrees {

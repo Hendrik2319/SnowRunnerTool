@@ -12,7 +12,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextPane;
 import javax.swing.SingleSelectionModel;
 
-import net.schwarzbaer.gui.Tables;
+import net.schwarzbaer.java.lib.gui.Tables;
 
 public abstract class CombinedTableTabTextOutputPanel extends JSplitPane {
 	private static final long serialVersionUID = -2637203211606881920L;
