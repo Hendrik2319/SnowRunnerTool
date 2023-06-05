@@ -74,13 +74,12 @@ import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TableContext
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextAreaOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.TextPaneOutputSource;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.UnspecificOutputSource;
+import net.schwarzbaer.java.lib.gui.GeneralIcons.GrayCommandIcons;
 import net.schwarzbaer.java.lib.gui.HSColorChooser;
-import net.schwarzbaer.java.lib.gui.StandardDialog;
 import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.lib.gui.Tables;
-import net.schwarzbaer.java.lib.gui.TextAreaDialog;
-import net.schwarzbaer.java.lib.gui.GeneralIcons.GrayCommandIcons;
 import net.schwarzbaer.java.lib.gui.Tables.SimplifiedColumnConfig;
+import net.schwarzbaer.java.lib.gui.TextAreaDialog;
 
 public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTableModel<VerySimpleTableModel.ColumnID> implements LanguageListener, SwingConstants, TableContextMenuModifier, Finalizable {
 	
@@ -1032,7 +1031,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 							String.format("%s Color of \"%s\"", colorLabel, presetName),
 							initialValue==null ? defaultinitialValue : initialValue,
 							userdefinedColors,
-							StandardDialog.Position.PARENT_CENTER
+							HSColorChooser.PARENT_CENTER
 					);
 					if (newColor!=null)
 					{
