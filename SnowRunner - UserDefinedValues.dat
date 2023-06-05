@@ -69,6 +69,11 @@ AWD=None
 DiffLock=None
 
 [Truck]
+id=khan_317_sentinel
+AWD=Installed
+DiffLock=Installed
+
+[Truck]
 id=pacific_p16
 AWD=None
 DiffLock=Permanent
