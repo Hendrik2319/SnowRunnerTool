@@ -8,8 +8,8 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="res"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/JavaLib_JSON_Parser"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/CommonLib_Dialogs"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/CommonLib_Essentials"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/CommonLib_HSColorChooser"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/JavaLib_Common_Dialogs"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/JavaLib_Common_Essentials"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/JavaLib_Common_HSColorChooser"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
