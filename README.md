@@ -16,6 +16,8 @@ Following libraries are currently imported as projects into java build path via 
 * [JavaLib_Common_HSColorChooser](https://github.com/Hendrik2319/JavaLib_Common_HSColorChooser)
 * [JavaLib_JSON_Parser          ](https://github.com/Hendrik2319/JavaLib_JSON_Parser)
 
-If you want to develop for your own and you use Eclipse as IDE, then you should clone the projects above too and add them to the same workspace as the SnowRunnerTool project.
-
-If you want to develop for your own and you use another IDE (e.q. VS Code), then you should clone the said projects, build JAR files of them and add the JAR files as libraries.
+If you want to develop for your own and
+* you use Eclipse as IDE,
+	* then you should clone the projects above too and add them to the same workspace as the SnowRunnerTool project.
+* you use another IDE (e.q. VS Code)
+	* then you should clone the said projects, build JAR files of them and add the JAR files as libraries.
