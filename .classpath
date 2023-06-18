@@ -6,6 +6,7 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" path="data"/>
 	<classpathentry kind="src" path="res"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/JavaLib_JSON_Parser"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/JavaLib_Common_Dialogs"/>

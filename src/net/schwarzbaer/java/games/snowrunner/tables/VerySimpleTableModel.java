@@ -14,7 +14,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -64,6 +63,7 @@ import javax.swing.table.TableColumnModel;
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
+import net.schwarzbaer.java.games.snowrunner.DataFiles;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
@@ -1353,7 +1353,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		{
 			RowColoringsMap()
 			{
-				super("RowColoringsMap", SnowRunner.RowColoringsFile, RowColoringPreset::new);
+				super("RowColoringsMap", DataFiles.DataFile.RowColoringsFile, RowColoringPreset::new);
 			}
 		
 			@Override protected void parseLine(String line, RowColoringPreset preset)
@@ -1476,7 +1476,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		static class Presets extends PresetMaps<HashMap<String,ValueFilter>> {
 		
 			Presets() {
-				super("FilterRowsPresets", SnowRunner.FilterRowsPresetsFile, HashMap<String,ValueFilter>::new);
+				super("FilterRowsPresets", DataFiles.DataFile.FilterRowsPresetsFile, HashMap<String,ValueFilter>::new);
 			}
 		
 			@Override protected void parseLine(String line, HashMap<String, ValueFilter> preset) {
@@ -2339,7 +2339,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		static class Presets extends PresetMaps<HashSet<String>> {
 		
 			Presets() {
-				super("ColumnHidePresets", SnowRunner.ColumnHidePresetsFile, HashSet<String>::new);
+				super("ColumnHidePresets", DataFiles.DataFile.ColumnHidePresetsFile, HashSet<String>::new);
 			}
 			
 			@Override protected void parseLine(String line, HashSet<String> preset) {
@@ -2615,16 +2615,16 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	private static abstract class PresetMaps<Preset> {
 		
 		private final String label;
-		private final String pathname;
+		private final DataFiles.DataFile dataFile;
 		private final Supplier<Preset> createEmptyPreset;
 		private final HashMap<String,HashMap<String,Preset>> presets;
 		
-		PresetMaps(String label, String pathname, Supplier<Preset> createEmptyPreset) {
-			if (pathname         ==null) throw new IllegalArgumentException();
+		PresetMaps(String label, DataFiles.DataFile dataFile, Supplier<Preset> createEmptyPreset) {
+			if (dataFile         ==null) throw new IllegalArgumentException();
 			if (createEmptyPreset==null) throw new IllegalArgumentException();
 			this.label = label;
 			this.createEmptyPreset = createEmptyPreset;
-			this.pathname = pathname;
+			this.dataFile = dataFile;
 			this.presets = new HashMap<>();
 			read();
 		}
@@ -2640,10 +2640,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		{
 			presets.clear();
 			
-			File file = new File(pathname);
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+			DataFiles.DataSource ds = dataFile.getDataSourceForReading();
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8))) {
 				
-				System.out.printf("Read %s from file \"%s\" ...%n", label, file.getAbsolutePath());
+				System.out.printf("Read %s from %s ...%n", label, ds);
 				
 				HashMap<String, Preset> modelPresets = null;
 				Preset preset = null;
@@ -2673,14 +2673,14 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			} catch (FileNotFoundException ex) {
 				//ex.printStackTrace();
 			} catch (IOException ex) {
-				System.err.printf("IOException while reading %s from file \"%s\": %s", label, file.getAbsolutePath(), ex.getMessage());
+				System.err.printf("IOException while reading %s from %s: %s", label, ds, ex.getMessage());
 				//ex.printStackTrace();
 			}
 		}
 	
 		void write()
 		{
-			File file = new File(pathname);
+			File file = dataFile.getFileForWriting();
 			try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
 				
 				System.out.printf("Write %s to file \"%s\" ...%n", label, file.getAbsolutePath());

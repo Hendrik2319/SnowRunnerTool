@@ -12,7 +12,6 @@ import java.awt.event.FocusListener;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -94,6 +93,13 @@ import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.Engin
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.GearboxesTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.SuspensionsTableModel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.WinchesTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
+import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto;
+import net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
+import net.schwarzbaer.java.games.snowrunner.tables.WheelsTableModel;
 import net.schwarzbaer.java.lib.gui.ContextMenu;
 import net.schwarzbaer.java.lib.gui.Disabler;
 import net.schwarzbaer.java.lib.gui.ImageViewDialog;
@@ -103,24 +109,10 @@ import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.lib.gui.Tables;
 import net.schwarzbaer.java.lib.system.DateTimeFormatter;
 import net.schwarzbaer.java.lib.system.Settings;
-import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier;
-import net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.TruckPanelProto;
-import net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel;
-import net.schwarzbaer.java.games.snowrunner.tables.WheelsTableModel;
 
 public class SnowRunner {
 
-	public static final String DLCAssignmentsFile      = "SnowRunner - DLCAssignments.dat";
-	public static final String UserDefinedValuesFile   = "SnowRunner - UserDefinedValues.dat";
-	public static final String FilterRowsPresetsFile   = "SnowRunner - FilterRowsPresets.dat";
-	public static final String ColumnHidePresetsFile   = "SnowRunner - ColumnHidePresets.dat";
-	public static final String RowColoringsFile        = "SnowRunner - RowColorings.dat";
-	public static final String SpecialTruckAddonsFile  = "SnowRunner - SpecialTruckAddons.dat";
-	public static final String TruckImagesFile         = "SnowRunner - TruckImages.zip";
-	public static final String WheelsQualityRangesFile = "SnowRunner - WheelsQualityRanges.dat";
+	public static final String TruckImagesFile = "SnowRunner - TruckImages.zip";
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
@@ -277,6 +269,7 @@ public class SnowRunner {
 	}
 	
 	private void initialize() {
+		DataFiles.checkDataFolder();
 		gfds.initialize();
 		
 		if (loadInitialPAK()) updateAfterDataChange();
@@ -1270,7 +1263,7 @@ public class SnowRunner {
 		{
 			checkInitialized();
 			
-			File file = new File(DLCAssignmentsFile);
+			File file = DataFiles.DataFile.DLCAssignmentsFile.getFileForWriting();
 			System.out.printf("Write DLCs to file \"%s\" ...%n", file.getAbsolutePath());
 			
 			HashMap<String,Vector<String>> reversedTruckMap  = getReversedMap(trucks );
@@ -1311,14 +1304,14 @@ public class SnowRunner {
 
 		void loadStoredData()
 		{
-			File file = new File(DLCAssignmentsFile);
-			System.out.printf("Read DLCs from file \"%s\" ...%n", file.getAbsolutePath());
+			DataFiles.DataSource ds = DataFiles.DataFile.DLCAssignmentsFile.getDataSourceForReading();
+			System.out.printf("Read DLCs from %s ...%n", ds);
 			
 			trucks .clear();
 			regions.clear();
 			maps   .clear();
 			
-			try (BufferedReader in = new BufferedReader( new InputStreamReader( new FileInputStream( file ), StandardCharsets.UTF_8) )) {
+			try (BufferedReader in = new BufferedReader( new InputStreamReader( ds.createInputStream(), StandardCharsets.UTF_8) )) {
 				
 				String line, value, lastDLC=null;
 				while ( (line=in.readLine())!=null ) {
@@ -1404,10 +1397,11 @@ public class SnowRunner {
 
 		public void readFromFile()
 		{
-			File file = new File(SpecialTruckAddonsFile);
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-				
-				System.out.printf("Read SpecialTruckAddons from file \"%s\" ...%n", file.getAbsolutePath());
+			DataFiles.DataSource ds = DataFiles.DataFile.SpecialTruckAddonsFile.getDataSourceForReading();
+			
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8)))
+			{
+				System.out.printf("Read SpecialTruckAddons from %s ...%n", ds);
 				
 				SpecialTruckAddonList list = null;
 				String line, valueStr;
@@ -1420,9 +1414,9 @@ public class SnowRunner {
 							AddonCategory listID = AddonCategory.valueOf(valueStr);
 							list = lists.get(listID);
 							if (list==null)
-								throw new IllegalStateException(String.format("Found List ID (\"%s\") with no assigned SpecialTruckAddonList in file \"%s\".", listID, file.getAbsolutePath()));
+								throw new IllegalStateException(String.format("Found List ID (\"%s\") with no assigned SpecialTruckAddonList in %s.", listID, ds));
 						} catch (Exception e) {
-							throw new IllegalStateException(String.format("Found unknown List ID (\"%s\") in file \"%s\".", valueStr, file.getAbsolutePath()));
+							throw new IllegalStateException(String.format("Found unknown List ID (\"%s\") in %s.", valueStr, ds));
 						}
 					}
 					if (line.startsWith(ValuePrefix) && list!=null) {
@@ -1437,7 +1431,7 @@ public class SnowRunner {
 			} catch (FileNotFoundException ex) {
 				//ex.printStackTrace();
 			} catch (IOException ex) {
-				System.err.printf("IOException while reading SpecialTruckAddons from file \"%s\": %s", file.getAbsolutePath(), ex.getMessage());
+				System.err.printf("IOException while reading SpecialTruckAddons from %s: %s", ds, ex.getMessage());
 				//ex.printStackTrace();
 			}
 			setInitialized();
@@ -1446,7 +1440,7 @@ public class SnowRunner {
 		public void writeToFile()
 		{
 			checkInitialized();
-			File file = new File(SpecialTruckAddonsFile);
+			File file = DataFiles.DataFile.SpecialTruckAddonsFile.getFileForWriting();
 			try (PrintWriter out = new PrintWriter(file, StandardCharsets.UTF_8)) {
 				
 				System.out.printf("Write SpecialTruckAddons to file \"%s\" ...%n", file.getAbsolutePath());
@@ -2270,12 +2264,12 @@ public class SnowRunner {
 
 		private void readFile()
 		{
-			File file = new File(WheelsQualityRangesFile);
-			System.out.printf("Read WheelsQualityRanges from file \"%s\" ...%n", file.getAbsolutePath());
+			DataFiles.DataSource ds = DataFiles.DataFile.WheelsQualityRangesFile.getDataSourceForReading();
+			System.out.printf("Read WheelsQualityRanges from %s ...%n", ds);
 			
 			data.clear();
 			
-			try (BufferedReader in = new BufferedReader( new InputStreamReader( new FileInputStream( file ), StandardCharsets.UTF_8) ))
+			try (BufferedReader in = new BufferedReader( new InputStreamReader( ds.createInputStream(), StandardCharsets.UTF_8) ))
 			{
 				
 				String line, value;
@@ -2346,7 +2340,7 @@ public class SnowRunner {
 		{
 			checkInitialized();
 			
-			File file = new File(WheelsQualityRangesFile);
+			File file = DataFiles.DataFile.WheelsQualityRangesFile.getFileForWriting();
 			System.out.printf("Write WheelsQualityRanges to file \"%s\" ...%n", file.getAbsolutePath());
 			
 			try (PrintWriter out = new PrintWriter( new OutputStreamWriter( new FileOutputStream( file ), StandardCharsets.UTF_8) ))

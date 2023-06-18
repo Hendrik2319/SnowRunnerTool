@@ -2,7 +2,6 @@ package net.schwarzbaer.java.games.snowrunner;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,8 +29,8 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
-import net.schwarzbaer.java.lib.gui.ValueListOutput;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
+import net.schwarzbaer.java.lib.gui.ValueListOutput;
 
 public class Data {
 
@@ -305,11 +304,11 @@ public class Data {
 
 		void read()
 		{
-			File file = new File(SnowRunner.UserDefinedValuesFile);
-			System.out.printf("Read UserDefinedValues from file \"%s\" ...%n", file.getAbsolutePath());
+			DataFiles.DataSource ds = DataFiles.DataFile.UserDefinedValuesFile.getDataSourceForReading();
+			System.out.printf("Read UserDefinedValues from %s ...%n", ds);
 			truckValues.clear();
 			
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8))) {
 				
 				Truck.UDV truckValues = null;
 				String line, valueStr;
@@ -346,7 +345,7 @@ public class Data {
 		public void write()
 		{
 			checkInitialized();
-			File file = new File(SnowRunner.UserDefinedValuesFile);
+			File file = DataFiles.DataFile.UserDefinedValuesFile.getFileForWriting();
 			System.out.printf("Write UserDefinedValues to file \"%s\" ...%n", file.getAbsolutePath());
 			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
 				
