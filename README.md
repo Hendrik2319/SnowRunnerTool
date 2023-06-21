@@ -24,7 +24,15 @@ If you want to develop for your own and
 	* then you should clone the said projects, build JAR files of them and add the JAR files as libraries.
 
 ### Screenshots
-![Truck Table](/github/screenshot1_main.png)
-![Usable addons of a truck](/github/screenshot2_addons.png)
-![Usable trailers of a truck](/github/screenshot3_trailers.png)
-![Save game view: Stored trucks](/github/screenshot4_savegame_storedtrucks.png)
+
+Truck Table  
+<img src="/github/screenshot1_main.png" alt="Truck table" title="Truck Table" width="300"/>
+
+Usable addons of a truck  
+<img src="/github/screenshot2_addons.png" alt="Usable addons of a truck" title="Usable addons of a truck" width="300"/>
+
+Usable trailers of a truck  
+<img src="/github/screenshot3_trailers.png" alt="Usable trailers of a truck" title="Usable trailers of a truck" width="300"/>
+
+Save game view: Stored trucks  
+<img src="/github/screenshot4_savegame_storedtrucks.png" alt="Save game view: Stored trucks" title="Save game view: Stored trucks" width="300"/>
