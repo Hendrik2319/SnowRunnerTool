@@ -4,6 +4,7 @@ It reads all data of usable trucks, trailers and addons from game data ([SnowRun
 
 ### Download
 You can download my releases [here](https://github.com/Hendrik2319/SnowRunnerTool/releases).
+You will need a JAVA 17 VM.
 
 ### Development
 This project is currently configured as an Eclipse project. The libraries, it depends on, are imported as projects into java build path via Eclipse.
@@ -11,13 +12,19 @@ This is more convenient, when changes in SnowRunnerTool need changes in the libr
 
 ### Dependencies
 Following libraries are currently imported as projects into java build path via Eclipse.
-* [JavaLib_Common_Dialogs       ](https://github.com/Hendrik2319/JavaLib_Common_Dialogs)
-* [JavaLib_Common_Essentials    ](https://github.com/Hendrik2319/JavaLib_Common_Essentials)
-* [JavaLib_Common_HSColorChooser](https://github.com/Hendrik2319/JavaLib_Common_HSColorChooser)
-* [JavaLib_JSON_Parser          ](https://github.com/Hendrik2319/JavaLib_JSON_Parser)
+* [`JavaLib_Common_Dialogs`       ](https://github.com/Hendrik2319/JavaLib_Common_Dialogs)
+* [`JavaLib_Common_Essentials`    ](https://github.com/Hendrik2319/JavaLib_Common_Essentials)
+* [`JavaLib_Common_HSColorChooser`](https://github.com/Hendrik2319/JavaLib_Common_HSColorChooser)
+* [`JavaLib_JSON_Parser`          ](https://github.com/Hendrik2319/JavaLib_JSON_Parser)
 
 If you want to develop for your own and
 * you use Eclipse as IDE,
 	* then you should clone the projects above too and add them to the same workspace as the SnowRunnerTool project.
 * you use another IDE (e.q. VS Code)
 	* then you should clone the said projects, build JAR files of them and add the JAR files as libraries.
+
+### Screenshots
+![Truck Table](/github/screenshot1_main.png)
+![Usable addons of a truck](/github/screenshot2_addons.png)
+![Usable trailers of a truck](/github/screenshot3_trailers.png)
+![Save game view: Stored trucks](/github/screenshot4_savegame_storedtrucks.png)
