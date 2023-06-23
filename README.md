@@ -36,3 +36,5 @@ Usable trailers of a truck
 
 Save game view: Stored trucks  
 <img src="/github/screenshot4_savegame_storedtrucks.png" alt="Save game view: Stored trucks" title="Save game view: Stored trucks" width="300"/>
+
+### Test from tommy
