@@ -58,7 +58,6 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.ImageDialogController;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
 import net.schwarzbaer.java.games.snowrunner.tables.SetInstancesTableModel.EnginesTableModel;
@@ -72,6 +71,7 @@ import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.Extende
 import net.schwarzbaer.java.lib.gui.ContextMenu;
 import net.schwarzbaer.java.lib.gui.Disabler;
 import net.schwarzbaer.java.lib.gui.ImageView;
+import net.schwarzbaer.java.lib.gui.ScrollPosition;
 import net.schwarzbaer.java.lib.gui.Tables;
 import net.schwarzbaer.java.lib.gui.TextAreaDialog;
 import net.schwarzbaer.java.lib.gui.ValueListOutput;
@@ -264,7 +264,7 @@ public class TruckPanelProto implements Finalizable {
 			outTop.add(0, "DefaultAddons", "%s", SnowRunner.joinTruckAddonNames(truck.defaultAddons, addonCategories, language));
 		}
 		
-		ScrollValues scrollPos = ScrollValues.getVertical(truckInfoTextAreaScrollPane);
+		ScrollPosition scrollPos = ScrollPosition.getVertical(truckInfoTextAreaScrollPane);
 		truckInfoTextArea.setText(outTop.generateOutput());
 		if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(truckInfoTextAreaScrollPane));
 	}

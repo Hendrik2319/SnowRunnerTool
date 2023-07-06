@@ -62,7 +62,6 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JRadioButton;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
@@ -2127,45 +2126,6 @@ public class SnowRunner {
 			@Override public String toString() { return sb.toString(); }
 			          public void clear() { sb.setLength(0); }
 		}
-	}
-	
-	public record ScrollValues(int min, int max, int ext, int val) {
-		
-		static ScrollValues get(JScrollBar scrollBar)
-		{
-			int min = scrollBar.getMinimum();
-			int max = scrollBar.getMaximum();
-			int ext = scrollBar.getVisibleAmount();
-			int val = scrollBar.getValue();
-			return new ScrollValues(min, max, ext, val);
-		}
-
-		public static ScrollValues getVertical(JScrollPane scrollPane)
-		{
-			if (scrollPane==null) return null;
-			return get(scrollPane.getVerticalScrollBar());
-		}
-
-		public void setVertical(JScrollPane scrollPane)
-		{
-			if (scrollPane==null) return;
-			JScrollBar scrollBar = scrollPane.getVerticalScrollBar();
-			ScrollValues newValues = get(scrollBar);
-			//System.err.printf("scroll pos: %s -> %s%n", this, newValues);
-			
-			if (val==0) // start of page -> start of page
-				scrollBar.setValue(val);
-			
-			else if (val+ext >= max) // end of page -> end of page
-				scrollBar.setValue(newValues.max-newValues.ext);
-			
-			else if (val+newValues.ext >= newValues.max) // old val > max -> end of page
-				scrollBar.setValue(newValues.max-newValues.ext);
-			
-			else
-				scrollBar.setValue(val);
-		}
-
 	}
 	
 	public static class ImageDialogController

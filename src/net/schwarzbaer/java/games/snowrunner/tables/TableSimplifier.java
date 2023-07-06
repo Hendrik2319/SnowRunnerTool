@@ -25,7 +25,7 @@ import javax.swing.text.DefaultStyledDocument;
 
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
+import net.schwarzbaer.java.lib.gui.ScrollPosition;
 import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.lib.gui.Tables;
 import net.schwarzbaer.java.lib.gui.Tables.SimplifiedRowSorter;
@@ -373,7 +373,7 @@ public class TableSimplifier {
 
 		interface TextAreaOutputSource extends OutputSource<JTextArea> {
 			@Override default void setOutputContentForRow(JTextArea textArea, JScrollPane outputScrollPane, int rowIndex) {
-				ScrollValues scrollPos = ScrollValues.getVertical(outputScrollPane);
+				ScrollPosition scrollPos = ScrollPosition.getVertical(outputScrollPane);
 				if (rowIndex<0)
 					textArea.setText("");
 				else
@@ -386,7 +386,7 @@ public class TableSimplifier {
 
 		interface TextPaneOutputSource extends OutputSource<JTextPane> {
 			@Override default void setOutputContentForRow(JTextPane textPane, JScrollPane outputScrollPane, int rowIndex) {
-				ScrollValues scrollPos = ScrollValues.getVertical(outputScrollPane);
+				ScrollPosition scrollPos = ScrollPosition.getVertical(outputScrollPane);
 				DefaultStyledDocument doc = new DefaultStyledDocument();
 				if (rowIndex>=0) setOutputContentForRow(new StyledDocumentInterface(doc, "TextPaneOutput", null, 12), rowIndex);
 				textPane.setStyledDocument(doc);

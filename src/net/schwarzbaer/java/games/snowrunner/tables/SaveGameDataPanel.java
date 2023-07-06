@@ -30,8 +30,8 @@ import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
-import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
+import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Addon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Coord3F;
@@ -47,12 +47,12 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.ScrollValues;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelUOS;
+import net.schwarzbaer.java.lib.gui.ScrollPosition;
 import net.schwarzbaer.java.lib.gui.Tables;
 import net.schwarzbaer.java.lib.gui.ValueListOutput;
 
@@ -723,7 +723,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				else
 					installedAddonTableModel.setRowData(null);
 				
-				ScrollValues scrollPos = ScrollValues.getVertical(textAreaScrollPane);
+				ScrollPosition scrollPos = ScrollPosition.getVertical(textAreaScrollPane);
 				generateInfo(textArea, data);
 				if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(textAreaScrollPane));
 			}
