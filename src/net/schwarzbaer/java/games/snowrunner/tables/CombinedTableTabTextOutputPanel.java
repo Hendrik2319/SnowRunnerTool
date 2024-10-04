@@ -26,7 +26,7 @@ public abstract class CombinedTableTabTextOutputPanel extends JSplitPane {
 	protected CombinedTableTabTextOutputPanel() {
 		super(JSplitPane.VERTICAL_SPLIT, true);
 		selectedTab = 0;
-		updateMethods = new Vector<Runnable>();
+		updateMethods = new Vector<>();
 		
 		textAreaScrollPane = new JScrollPane();
 		//textAreaScrollPane.setBorder(BorderFactory.createTitledBorder("Description"));

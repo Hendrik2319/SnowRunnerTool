@@ -32,8 +32,8 @@ public class SaveGameData {
 	private static final String SAVEGAME_PREFIX = "CompleteSave";
 	private static final String SAVEGAME_SUFFIX = ".cfg";
 	
-	private static final JSON_Helper.KnownJsonValuesFactory<NV, V> KJV_FACTORY = new JSON_Helper.KnownJsonValuesFactory<NV, V>(packagePrefix);
-	private static final JSON_Helper.OptionalValues<NV, V> optionalValues = new JSON_Helper.OptionalValues<NV,V>();
+	private static final JSON_Helper.KnownJsonValuesFactory<NV, V> KJV_FACTORY = new JSON_Helper.KnownJsonValuesFactory<>(packagePrefix);
+	private static final JSON_Helper.OptionalValues<NV, V> optionalValues = new JSON_Helper.OptionalValues<>();
 	
 	private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES__EMPTY_OBJECT = KJV_FACTORY.create();
 	private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES_Timestamp     = KJV_FACTORY.create()
@@ -462,7 +462,7 @@ public class SaveGameData {
 			ppd = parseObjectOrNull(persistentProfileData, persistentProfileData_Null, PersistentProfileData::new, debugOutputPrefixStr+".persistentProfileData");
 			this.gameStat = new GameStat(gameStat, debugOutputPrefixStr+".gameStat");
 			
-			this.forcedModelStates = new HashMap<String,String>();
+			this.forcedModelStates = new HashMap<>();
 			parseObject(forcedModelStates, debugOutputPrefixStr+".forcedModelStates", (value, modelName, localPrefixStr) -> {
 				String state = JSON_Data.getStringValue(value, localPrefixStr);
 				
@@ -1019,7 +1019,7 @@ public class SaveGameData {
 				this.wheelsDamage        = parseArray_Integer     (wheelsDamage       , debugOutputPrefixStr+".wheelsDamage"       );
 				this.wheelsSuspHeight    = parseArray_Float       (wheelsSuspHeight   , debugOutputPrefixStr+".wheelsSuspHeight"   );
 				
-				this.addonIDs = new HashSet<String>();
+				this.addonIDs = new HashSet<>();
 				for (InstalledAddon addon : this.addons)
 					addonIDs.add(addon.name);
 			}

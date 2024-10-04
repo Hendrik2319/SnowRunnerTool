@@ -1075,7 +1075,7 @@ public class TruckPanelProto implements Finalizable {
 			diagramView = new WheelsDiagram();
 			diagramView.setPreferredSize(700, 600);
 			
-			disabler = new Disabler<GuiObjs>();
+			disabler = new Disabler<>();
 			disabler.setCareFor(GuiObjs.values());
 			
 			JPanel optionsPanel = new JPanel(new GridBagLayout());

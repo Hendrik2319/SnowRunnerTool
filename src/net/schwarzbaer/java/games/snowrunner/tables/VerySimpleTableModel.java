@@ -811,7 +811,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			{
 				this.color = color;
 				this.orderIndex = orderIndex;
-				this.filters = new Vector<RowFiltering.FixedValueFilterContainer.Pair>();
+				this.filters = new Vector<>();
 				filterMap.forEach((id,filter) -> {
 					ColumnID columnID = getColumnID.apply(id);
 					filters.add(new RowFiltering.FixedValueFilterContainer.Pair(columnID, filter));
@@ -1854,10 +1854,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					return String.format("%s:%s:%s", simpleName, minStr, maxStr);
 				}
 		
-				static NumberFilter<Integer> createIntFilter   () { return new NumberFilter<Integer>(Integer.class, 0 , 0 , Integer::compare, v->Integer.toString(v)); }
-				static NumberFilter<Long   > createLongFilter  () { return new NumberFilter<Long   >(Long   .class, 0L, 0L, Long   ::compare, v->Long.toString(v)); }
-				static NumberFilter<Float  > createFloatFilter () { return new NumberFilter<Float  >(Float  .class, 0f, 0f, Float  ::compare, v->String.format("%08X", Float.floatToIntBits(v))); }
-				static NumberFilter<Double > createDoubleFilter() { return new NumberFilter<Double >(Double .class, 0d, 0d, Double ::compare, v->String.format("%016X", Double.doubleToLongBits(v))); }
+				static NumberFilter<Integer> createIntFilter   () { return new NumberFilter<>(Integer.class, 0 , 0 , Integer::compare, v->Integer.toString(v)); }
+				static NumberFilter<Long   > createLongFilter  () { return new NumberFilter<>(Long   .class, 0L, 0L, Long   ::compare, v->Long.toString(v)); }
+				static NumberFilter<Float  > createFloatFilter () { return new NumberFilter<>(Float  .class, 0f, 0f, Float  ::compare, v->String.format("%08X", Float.floatToIntBits(v))); }
+				static NumberFilter<Double > createDoubleFilter() { return new NumberFilter<>(Double .class, 0d, 0d, Double ::compare, v->String.format("%016X", Double.doubleToLongBits(v))); }
 				
 			}
 			

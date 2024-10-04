@@ -131,7 +131,7 @@ class XML {
 	}
 	
 	static Iterable<Node> makeIterable(NamedNodeMap nodes) {
-		return ()->new Iterator<Node>() {
+		return ()->new Iterator<>() {
 			private int nextIndex = 0;
 			
 			@Override public boolean hasNext() {
@@ -144,7 +144,7 @@ class XML {
 	}
 
 	static Iterable<Node> makeIterable(NodeList nodes) {
-		return ()->new Iterator<Node>() {
+		return ()->new Iterator<>() {
 			private int nextIndex = 0;
 			
 			@Override public boolean hasNext() {

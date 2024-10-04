@@ -48,7 +48,7 @@ public class AssignToDLCDialog extends JDialog {
 		Vector<String> knownDLCs = dlcs.getAllDLCs();
 		
 		// create GUI elements
-		JComboBox<String> cmbbxKnownDLCs = new JComboBox<String>(knownDLCs);
+		JComboBox<String> cmbbxKnownDLCs = new JComboBox<>(knownDLCs);
 		if (selectedKnownDLC!=null) {
 			cmbbxKnownDLCs.setSelectedIndex(knownDLCs.indexOf(selectedKnownDLC));
 			useKnownDLC = true;
