@@ -24,10 +24,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -1681,6 +1683,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					KnownTypes.put(filterID, (type, enumStrs) -> parseFilter(filterID, baseClass, getSet, enumClass, type, enumStrs, parseEnum));
 				}
 				
+				static String getFilterID(Class<?> baseClass) {
+					String filterID = KnownFilterIDs.get(baseClass);
+					if (filterID==null) throw new IllegalStateException(String.format("EnumSetFilter: Can't find filter id for base class \"%s\"", baseClass.getCanonicalName()));
+					return filterID;
+				}
+				
 				enum Type { Empty, AllOf, OneOf }
 				
 				private final String filterID;
@@ -2139,10 +2147,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					RegisteredOptionsPanels.put(Float              .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite, uac ));
 					RegisteredOptionsPanels.put(Double             .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite, uac ));
 					RegisteredOptionsPanels.put(Truck.Country      .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values(), uac));
-				//	RegisteredOptionsPanels.put(Truck.CountrySet   .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values(), uac));
 					RegisteredOptionsPanels.put(Truck.DiffLockType .class, uac->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, Truck.DiffLockType .values(), uac));
 					RegisteredOptionsPanels.put(Truck.TruckType    .class, uac->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, Truck.TruckType    .values(), uac));
 					RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, uac->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values(), uac));
+					RegisteredOptionsPanels.put(Truck.CountrySet   .class, uac->new OptionsPanel.EnumSetOptions<>(Truck.CountrySet.class, cs->cs.set, Truck.Country.class, Truck.Country.values(), uac));
 				}
 				
 				private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
@@ -2276,8 +2284,111 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 							add(msgComp, c);
 						}
 					}
-			
-					// TODO: static class EnumSetOptions<E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumSetFilter<E>>
+					
+					static class EnumSetOptions<B, E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumSetFilter<B,E>>
+					{
+						private static final long serialVersionUID = -2752373731911252981L;
+
+						private final E[] values;
+						private final Map<E,JCheckBox> checkBoxes;
+						private final Map<ValueFilter.EnumSetFilter.Type,JRadioButton> radioButtons;
+						private final JLabel labSeparator;
+
+						EnumSetOptions(Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass, E[] values, Runnable updateAfterChange)
+						{
+							this(new ValueFilter.EnumSetFilter<>(ValueFilter.EnumSetFilter.getFilterID(baseClass), baseClass, getSet, enumClass), enumClass, values, updateAfterChange);
+						}
+						EnumSetOptions(ValueFilter.EnumSetFilter<B,E> filter, Class<E> enumClass, E[] values, Runnable updateAfterChange)
+						{
+							super(filter, updateAfterChange);
+							if (filter==null) throw new IllegalArgumentException();
+							if (values==null) throw new IllegalArgumentException();
+							this.values = values;
+							
+							ValueFilter.EnumSetFilter.Type[] otherTypes = Arrays
+								.stream(ValueFilter.EnumSetFilter.Type.values())
+								.filter(t -> t!=ValueFilter.EnumSetFilter.Type.Empty)
+								.toArray(ValueFilter.EnumSetFilter.Type[]::new);
+							
+							c.weightx = 0;
+							
+							ButtonGroup bg = new ButtonGroup();
+							radioButtons = new EnumMap<>(ValueFilter.EnumSetFilter.Type.class);
+							add(createTypeRadioButton(radioButtons, filter, bg, ValueFilter.EnumSetFilter.Type.Empty, this::updateAfterChange), c);
+							add(labSeparator = new JLabel(" | "), c);
+							for (ValueFilter.EnumSetFilter.Type type : otherTypes)
+								add(createTypeRadioButton(radioButtons, filter, bg, type, this::updateAfterChange), c);
+							
+							checkBoxes = new EnumMap<>(enumClass);
+							for (E e : this.values)
+								add(createCheckBox(checkBoxes, filter, e, this::updateAfterChange), c);
+							
+							c.weightx = 1;
+							add(new JLabel(), c);
+						}
+
+						@Override void setEnableOptions(boolean isEnabled)
+						{
+							super.setEnableOptions(isEnabled);
+							radioButtons.forEach((t,comp) -> comp.setEnabled(isEnabled));
+							checkBoxes  .forEach((e,comp) -> comp.setEnabled(isEnabled));
+							labSeparator.setEnabled(isEnabled);
+						}
+
+						@Override void setValues(ValueFilter filter)
+						{
+							super.setValues(filter);
+							if (filter instanceof ValueFilter.EnumSetFilter<?,?> enumSetFilter) {
+								if (this.filter.baseClass!=enumSetFilter.baseClass)
+									throw new IllegalStateException();
+								if (this.filter.enumClass!=enumSetFilter.enumClass)
+									throw new IllegalStateException();
+								
+								this.filter.type = enumSetFilter.type;
+								radioButtons.get(this.filter.type).setSelected(true);
+								
+								this.filter.selectedEnums.clear();
+								for (E e : values)
+									if (enumSetFilter.selectedEnums.contains(e)) {
+										this.filter.selectedEnums.add(e);
+										checkBoxes.get(e).setSelected(true);
+									} else
+										checkBoxes.get(e).setSelected(false);
+							}
+						}
+
+						private static <E extends Enum<E>> JCheckBox createCheckBox(
+								Map<E,JCheckBox> checkBoxes,
+								ValueFilter.EnumSetFilter<?,E> filter,
+								E e,
+								Runnable updateAfterChange
+						) {
+							boolean isSelected = filter.selectedEnums.contains(e);
+							JCheckBox comp = SnowRunner.createCheckBox(e.toString(), isSelected, null, true, b->{
+								if (b) filter.selectedEnums.add(e);
+								else   filter.selectedEnums.remove(e);
+								updateAfterChange.run();
+							});
+							checkBoxes.put(e, comp);
+							return comp;
+						}
+
+						private static JRadioButton createTypeRadioButton(
+								Map<ValueFilter.EnumSetFilter.Type,JRadioButton> radioButtons,
+								ValueFilter.EnumSetFilter<?,?> filter,
+								ButtonGroup bg,
+								ValueFilter.EnumSetFilter.Type type,
+								Runnable updateAfterChange
+						) {
+							boolean isSelected = filter.type==type;
+							JRadioButton comp = SnowRunner.createRadioButton(type.toString(), bg, true, isSelected, e->{
+								filter.type = type;
+								updateAfterChange.run();
+							});
+							radioButtons.put(type, comp);
+							return comp;
+						}
+					}
 					
 					static class EnumOptions<E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumFilter<E>> {
 						private static final long serialVersionUID = -458324264563153126L;
@@ -2401,6 +2512,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						
 						BoolOptions(ValueFilter.BoolFilter filter, Runnable updateAfterChange) {
 							super(filter, updateAfterChange);
+							if (filter==null) throw new IllegalArgumentException();
 							ButtonGroup bg = new ButtonGroup();
 							c.weightx = 0;
 							add(rbtnTrue  = SnowRunner.createRadioButton("TRUE" , bg, true,  this.filter.allowTrues, e->{ this.filter.allowTrues = true ; updateAfterChange(); } ), c);
