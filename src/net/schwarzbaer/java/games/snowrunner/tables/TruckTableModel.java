@@ -60,12 +60,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private Function<Truck, Color> colorizeTrucksByTrailers;
 	private SaveGame.TruckDesc displayedTruck;
 
+	// Column Widths: [160, 80, 170, 100, 80, 160, 40, 45, 45, 80, 60, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 50, 60, 75, 65, 95, 105, 90, 95, 95, 110, 80, 80, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
 				new ColumnID( "DLC"      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLC(((Truck)row).id, SnowRunner.DLCs.ItemType.Truck)),
-				new ColumnID( "Country"  , "Country"               ,      Truck.  Country.class,  50,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
+				new ColumnID( "Country"  , "Country"               ,     Truck.CountrySet.class, 100,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                  ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                  ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.name_StringID),
 				new ColumnID(ID_HasImage , "Image"                 ,              Boolean.class,  40,             null,   null,      null, false, (row,model) -> gfds.truckImages.contains(((Truck)row).id)),

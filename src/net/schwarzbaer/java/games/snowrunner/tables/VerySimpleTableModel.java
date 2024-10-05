@@ -1651,6 +1651,61 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			protected abstract ValueFilter clone_SubType();
 			
 			
+			@SuppressWarnings("unused")
+			static class EnumSetFilter<V, E extends Enum<E>> extends ValueFilter {
+				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
+				private final static HashMap<String,Function<String[],EnumSetFilter<?,?>>> KnownTypes = new HashMap<>();
+				static {
+					registerEnumSetFilter("CountrySet", Truck.CountrySet.class, cs->cs.set, Truck.Country.class, Truck.Country::valueOf);
+				}
+		
+				private static <V, E extends Enum<E>> void registerEnumSetFilter(String filterID, Class<V> baseClass, Function<V,EnumSet<E>> getSet, Class<E> valueClass, Function<String, E> parseValue) {
+					KnownFilterIDs.put(baseClass,filterID);
+					KnownTypes.put(filterID, values -> parseEnumSetFilter(baseClass, getSet, valueClass, filterID, values, parseValue));
+				}
+				
+				@Override
+				protected boolean valueMeetsFilter_SubType(Object value)
+				{
+					// TODO Auto-generated method stub
+					return false;
+				}
+
+				@Override
+				protected String toParsableString_SubType()
+				{
+					// TODO Auto-generated method stub
+					return null;
+				}
+
+				@Override
+				protected boolean equals_SubType(ValueFilter other)
+				{
+					// TODO Auto-generated method stub
+					return false;
+				}
+
+				@Override
+				protected ValueFilter clone_SubType()
+				{
+					// TODO Auto-generated method stub
+					return null;
+				}
+				
+				public static ValueFilter parseEnumFilter(String str)
+				{
+					// TODO Auto-generated method stub
+					return null;
+				}
+
+				private static <V, E extends Enum<E>> EnumSetFilter<V,E> parseEnumSetFilter(Class<V> baseClass, Function<V,EnumSet<E>> getSet, Class<E> valueClass, String filterID, String[] values, Function<String, E> parseValue)
+				{
+					// TODO Auto-generated method stub
+					return null;
+				}
+				
+			}
+			
 			static class EnumFilter<E extends Enum<E>> extends ValueFilter {
 				private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
 				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
@@ -1996,6 +2051,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					RegisteredOptionsPanels.put(Float              .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite, uac ));
 					RegisteredOptionsPanels.put(Double             .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite, uac ));
 					RegisteredOptionsPanels.put(Truck.Country      .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values(), uac));
+				//	RegisteredOptionsPanels.put(Truck.CountrySet   .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values(), uac));
 					RegisteredOptionsPanels.put(Truck.DiffLockType .class, uac->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, Truck.DiffLockType .values(), uac));
 					RegisteredOptionsPanels.put(Truck.TruckType    .class, uac->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, Truck.TruckType    .values(), uac));
 					RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, uac->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values(), uac));
@@ -2133,7 +2189,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						}
 					}
 			
-			
+					// TODO: static class EnumSetOptions<E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumSetFilter<E>>
+					
 					static class EnumOptions<E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumFilter<E>> {
 						private static final long serialVersionUID = -458324264563153126L;
 						

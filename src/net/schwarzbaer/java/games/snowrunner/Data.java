@@ -12,8 +12,10 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -836,6 +838,16 @@ public class Data {
 		unexpectedValues.add(String.format("New Value for Enum <%s>", enumLabel), str);
 		return null;
 	}
+
+	public static <E extends Enum<E>> EnumSet<E> parseEnumSet(String[] strs, String enumLabel, E[] values) {
+		if (strs==null) return null;
+		List<E> foundValues = Arrays
+			.stream(strs)
+			.map(str -> parseEnum(str, enumLabel, values))
+			.filter(str -> str!=null)
+			.toList();
+		return EnumSet.copyOf(foundValues);
+	}
 	
 	public interface BooleanWithText
 	{
@@ -1422,7 +1434,7 @@ public class Data {
 		
 		public static class GameDataTruck extends GameDataT3 {
 	
-			public final Truck.Country country;
+			public final Truck.CountrySet country;
 			public final String[] excludeAddons;
 			public final Boolean recallable_obsolete;
 			public final String unlockByObjective;
@@ -1430,7 +1442,7 @@ public class Data {
 
 			GameDataTruck(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 				super(gameDataNode, debugOutputPrefix);
-				country       = parseEnum                ( gameDataNode.attributes.get("Country"), "Country", Truck.Country.values());
+				country       = Truck.CountrySet.create( parseEnumSet( splitColonSeparatedIDList( gameDataNode.attributes.get("Country") ), "Country", Truck.Country.values()) );
 				excludeAddons = splitColonSeparatedIDList( gameDataNode.attributes.get("ExcludeAddons") );
 				recallable_obsolete    = parseBool                ( gameDataNode.attributes.get("Recallable") );
 				unlockByObjective = gameDataNode.attributes.get("UnlockByObjective");
@@ -1984,16 +1996,25 @@ public class Data {
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
 		}
 		public enum Country {
-			US, RU, RU_CAS("RU,CAS");
-			private String str;
-			Country() { this(null); }
-			Country(String str) { this.str = str; }
-			@Override public String toString() { return str!=null ? str : name(); }
-			static String toString(Country country) { return country==null ? null : country.toString(); }
+			US, RU, CAS, CE, NE;
+			static String toString(Country country) {
+				return country==null ? null : country.toString();
+			}
 		}
 		public enum TruckType {
 			HEAVY, OFFROAD, HEAVY_DUTY, HIGHWAY, SCOUT;
 			static String toString(TruckType truckType) { return truckType==null ? null : truckType.toString(); }
+		}
+		public static class CountrySet {
+			public final EnumSet<Country> set = EnumSet.noneOf(Country.class);
+			@Override public String toString() { return set.toString(); }
+			public static CountrySet create(Collection<Country> values)
+			{
+				if (values==null) return null;
+				CountrySet set = new CountrySet();
+				set.set.addAll(values);
+				return set;
+			}
 		}
 		
 		public final TruckType type;
