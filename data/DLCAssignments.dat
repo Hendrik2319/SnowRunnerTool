@@ -45,6 +45,10 @@ truck = jeep_cj7_renegade
 truck = jeep_wrangler
 
 [DLC]
+name = Kenworth W990
+truck = kenworth_w990
+
+[DLC]
 name = Land Rover Dual Pack
 truck = land_rover_defender_110
 truck = land_rover_defender_90
@@ -56,6 +60,37 @@ truck = navistar_5000mv
 [DLC]
 name = Rezvani Hercules
 truck = rezvani_hercules_6x6
+
+[DLC]
+name = Rezvani Tank
+truck = rezvani_tank
+
+[DLC]
+name = Season 10: Fix & Connect
+truck = kenworth_963
+truck = mack_defense_m917
+
+[DLC]
+name = Season 11: Lights & Cameras
+truck = burlak_6x6
+truck = neo_falcon_2000
+
+[DLC]
+name = Season 12: Public Energy
+truck = femm_37at
+truck = mtb_8106
+
+[DLC]
+name = Season 13: Dig & Drill
+truck = aac_58dw
+truck = plad_450
+
+[DLC]
+name = Season 14: Reap & Sow
+truck = ankatra_1160
+truck = earthroamer_lti
+truck = earthroamer_sx
+truck = futom_7290ra
 
 [DLC]
 name = Season 1: Search & Recover
@@ -139,6 +174,10 @@ map = level_us_09_02
 name = TATRA Dual Pack
 truck = tatra_805
 truck = tatra_t813
+
+[DLC]
+name = The Atom
+truck = azov_670963n
 
 [DLC]
 name = The Mastodon
