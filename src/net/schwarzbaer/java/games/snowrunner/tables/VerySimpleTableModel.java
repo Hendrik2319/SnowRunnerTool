@@ -28,7 +28,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -1613,9 +1612,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				
 				ValueFilter filter = null;
 				switch (simpleClassName) {
-				case "NumberFilter": filter = NumberFilter.parseNumberFilter(str); break;
-				case "BoolFilter"  : filter = BoolFilter.parseBoolFilter(str); break;
-				case "EnumFilter"  : filter = EnumFilter.parseEnumFilter(str); break;
+				case "NumberFilter" : filter = NumberFilter .parseFilter(str); break;
+				case "BoolFilter"   : filter = BoolFilter   .parseFilter(str); break;
+				case "EnumFilter"   : filter = EnumFilter   .parseFilter(str); break;
+				case "EnumSetFilter": filter = EnumSetFilter.parseFilter(str); break;
 				}
 				
 				if (filter != null) {
@@ -1651,74 +1651,168 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			protected abstract ValueFilter clone_SubType();
 			
 			
-			@SuppressWarnings("unused")
-			static class EnumSetFilter<V, E extends Enum<E>> extends ValueFilter {
+			private static boolean haveSameContent(Collection<?> coll1, Collection<?> coll2)
+			{
+				if (coll1==null && coll2==null) return true;
+				if (coll1==null || coll2==null) return false;
+				
+				for (Object o : coll1)
+					if (!coll2.contains(o))
+						return false;
+				
+				for (Object o : coll2)
+					if (!coll1.contains(o))
+						return false;
+				
+				return true;
+			}
+
+
+			static class EnumSetFilter<B, E extends Enum<E>> extends ValueFilter {
 				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
-				private final static HashMap<String,Function<String[],EnumSetFilter<?,?>>> KnownTypes = new HashMap<>();
+				private final static HashMap<String,BiFunction<Type,String[],EnumSetFilter<?,?>>> KnownTypes = new HashMap<>();
+				
 				static {
-					registerEnumSetFilter("CountrySet", Truck.CountrySet.class, cs->cs.set, Truck.Country.class, Truck.Country::valueOf);
+					registerFilter("CountrySet", Truck.CountrySet.class, cs->cs.set, Truck.Country.class, Truck.Country::valueOf);
 				}
 		
-				private static <V, E extends Enum<E>> void registerEnumSetFilter(String filterID, Class<V> baseClass, Function<V,EnumSet<E>> getSet, Class<E> valueClass, Function<String, E> parseValue) {
+				private static <B, E extends Enum<E>> void registerFilter(String filterID, Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass, Function<String, E> parseEnum) {
 					KnownFilterIDs.put(baseClass,filterID);
-					KnownTypes.put(filterID, values -> parseEnumSetFilter(baseClass, getSet, valueClass, filterID, values, parseValue));
+					KnownTypes.put(filterID, (type, enumStrs) -> parseFilter(filterID, baseClass, getSet, enumClass, type, enumStrs, parseEnum));
+				}
+				
+				enum Type { Empty, AllOf, OneOf }
+				
+				private final String filterID;
+				private final Class<B> baseClass;
+				private final Function<B, EnumSet<E>> getSet;
+				private final Class<E> enumClass;
+				private final EnumSet<E> selectedEnums;
+				private Type type;
+				
+				EnumSetFilter(String filterID, Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass)
+				{
+					this.filterID = filterID;
+					this.baseClass = baseClass;
+					this.getSet = getSet;
+					this.enumClass = enumClass;
+					this.selectedEnums = EnumSet.noneOf(enumClass);
+					this.type = Type.OneOf;
 				}
 				
 				@Override
 				protected boolean valueMeetsFilter_SubType(Object value)
 				{
-					// TODO Auto-generated method stub
+					if (!baseClass.isInstance(value)) return false;
+					B base = baseClass.cast(value);
+					
+					if (base==null) return false;
+					EnumSet<E> enumSet = getSet.apply(base);
+					
+					switch (type)
+					{
+					case Empty: return enumSet.isEmpty();
+					case AllOf: return enumSet.containsAll(selectedEnums);
+					case OneOf:
+						for (E e : selectedEnums)
+							if (enumSet.contains(e))
+								return true;
+						break;
+					}
 					return false;
-				}
-
-				@Override
-				protected String toParsableString_SubType()
-				{
-					// TODO Auto-generated method stub
-					return null;
 				}
 
 				@Override
 				protected boolean equals_SubType(ValueFilter other)
 				{
-					// TODO Auto-generated method stub
+					if (other instanceof EnumSetFilter<?,?> otherFilter) {
+						if (!filterID.equals(otherFilter.filterID)) return false;
+						if (baseClass != otherFilter.baseClass) return false;
+						if (enumClass != otherFilter.enumClass) return false;
+						if (type      != otherFilter.type     ) return false;
+						if (!haveSameContent(selectedEnums, otherFilter.selectedEnums)) return false;
+						return true;
+					}
 					return false;
 				}
 
 				@Override
 				protected ValueFilter clone_SubType()
 				{
-					// TODO Auto-generated method stub
-					return null;
+					EnumSetFilter<B,E> newFilter = new EnumSetFilter<>(filterID, baseClass, getSet, enumClass);
+					newFilter.type = type;
+					newFilter.selectedEnums.addAll(selectedEnums);
+					return newFilter;
 				}
 				
-				public static ValueFilter parseEnumFilter(String str)
+				@Override
+				protected String toParsableString_SubType()
 				{
-					// TODO Auto-generated method stub
-					return null;
+					String[] selectedEnumNames = selectedEnums.stream().map(e->e.name()).toArray(String[]::new);
+					return String.format("%s:%s:%s", filterID, type, String.join(",", selectedEnumNames));
 				}
 
-				private static <V, E extends Enum<E>> EnumSetFilter<V,E> parseEnumSetFilter(Class<V> baseClass, Function<V,EnumSet<E>> getSet, Class<E> valueClass, String filterID, String[] values, Function<String, E> parseValue)
+				public static EnumSetFilter<?,?> parseFilter(String str)
 				{
-					// TODO Auto-generated method stub
-					return null;
+					String[] parts = str.split(":");
+					if (parts.length!=3) {
+						System.err.printf("Can't parse EnumSetFilter: Wrong number (3 expected, but %d found) of parts separated by ':' in \"%s\"%n", parts.length, str);
+						return null;
+					}
+					
+					String filterID = parts[0];
+					String typeStr  = parts[1];
+					String enumStrsStr = parts[2];
+					String[] enumStrs = enumStrsStr.split(",");
+					
+					Type type;
+					try { type = Type.valueOf(typeStr); }
+					catch (Exception e) {
+						System.err.printf("Can't parse EnumSetFilter: Unknown type \"%s\" in \"%s\"%n", typeStr, str);
+						return null;
+					}
+					
+					BiFunction<Type, String[], EnumSetFilter<?, ?>> parseFilter = KnownTypes.get(filterID);
+					if (parseFilter==null) {
+						System.err.printf("Can't parse EnumSetFilter: Unknown filter ID \"%s\" in \"%s\"%n", filterID, str);
+						return null;
+					}
+					
+					return parseFilter.apply(type,enumStrs);
+				}
+
+				private static <B, E extends Enum<E>> EnumSetFilter<B,E> parseFilter(
+						String filterID, Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass, 
+						Type type, String[] enumStrs, Function<String, E> parseEnum
+				) {
+					EnumSetFilter<B,E> filter = new EnumSetFilter<>(filterID, baseClass, getSet, enumClass);
+					filter.type = type;
+					for (String enumStr : enumStrs)
+						try {
+							filter.selectedEnums.add(parseEnum.apply(enumStr));
+						} catch (Exception ex) {
+							System.err.printf("EnumSetFilter[%s]: Can't parse enum value \"%s\" for enum \"%s\"%n", filterID, enumStr, enumClass.getCanonicalName());
+						}
+					return filter;
 				}
 				
 			}
 			
+			
 			static class EnumFilter<E extends Enum<E>> extends ValueFilter {
-				private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
 				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
+				private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
+				
 				static {
-					registerEnumFilter("DiffLockType", Truck.DiffLockType .class, Truck.DiffLockType ::valueOf);
-					registerEnumFilter("Country"     , Truck.Country      .class, Truck.Country      ::valueOf);
-					registerEnumFilter("TruckType"   , Truck.TruckType    .class, Truck.TruckType    ::valueOf);
-					registerEnumFilter("ItemStat"    , Truck.UDV.ItemState.class, Truck.UDV.ItemState::valueOf);
+					registerFilter("DiffLockType", Truck.DiffLockType .class, Truck.DiffLockType ::valueOf);
+					registerFilter("Country"     , Truck.Country      .class, Truck.Country      ::valueOf);
+					registerFilter("TruckType"   , Truck.TruckType    .class, Truck.TruckType    ::valueOf);
+					registerFilter("ItemStat"    , Truck.UDV.ItemState.class, Truck.UDV.ItemState::valueOf);
 				}
 		
-				private static <E extends Enum<E>> void registerEnumFilter(String filterID, Class<E> valueClass, Function<String, E> parseValue) {
+				private static <E extends Enum<E>> void registerFilter(String filterID, Class<E> valueClass, Function<String, E> parseValue) {
 					KnownFilterIDs.put(valueClass,filterID);
-					KnownTypes.put(filterID, values -> parseEnumFilter(valueClass, filterID, values, parseValue));
+					KnownTypes.put(filterID, values -> parseFilter(valueClass, filterID, values, parseValue));
 				}
 		
 				static String getFilterID(Class<?> valueClass) {
@@ -1736,7 +1830,6 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					if (valueClass==null) throw new IllegalArgumentException();
 					this.valueClass = valueClass;
 					this.allowedValues = EnumSet.noneOf(valueClass);
-					EnumSet.allOf(valueClass);
 				}
 		
 				@Override protected boolean valueMeetsFilter_SubType(Object value) {
@@ -1748,35 +1841,30 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 		
 				@Override protected boolean equals_SubType(ValueFilter other) {
-					if (other instanceof EnumFilter) {
-						EnumFilter<?> otherEnumFilter = (EnumFilter<?>) other;
+					if (other instanceof EnumFilter<?> otherEnumFilter) {
+						if (!filterID.equals(otherEnumFilter.filterID)) return false;
 						if (valueClass != otherEnumFilter.valueClass) return false;
-						if (!areAllValuesContainedIn(otherEnumFilter.allowedValues)) return false;
-						if (!otherEnumFilter.areAllValuesContainedIn(allowedValues)) return false;
+						if (!haveSameContent(allowedValues, otherEnumFilter.allowedValues)) return false;
 						return true;
 					}
 					return false;
 				}
-				
-				private boolean areAllValuesContainedIn(Set<?> values) {
-					for (E e : allowedValues) {
-						if (!values.contains(e))
-							return false;
-					}
-					return true;
-				}
-		
+
 				@Override protected ValueFilter clone_SubType() {
 					EnumFilter<E> enumFilter = new EnumFilter<>(filterID,valueClass);
 					enumFilter.allowedValues.addAll(allowedValues);
 					return enumFilter;
 				}
 		
-				public static ValueFilter parseEnumFilter(String str) {
-					int pos = str.indexOf(':');
-					if (pos<0) return null;
-					String filterID = str.substring(0, pos);
-					String namesStr = str.substring(pos+1);
+				public static EnumFilter<?> parseFilter(String str) {
+					String[] parts = str.split(":");
+					if (parts.length!=2) {
+						System.err.printf("Can't parse EnumFilter: Wrong number (2 expected, but %d found) of parts separated by ':' in \"%s\"%n", parts.length, str);
+						return null;
+					}
+					
+					String filterID = parts[0];
+					String namesStr = parts[1];
 					String[] names = namesStr.split(",");
 					
 					Function<String[], EnumFilter<?>> parseFilter = KnownTypes.get(filterID);
@@ -1788,7 +1876,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					return parseFilter.apply(names);
 				}
 		
-				private static <E extends Enum<E>> EnumFilter<E> parseEnumFilter(Class<E> valueClass, String filterID, String[] names, Function<String, E> parseEnumValue) {
+				private static <E extends Enum<E>> EnumFilter<E> parseFilter(Class<E> valueClass, String filterID, String[] names, Function<String, E> parseEnumValue) {
 					EnumFilter<E> filter = new EnumFilter<>(filterID,valueClass);
 					for (String name : names)
 						try {
@@ -1854,7 +1942,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					return new NumberFilter<>(valueClass, min, max, compare, toParsableString);
 				}
 				
-				public static ValueFilter parseNumberFilter(String str) {
+				public static NumberFilter<?> parseFilter(String str) {
 					String[] strs = str.split(":");
 					if (strs.length!=3) return null;
 					String valueClassName = strs[0];
@@ -1947,7 +2035,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					return boolFilter;
 				}
 		
-				public static ValueFilter parseBoolFilter(String str) {
+				public static BoolFilter parseFilter(String str) {
 					BoolFilter boolFilter = new BoolFilter();
 					switch (str) {
 					case "true" : boolFilter.allowTrues = true; break;
