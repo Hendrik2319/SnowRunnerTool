@@ -820,9 +820,12 @@ class XMLTemplateStructure {
 		private static HashMap<String, GenericXmlNode> createNewTemplateList(Templates templates, String originalNodeName, String sourceFilePath) throws ParseException {
 			HashMap<String, GenericXmlNode> templateList = templates.templates.get(originalNodeName);
 			if (templateList!=null)
-				throw new ParseException("Found more than one template list for node name \"%s\" in <_templates> node in file \"%s\"", originalNodeName, sourceFilePath);
-			
-			templates.templates.put(originalNodeName, templateList = new HashMap<>());
+			{
+				if (!KnownBugs.getInstance().hideKnownBugs)
+					System.err.printf("Found more than one template list for node name \"%s\" in <_templates> node in file \"%s\"%n", originalNodeName, sourceFilePath);
+			}
+			else
+				templates.templates.put(originalNodeName, templateList = new HashMap<>());
 			return templateList;
 		}
 		
@@ -1281,12 +1284,13 @@ class XMLTemplateStructure {
 					System.err.printf("Found a known bug: Template \"%s\" in <_templates> node in file \"%s\" --> node ignored%n", originalNodeName, filePath);
 				return true;
 			}
-			if (originalNodeName.equals("Body") && filePath.equals("\\[media]\\_dlc\\dlc_8\\classes\\trucks\\kirovets_k7m.xml") && templates.get(originalNodeName)!=null)
-			{
-				if (!hideKnownBugs)
-					System.err.printf("Found a known bug: Second template list for \"%s\" in <_templates> node in file \"%s\" --> list ignored%n", originalNodeName, filePath);
-				return true;
-			}
+			// -> solved with fix for double template lists in createNewTemplateList
+			//if (originalNodeName.equals("Body") && filePath.equals("\\[media]\\_dlc\\dlc_8\\classes\\trucks\\kirovets_k7m.xml") && templates.get(originalNodeName)!=null)
+			//{
+			//	if (!hideKnownBugs)
+			//		System.err.printf("Found a known bug: Second template list for \"%s\" in <_templates> node in file \"%s\" --> list ignored%n", originalNodeName, filePath);
+			//	return true;
+			//}
 			return false;
 		}
 
@@ -1515,6 +1519,70 @@ class XMLTemplateStructure {
 				"\\[media]\\_dlc\\us_06\\classes\\grass\\grass_tall_spring_b.xml",
 				"1957EBDEF8D587A8FAFCBFF706A2240E",
 				rawXML -> XMLfix.remove(rawXML, " _template=\"SmallTree\"")
+			);
+			
+			// initial.2024.10.04.pak
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\stuff_01\\classes\\trucks\\kenworth_963_stuff\\stuff_hood_crab_kenworth_963.xml",
+				"7A7D57A60103C1229C0210B2374467D0",
+				rawXML -> XMLfix.replace(rawXML,
+						"<_parent File=\"stuff_crab_bulldog_ford_f750\" />",
+						"<_parent File=\"stuff_hood_bulldog_ford_f750\" />")
+			);
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\stuff_01\\classes\\trucks\\mack_defense_m917_stuff\\stuff_hood_crab_mack_defense_m917.xml",
+				"1BD0DCEAB163326B66D0AB0C511361DB",
+				rawXML -> XMLfix.replace(rawXML,
+						"<_parent File=\"stuff_crab_bulldog_ford_f750\" />",
+						"<_parent File=\"stuff_hood_bulldog_ford_f750\" />")
+			);
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\us_12\\classes\\daytimes\\night_us_12.xml",
+				"93BEB0DBC1C223F3DEDD4B767E72074E",
+				rawXML -> {
+					rawXML = XMLfix.remove(rawXML, "IntensityDayNightTransitionOffset=\"0.0\"");
+					rawXML = XMLfix.remove(rawXML, "IntensityDayNightTransitionLength=\"0.03\"");
+					return rawXML;
+				}
+			);
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
+				"A34097FB662DFC6082756D30FA5D4E84",
+				rawXML -> XMLfix.remove(rawXML, "ConnectedToHandbrake=\"true\"")
+			);
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\ru_13\\classes\\skies\\sky_ru_13.xml",
+				"6B21D51F79E69A2435C34395CEE4DF2D",
+				rawXML -> {
+					rawXML = XMLfix.replace(rawXML,
+							"<DayTimeOverride DayTime=\"night_to_day_ru_13\" DiffuseMap=\"env/cloud_01_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.5\" FadeInStart=\"0.0\" FadeInStart=\"0.25\"/>",
+							"<DayTimeOverride DayTime=\"night_to_day_ru_13\" DiffuseMap=\"env/cloud_01_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.5\" FadeInStart=\"0.0\" FadeInEnd=\"0.25\"/>");
+					rawXML = XMLfix.replace(rawXML,
+							"<DayTimeOverride DayTime=\"night_to_day_ru_13\" DiffuseMap=\"env/cloud_02_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.39\" FadeInStart=\"0.0\" FadeInStart=\"0.25\"/>",
+							"<DayTimeOverride DayTime=\"night_to_day_ru_13\" DiffuseMap=\"env/cloud_02_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.39\" FadeInStart=\"0.0\" FadeInEnd=\"0.25\"/>");
+					return rawXML;
+				}
+			);
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\us_12\\classes\\skies\\sky_us_12.xml",
+				"736FACF90B1ADC5F0C96F483A5FE39BD",
+				rawXML -> {
+					rawXML = XMLfix.replace(rawXML,
+							"AngularSpeed=\"0.3\" AngularSpeed=\"0.2\"",
+							"AngularSpeed=\"0.2\"");
+					rawXML = XMLfix.replace(rawXML,
+							"<DayTimeOverride DayTime=\"night_to_day_us_12\" DiffuseMap=\"env/cloud_01_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.5\" FadeInStart=\"0.0\" FadeInStart=\"0.25\"/>",
+							"<DayTimeOverride DayTime=\"night_to_day_us_12\" DiffuseMap=\"env/cloud_01_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.5\" FadeInStart=\"0.0\" FadeInEnd=\"0.25\"/>");
+					rawXML = XMLfix.replace(rawXML,
+							"<DayTimeOverride DayTime=\"night_to_day_us_12\" DiffuseMap=\"env/cloud_02_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.39\" FadeInStart=\"0.0\" FadeInStart=\"0.25\"/>",
+							"<DayTimeOverride DayTime=\"night_to_day_us_12\" DiffuseMap=\"env/cloud_02_us_01__s_d_a.tga\" DiffuseMultiplier=\"g(255; 255; 255; 0) x 1\" AngularSpeed=\"0.39\" FadeInStart=\"0.0\" FadeInEnd=\"0.25\"/>");
+					return rawXML;
+				}
+			);
+			XMLfix.add(fixes,
+				"\\[media]\\_dlc\\ru_13\\classes\\models\\rus_canopy_01_ru13.xml",
+				"75C33E51058E5C1D1B93CD0E9A5B8137",
+				rawXML -> XMLfix.remove(rawXML, "_template=\"light\"")
 			);
 			
 			return fixes;

@@ -123,6 +123,13 @@ public class SnowRunner {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); }
 		catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) {}
 		
+		for (int i=0; i<args.length; i++)
+		{
+			String argument = args[i];
+			if ("forget_initial.pak".equalsIgnoreCase(argument))
+				settings.remove(AppSettings.ValueKey.InitialPAK);
+		}
+		
 		new SnowRunner().initialize();
 	}
 	
