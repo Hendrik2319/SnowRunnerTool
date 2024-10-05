@@ -1670,17 +1670,17 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 
 
-			static class EnumSetFilter<B, E extends Enum<E>> extends ValueFilter {
+			static class EnumSetFilter<B extends Data.EnumSetContainer<E>, E extends Enum<E>> extends ValueFilter {
 				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
 				private final static HashMap<String,BiFunction<Type,String[],EnumSetFilter<?,?>>> KnownTypes = new HashMap<>();
 				
 				static {
-					registerFilter("CountrySet", Truck.CountrySet.class, cs->cs.set, Truck.Country.class, Truck.Country::valueOf);
+					registerFilter("CountrySet", Truck.CountrySet.class, Truck.Country.class, Truck.Country::valueOf);
 				}
 		
-				private static <B, E extends Enum<E>> void registerFilter(String filterID, Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass, Function<String, E> parseEnum) {
+				private static <B extends Data.EnumSetContainer<E>, E extends Enum<E>> void registerFilter(String filterID, Class<B> baseClass, Class<E> enumClass, Function<String, E> parseEnum) {
 					KnownFilterIDs.put(baseClass,filterID);
-					KnownTypes.put(filterID, (type, enumStrs) -> parseFilter(filterID, baseClass, getSet, enumClass, type, enumStrs, parseEnum));
+					KnownTypes.put(filterID, (type, enumStrs) -> parseFilter(filterID, baseClass, enumClass, type, enumStrs, parseEnum));
 				}
 				
 				static String getFilterID(Class<?> baseClass) {
@@ -1693,16 +1693,14 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				
 				private final String filterID;
 				private final Class<B> baseClass;
-				private final Function<B, EnumSet<E>> getSet;
 				private final Class<E> enumClass;
 				private final EnumSet<E> selectedEnums;
 				private Type type;
 				
-				EnumSetFilter(String filterID, Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass)
+				EnumSetFilter(String filterID, Class<B> baseClass, Class<E> enumClass)
 				{
 					this.filterID = filterID;
 					this.baseClass = baseClass;
-					this.getSet = getSet;
 					this.enumClass = enumClass;
 					this.selectedEnums = EnumSet.noneOf(enumClass);
 					this.type = Type.OneOf;
@@ -1715,7 +1713,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					B base = baseClass.cast(value);
 					
 					if (base==null) return false;
-					EnumSet<E> enumSet = getSet.apply(base);
+					EnumSet<E> enumSet = base.getSet();
 					
 					switch (type)
 					{
@@ -1747,7 +1745,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				@Override
 				protected ValueFilter clone_SubType()
 				{
-					EnumSetFilter<B,E> newFilter = new EnumSetFilter<>(filterID, baseClass, getSet, enumClass);
+					EnumSetFilter<B,E> newFilter = new EnumSetFilter<>(filterID, baseClass, enumClass);
 					newFilter.type = type;
 					newFilter.selectedEnums.addAll(selectedEnums);
 					return newFilter;
@@ -1789,11 +1787,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					return parseFilter.apply(type,enumStrs);
 				}
 
-				private static <B, E extends Enum<E>> EnumSetFilter<B,E> parseFilter(
-						String filterID, Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass, 
+				private static <B extends Data.EnumSetContainer<E>, E extends Enum<E>> EnumSetFilter<B,E> parseFilter(
+						String filterID, Class<B> baseClass, Class<E> enumClass, 
 						Type type, String[] enumStrs, Function<String, E> parseEnum
 				) {
-					EnumSetFilter<B,E> filter = new EnumSetFilter<>(filterID, baseClass, getSet, enumClass);
+					EnumSetFilter<B,E> filter = new EnumSetFilter<>(filterID, baseClass, enumClass);
 					filter.type = type;
 					for (String enumStr : enumStrs)
 						try {
@@ -2146,11 +2144,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					RegisteredOptionsPanels.put(Long               .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null            , uac ));
 					RegisteredOptionsPanels.put(Float              .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite, uac ));
 					RegisteredOptionsPanels.put(Double             .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite, uac ));
-					RegisteredOptionsPanels.put(Truck.Country      .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, Truck.Country      .values(), uac));
-					RegisteredOptionsPanels.put(Truck.DiffLockType .class, uac->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, Truck.DiffLockType .values(), uac));
-					RegisteredOptionsPanels.put(Truck.TruckType    .class, uac->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, Truck.TruckType    .values(), uac));
-					RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, uac->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, Truck.UDV.ItemState.values(), uac));
-					RegisteredOptionsPanels.put(Truck.CountrySet   .class, uac->new OptionsPanel.EnumSetOptions<>(Truck.CountrySet.class, cs->cs.set, Truck.Country.class, Truck.Country.values(), uac));
+					RegisteredOptionsPanels.put(Truck.Country      .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, uac));
+					RegisteredOptionsPanels.put(Truck.DiffLockType .class, uac->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, uac));
+					RegisteredOptionsPanels.put(Truck.TruckType    .class, uac->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, uac));
+					RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, uac->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, uac));
+					RegisteredOptionsPanels.put(Truck.CountrySet   .class, uac->new OptionsPanel.EnumSetOptions<>(Truck.CountrySet.class, Truck.Country.class, uac));
 				}
 				
 				private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
@@ -2285,25 +2283,22 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						}
 					}
 					
-					static class EnumSetOptions<B, E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumSetFilter<B,E>>
+					static class EnumSetOptions<B extends Data.EnumSetContainer<E>, E extends Enum<E>> extends OptionsPanel<ValueFilter.EnumSetFilter<B,E>>
 					{
 						private static final long serialVersionUID = -2752373731911252981L;
 
-						private final E[] values;
 						private final Map<E,JCheckBox> checkBoxes;
 						private final Map<ValueFilter.EnumSetFilter.Type,JRadioButton> radioButtons;
 						private final JLabel labSeparator;
 
-						EnumSetOptions(Class<B> baseClass, Function<B,EnumSet<E>> getSet, Class<E> enumClass, E[] values, Runnable updateAfterChange)
+						EnumSetOptions(Class<B> baseClass, Class<E> enumClass, Runnable updateAfterChange)
 						{
-							this(new ValueFilter.EnumSetFilter<>(ValueFilter.EnumSetFilter.getFilterID(baseClass), baseClass, getSet, enumClass), enumClass, values, updateAfterChange);
+							this(new ValueFilter.EnumSetFilter<>(ValueFilter.EnumSetFilter.getFilterID(baseClass), baseClass, enumClass), updateAfterChange);
 						}
-						EnumSetOptions(ValueFilter.EnumSetFilter<B,E> filter, Class<E> enumClass, E[] values, Runnable updateAfterChange)
+						EnumSetOptions(ValueFilter.EnumSetFilter<B,E> filter, Runnable updateAfterChange)
 						{
 							super(filter, updateAfterChange);
 							if (filter==null) throw new IllegalArgumentException();
-							if (values==null) throw new IllegalArgumentException();
-							this.values = values;
 							
 							ValueFilter.EnumSetFilter.Type[] otherTypes = Arrays
 								.stream(ValueFilter.EnumSetFilter.Type.values())
@@ -2319,8 +2314,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 							for (ValueFilter.EnumSetFilter.Type type : otherTypes)
 								add(createTypeRadioButton(radioButtons, filter, bg, type, this::updateAfterChange), c);
 							
-							checkBoxes = new EnumMap<>(enumClass);
-							for (E e : this.values)
+							checkBoxes = new EnumMap<>(filter.enumClass);
+							for (E e : filter.enumClass.getEnumConstants())
 								add(createCheckBox(checkBoxes, filter, e, this::updateAfterChange), c);
 							
 							c.weightx = 1;
@@ -2348,7 +2343,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 								radioButtons.get(this.filter.type).setSelected(true);
 								
 								this.filter.selectedEnums.clear();
-								for (E e : values)
+								for (E e : this.filter.enumClass.getEnumConstants())
 									if (enumSetFilter.selectedEnums.contains(e)) {
 										this.filter.selectedEnums.add(e);
 										checkBoxes.get(e).setSelected(true);
@@ -2396,21 +2391,20 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						private final JCheckBox[] checkBoxes;
 						private final E[] values;
 			
-						EnumOptions( Class<E> valueClass, E[] values, Runnable updateAfterChange) {
-							this(new ValueFilter.EnumFilter<>(ValueFilter.EnumFilter.getFilterID(valueClass), valueClass), values, updateAfterChange);
+						EnumOptions( Class<E> valueClass, Runnable updateAfterChange) {
+							this(new ValueFilter.EnumFilter<>(ValueFilter.EnumFilter.getFilterID(valueClass), valueClass), updateAfterChange);
 						}
 			
-						EnumOptions(ValueFilter.EnumFilter<E> filter, E[] values, Runnable updateAfterChange) {
+						EnumOptions(ValueFilter.EnumFilter<E> filter, Runnable updateAfterChange) {
 							super(filter, updateAfterChange);
 							if (filter==null) throw new IllegalArgumentException();
-							if (values==null) throw new IllegalArgumentException();
 							
-							this.values = values;
+							values = filter.valueClass.getEnumConstants();
 							
-							checkBoxes = new JCheckBox[this.values.length];
+							checkBoxes = new JCheckBox[values.length];
 							c.weightx = 0;
-							for (int i=0; i<this.values.length; i++) {
-								E e = this.values[i];
+							for (int i=0; i<values.length; i++) {
+								E e = values[i];
 								boolean isSelected = this.filter.allowedValues.contains(e);
 								checkBoxes[i] = SnowRunner.createCheckBox(e.toString(), isSelected, null, true, b->{
 									if (b) this.filter.allowedValues.add(e);

@@ -1110,6 +1110,23 @@ public class Data {
 			unexpectedValues.add(String.format("%s <%s> <####>", prefix, nodeName), key);
 		});
 	}
+	
+	public static class EnumSetContainer<E extends Enum<E>>
+	{
+		private final EnumSet<E> set;
+		EnumSetContainer(Class<E> enumClass) {
+			set = EnumSet.noneOf(enumClass);
+		}
+		public EnumSet<E> getSet() { return set; }
+		@Override public String toString() { return set.toString(); }
+		public static <V extends EnumSetContainer<E>, E extends Enum<E>> V create(Supplier<V> createV, Collection<E> values)
+		{
+			if (values==null) return null;
+			V set = createV.get();
+			set.getSet().addAll(values);
+			return set;
+		}
+	}
 
 	public interface HasNameAndID {
 		String getName_StringID();
@@ -2005,15 +2022,14 @@ public class Data {
 			HEAVY, OFFROAD, HEAVY_DUTY, HIGHWAY, SCOUT;
 			static String toString(TruckType truckType) { return truckType==null ? null : truckType.toString(); }
 		}
-		public static class CountrySet {
-			public final EnumSet<Country> set = EnumSet.noneOf(Country.class);
-			@Override public String toString() { return set.toString(); }
+		public static class CountrySet extends EnumSetContainer<Country>{
+			public CountrySet()
+			{
+				super(Country.class);
+			}
 			public static CountrySet create(Collection<Country> values)
 			{
-				if (values==null) return null;
-				CountrySet set = new CountrySet();
-				set.set.addAll(values);
-				return set;
+				return create(CountrySet::new, values);
 			}
 		}
 		
