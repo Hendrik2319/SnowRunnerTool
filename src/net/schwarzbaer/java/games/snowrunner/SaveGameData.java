@@ -879,9 +879,11 @@ public class SaveGameData {
 			public final boolean isInvalid;
 			public final boolean isPacked;
 			public final boolean isUnlocked;
+			public final Boolean isFreezedByObjective;
 			public final Vector<InstalledAddon> addons;
 			public final HashSet<String> addonIDs;
 			public final long    damage;
+			public final InstalledAddon emptyTruckAddonDesc;
 			public final String  engine;
 			public final long    engineDamage;
 			public final double  fuel;
@@ -916,6 +918,7 @@ public class SaveGameData {
 					.add("isInvalid"                 , JSON_Data.Value.Type.Bool   )
 					.add("isPacked"                  , JSON_Data.Value.Type.Bool   )
 					.add("isUnlocked"                , JSON_Data.Value.Type.Bool   )
+					.add("isFreezedByObjective"      , JSON_Data.Value.Type.Bool   )
 					                                 
 					.add("addons"                    , JSON_Data.Value.Type.Array  )
 					.add("constraints"               , JSON_Data.Value.Type.Array  )
@@ -923,6 +926,7 @@ public class SaveGameData {
 					.add("customizationPreset"       , JSON_Data.Value.Type.Object )
 					.add("damage"                    , JSON_Data.Value.Type.Integer)
 					.add("damageDecals"              , JSON_Data.Value.Type.Array  )
+					.add("emptyTruckAddonDesc"       , JSON_Data.Value.Type.Object )
 					.add("engine"                    , JSON_Data.Value.Type.Object )
 					.add("engineDamage"              , JSON_Data.Value.Type.Integer)
 					.add("fuel"                      , JSON_Data.Value.Type.Float  )
@@ -954,7 +958,7 @@ public class SaveGameData {
 			{
 				// scanJSON(object, this);
 				
-				JSON_Object<NV, V> customizationPreset;
+				JSON_Object<NV, V> customizationPreset, emptyTruckAddonDesc;
 				JSON_Array<NV, V> addons, constraints, controlConstrPosition, damageDecals, isPoweredEngaged, tmBodies, wheelsDamage, wheelsSuspHeight;
 				
 				String retainedMapId;
@@ -965,6 +969,7 @@ public class SaveGameData {
 				isInvalid                  = JSON_Data.getBoolValue   (object, "isInvalid"                 , debugOutputPrefixStr);
 				isPacked                   = JSON_Data.getBoolValue   (object, "isPacked"                  , debugOutputPrefixStr);
 				isUnlocked                 = JSON_Data.getBoolValue   (object, "isUnlocked"                , debugOutputPrefixStr);
+				isFreezedByObjective       = JSON_Data.getBoolValue   (object, "isFreezedByObjective"      , true, false, debugOutputPrefixStr);
 				                                                                                           
 				addons                     = JSON_Data.getArrayValue  (object, "addons"                    , debugOutputPrefixStr);
 				constraints                = JSON_Data.getArrayValue  (object, "constraints"               , debugOutputPrefixStr);
@@ -972,6 +977,7 @@ public class SaveGameData {
 				customizationPreset        = JSON_Data.getObjectValue (object, "customizationPreset"       , debugOutputPrefixStr);
 				damage                     = JSON_Data.getIntegerValue(object, "damage"                    , debugOutputPrefixStr);
 				damageDecals               = JSON_Data.getArrayValue  (object, "damageDecals"              , debugOutputPrefixStr);
+				emptyTruckAddonDesc        = JSON_Data.getObjectValue (object, "emptyTruckAddonDesc"       , true, false, debugOutputPrefixStr);
 				engine                     = parseNameValue           (object, "engine"                    , debugOutputPrefixStr);
 				engineDamage               = JSON_Data.getIntegerValue(object, "engineDamage"              , debugOutputPrefixStr);
 				fuel                       = JSON_Data.getFloatValue  (object, "fuel"                      , debugOutputPrefixStr);
@@ -1004,8 +1010,11 @@ public class SaveGameData {
 						
 					empty:
 						constraints, controlConstrPosition, isPoweredEngaged, tmBodies
+					
+					unused:
+						emptyTruckAddonDesc
 				 */
-
+				
 				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 				checkEmptyArrayOrUnset(constraints          , debugOutputPrefixStr+".constraints"          );
 				checkEmptyArrayOrUnset(controlConstrPosition, debugOutputPrefixStr+".controlConstrPosition");
@@ -1015,6 +1024,7 @@ public class SaveGameData {
 				this.addons              = parseArray_Object      (addons             , debugOutputPrefixStr+".addons"             , InstalledAddon::new, new Vector<>());
 				this.customizationPreset = new CustomizationPreset(customizationPreset, debugOutputPrefixStr+".customizationPreset");
 				this.damageDecals        = parseArray_Float       (damageDecals       , debugOutputPrefixStr+".damageDecals"       );
+				this.emptyTruckAddonDesc = emptyTruckAddonDesc == null ? null : new InstalledAddon(emptyTruckAddonDesc, debugOutputPrefixStr+".emptyTruckAddonDesc");
 				this.retainedMap         = MapIndex.parse(retainedMapId);
 				this.wheelsDamage        = parseArray_Integer     (wheelsDamage       , debugOutputPrefixStr+".wheelsDamage"       );
 				this.wheelsSuspHeight    = parseArray_Float       (wheelsSuspHeight   , debugOutputPrefixStr+".wheelsSuspHeight"   );

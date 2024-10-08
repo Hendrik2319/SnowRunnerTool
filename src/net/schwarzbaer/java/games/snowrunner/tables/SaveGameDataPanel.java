@@ -538,6 +538,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrInvalid"  ,"<isInvalid>"                 ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isInvalid                 ),
 					new ColumnID("TrPacked"   ,"<isPacked>"                  ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isPacked                  ),
 					new ColumnID("TrUnlocked" ,"<isUnlocked>"                ,  Boolean.class,  80,   null,      null, false, row->((Row)row).truckDesc.isUnlocked                ),
+					new ColumnID("TrFreezed"  ,"<isFreezed>"                 ,  Boolean.class,  80,   null,      null, false, row->((Row)row).truckDesc.isFreezedByObjective      ),
 					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, row->((Row)row).truckDesc.needToInstallDefaultAddons),
 			});
 			data = null;
