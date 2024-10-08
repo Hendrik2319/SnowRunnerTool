@@ -1010,9 +1010,6 @@ public class SaveGameData {
 						
 					empty:
 						constraints, controlConstrPosition, isPoweredEngaged, tmBodies
-					
-					unused:
-						emptyTruckAddonDesc
 				 */
 				
 				KNOWN_JSON_VALUES.scanUnexpectedValues(object);

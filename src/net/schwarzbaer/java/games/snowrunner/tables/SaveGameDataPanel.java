@@ -720,9 +720,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			void setData(TruckDesc data)
 			{
 				if (data!=null)
-					installedAddonTableModel.setRowData(data.addons);
+					installedAddonTableModel.setRowData(data.addons, data.emptyTruckAddonDesc);
 				else
-					installedAddonTableModel.setRowData(null);
+					installedAddonTableModel.setRowData(null,null);
 				
 				ScrollPosition scrollPos = ScrollPosition.getVertical(textAreaScrollPane);
 				generateInfo(textArea, data);
@@ -731,13 +731,17 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		
 			private static class InstalledAddonTableModel extends ExtendedVerySimpleTableModelTAOS<InstalledAddon> implements SplitPaneConfigurator
 			{
+				private InstalledAddon emptyTruckAddonDesc = null;
+
 				InstalledAddonTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
-				{
+				{   // Column Widths: [75, 280, 90, 90, 55, 85, 75, 130, 130, 70, 55, 100, 110, 100, 80] in ModelOrder
 					super(mainWindow, gfds, new ColumnID[] {
+							new ColumnID("EmptyAddon" , "Empty Addon"      ,  Boolean.class,  75,   null, null, false, get((model,lang,row)->row==model.emptyTruckAddonDesc)),
+							
 							new ColumnID("Name"       , "Name"             ,  String .class, 280,   null, null, false, row->((InstalledAddon)row).name              ),
 							
-							new ColumnID("Fuel"       , "Fuel"             ,  Double .class,  50,   null, null, false, row->((InstalledAddon)row).fuel              ),
-							new ColumnID("Water"      , "Water"            ,  Double .class,  45,   null, null, false, row->((InstalledAddon)row).water             ),
+							new ColumnID("Fuel"       , "Fuel"             ,  Double .class,  90,   null, null, false, row->((InstalledAddon)row).fuel              ),
+							new ColumnID("Water"      , "Water"            ,  Double .class,  90,   null, null, false, row->((InstalledAddon)row).water             ),
 							new ColumnID("Repairs"    , "Repairs"          ,  Long   .class,  55, CENTER, null, false, row->((InstalledAddon)row).repairs           ),
 							new ColumnID("WheelReps"  , "WheelRepairs"     ,  Long   .class,  85, CENTER, null, false, row->((InstalledAddon)row).wheelRepairs      ),
 							
@@ -753,16 +757,39 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 							new ColumnID("ExtrParents", "Extra Parents"    ,  Integer.class,  80, CENTER, null, false, row->((InstalledAddon)row).extraParents.size()),
 					});
 				}
-			
+				
+				private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,InstalledAddonTableModel,InstalledAddon> getFunction)
+				{
+					return ColumnID.get(InstalledAddonTableModel.class, InstalledAddon.class, getFunction);
+				}
+
+				public void setRowData(Vector<InstalledAddon> addons, InstalledAddon emptyTruckAddonDesc)
+				{
+					this.emptyTruckAddonDesc = emptyTruckAddonDesc;
+					Vector<InstalledAddon> vector = null;
+					if (addons!=null || emptyTruckAddonDesc!=null) {
+						vector = new Vector<>();
+						if (emptyTruckAddonDesc!=null) vector.add   (emptyTruckAddonDesc);
+						if (addons             !=null) vector.addAll(addons             );
+					}
+					super.setRowData(vector);
+				}
+
 				@Override protected String getRowName(InstalledAddon row) { return row.name; }
 				@Override public boolean createSplitPane() { return true; }
 				@Override public Boolean putOutputInScrollPane() { return true; }
 				@Override public SplitOrientation getSplitOrientation() { return SplitOrientation.HORIZONTAL_SPLIT; }
 				@Override public boolean useLineWrap() { return false; }
-			
+				
 				@Override protected String getOutputTextForRow(int rowIndex, InstalledAddon row)
 				{
 					ValueListOutput out = new ValueListOutput();
+					
+					if (row==emptyTruckAddonDesc)
+					{
+						out.add(0, "Is \"Empty Truck Addon\"");
+						out.addEmptyLine();
+					}
 					
 					out.add(0, "Extra Parents", row.extraParents.size());
 					for (InstalledAddon.ExtraParent exp : row.extraParents)
