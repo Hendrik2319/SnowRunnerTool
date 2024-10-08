@@ -16,6 +16,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -848,6 +849,42 @@ public class Data {
 			.toList();
 		return EnumSet.copyOf(foundValues);
 	}
+
+	private static Map<String, GenericXmlNode> getGameRegionSubNodes(GenericXmlNode node)
+	{
+		if (node == null)
+			return null;
+		
+		Map<String,GenericXmlNode> regions = new HashMap<>();
+		node.nodes.forEachPair((name,subnode) -> {
+			if (subnode.nodeName.startsWith("region:"))
+				regions.put(
+						subnode.nodeName.substring("region:".length()),
+						subnode
+				);
+		});
+		
+		return regions;
+	}
+
+	private static <K,V> Map<K,V> parseMap(Map<K, GenericXmlNode> nodes, BiFunction<GenericXmlNode,String,V> createV, Function<K,String> getDebugOutputPrefix)
+	{
+		if (nodes == null)
+			return null;
+		
+		HashMap<K, V> result = new HashMap<>();
+		nodes.forEach((key,node) -> {
+			result.put(
+					key,
+					createV.apply(
+							node,
+							getDebugOutputPrefix==null ? null : getDebugOutputPrefix.apply(key)
+					)
+			);
+		});
+		
+		return result;
+	}
 	
 	public interface BooleanWithText
 	{
@@ -1253,6 +1290,7 @@ public class Data {
 		public final Integer unlockByRank;
 		public final String description_StringID;
 		public final String name_StringID;
+		public final Map<String, UiDesc> uiDescRegions;
 	
 		GameData(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 			//showAttrsAndSubNodes(gameDataNode, debugOutputPrefix, null);
@@ -1262,8 +1300,15 @@ public class Data {
 			unlockByRank        = parseInt (gameDataNode.attributes.get("UnlockByRank") );
 			
 			GenericXmlNode uiDescNode = gameDataNode.getNode("GameData", "UiDesc");
-			description_StringID = getAttribute(uiDescNode, "UiDesc");
-			name_StringID        = getAttribute(uiDescNode, "UiName");
+			uiDescRegions = parseMap(
+					getGameRegionSubNodes(uiDescNode),
+					UiDesc::new,
+					region->"%s<UiDesc><region:%s>".formatted(debugOutputPrefix,region)
+			);
+			
+			UiDesc uiDescDefault = uiDescRegions==null ? null : uiDescRegions.get("default");
+			description_StringID = uiDescDefault!=null ? uiDescDefault.description_StringID : getAttribute(uiDescNode, "UiDesc");
+			name_StringID        = uiDescDefault!=null ? uiDescDefault.name_StringID        : getAttribute(uiDescNode, "UiName");
 			//showAttrsAndSubNodes(uiDescNode, "[General]", "UiDesc");
 			//   [General] <GameData> <UiDesc ####="...">
 			//      UiDesc
@@ -1272,7 +1317,19 @@ public class Data {
 			//      UiIcon40x40
 			//      UiIconLogo
 			//      UiName
+			//<new> TruckImage 
 			
+		}
+		
+		public static class UiDesc {
+			
+			public final String description_StringID;
+			public final String name_StringID;
+			
+			UiDesc(GenericXmlNode uiDescNode, String debugOutputPrefix) {
+				description_StringID = getAttribute(uiDescNode, "UiDesc");
+				name_StringID        = getAttribute(uiDescNode, "UiName");
+			}
 		}
 		
 		@SuppressWarnings("unused")

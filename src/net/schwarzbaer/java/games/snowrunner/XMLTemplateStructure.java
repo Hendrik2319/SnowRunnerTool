@@ -1196,7 +1196,7 @@ class XMLTemplateStructure {
 					throw new IllegalArgumentException();
 				Vector<GenericXmlNode> nodes = new Vector<>();
 				getSubnodes(path,1,nodes);
-				return nodes.toArray(new GenericXmlNode[nodes.size()]);
+				return nodes.toArray(GenericXmlNode[]::new);
 			}
 	
 			private void getSubnodes(String[] path, int index, Vector<GenericXmlNode> nodes) {
