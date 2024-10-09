@@ -867,21 +867,13 @@ public class Data {
 		return regions;
 	}
 
-	private static <K,V> Map<K,V> parseMap(Map<K, GenericXmlNode> nodes, BiFunction<GenericXmlNode,String,V> createV, Function<K,String> getDebugOutputPrefix)
+	private static <K,V> Map<K,V> parseMap(Map<K, GenericXmlNode> nodes, BiFunction<K, GenericXmlNode,V> createV)
 	{
 		if (nodes == null)
 			return null;
 		
 		HashMap<K, V> result = new HashMap<>();
-		nodes.forEach((key,node) -> {
-			result.put(
-					key,
-					createV.apply(
-							node,
-							getDebugOutputPrefix==null ? null : getDebugOutputPrefix.apply(key)
-					)
-			);
-		});
+		nodes.forEach((key,node) -> result.put( key, createV.apply(key,node) ));
 		
 		return result;
 	}
@@ -1137,15 +1129,16 @@ public class Data {
 		}
 	}
 	
-	@SuppressWarnings("unused")
 	private static void scanNode(GenericXmlNode node, String prefix, String nodeName)
 	{
-		node.attributes.forEach((key,value)->{
-			unexpectedValues.add(String.format("%s <%s ####=\"...\">", prefix, nodeName), key);
-		});
-		node.nodes.keySet().forEach(key->{
-			unexpectedValues.add(String.format("%s <%s> <####>", prefix, nodeName), key);
-		});
+		if (node!=null) {
+			node.attributes.forEach((key,value)->{
+				unexpectedValues.add(String.format("%s <%s ####=\"...\">", prefix, nodeName), key);
+			});
+			node.nodes.keySet().forEach(key->{
+				unexpectedValues.add(String.format("%s <%s> <####>", prefix, nodeName), key);
+			});
+		}
 	}
 	
 	public static class EnumSetContainer<E extends Enum<E>>
@@ -1181,35 +1174,61 @@ public class Data {
 		}
 	}
 
+	public static class UiDesc {
+		/*
+	    <UiDesc ####="...">
+	      TruckImage
+	      UiDesc
+	      UiIcon100x100
+	      UiIcon20x20
+	      UiIcon30x30
+	      UiIcon328x458
+	      UiIcon40x40
+	      UiIconLogo
+	      UiName
+		 */
+		
+		public final String description_StringID;
+		public final String name_StringID;
+		public final String truckImage ;
+		public final String icon100x100;
+		public final String icon20x20  ;
+		public final String icon30x30  ;
+		public final String icon328x458;
+		public final String icon40x40  ;
+		public final String iconLogo   ;
+		
+		UiDesc(GenericXmlNode uiDescNode, String debugOutputPrefix, String nodeName) {
+			//scanNode(uiDescNode, debugOutputPrefix, nodeName);
+			//scanNode(uiDescNode, "[General]", "UiDesc");
+			
+			description_StringID = getAttribute(uiDescNode, "UiDesc");
+			name_StringID        = getAttribute(uiDescNode, "UiName");
+			
+			truckImage  = getAttribute(uiDescNode, "TruckImage"   );
+			icon100x100 = getAttribute(uiDescNode, "UiIcon100x100");
+			icon20x20   = getAttribute(uiDescNode, "UiIcon20x20"  );
+			icon30x30   = getAttribute(uiDescNode, "UiIcon30x30"  );
+			icon328x458 = getAttribute(uiDescNode, "UiIcon328x458");
+			icon40x40   = getAttribute(uiDescNode, "UiIcon40x40"  );
+			iconLogo    = getAttribute(uiDescNode, "UiIconLogo"   );
+		}
+	}
+
 	static class CargoType extends ItemBased implements HasNameAndID {
 	
-		final String description_StringID;
-		final String name_StringID;
-		final String icon100;
-		final String icon40;
-		final String icon20;
+		final UiDesc uiDesc;
 
 		public CargoType(Item item) {
 			super(item);
-			
-			//item.content.attributes.forEach((key,value)->{
-			//	unexpectedValues.add(String.format("Class[addons_category] <%s ####=\"...\">", item.content.nodeName), key);
-			//});
+			//scanNode(item.content, "[CargoType]", "CargoType");
 			
 			GenericXmlNode uiDescNode = item.content.getNode("CargoType", "UiDesc");
-			description_StringID = getAttribute(uiDescNode, "UiDesc");
-			name_StringID        = getAttribute(uiDescNode, "UiName");
-			icon100              = getAttribute(uiDescNode, "UiIcon100x100");
-			icon40               = getAttribute(uiDescNode, "UiIcon40x40");
-			icon20               = getAttribute(uiDescNode, "UiIcon20x20");
-			
-			//if (uiDescNode!=null)
-			//	uiDescNode.attributes.forEach((key,value)->{
-			//		unexpectedValues.add("Class[addons_category] <CargoType> <UiDesc ####=\"...\">", key);
-			//	});
+			uiDesc = new UiDesc(uiDescNode, "[CargoType] <CargoType>", "UiDesc");
 		}
 
-		@Override public String getName_StringID() { return name_StringID; }
+		public String getDescription_StringID() { return uiDesc==null ? null : uiDesc.description_StringID; }
+		@Override public String getName_StringID() { return uiDesc==null ? null : uiDesc.name_StringID; }
 		@Override public String getID() { return id; }
 	}
 
@@ -1288,10 +1307,9 @@ public class Data {
 		public final Integer price;
 		public final Boolean unlockByExploration;
 		public final Integer unlockByRank;
-		public final String description_StringID;
-		public final String name_StringID;
+		public final UiDesc uiDesc;
 		public final Map<String, UiDesc> uiDescRegions;
-	
+		
 		GameData(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 			//showAttrsAndSubNodes(gameDataNode, debugOutputPrefix, null);
 			
@@ -1302,36 +1320,24 @@ public class Data {
 			GenericXmlNode uiDescNode = gameDataNode.getNode("GameData", "UiDesc");
 			uiDescRegions = parseMap(
 					getGameRegionSubNodes(uiDescNode),
-					UiDesc::new,
-					region->"%s<UiDesc><region:%s>".formatted(debugOutputPrefix,region)
+					(region,node) -> new UiDesc(node, debugOutputPrefix+" <GameData>", "UiDesc> <region:"+region)
 			);
 			
-			UiDesc uiDescDefault = uiDescRegions==null ? null : uiDescRegions.get("default");
-			description_StringID = uiDescDefault!=null ? uiDescDefault.description_StringID : getAttribute(uiDescNode, "UiDesc");
-			name_StringID        = uiDescDefault!=null ? uiDescDefault.name_StringID        : getAttribute(uiDescNode, "UiName");
-			//showAttrsAndSubNodes(uiDescNode, "[General]", "UiDesc");
-			//   [General] <GameData> <UiDesc ####="...">
-			//      UiDesc
-			//      UiIcon30x30
-			//      UiIcon328x458
-			//      UiIcon40x40
-			//      UiIconLogo
-			//      UiName
-			//<new> TruckImage 
-			
+			uiDesc = uiDescRegions==null || uiDescRegions.isEmpty()
+					? new UiDesc(uiDescNode, debugOutputPrefix+" <GameData>", "UiDesc")
+					: uiDescRegions.get("default");
 		}
 		
-		public static class UiDesc {
-			
-			public final String description_StringID;
-			public final String name_StringID;
-			
-			UiDesc(GenericXmlNode uiDescNode, String debugOutputPrefix) {
-				description_StringID = getAttribute(uiDescNode, "UiDesc");
-				name_StringID        = getAttribute(uiDescNode, "UiName");
-			}
+		public String getDescriptionStringID()
+		{
+			return uiDesc==null ? null : uiDesc.description_StringID;
 		}
-		
+
+		public String getNameStringID()
+		{
+			return uiDesc==null ? null : uiDesc.name_StringID;
+		}
+
 		@SuppressWarnings("unused")
 		private static void showAttr(String debugOutputPrefix, String nodeName, String attrName, String value) {
 			if (value==null) return;
@@ -1339,14 +1345,7 @@ public class Data {
 		}
 
 		private static void showAttrsAndSubNodes(GenericXmlNode node, String debugOutputPrefix, String nodeName) {
-			if (node!=null) {
-				node.attributes.forEach((key,value)->{
-					unexpectedValues.add(debugOutputPrefix+" <GameData"+(nodeName==null ? "" : "> <"+nodeName)+" ####=\"...\">", key);
-				});
-				node.nodes.keySet().forEach(key->{
-					unexpectedValues.add(debugOutputPrefix+" <GameData"+(nodeName==null ? "" : "> <"+nodeName)+"> <####>", key);
-				});
-			}
+			scanNode(node, debugOutputPrefix, "GameData"+(nodeName==null ? "" : "> <"+nodeName));
 		}
 		
 		@SuppressWarnings("unused")
@@ -1636,11 +1635,11 @@ public class Data {
 				cargoType           =            getAttribute(installSlotNode, "CargoType"  );
 				cargoValue_obsolete = parseInt ( getAttribute(installSlotNode, "CargoValue" ) );
 				CargoType ct = null;
-				if (cargoType!=null && name_StringID==null)
+				if (cargoType!=null)
 					ct = cargoTypes.get(cargoType);
 				if (ct!=null) {
-					cargoName_StringID = ct.name_StringID;
-					cargoDescription_StringID = ct.description_StringID;
+					cargoName_StringID = ct.getName_StringID();
+					cargoDescription_StringID = ct.getDescription_StringID();
 				} else {
 					cargoName_StringID = null;
 					cargoDescription_StringID = null;
@@ -1786,7 +1785,7 @@ public class Data {
 			gameData = new GameData(gameDataNode,"[TruckComponent] <"+instanceNodeName+">");
 		}
 
-		@Override public String getName_StringID() { return gameData.name_StringID; }
+		@Override public String getName_StringID() { return gameData.getNameStringID(); }
 		@Override public String getID() { return id; }
 
 		void addUsingTruck(Truck truck) {
@@ -2057,8 +2056,8 @@ public class Data {
 			out.add(indentLevel, "Price"                , gameData.price);
 			out.add(indentLevel, "Unlock By Exploration", gameData.unlockByExploration);
 			out.add(indentLevel, "Unlock By Rank"       , gameData.unlockByRank);
-			out.add(indentLevel, "Name"       , "<%s>", gameData.name_StringID);
-			out.add(indentLevel, "Description", "<%s>", gameData.description_StringID);
+			out.add(indentLevel, "Name"       , "<%s>", gameData.getNameStringID());
+			out.add(indentLevel, "Description", "<%s>", gameData.getDescriptionStringID());
 		}
 	
 	}
@@ -2282,7 +2281,7 @@ public class Data {
 			return null;
 		}
 
-		@Override public String getName_StringID() { return gameData.name_StringID; }
+		@Override public String getName_StringID() { return gameData.getNameStringID(); }
 		@Override public String getID() { return id; }
 		
 		public static class UDV {
@@ -2588,7 +2587,7 @@ public class Data {
 			gameData = new GameData.GameDataTrailer(gameDataNode, "Class[trucks] <Truck Type=\"Trailer\">");
 		}
 
-		@Override public String getName_StringID() { return gameData.name_StringID; }
+		@Override public String getName_StringID() { return gameData.getNameStringID(); }
 		@Override public String getID() { return id; }
 		@Override public GameData.GameDataT3NonTruck getGameData() { return gameData; }
 	}
@@ -2637,7 +2636,7 @@ public class Data {
 			
 		}
 
-		@Override public String getName_StringID() { return gameData.name_StringID!=null ? gameData.name_StringID : gameData.cargoName_StringID; }
+		@Override public String getName_StringID() { return SnowRunner.getFirstNonNull( gameData.getNameStringID(), gameData.cargoName_StringID ); }
 		@Override public String getID() { return id; }
 		@Override public GameData.GameDataT3NonTruck getGameData() { return gameData; }
 

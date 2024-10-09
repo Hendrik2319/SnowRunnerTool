@@ -608,7 +608,7 @@ public class SnowRunner {
 		return array;
 	}
 
-	public static String selectNonNull(String... strings) {
+	public static String getFirstNonNull(String... strings) {
 		for (String str : strings)
 			if (str!=null)
 				return str;
@@ -787,11 +787,11 @@ public class SnowRunner {
 			
 			if (truckAddons!=null && name_StringID==null) {
 				TruckAddon truckAddon = truckAddons.get(id);
-				if (truckAddon != null) name_StringID = truckAddon.gameData.name_StringID;
+				if (truckAddon != null) name_StringID = truckAddon.gameData.getNameStringID();
 			}
 			if (trailers!=null && name_StringID==null) {
 				Trailer trailer = trailers.get(id);
-				if (trailer != null) name_StringID = trailer.gameData.name_StringID;
+				if (trailer != null) name_StringID = trailer.gameData.getNameStringID();
 			}
 			
 			return name_StringID;

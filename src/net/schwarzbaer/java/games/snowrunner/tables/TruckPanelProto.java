@@ -193,7 +193,7 @@ public class TruckPanelProto implements Finalizable {
 
 	public void setTruck(Truck truck, Data data) {
 		this.truck = truck;
-		compatibleWheelsPanel .setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : truck.id, truck==null ? null : truck.gameData.name_StringID);
+		compatibleWheelsPanel .setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : truck.id, truck==null ? null : truck.gameData.getNameStringID());
 		addonSocketsPanel     .setData(truck==null ? null : truck.addonSockets);
 		addonSocketGroupsPanel.setData(truck==null ? null : truck.addonSockets);
 		addonCategoriesPanel  .setData(truck, data);
@@ -246,16 +246,16 @@ public class TruckPanelProto implements Finalizable {
 		String name = null;
 		String description = null;
 		if (language!=null) {
-			name        = language.get(truck.gameData.name_StringID);
-			description = language.get(truck.gameData.description_StringID);
+			name        = language.get(truck.gameData.getNameStringID());
+			description = language.get(truck.gameData.getDescriptionStringID());
 		}
-		outTop.add(0, "Name", "<%s>", truck.gameData.name_StringID);
+		outTop.add(0, "Name", "<%s>", truck.gameData.getNameStringID());
 		if (name!=null)
 			outTop.add(0, null, name);
 		
 		outTop.add(0, "");
 		
-		outTop.add(0, "Description", "<%s>", truck.gameData.description_StringID);
+		outTop.add(0, "Description", "<%s>", truck.gameData.getDescriptionStringID());
 		if (description != null)
 			outTop.add(0, null, description);
 		
@@ -842,7 +842,7 @@ public class TruckPanelProto implements Finalizable {
 			if (selectedWheel != null) {
 				//singleWheelInfoTextArea.append(selectedWheel.tire.tireType_StringID+"\r\n");
 				//singleWheelInfoTextArea.append("Description:\r\n");
-				String description = SnowRunner.solveStringID(selectedWheel.tire.gameData.description_StringID, language);
+				String description = SnowRunner.solveStringID(selectedWheel.tire.gameData.getDescriptionStringID(), language);
 				textArea.append(description+"\r\n");
 			}
 		}
@@ -872,7 +872,7 @@ public class TruckPanelProto implements Finalizable {
 						new ColumnID( "WheelsDefID"        , "WheelsDef"            , String                          .class, 140,   null,    null, false, get(row -> row.wheelsDefID                )),
 						new ColumnID( "TireDef"            , "TireDef"              , String                          .class, 110,   null,    null, false, get(row -> row.tire.tireDefID)),
 						new ColumnID( "Type"               , "Type"                 , String                          .class,  80,   null,    null,  true, get(row -> row.tire.tireType_StringID     )),
-						new ColumnID( "Name"               , "Name"                 , String                          .class, 130,   null,    null,  true, get(row -> row.tire.gameData.name_StringID)),
+						new ColumnID( "Name"               , "Name"                 , String                          .class, 130,   null,    null,  true, get(row -> row.tire.gameData.getNameStringID())),
 						new ColumnID( "UpdateLevel"        , "Update Level"         , String                          .class,  80,   null,    null, false, get(row -> row.updateLevel                )),
 						new ColumnID( "Scale"              , "Scale"                , Float                           .class,  50,   null, "%1.4f", false, get(row -> row.scale                      )),
 						new ColumnID( "Size"               , "Size"                 , Integer                         .class,  50, CENTER,  "%d\"", false, get(row -> row.getSize()                  )),
@@ -886,7 +886,7 @@ public class TruckPanelProto implements Finalizable {
 						new ColumnID( "Price"              , "Price"                , Integer                         .class,  50,   null, "%d Cr", false, get(row -> row.tire.gameData.price               )),
 						new ColumnID( "UnlockByExploration", "Unlock By Exploration", Boolean                         .class, 120,   null,    null, false, get(row -> row.tire.gameData.unlockByExploration )),
 						new ColumnID( "UnlockByRank"       , "Unlock By Rank"       , Integer                         .class, 100, CENTER,    null, false, get(row -> row.tire.gameData.unlockByRank        )),
-						new ColumnID( "Description"        , "Description"          , String                          .class, 200,   null,    null,  true, get(row -> row.tire.gameData.description_StringID)),
+						new ColumnID( "Description"        , "Description"          , String                          .class, 200,   null,    null,  true, get(row -> row.tire.gameData.getDescriptionStringID())),
 				});
 				this.displayedTruck = displayedTruck;
 				truckId = null;
@@ -992,7 +992,7 @@ public class TruckPanelProto implements Finalizable {
 			@Override
 			protected String getRowName(RowItem row)
 			{
-				return row==null ? null : SnowRunner.solveStringID(row.tire.gameData.name_StringID, language);
+				return row==null ? null : SnowRunner.solveStringID(row.tire.gameData.getNameStringID(), language);
 			}
 			
 			void setData(CompatibleWheel[] compatibleWheels, String truckId) {
@@ -1012,7 +1012,7 @@ public class TruckPanelProto implements Finalizable {
 					Comparator<RowItem> comparator = Comparator
 							.<RowItem,String>comparing(cw->cw.tire.tireType_StringID,typeComparator)
 							.thenComparing(cw->cw.scale,floatNullsLast)
-							.thenComparing(cw->cw.tire.gameData.name_StringID,stringNullsLast);
+							.thenComparing(cw->cw.tire.gameData.getNameStringID(),stringNullsLast);
 					data.sort(comparator);
 				}
 				setRowData(data);
@@ -1497,7 +1497,7 @@ public class TruckPanelProto implements Finalizable {
 				}
 				
 				void add(CompatibleWheelsPanel.CWTableModel.RowItem wheel, Language language) {
-					String name = SnowRunner.solveStringID(wheel.tire.gameData.name_StringID, language);
+					String name = SnowRunner.solveStringID(wheel.tire.gameData.getNameStringID(), language);
 					Integer size = wheel.getSize();
 					
 					HashSet<Integer> sizes = wheels.get(name);

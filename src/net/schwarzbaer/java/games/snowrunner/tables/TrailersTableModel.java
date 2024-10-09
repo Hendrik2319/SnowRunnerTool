@@ -41,7 +41,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 	public TrailersTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData) {
 		super(mainWindow, gfds, new ColumnID[] {
 				new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
-				new ColumnID("Name"     ,"Name"                 ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.name_StringID), 
+				new ColumnID("Name"     ,"Name"                 ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.getNameStringID()), 
 				new ColumnID("UpdateLvl","Update Level"         ,  String.class,  80,   null,      null, false, row->((Trailer)row).updateLevel),
 				new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 				new ColumnID("InstallSk","Install Socket"       ,  String.class, 130,   null,      null, false, row->((Trailer)row).gameData.installSocket),
@@ -58,7 +58,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 				new ColumnID("Unlocked" ,"Unlocked"             , Boolean.class,  60,   null,      null, false, get((model, lang, row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
 				new ColumnID("AttachTyp","Attach Type"          ,  String.class,  70,   null,      null, false, row->((Trailer)row).attachType),
 				new ColumnID("AddonType","Addon Type"           ,  String.class,  70,   null,      null, false, row->((Trailer)row).gameData.addonType),
-				new ColumnID("Desc"     ,"Description"          ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.description_StringID), 
+				new ColumnID("Desc"     ,"Description"          ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.getDescriptionStringID()), 
 				new ColumnID("ExclCargo","Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((Trailer)row).gameData.excludedCargoTypes,true)),
 				new ColumnID("RequAddon","Required Addons"      ,  String.class, 150,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Trailer)row).gameData.requiredAddons)),
 				new ColumnID("LoadAreas","Load Areas"           ,  String.class, 200,   null,      null, false, row->Data.GameData.GameDataT3NonTruck.LoadArea.toString(((Trailer)row).gameData.loadAreas)),
@@ -143,7 +143,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, Trailer row) {
 		TruckAddonsTableModel.generateText(
 				doc,
-				row.gameData.description_StringID,
+				row.gameData.getDescriptionStringID(),
 				row.gameData, row.usableBy,
 				language,
 				truckAddons, trailers, truck,

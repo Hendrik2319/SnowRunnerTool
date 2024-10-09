@@ -54,7 +54,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				new ColumnID("ID"       ,"ID"                      ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
 				new ColumnID("UpdateLvl", "Update Level"           ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).updateLevel),
 				new ColumnID("Category" ,"Category"                ,  String.class, 150,   null,      null, false, row->((TruckAddon)row).gameData.category),
-				new ColumnID("Name"     ,"Name"                    ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.gameData.name_StringID!=null ? row.gameData.name_StringID : row.gameData.cargoName_StringID; }), 
+				new ColumnID("Name"     ,"Name"                    ,  String.class, 200,   null,      null,  true, row->((TruckAddon)row).getName_StringID()), 
 				new ColumnID("Owned"    ,"Owned"                   ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 				new ColumnID("InstallSk","Install Socket"          ,  String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.installSocket),
 				new ColumnID("Original" ,"Original Addon"          ,  String.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.originalAddon),
@@ -70,7 +70,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				new ColumnID("UnlExpl"  ,"Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.unlockByExploration), 
 				new ColumnID("UnlRank"  ,"Unlock By Rank"          , Integer.class, 100, CENTER, "Rank %d", false, row->((TruckAddon)row).gameData.unlockByRank), 
 				new ColumnID("Unlocked" ,"Unlocked"                , Boolean.class,  60,   null,      null, false, get((model, lang, row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
-				new ColumnID("Desc"     ,"Description"             ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return row.gameData.description_StringID!=null ? row.gameData.description_StringID : row.gameData.cargoDescription_StringID; }), 
+				new ColumnID("Desc"     ,"Description"             ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return SnowRunner.getFirstNonNull( row.gameData.getDescriptionStringID(), row.gameData.cargoDescription_StringID ); }), 
 				new ColumnID("ExclCargo","Excluded Cargo Types"    ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((TruckAddon)row).gameData.excludedCargoTypes,true)),
 				new ColumnID("RequAddon","Required Addons"         ,  String.class, 200,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((TruckAddon)row).gameData.requiredAddons)),
 		//		new ColumnID("GaragePts","Garage Points (obs?)"    , Integer.class, 120, CENTER,      null, false, row->((TruckAddon)row).gameData.garagePoints_obsolete),
@@ -328,7 +328,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, TruckAddon row) {
 		generateText(
 				doc,
-				SnowRunner.selectNonNull( row.gameData.description_StringID, row.gameData.cargoDescription_StringID ),
+				SnowRunner.getFirstNonNull( row.gameData.getDescriptionStringID(), row.gameData.cargoDescription_StringID ),
 				row.gameData, row.usableBy,
 				language,
 				truckAddons, trailers, truck,
