@@ -28,7 +28,7 @@ import net.schwarzbaer.java.lib.jsonparser.JSON_Parser.ParseException;
 public class SaveGameData {
 	
 	private static final String packagePrefix = "net.schwarzbaer.java.games.snowrunner.";
-	private static final List<String> DEFAULT_FILES = Arrays.asList( "CommonSslSave.cfg", "CompleteSave.cfg", "user_profile.cfg", "user_settings.cfg", "user_social_data.cfg" );
+	private static final List<String> DEFAULT_FILES = Arrays.asList( "CommonSslSave.cfg", "CompleteSave.cfg", "user_profile.cfg", "user_settings.cfg", "user_social_data.cfg", "GameVersionSave.cfg", "video.cfg" );
 	private static final String SAVEGAME_PREFIX = "CompleteSave";
 	private static final String SAVEGAME_SUFFIX = ".cfg";
 	
