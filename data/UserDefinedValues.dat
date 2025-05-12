@@ -239,6 +239,11 @@ AWD=Able
 DiffLock=Installed
 
 [Truck]
+id=zikz_605r
+AWD=Permanent
+DiffLock=Permanent
+
+[Truck]
 id=zikz_612h_mastodont
 AWD=Permanent
 DiffLock=Permanent

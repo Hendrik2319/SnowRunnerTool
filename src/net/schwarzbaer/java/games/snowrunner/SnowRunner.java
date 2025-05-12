@@ -968,7 +968,8 @@ public class SnowRunner {
 								isFirst = false;
 								doc.append(StyledDocumentInterface.Style.BOLD,"Is Shifted");
 								doc.append(operatorColor, "%n%sby offset ", indent);
-								doc.append(as.offset());
+								String offset = as.offset();
+								doc.append(offset==null ? "<NULL>" : offset);
 								writeIdCombi(doc, operatorColor, indent, as.types(), "and", null);
 							}
 						}
