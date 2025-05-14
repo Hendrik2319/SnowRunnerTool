@@ -45,6 +45,11 @@ truck = jeep_cj7_renegade
 truck = jeep_wrangler
 
 [DLC]
+name = Kenworth Dual Pack
+truck = kenworth_c500
+truck = kenworth_t880
+
+[DLC]
 name = Kenworth W990
 truck = kenworth_w990
 
@@ -52,6 +57,11 @@ truck = kenworth_w990
 name = Land Rover Dual Pack
 truck = land_rover_defender_110
 truck = land_rover_defender_90
+
+[DLC]
+name = Mack Dual Pack
+truck = mack_pinnacle
+truck = mack_terra_pro
 
 [DLC]
 name = Navistar 5000-MV Tractor
@@ -69,21 +79,34 @@ truck = rezvani_tank
 name = Season 10: Fix & Connect
 truck = kenworth_963
 truck = mack_defense_m917
+region = us_10
+map = level_us_10_01
+map = level_us_10_02
 
 [DLC]
 name = Season 11: Lights & Cameras
 truck = burlak_6x6
 truck = neo_falcon_2000
+region = us_11
+map = level_us_11_01
+map = level_us_11_02
 
 [DLC]
 name = Season 12: Public Energy
 truck = femm_37at
 truck = mtb_8106
+region = us_12
+map = level_us_12_01
+map = level_us_12_02
+map = level_us_12_03
+map = level_us_12_04
 
 [DLC]
 name = Season 13: Dig & Drill
 truck = aac_58dw
 truck = plad_450
+region = ru_13
+map = level_ru_13_01
 
 [DLC]
 name = Season 14: Reap & Sow
@@ -91,6 +114,17 @@ truck = ankatra_1160
 truck = earthroamer_lti
 truck = earthroamer_sx
 truck = futom_7290ra
+region = us_14
+map = level_us_14_01
+map = level_us_14_02
+
+[DLC]
+name = Season 15: Oil & Dirt
+truck = mercer_k520
+truck = sleiter_mfk816
+region = us_15
+map = level_us_15_01
+map = level_us_15_02
 
 [DLC]
 name = Season 1: Search & Recover
