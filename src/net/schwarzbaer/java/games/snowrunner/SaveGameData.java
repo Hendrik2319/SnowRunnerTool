@@ -638,6 +638,36 @@ public class SaveGameData {
 			public boolean isZero() { return x==0.0 && y==0.0 && z==0.0; }
 		}
 
+		public static class TintColor
+		{
+			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(TintColor.class)
+					.add("a", JSON_Data.Value.Type.Float)
+					.add("r", JSON_Data.Value.Type.Float)
+					.add("g", JSON_Data.Value.Type.Float)
+					.add("b", JSON_Data.Value.Type.Float);
+			/*
+			Block "[SaveGameData.SaveGame.TruckDesc.CustomizationPreset].tintsColors[]" [4]
+			    a:Float
+			    b:Float
+			    g:Float
+			    r:Float
+			 */
+			public final double a;
+			public final double r;
+			public final double g;
+			public final double b;
+			
+			public TintColor(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+			{
+				//scanJSON(object, this);
+				a = JSON_Data.getFloatValue(object, "a", debugOutputPrefixStr);
+				r = JSON_Data.getFloatValue(object, "r", debugOutputPrefixStr);
+				g = JSON_Data.getFloatValue(object, "g", debugOutputPrefixStr);
+				b = JSON_Data.getFloatValue(object, "b", debugOutputPrefixStr);
+				KNOWN_JSON_VALUES.scanUnexpectedValues(object);
+			}
+		}
+
 		public class GameStat
 		{
 			private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(GameStat.class)
@@ -729,6 +759,7 @@ public class SaveGameData {
 					.add("refundTruckDescs"        , JSON_Data.Value.Type.Object ) // empty object
 					.add("unlockedItemNames"       , JSON_Data.Value.Type.Object )
 					.add("userId"                  , JSON_Data.Value.Type.Object ) // empty object
+					.add("customColors"            , JSON_Data.Value.Type.Object )
 					;
 			
 			public final long experience;
@@ -740,11 +771,12 @@ public class SaveGameData {
 			public final Vector<TruckDesc> trucksInWarehouse;
 			public final Vector<String> dlcNotes;
 			public final HashMap<String, Boolean> unlockedItemNames;
+			public final HashMap<String, TruckDesc.CustomizationPreset> customColors;
 			
 			private PersistentProfileData(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 			{
 				JSON_Object<NV, V> ownedTrucks, contestAttempts, contestLastTimes, contestTimes, addons, damagableAddons,
-					discoveredTrucks, discoveredUpgrades, distance, refundTruckDescs, unlockedItemNames, userId;
+					discoveredTrucks, discoveredUpgrades, distance, refundTruckDescs, unlockedItemNames, userId, customColors;
 				JSON_Array<NV, V> dlcNotes, knownRegions, newTrucks, refundGarageTruckDescs, trucksInWarehouse;
 				experience                = JSON_Data.getIntegerValue(object, "experience"              , debugOutputPrefixStr);
 				money                     = JSON_Data.getIntegerValue(object, "money"                   , debugOutputPrefixStr);
@@ -770,6 +802,8 @@ public class SaveGameData {
 				refundTruckDescs          = JSON_Data.getObjectValue (object, "refundTruckDescs"        , debugOutputPrefixStr);
 				unlockedItemNames         = JSON_Data.getObjectValue (object, "unlockedItemNames"       , debugOutputPrefixStr);
 				userId                    = JSON_Data.getObjectValue (object, "userId"                  , debugOutputPrefixStr);
+				
+				customColors              = JSON_Data.getObjectValue (object, "customColors"            , true, false, debugOutputPrefixStr);
 				/*
 					unparsed:
 						
@@ -793,6 +827,16 @@ public class SaveGameData {
 					boolean boolValue = JSON_Data.getBoolValue(value, localPrefixStr);
 					this.unlockedItemNames.put(name, boolValue);
 				});
+				
+				this.customColors = new HashMap<>();
+				if (customColors!=null)
+					parseObject(customColors, debugOutputPrefixStr+".customColors", (value, colorName, local_debugOutputPrefixStr) -> {
+						JSON_Object<NV, V> colorObject = JSON_Data.getObjectValue(value, local_debugOutputPrefixStr);
+						if (this.customColors.containsKey(colorName))
+							System.err.printf("[CustomColor] Found more than one CustomColor with same name (\"%s\") in list: %s%n", colorName, local_debugOutputPrefixStr);
+						else
+							this.customColors.put(colorName, new TruckDesc.CustomizationPreset(colorObject, local_debugOutputPrefixStr));
+					});
 				
 				TruckInfos .parseOwnedTrucks       (SaveGame.this.trucks    , ownedTrucks       , debugOutputPrefixStr+".ownedTrucks"       );
 				TruckInfos .parseNewTrucks         (SaveGame.this.trucks    , newTrucks         , debugOutputPrefixStr+".newTrucks"         );
@@ -1040,12 +1084,14 @@ public class SaveGameData {
 						.add("overrideMaterialName", JSON_Data.Value.Type.String )
 						.add("tintsColors"         , JSON_Data.Value.Type.Array  )
 						.add("uiName"              , JSON_Data.Value.Type.String )
+						.add("materialColorType"   , JSON_Data.Value.Type.Integer)
 						;
 				public final long id;
 				public final boolean isSpecialSkin;
 				public final String overrideMaterialName;
 				public final String uiName;
-				public final Vector<Tint> colors;
+				public final Vector<TintColor> colors;
+				public final Long materialColorType;
 				/*
 				    Block "[SaveGameData.SaveGame.TruckDesc.CustomizationPreset]" [6]
 				        gameDataXmlNode      : Null
@@ -1056,6 +1102,7 @@ public class SaveGameData {
 				        uiName               : String
 				        tintsColors[]:Object -> Tint
 				        
+				        materialColorType:Integer
 				 */
 				public CustomizationPreset(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 				{
@@ -1070,9 +1117,10 @@ public class SaveGameData {
 					overrideMaterialName = JSON_Data.getStringValue (object, "overrideMaterialName", debugOutputPrefixStr);
 					tintsColors          = JSON_Data.getArrayValue  (object, "tintsColors"         , debugOutputPrefixStr);
 					uiName               = JSON_Data.getStringValue (object, "uiName"              , debugOutputPrefixStr);
+					materialColorType    = JSON_Data.getIntegerValue(object, "materialColorType"   , true, false, debugOutputPrefixStr);
 					KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 					
-					colors = parseArray_Object(tintsColors, debugOutputPrefixStr, Tint::new, new Vector<>());
+					colors = parseArray_Object(tintsColors, debugOutputPrefixStr, TintColor::new, new Vector<>());
 				}
 				
 				public Color[] toColorArray()
@@ -1082,7 +1130,7 @@ public class SaveGameData {
 					Color[] colorArr = new Color[colors.size()];
 					for (int i=0; i<colors.size(); i++)
 					{
-						TruckDesc.CustomizationPreset.Tint t = colors.get(i);
+						TintColor t = colors.get(i);
 						colorArr[i] = new Color(
 								(int) Math.round(t.r),
 								(int) Math.round(t.g),
@@ -1091,36 +1139,6 @@ public class SaveGameData {
 					}
 					
 					return colorArr;
-				}
-
-				public static class Tint
-				{
-					private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(Tint.class)
-							.add("a", JSON_Data.Value.Type.Float)
-							.add("r", JSON_Data.Value.Type.Float)
-							.add("g", JSON_Data.Value.Type.Float)
-							.add("b", JSON_Data.Value.Type.Float);
-					/*
-					Block "[SaveGameData.SaveGame.TruckDesc.CustomizationPreset].tintsColors[]" [4]
-					    a:Float
-					    b:Float
-					    g:Float
-					    r:Float
-					 */
-					public final double a;
-					public final double r;
-					public final double g;
-					public final double b;
-					
-					public Tint(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
-					{
-						//scanJSON(object, this);
-						a = JSON_Data.getFloatValue(object, "a", debugOutputPrefixStr);
-						r = JSON_Data.getFloatValue(object, "r", debugOutputPrefixStr);
-						g = JSON_Data.getFloatValue(object, "g", debugOutputPrefixStr);
-						b = JSON_Data.getFloatValue(object, "b", debugOutputPrefixStr);
-						KNOWN_JSON_VALUES.scanUnexpectedValues(object);
-					}
 				}
 			}
 			
@@ -2101,14 +2119,17 @@ public class SaveGameData {
 					public static class CargoDeliveryAction
 					{
 						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(CargoDeliveryAction.class)
-								.add("cargoState"        , JSON_Data.Value.Type.Object )
-								.add("isNeedVisitOnTruck", JSON_Data.Value.Type.Bool   )
-								.add("map"               , JSON_Data.Value.Type.String )
-								.add("modelBuildingTag"  , JSON_Data.Value.Type.String )
-								.add("platformId"        , JSON_Data.Value.Type.String )
-								.add("truckUid"          , JSON_Data.Value.Type.String )
-								.add("unloadingMode"     , JSON_Data.Value.Type.Integer)
-								.add("zones"             , JSON_Data.Value.Type.Array  )
+								.add("cargoState"            , JSON_Data.Value.Type.Object )
+								.add("isNeedVisitOnTruck"    , JSON_Data.Value.Type.Bool   )
+								.add("isVisibleWithPlatform" , JSON_Data.Value.Type.Bool   )
+								.add("map"                   , JSON_Data.Value.Type.String )
+								.add("modelBuildingTag"      , JSON_Data.Value.Type.String )
+								.add("platformId"            , JSON_Data.Value.Type.String )
+								.add("platformColorOverride" , JSON_Data.Value.Type.Null   )
+								.add("platformColorOverride" , JSON_Data.Value.Type.Object )
+								.add("truckUid"              , JSON_Data.Value.Type.String )
+								.add("unloadingMode"         , JSON_Data.Value.Type.Integer)
+								.add("zones"                 , JSON_Data.Value.Type.Array  )
 								;
 						/*
 						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction]" [8]
@@ -2122,12 +2143,18 @@ public class SaveGameData {
 						        zones             :Array
 						        
 						        zones[]:String
+						        
+								isVisibleWithPlatform:Bool
+								platformColorOverride:Null
+								platformColorOverride:Object
 						 */
 						public final CargoState cargoState;
 						public final boolean isNeedVisitOnTruck;
+						public final Boolean isVisibleWithPlatform;
 						public final String map;
 						public final String modelBuildingTag;
 						public final String platformId;
+						public final TintColor platformColorOverride;
 						public final String truckUid;
 						public final long unloadingMode;
 						public final Vector<String> zones;
@@ -2135,20 +2162,23 @@ public class SaveGameData {
 						private CargoDeliveryAction(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 						{
 							//scanJSON(object, this);
-							JSON_Object<NV, V> cargoState;
+							JSON_Object<NV, V> cargoState, platformColorOverride;
 							JSON_Array<NV, V> zones;
-							cargoState         = JSON_Data.getObjectValue (object, "cargoState"        , debugOutputPrefixStr);
-							isNeedVisitOnTruck = JSON_Data.getBoolValue   (object, "isNeedVisitOnTruck", debugOutputPrefixStr);
-							map                = JSON_Data.getStringValue (object, "map"               , debugOutputPrefixStr);
-							modelBuildingTag   = JSON_Data.getStringValue (object, "modelBuildingTag"  , debugOutputPrefixStr);
-							platformId         = JSON_Data.getStringValue (object, "platformId"        , debugOutputPrefixStr);
-							truckUid           = JSON_Data.getStringValue (object, "truckUid"          , debugOutputPrefixStr);
-							unloadingMode      = JSON_Data.getIntegerValue(object, "unloadingMode"     , debugOutputPrefixStr);
-							zones              = JSON_Data.getArrayValue  (object, "zones"             , debugOutputPrefixStr);
+							cargoState            = JSON_Data.getObjectValue (object, "cargoState"           , debugOutputPrefixStr);
+							isNeedVisitOnTruck    = JSON_Data.getBoolValue   (object, "isNeedVisitOnTruck"   , debugOutputPrefixStr);
+							isVisibleWithPlatform = JSON_Data.getBoolValue   (object, "isVisibleWithPlatform", true, false, debugOutputPrefixStr);
+							map                   = JSON_Data.getStringValue (object, "map"                  , debugOutputPrefixStr);
+							modelBuildingTag      = JSON_Data.getStringValue (object, "modelBuildingTag"     , debugOutputPrefixStr);
+							platformId            = JSON_Data.getStringValue (object, "platformId"           , debugOutputPrefixStr);
+							platformColorOverride = JSON_Data.getObjectValue (object, "platformColorOverride", true, true, debugOutputPrefixStr);
+							truckUid              = JSON_Data.getStringValue (object, "truckUid"             , debugOutputPrefixStr);
+							unloadingMode         = JSON_Data.getIntegerValue(object, "unloadingMode"        , debugOutputPrefixStr);
+							zones                 = JSON_Data.getArrayValue  (object, "zones"                , debugOutputPrefixStr);
 							KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 							
 							this.cargoState = new CargoState   (cargoState, debugOutputPrefixStr+".cargoState");
 							this.zones      = parseArray_String(zones     , debugOutputPrefixStr+".zones", new Vector<>());
+							this.platformColorOverride = platformColorOverride==null ? null : new TintColor(platformColorOverride, debugOutputPrefixStr+".platformColorOverride");
 						}
 						
 						public static class CargoState
