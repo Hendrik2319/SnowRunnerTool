@@ -1585,6 +1585,20 @@ class XMLTemplateStructure {
 				rawXML -> XMLfix.remove(rawXML, "_template=\"light\"")
 			);
 			
+			// initial.2025.04.10.pak
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\us_15\\classes\\overlays\\us_asphalt_road_snowy_us15.xml",
+					"6DDDB523E0AF396E3F5E569544F26EBB",
+					rawXML -> XMLfix.remove(rawXML,
+							"<MaterialType\r\n"
+							+ "		WetnessRoughnessMultiplier=\"0.1\"\r\n"
+							+ "		WetnessAlbedoMultiplier=\"0.1\"\r\n"
+							+ "\r\n"
+							+ "	/>"
+					)
+				);
+			
+			
 			return fixes;
 		}
 	}

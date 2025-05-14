@@ -40,6 +40,7 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.RegionInfos;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TintColor;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.InstalledAddon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckInfos;
@@ -249,6 +250,19 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			add(out,0, "<Tutorial States>"        , saveGame.tutorialStates   , out::add);
 			if (saveGame.ppd!=null)
 				add(out,0, "<DLC Notes>"          , saveGame.ppd.dlcNotes     , out::add);
+			
+			if (saveGame.ppd!=null && !saveGame.ppd.customColors.isEmpty())
+			{
+				sb.append(out.generateOutput());
+				out.clear();
+				out.addEmptyLine();
+				
+				HashMap<String, TruckDesc.CustomizationPreset> customColors = saveGame.ppd.customColors;
+				out.add(0, "CustomColors", customColors.size());	
+				List<String> keys = customColors.keySet().stream().sorted().toList();
+				for (String key : keys)
+					WriterFunctions.write(out, 1, key, customColors.get(key));
+			}
 		}
 		
 		sb.append(out.generateOutput());
@@ -649,20 +663,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			ValueListOutput out = new ValueListOutput();
 			
 			if (data!=null)
-			{
-				out.add(0,"Customization Preset");
-				out.add(1,"ID"                    , data.customizationPreset.id);
-				out.add(1,"Special Skin"          , data.customizationPreset.isSpecialSkin, "Yes", "No");
-				out.add(1,"Override Material Name", data.customizationPreset.overrideMaterialName);
-				out.add(1,"UI Name"               , data.customizationPreset.uiName);
-				out.add(1,"Colors", data.customizationPreset.colors.size());
-				Vector<TruckDesc.CustomizationPreset.Tint> colors = data.customizationPreset.colors;
-				for (int i=0; i<colors.size(); i++)
-				{
-					TruckDesc.CustomizationPreset.Tint color = colors.get(i);
-					out.add(2, String.format("[%d]",i), "a:%1.1f, r:%1.1f, g:%1.1f, b:%1.1f", color.a, color.r, color.g, color.b);
-				}
-			}
+				WriterFunctions.write(out, 0, "Customization Preset", data.customizationPreset);
 			
 			textArea.setText(out.generateOutput());
 		}
@@ -1126,12 +1127,15 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			if (row.objectiveStates!=null)
 			{
 				out.addEmptyLine();
-				writeArray(out, 0, "Stages", row.objectiveStates.stagesState, "Stage", this::write);
+				WriterFunctions.writeArray(out, 0, "Stages", row.objectiveStates.stagesState, "Stage", WriterFunctions::write);
 			}
 			
 			return out.generateOutput();
 		}
-
+	}
+	
+	private static class WriterFunctions
+	{
 		private interface WriteArrayItemFcn<ValueType>
 		{
 			void write(ValueListOutput out, int indentLevel, int index, ValueType value);
@@ -1175,20 +1179,20 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel, String.format("[%d]", index+1), str);
 		}
 
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState stage)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState stage)
 		{
 			if (stage==null) return;
 			
 			out.add   (     indentLevel  , label);
 			write     (out, indentLevel+1, "Living Area State"     , stage.livingAreaState);
 			write     (out, indentLevel+1, "Visit All Zones State" , stage.visitAllZonesState);
-			writeArray(out, indentLevel+1, "Cargo Delivery Actions", stage.cargoDeliveryActions, "Cargo Delivery Action", this::write);
-			writeArray(out, indentLevel+1, "Cargo Spawn States"    , stage.cargoSpawnState     , "Cargo Spawn State"    , this::write);
-			writeArray(out, indentLevel+1, "Truck Delivery States" , stage.truckDeliveryStates , "Truck Delivery State" , this::write);
-			writeArray(out, indentLevel+1, "Truck Repair States"   , stage.truckRepairStates   , "Truck Repair State"   , this::write);
+			writeArray(out, indentLevel+1, "Cargo Delivery Actions", stage.cargoDeliveryActions, "Cargo Delivery Action", WriterFunctions::write);
+			writeArray(out, indentLevel+1, "Cargo Spawn States"    , stage.cargoSpawnState     , "Cargo Spawn State"    , WriterFunctions::write);
+			writeArray(out, indentLevel+1, "Truck Delivery States" , stage.truckDeliveryStates , "Truck Delivery State" , WriterFunctions::write);
+			writeArray(out, indentLevel+1, "Truck Repair States"   , stage.truckRepairStates   , "Truck Repair State"   , WriterFunctions::write);
 		}
 		
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.LivingAreaState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.LivingAreaState data)
 		{
 			if (data==null) return;
 			
@@ -1198,16 +1202,16 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Is Synced"        , data.isSynced, "Yes", "No");
 		}
 		
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState data)
 		{
 			if (data==null) return;
 			
 			out.add   (     indentLevel  , label);
 			out.add   (     indentLevel+1, "Map"        , data.map);
-			writeArray(out, indentLevel+1, "Zone States", data.zoneStates, "Zone State", this::write);
+			writeArray(out, indentLevel+1, "Zone States", data.zoneStates, "Zone State", WriterFunctions::write);
 		}
 		
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState.ZoneState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState.ZoneState data)
 		{
 			if (data==null) return;
 			
@@ -1218,22 +1222,24 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Is Visit With Certain Truck", data.isVisitWithCertainTruck, "Yes", "No");
 		}
 		
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction data)
 		{
 			if (data==null) return;
 			
 			out.add   (     indentLevel  , label);
-			out.add   (     indentLevel+1, "Map"               , data.map               );
-			out.add   (     indentLevel+1, "Platform ID"       , data.platformId        );
-			out.add   (     indentLevel+1, "Truck UID"         , data.truckUid          );
-			out.add   (     indentLevel+1, "Visit On Truck"    , data.isNeedVisitOnTruck, "Needed", "Not Needed");
-			out.add   (     indentLevel+1, "Model Building Tag", data.modelBuildingTag  );
-			out.add   (     indentLevel+1, "Unloading Mode"    , data.unloadingMode     );
-			writeArray(out, indentLevel+1, "Zones"             , data.zones, ObjectivesTableModel::write);
-			write     (out, indentLevel+1, "CargoState"        , data.cargoState);
+			out.add   (     indentLevel+1, "Map"                     , data.map               );
+			out.add   (     indentLevel+1, "Platform ID"             , data.platformId        );
+			out.add   (     indentLevel+1, "Truck UID"               , data.truckUid          );
+			out.add   (     indentLevel+1, "Visit On Truck"          , data.isNeedVisitOnTruck, "Needed", "Not Needed");
+			out.add   (     indentLevel+1, "Model Building Tag"      , data.modelBuildingTag  );
+			out.add   (     indentLevel+1, "Unloading Mode"          , data.unloadingMode     );
+			out.add   (     indentLevel+1, "Is Visible With Platform", data.isVisibleWithPlatform);
+			writeArray(out, indentLevel+1, "Zones"                   , data.zones, WriterFunctions::write);
+			write     (out, indentLevel+1, "CargoState"              , data.cargoState);
+			write     (out, indentLevel+1, "Platform Color Override" , data.platformColorOverride);
 		}
 		
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction.CargoState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction.CargoState data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , label);
@@ -1241,24 +1247,24 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 		
 
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState data)
 		{
 			if (data==null) return;
 			out.add   (     indentLevel  , label);
 			out.add   (     indentLevel+1, "Spawned"       , data.spawned, "Yes", "No");
 			out.add   (     indentLevel+1, "Metal Detector", data.needToBeDiscoveredByMetallodetector, "Needed", "Not Needed");
 			out.add   (     indentLevel+1, "Hiding Cargo when not tracked", data.ignoreHidingCargoWhenNotTracked, "Ignored", "Not Ignored");
-			writeArray(out, indentLevel+1, "Cargos"        , data.cargos , this::write);
+			writeArray(out, indentLevel+1, "Cargos"        , data.cargos , WriterFunctions::write);
 			write     (out, indentLevel+1, "Zone"          , data.zone   );
 		}
 
-		private void write(ValueListOutput out, int indentLevel, int index, StagesState.CargoSpawnState.Cargo data)
+		private static void write(ValueListOutput out, int indentLevel, int index, StagesState.CargoSpawnState.Cargo data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , String.format("%dx <%s>", data.count, data.name));
 		}
 
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState.Zone data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState.Zone data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , label);
@@ -1268,23 +1274,43 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Global Zone ID", data.globalZoneId);
 		}
 
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckDeliveryState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckDeliveryState data)
 		{
 			if (data==null) return;
 			out.add   (     indentLevel  , label);
 			out.add   (     indentLevel+1, "Map"           , data.mapDelivery  );
 			out.add   (     indentLevel+1, "Truck ID"      , data.truckId      );
 			out.add   (     indentLevel+1, "Is Delivered"  , data.isDelivered  , "Yes", "No");
-			writeArray(out, indentLevel+1, "Delivery Zones", data.deliveryZones, ObjectivesTableModel::write);
+			writeArray(out, indentLevel+1, "Delivery Zones", data.deliveryZones, WriterFunctions::write);
 		}
 
-		private void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckRepairState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckRepairState data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , label);
 			out.add(indentLevel+1, "Truck ID"   , data.truckId   );
 			out.add(indentLevel+1, "Is Repaired", data.isRepaired, "Yes", "No");
 			out.add(indentLevel+1, "Is Refueled", data.isRefueled, "Yes", "No");
+		}
+
+		private static void write(ValueListOutput out, int indentLevel, String label, TruckDesc.CustomizationPreset data)
+		{
+			if (data==null) return;
+			out.add(indentLevel  , label);
+			out.add(indentLevel+1, "ID"                    , data.id);
+			out.add(indentLevel+1, "Special Skin"          , data.isSpecialSkin, "Yes", "No");
+			out.add(indentLevel+1, "Override Material Name", data.overrideMaterialName);
+			out.add(indentLevel+1, "Material Color Type"   , data.materialColorType);
+			out.add(indentLevel+1, "UI Name"               , data.uiName);
+			out.add(indentLevel+1, "Colors", data.colors.size());
+			for (int i=0; i<data.colors.size(); i++)
+				WriterFunctions.write(out, indentLevel+2, String.format("[%d]",i), data.colors.get(i));
+		}
+		
+		private static void write(ValueListOutput out, int indentLevel, String label, TintColor data)
+		{
+			if (data==null) return;
+			out.add(indentLevel, label, "a:%1.1f, r:%1.1f, g:%1.1f, b:%1.1f", data.a, data.r, data.g, data.b);
 		}
 	}
 }
