@@ -123,7 +123,7 @@ public class SnowRunner {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); }
 		catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) {}
 		
-		File initialPak = null;
+		File tempInitialPak = null;
 		if (args.length>0)
 			for (int i=0; i<args.length; i++)
 			{
@@ -134,7 +134,7 @@ public class SnowRunner {
 				{
 					File file = new File(args[i+1]);
 					if (file.isFile())
-						initialPak = file;
+						tempInitialPak = file;
 				}
 			}
 		else
@@ -143,11 +143,11 @@ public class SnowRunner {
 			System.out.println();
 			System.out.printf("Command Line Parameters :%n");
 			System.out.printf("    -forget_initial.pak       - forgets current selection of used initial.pak, user will be asked for another one%n");
-			System.out.printf("    -initial.pak [Filepath]   - defines used initial.pak in this session; doesn't change selection for calls without this parameter%n");
+			System.out.printf("    -initial.pak [Filepath]   - defines a temporary used initial.pak for this session; doesn't change selection for calls without this parameter%n");
 			System.out.println();
 		}
 		
-		new SnowRunner(initialPak).initialize();
+		new SnowRunner(tempInitialPak).initialize();
 	}
 	
 	public static class GlobalFinalDataStructures
@@ -180,7 +180,7 @@ public class SnowRunner {
 	}
 
 	
-	private File predefinedInitialPak;
+	private File tempInitialPak;
 	private Data data;
 	private SaveGameData saveGameData;
 	private SaveGame selectedSaveGame;
@@ -194,8 +194,8 @@ public class SnowRunner {
 	private final GlobalFinalDataStructures gfds;
 	private final ImageDialogController truckImageDialogController;
 	
-	SnowRunner(File predefinedInitialPak) {
-		this.predefinedInitialPak = predefinedInitialPak;
+	SnowRunner(File tempInitialPak) {
+		this.tempInitialPak = tempInitialPak;
 		
 		VerySimpleTableModel.initializePresetMaps();
 		
@@ -456,7 +456,7 @@ public class SnowRunner {
 	}
 
 	private File getInitialPAK() {
-		File initialPAK = predefinedInitialPak!=null ? predefinedInitialPak : settings.getFile(AppSettings.ValueKey.InitialPAK, null);
+		File initialPAK = tempInitialPak!=null ? tempInitialPak : settings.getFile(AppSettings.ValueKey.InitialPAK, null);
 		if (initialPAK==null || !initialPAK.isFile())
 			initialPAK = selectInitialPAK();
 		return initialPAK;
@@ -467,7 +467,7 @@ public class SnowRunner {
 		File initialPAK = dlg.showDialog();
 		if (initialPAK==null || !initialPAK.isFile()) return null;
 		settings.putFile(AppSettings.ValueKey.InitialPAK, initialPAK);
-		predefinedInitialPak = null;
+		tempInitialPak = null;
 		return initialPAK;
 	}
 	
