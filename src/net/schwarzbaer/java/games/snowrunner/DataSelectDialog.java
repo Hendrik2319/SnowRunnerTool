@@ -33,7 +33,7 @@ class DataSelectDialog extends JDialog {
 
 	private enum ActionCommands { GameFolderLabel, GameFolderRB, OkBtn }
 	
-	DataSelectDialog(Window owner) {
+	DataSelectDialog(Window owner, File previousInitialPAK) {
 		super(owner, "", ModalityType.APPLICATION_MODAL);
 		defineFullPath = null;
 		selectSteamLibrary = null;
@@ -97,6 +97,8 @@ class DataSelectDialog extends JDialog {
 			if (defineFullPath) {
 				fileChooser.setDialogTitle("Select initial.pak");
 				fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+				if (previousInitialPAK.isFile())
+					fileChooser.setSelectedFile(previousInitialPAK);
 				fileChooser.addChoosableFileFilter(new FileFilter() {
 					@Override public String getDescription() { return "initial.pak only"; }
 					@Override public boolean accept(File file) { return !file.isFile() || file.getName().equalsIgnoreCase("initial.pak"); }

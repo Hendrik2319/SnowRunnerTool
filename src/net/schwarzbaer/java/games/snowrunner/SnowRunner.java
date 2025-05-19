@@ -463,8 +463,9 @@ public class SnowRunner {
 	}
 
 	private File selectInitialPAK() {
-		DataSelectDialog dlg = new DataSelectDialog(mainWindow);
-		File initialPAK = dlg.showDialog();
+		File initialPAK = tempInitialPak!=null ? tempInitialPak : settings.getFile(AppSettings.ValueKey.InitialPAK, null);
+		DataSelectDialog dlg = new DataSelectDialog(mainWindow, initialPAK);
+		initialPAK = dlg.showDialog();
 		if (initialPAK==null || !initialPAK.isFile()) return null;
 		settings.putFile(AppSettings.ValueKey.InitialPAK, initialPAK);
 		tempInitialPak = null;
