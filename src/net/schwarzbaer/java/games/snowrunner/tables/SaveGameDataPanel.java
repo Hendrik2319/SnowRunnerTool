@@ -85,6 +85,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		
 		JTabbedPane tableTabPanel = new JTabbedPane();
 		StoredTrucksTableModel storedTrucksTableModel = addTab(finalizer, tableTabPanel, "Stored Trucks", new StoredTrucksTableModel(mainWindow, gfds));
+		CustomColorsTableModel customColorsTableModel = addTab(finalizer, tableTabPanel, "Custom Colors", new CustomColorsTableModel(mainWindow, gfds));
 		     RegionsTableModel      regionsTableModel = addTab(finalizer, tableTabPanel, "Regions"      , new      RegionsTableModel(mainWindow, gfds));
 		        MapsTableModel         mapsTableModel = addTab(finalizer, tableTabPanel, "Maps"         , new         MapsTableModel(mainWindow, gfds));
 		      AddonsTableModel       addonsTableModel = addTab(finalizer, tableTabPanel, "Addons"       , new       AddonsTableModel(mainWindow, gfds));
@@ -104,6 +105,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			data = data_;
 			updateTextOutput();
 			storedTrucksTableModel.setData(data);
+		//	customColorsTableModel.setData(data);
 		//	regionsTableModel     .setData(data);
 			mapsTableModel        .setData(data);
 			addonsTableModel      .setData(data, saveGame);
@@ -115,6 +117,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			saveGame = saveGame_;
 			updateTextOutput();
 			storedTrucksTableModel.setData(saveGame);
+			customColorsTableModel.setData(saveGame);
 			regionsTableModel     .setData(saveGame);
 			mapsTableModel        .setData(saveGame);
 			addonsTableModel      .setData(data, saveGame);
@@ -251,6 +254,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			if (saveGame.ppd!=null)
 				add(out,0, "<DLC Notes>"          , saveGame.ppd.dlcNotes     , out::add);
 			
+			/*
 			if (saveGame.ppd!=null && !saveGame.ppd.customColors.isEmpty())
 			{
 				sb.append(out.generateOutput());
@@ -263,6 +267,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				for (String key : keys)
 					WriterFunctions.write(out, 1, key, customColors.get(key));
 			}
+			*/
 		}
 		
 		sb.append(out.generateOutput());
@@ -989,6 +994,52 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			
 			return sb.toString();
 		}
+	}
+
+	private static class CustomColorsTableModel extends VerySimpleTableModel<CustomColorsTableModel.Row>
+	{
+		CustomColorsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		{
+			// Column Widths: [60, 35, 75, 130, 110, 60, 97] in ModelOrder
+			super(mainWindow, gfds, new ColumnID[] {
+					new ColumnID("name"                     ,"Name"                  , String  .class,  60,   null, null, false, row->((Row)row).name),
+					new ColumnID("data.id"                  ,"ID"                    , Long    .class,  35,   null, null, false, row->Row.getDataValue(row, data -> data.id                  )),
+					new ColumnID("data.isSpecialSkin"       ,"Special Skin"          , Boolean .class,  75,   null, null, false, row->Row.getDataValue(row, data -> data.isSpecialSkin       )),
+					new ColumnID("data.overrideMaterialName","Override Material Name", String  .class, 130,   null, null, false, row->Row.getDataValue(row, data -> data.overrideMaterialName)),
+					new ColumnID("data.materialColorType"   ,"Material Color Type"   , Long    .class, 110,   null, null, false, row->Row.getDataValue(row, data -> data.materialColorType   )),
+					new ColumnID("data.uiName"              ,"UI Name"               , String  .class,  60,   null, null, false, row->Row.getDataValue(row, data -> data.uiName              )),
+					new ColumnID("data.colors"              ,"Colors"                , Color[] .class,  97,   null, null, false, row->Row.getDataValue(row, data -> data.toColorArray()      )),
+			});
+		}
+
+		record Row(String name, TruckDesc.CustomizationPreset data)
+		{
+			static <V> V getDataValue(Object rowObj, Function<TruckDesc.CustomizationPreset,V> getFunction)
+			{
+				if (rowObj instanceof Row row && row.data!=null)
+					return getFunction.apply(row.data);
+				return null;
+			}
+			
+			static List<Row> getRows(HashMap<String, TruckDesc.CustomizationPreset> customColors)
+			{
+				List<Row> rows = new Vector<>();
+				String[] names = customColors.keySet().stream().sorted().toArray(String[]::new);
+				for (String name : names)
+					rows.add(new Row(name, customColors.get(name)));
+				return rows;
+			}
+		}
+
+		void setData(SaveGame saveGame)
+		{
+			List<Row> rows = null;
+			if (saveGame!=null && saveGame.ppd!=null && saveGame.ppd.customColors!=null)
+				rows = Row.getRows(saveGame.ppd.customColors);
+			setRowData(rows);
+		}
+		
+		@Override protected String getRowName(Row row) { return row==null ? null : row.name; }
 	}
 
 	private static class AddonsTableModel extends VerySimpleTableModel<AddonsTableModel.Row>
