@@ -1966,6 +1966,7 @@ public class SaveGameData {
 							.add("livingAreaState"     , JSON_Data.Value.Type.Null  )
 							.add("livingAreaState"     , JSON_Data.Value.Type.Object)
 							.add("makeActionInZone"    , JSON_Data.Value.Type.Null  )
+							.add("makeActionInZone"    , JSON_Data.Value.Type.Object)
 							.add("truckDeliveryStates" , JSON_Data.Value.Type.Array )
 							.add("truckRepairStates"   , JSON_Data.Value.Type.Array )
 							.add("visitAllZonesState"  , JSON_Data.Value.Type.Object)
@@ -1990,7 +1991,8 @@ public class SaveGameData {
 					 */
 					
 					public final LivingAreaState livingAreaState;
-					public final VisitAllZonesState visitAllZonesState;
+					public final MapZonesStates visitAllZonesState;
+					public final MapZonesStates makeActionInZone;
 					public final Vector<CargoDeliveryAction> cargoDeliveryActions;
 					public final Vector<CargoSpawnState> cargoSpawnState;
 					public final Vector<TruckDeliveryState> truckDeliveryStates;
@@ -2002,7 +2004,7 @@ public class SaveGameData {
 						
 						@SuppressWarnings("unused")
 						JSON_Data.Null changeTruckState_Null, farmingState_Null, livingAreaState_Null, makeActionInZone_Null, visitAllZonesState_Null;
-						JSON_Object<NV, V> livingAreaState, visitAllZonesState;
+						JSON_Object<NV, V> livingAreaState, visitAllZonesState, makeActionInZone;
 						JSON_Array<NV, V> cargoDeliveryActions, cargoSpawnState, truckDeliveryStates, truckRepairStates;
 						
 						cargoDeliveryActions    = JSON_Data.getArrayValue (object, "cargoDeliveryActions", debugOutputPrefixStr);
@@ -2011,7 +2013,8 @@ public class SaveGameData {
 						farmingState_Null       = JSON_Data.getNullValue  (object, "farmingState"        , true, false, debugOutputPrefixStr);
 						livingAreaState         = JSON_Data.getObjectValue(object, "livingAreaState"     , false, true, debugOutputPrefixStr);
 						livingAreaState_Null    = JSON_Data.getNullValue  (object, "livingAreaState"     , false, true, debugOutputPrefixStr);
-						makeActionInZone_Null   = JSON_Data.getNullValue  (object, "makeActionInZone"    , debugOutputPrefixStr);
+						makeActionInZone        = JSON_Data.getObjectValue(object, "makeActionInZone"    , false, true, debugOutputPrefixStr);
+						makeActionInZone_Null   = JSON_Data.getNullValue  (object, "makeActionInZone"    , false, true, debugOutputPrefixStr);
 						truckDeliveryStates     = JSON_Data.getArrayValue (object, "truckDeliveryStates" , debugOutputPrefixStr);
 						truckRepairStates       = JSON_Data.getArrayValue (object, "truckRepairStates"   , debugOutputPrefixStr);
 						visitAllZonesState      = JSON_Data.getObjectValue(object, "visitAllZonesState"  , false, true, debugOutputPrefixStr);
@@ -2019,8 +2022,9 @@ public class SaveGameData {
 						
 						KNOWN_JSON_VALUES.scanUnexpectedValues(object);
 						
-						this.livingAreaState      = parseObjectOrNull(livingAreaState   , livingAreaState_Null   , LivingAreaState   ::new, debugOutputPrefixStr+".livingAreaState");
-						this.visitAllZonesState   = parseObjectOrNull(visitAllZonesState, visitAllZonesState_Null, VisitAllZonesState::new, debugOutputPrefixStr+".visitAllZonesState");
+						this.livingAreaState      = parseObjectOrNull(livingAreaState   , livingAreaState_Null   , LivingAreaState::new, debugOutputPrefixStr+".livingAreaState");
+						this.visitAllZonesState   = parseObjectOrNull(visitAllZonesState, visitAllZonesState_Null, MapZonesStates ::new, debugOutputPrefixStr+".visitAllZonesState");
+						this.makeActionInZone     = parseObjectOrNull(makeActionInZone  , makeActionInZone_Null  , MapZonesStates ::new, debugOutputPrefixStr+".makeActionInZone");
 						this.cargoDeliveryActions = parseArray_Object(cargoDeliveryActions, debugOutputPrefixStr+".cargoDeliveryActions", CargoDeliveryAction::new, new Vector<>());
 						this.cargoSpawnState      = parseArray_Object(cargoSpawnState     , debugOutputPrefixStr+".cargoSpawnState"     , CargoSpawnState    ::new, new Vector<>());
 						this.truckDeliveryStates  = parseArray_Object(truckDeliveryStates , debugOutputPrefixStr+".truckDeliveryStates" , TruckDeliveryState ::new, new Vector<>());
@@ -2058,9 +2062,9 @@ public class SaveGameData {
 						}
 					}
 					
-					public static class VisitAllZonesState
+					public static class MapZonesStates
 					{
-						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(VisitAllZonesState.class)
+						private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(MapZonesStates.class)
 								.add("map"       , JSON_Data.Value.Type.String)
 								.add("zoneStates", JSON_Data.Value.Type.Array )
 								;
@@ -2074,7 +2078,7 @@ public class SaveGameData {
 						public final String map;
 						public final Vector<ZoneState> zoneStates;
 						
-						private VisitAllZonesState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
+						private MapZonesStates(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 						{
 							//scanJSON(object, this);
 							JSON_Array<NV, V> zoneStates;

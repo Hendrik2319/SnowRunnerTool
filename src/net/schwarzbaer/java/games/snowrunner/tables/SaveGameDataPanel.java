@@ -1186,6 +1186,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add   (     indentLevel  , label);
 			write     (out, indentLevel+1, "Living Area State"     , stage.livingAreaState);
 			write     (out, indentLevel+1, "Visit All Zones State" , stage.visitAllZonesState);
+			write     (out, indentLevel+1, "Make Action In Zone"   , stage.makeActionInZone);
 			writeArray(out, indentLevel+1, "Cargo Delivery Actions", stage.cargoDeliveryActions, "Cargo Delivery Action", WriterFunctions::write);
 			writeArray(out, indentLevel+1, "Cargo Spawn States"    , stage.cargoSpawnState     , "Cargo Spawn State"    , WriterFunctions::write);
 			writeArray(out, indentLevel+1, "Truck Delivery States" , stage.truckDeliveryStates , "Truck Delivery State" , WriterFunctions::write);
@@ -1202,7 +1203,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Is Synced"        , data.isSynced, "Yes", "No");
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.MapZonesStates data)
 		{
 			if (data==null) return;
 			
@@ -1211,7 +1212,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			writeArray(out, indentLevel+1, "Zone States", data.zoneStates, "Zone State", WriterFunctions::write);
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.VisitAllZonesState.ZoneState data)
+		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.MapZonesStates.ZoneState data)
 		{
 			if (data==null) return;
 			
