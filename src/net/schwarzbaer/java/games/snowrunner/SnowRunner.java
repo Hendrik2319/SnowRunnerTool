@@ -233,7 +233,7 @@ public class SnowRunner {
 		contentPane.addTab("Suspensions"     , TableSimplifier.create(fin.addSubComp(new SuspensionsTableModel    (mainWindow, gfds, true, null))));
 		contentPane.addTab("Winches"         , TableSimplifier.create(fin.addSubComp(new WinchesTableModel        (mainWindow, gfds, true, null))));
 		contentPane.addTab("Addon Categories", TableSimplifier.create(fin.addSubComp(new AddonCategoriesTableModel(mainWindow, gfds))));
-		contentPane.addTab("SaveGame"        ,                        fin.addSubComp(new SaveGameDataPanel        (mainWindow, gfds)));
+		contentPane.addTab("SaveGame"        ,                        fin.addSubComp(new SaveGameDataPanel        (mainWindow, gfds, truckImageDialogController)));
 		contentPane.addTab("Raw Data"        ,                        fin.addSubComp(rawDataPanel));
 		
 		
@@ -1680,7 +1680,6 @@ public class SnowRunner {
 			TruckPanelProto truckPanelProto = new TruckPanelProto(mainWindow, gfds, imageDialogController);
 			finalizer.addSubComp(truckPanelProto);
 			JTabbedPane tabbedPaneFromTruckPanel = truckPanelProto.createTabbedPane();
-			tabbedPaneFromTruckPanel.setBorder(BorderFactory.createTitledBorder("Selected Truck"));
 
 			TruckTableModel truckTableModel = new TruckTableModel(mainWindow, gfds, tableModelInstanceID);
 			finalizer.addSubComp(truckTableModel);
@@ -1797,7 +1796,7 @@ public class SnowRunner {
 	
 		private static class TruckListCellRenderer implements ListCellRenderer<Truck>, LanguageListener, SaveGameListener, SaveGameDataPanel.StoredTruckDisplayer {
 			
-			private static final Color COLOR_FG_DLCTRUCK   = new Color(0x0070FF);
+			//private static final Color COLOR_FG_DLCTRUCK   = new Color(0x0070FF);
 			private static final Color COLOR_FG_OWNEDTRUCK = new Color(0x00AB00);
 			private static final Color COLOR_BG_DISPLAYED_TRUCK = new Color(0xFFDF00);
 			private final Tables.LabelRendererComponent rendererComp;
@@ -1850,8 +1849,8 @@ public class SnowRunner {
 				if (truck!=null) {
 					if (saveGame!=null && saveGame.playerOwnsTruck(truck))
 						return COLOR_FG_OWNEDTRUCK;
-					if (truck.updateLevel!=null)
-						return COLOR_FG_DLCTRUCK;
+					//if (truck.updateLevel!=null)
+					//	return COLOR_FG_DLCTRUCK;
 				}
 				return null;
 			}

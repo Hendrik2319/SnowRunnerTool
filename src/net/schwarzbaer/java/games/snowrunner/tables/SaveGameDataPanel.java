@@ -5,6 +5,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Window;
+import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -48,11 +49,13 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.ImageDialogController;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitOrientation;
 import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.SplitPaneConfigurator;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTAOS;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelUOS;
+import net.schwarzbaer.java.lib.gui.ImageView;
 import net.schwarzbaer.java.lib.gui.ScrollPosition;
 import net.schwarzbaer.java.lib.gui.Tables;
 import net.schwarzbaer.java.lib.gui.ValueListOutput;
@@ -68,7 +71,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	private Language language;
 
 	
-	public SaveGameDataPanel(Window mainWindow, GlobalFinalDataStructures gfds)
+	public SaveGameDataPanel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController)
 	{
 		super(JSplitPane.HORIZONTAL_SPLIT, true);
 		
@@ -84,7 +87,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		textAreaScrollPane.setPreferredSize(new Dimension(400,100));
 		
 		JTabbedPane tableTabPanel = new JTabbedPane();
-		StoredTrucksTableModel storedTrucksTableModel = addTab(finalizer, tableTabPanel, "Stored Trucks", new StoredTrucksTableModel(mainWindow, gfds));
+		StoredTrucksTableModel storedTrucksTableModel = addTab(finalizer, tableTabPanel, "Stored Trucks", new StoredTrucksTableModel(mainWindow, gfds, imageDialogController));
 		CustomColorsTableModel customColorsTableModel = addTab(finalizer, tableTabPanel, "Custom Colors", new CustomColorsTableModel(mainWindow, gfds));
 		     RegionsTableModel      regionsTableModel = addTab(finalizer, tableTabPanel, "Regions"      , new      RegionsTableModel(mainWindow, gfds));
 		        MapsTableModel         mapsTableModel = addTab(finalizer, tableTabPanel, "Maps"         , new         MapsTableModel(mainWindow, gfds));
@@ -515,7 +518,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		private Row clickedRow;
 		private TruckDesc displayedTruck;
 	
-		StoredTrucksTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+		StoredTrucksTableModel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("Location"   ,"Location"                    ,  String .class, 175,   null,      null, false, row->((Row)row).location),
@@ -563,7 +566,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			data = null;
 			clickedRow = null;
 			displayedTruck = gfds.controllers.storedTruckDisplayers.getDisplayedTruck();
-			infoPanel = new InfoPanel(mainWindow, gfds);
+			infoPanel = new InfoPanel(mainWindow, gfds, imageDialogController);
 			finalizer.addStoredTruckDisplayer(displayedTruck -> {
 				this.displayedTruck = displayedTruck;
 				table.repaint();
@@ -707,24 +710,51 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		{
 			private static final long serialVersionUID = 5027725919393825391L;
 			
+			private final GlobalFinalDataStructures gfds;
+			private final ImageDialogController imageDialogController;
 			private final InstalledAddonTableModel installedAddonTableModel;
 			private final JTextArea textArea;
 			private final JScrollPane textAreaScrollPane;
-		
-			InfoPanel(Window mainWindow, GlobalFinalDataStructures gfds)
+			private final ImageView truckImageView;
+			private String truckID;
+			
+			InfoPanel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController)
 			{
+				this.gfds = gfds;
+				this.imageDialogController = imageDialogController;
+				truckID = null;
+				
 				textArea = new JTextArea();
 				textArea.setEditable(false);
 				textAreaScrollPane = new JScrollPane(textArea);
 				
+				truckImageView = new ImageView(300,300, null, true);
+				net.schwarzbaer.java.lib.gui.ContextMenu contextMenu = truckImageView.getContextMenu();
+				contextMenu.addSeparator();
+				contextMenu.add(SnowRunner.createMenuItem("Show in separate window", true, e->{
+					imageDialogController.showDialog();
+					updateTruckImage();
+				}));
+				
 				installedAddonTableModel = new InstalledAddonTableModel(mainWindow, gfds);
 				
 				addTab("Info", textAreaScrollPane);
+				addTab("Image", truckImageView);
 				addTab("Installed Addons", TableSimplifier.create(installedAddonTableModel));
+			}
+
+			private void updateTruckImage()
+			{
+				BufferedImage image = truckID==null ? null : gfds.truckImages.get(truckID);
+				truckImageView.setImage(image);
+				truckImageView.setZoom(1);
+				imageDialogController.setImage(image);
 			}
 		
 			void setData(TruckDesc data)
 			{
+				truckID = data==null ? null : data.type;
+				
 				if (data!=null)
 					installedAddonTableModel.setRowData(data.addons, data.emptyTruckAddonDesc);
 				else
@@ -733,6 +763,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				ScrollPosition scrollPos = ScrollPosition.getVertical(textAreaScrollPane);
 				generateInfo(textArea, data);
 				if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(textAreaScrollPane));
+				
+				updateTruckImage();
 			}
 		
 			private static class InstalledAddonTableModel extends ExtendedVerySimpleTableModelTAOS<InstalledAddon> implements SplitPaneConfigurator
