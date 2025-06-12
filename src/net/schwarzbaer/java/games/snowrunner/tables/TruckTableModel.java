@@ -74,6 +74,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "Owned"    , "Owned"                 ,                 Long.class,  45,             null, CENTER,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null :     model_.saveGame.getOwnedTruckCount(truck_))),
 				new ColumnID( "InWareHs" , "In Warehouse"          ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
 				new ColumnID( "InGarage" , "In Garage"             ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, null), (row, model, textOutput) -> getTrucksInGarage   (row, model, textOutput)),
+				new ColumnID( "OnTheRoad", "On the Road"           ,                 Long.class,  50,             null, CENTER,      null, false, (row,model) -> getTrucksOnTheRoad  (row, model, null), (row, model, textOutput) -> getTrucksOnTheRoad  (row, model, textOutput)),
 				new ColumnID( "DLData"   , "DiffLock (from Data)"  ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
 				new ColumnID( "DLUser"   , "DiffLock (by User)"    ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> gfds.userDefinedValues.getTruckValues(((Truck)row).id).realDiffLock),
 				new ColumnID( "DLTool"   , "DiffLock (by Tool)"    ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
@@ -302,6 +303,14 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		return castNCall(row, model, (truck_, model_) -> {
 			if (model_.saveGame==null) return null;
 			return model_.saveGame.getTrucksInGarage(truck_, textOutput);
+		});
+	}
+
+	private static Long getTrucksOnTheRoad(Object row, VerySimpleTableModel<?> model, TextOutput textOutput)
+	{
+		return castNCall(row, model, (truck_, model_) -> {
+			if (model_.saveGame==null) return null;
+			return model_.saveGame.getTrucksOnTheRoad(truck_, textOutput);
 		});
 	}
 

@@ -604,6 +604,28 @@ public class SaveGameData {
 			return count;
 		}
 		
+		public long getTrucksOnTheRoad(Truck truck, TextOutput textOutput)
+		{
+			if (truck==null)
+			{
+				if (textOutput!=null)
+					textOutput.printf("No truck defined.%n");
+				return 0;
+			}
+			
+			long ownedTrucks = getOwnedTruckCount(truck);
+			if (textOutput!=null)
+				textOutput.printf("<%s> Trucks owned: %d%n", truck.id, ownedTrucks);
+			
+			int trucksInWarehouse = getTrucksInWarehouse(truck, textOutput);
+			int trucksInGarage    = getTrucksInGarage   (truck, textOutput);
+			long trucksOnMap = ownedTrucks - trucksInWarehouse - trucksInGarage;
+			if (textOutput!=null)
+				textOutput.printf("<%s> Trucks on the road: %d%n", truck.id, trucksOnMap);
+			
+			return trucksOnMap;
+		}
+
 		public static Boolean isUnlockedItem(SaveGame saveGame, String id)
 		{
 			return saveGame==null ? null : saveGame.isUnlockedItem(id);
