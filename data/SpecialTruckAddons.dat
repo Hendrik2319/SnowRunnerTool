@@ -45,21 +45,37 @@ $ big_crane_zikz_612h
 $ cargo_logs_cat_745c_log_bunk
 $ cargo_logs_frame_addon_log_short
 $ cargo_logs_short_aramatsu_forester
+$ cargo_logs_short_frame_addon_kenworth_c500
+$ cargo_logs_short_mack_pinnacle
+$ cargo_logs_trailer_log_short
 
 [[MediumLogs]]
 $ cargo_logs_medium_aramatsu_forester
 $ cargo_logs_medium_cat_745c_log_bunk
 $ cargo_logs_medium_frame_addon
 $ cargo_logs_medium_frame_addon_high
+$ cargo_logs_medium_frame_addon_kenworth_963
+$ cargo_logs_medium_frame_addon_kenworth_c500
+$ cargo_logs_medium_frame_addon_zikz_612h
+$ cargo_logs_medium_mack_pinnacle
+$ cargo_logs_medium_semitrailer_log
 $ cargo_logs_medium_trailer_log
+$ cargo_logs_trailer_log_medium
 
 [[LongLogs]]
 $ cargo_logs_long_trailer_log_pole
+$ cargo_logs_long_trailer_log_pole_zikz_612h
 
 [[MediumLogs_burnt]]
 $ cargo_burnt_logs_medium_aramatsu_forester
 $ cargo_burnt_logs_medium_cat_745c_log_bunk
 $ cargo_burnt_logs_medium_frame_addon
 $ cargo_burnt_logs_medium_frame_addon_high
+$ cargo_burnt_logs_medium_frame_addon_kenworth_963
+$ cargo_burnt_logs_medium_frame_addon_kenworth_c500
+$ cargo_burnt_logs_medium_frame_addon_zikz_612h
+$ cargo_burnt_logs_medium_mack_pinnacle
+$ cargo_burnt_logs_medium_semitrailer_log
 $ cargo_burnt_logs_medium_trailer_log
+$ cargo_burnt_logs_trailer_log_medium
 

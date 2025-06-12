@@ -1185,7 +1185,7 @@ class XMLTemplateStructure {
 			GenericXmlNode getNode(String... path) {
 				GenericXmlNode[] nodes = getNodes(path);
 				if (nodes.length>1)
-					throw new IllegalStateException();
+					throw new IllegalStateException("Only 1 node expected at path [ this:%s -> subpath:%s ]".formatted( Arrays.toString(getPath()), Arrays.toString(path) ));
 				return nodes.length<1 ? null : nodes[0];
 			}
 			
@@ -1598,6 +1598,27 @@ class XMLTemplateStructure {
 					)
 				);
 			
+			// initial.2025.06.12.pak
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_15_5\\classes\\trucks\\western_star_6900xd_tuning\\western_star_6900xd_bumper_1.xml",
+					"10783EA2A1550E8D242944F81410EA9E",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "ColorMultAtDay=\"0.3\" ColorMultAtDay=\"0.3\"", "ColorMultAtDay=\"0.3\"");
+						rawXML = XMLfix.replace(rawXML, "ColorMultAtDay=\"0.3\" ColorMultAtDay=\"0.3\"", "ColorMultAtDay=\"0.3\"");
+						rawXML = XMLfix.replace(rawXML, "ColorMultAtDay=\"0.3\" ColorMultAtDay=\"0.3\"", "ColorMultAtDay=\"0.3\"");
+						rawXML = XMLfix.replace(rawXML, "ColorMultAtDay=\"0.3\" ColorMultAtDay=\"0.3\"", "ColorMultAtDay=\"0.3\"");
+						return rawXML;
+					}
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_15_5\\classes\\trucks\\western_star_6900xd_tuning\\western_star_6900xd_spot_light_1.xml",
+					"6A76A2D2AC4D3B53956E4A0485EECFE8",
+					rawXML -> {
+						for (int i=0; i<42; i++)
+							rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\"");
+						return rawXML;
+					}
+				);
 			
 			return fixes;
 		}

@@ -88,7 +88,12 @@ public class Data {
 		Class_ cargoTypesClass = rawdata.classes.get("cargo_types");
 		if (cargoTypesClass!=null)
 			cargoTypesClass.items.forEach((name,item)->{
-				cargoTypes.put(name, new CargoType(item));
+				expectRuntimeException(
+						item.filePath,
+						() -> {
+							cargoTypes.put(name, new CargoType(item));
+						}
+				);
 			});
 		
 		
@@ -109,9 +114,14 @@ public class Data {
 		Class_ wheelsClass = rawdata.classes.get("wheels");
 		if (wheelsClass!=null)
 			wheelsClass.items.forEach((name,item)->{
-				//wheelsTypes.add(item.content.nodeName, item.filePath);
-				if (item.isMainItem() && item.content.nodeName.equals("TruckWheels"))
-					wheels.put(name, new WheelsDef(item));
+				expectRuntimeException(
+						item.filePath,
+						() -> {
+							//wheelsTypes.add(item.content.nodeName, item.filePath);
+							if (item.isMainItem() && item.content.nodeName.equals("TruckWheels"))
+								wheels.put(name, new WheelsDef(item));
+						}
+				);
 			});
 		//System.err.println("WheelsTypes:");
 		//wheelsTypes.printTo(System.err, str->str);
@@ -127,34 +137,39 @@ public class Data {
 		Class_ trucksClass = rawdata.classes.get("trucks");
 		if (trucksClass!=null)
 			trucksClass.items.forEach((name,item)->{
-				switch (item.content.nodeName) {
-				
-				case "Truck":
-					String type = item.content.attributes.get("Type");
-					
-					if (type==null)
-						trucks.put(name, new Truck(item, this));
-					
-					else
-						switch (type) {
-						case "Trailer":
-							trailers.put(name, new Trailer(item));
-							break;
+				expectRuntimeException(
+						item.filePath,
+						() -> {
+							switch (item.content.nodeName) {
 							
-						default:
-							unexpectedValues.add("Class[trucks] <Truck Type=\"###\">", type);
-							break;
+							case "Truck":
+								String type = item.content.attributes.get("Type");
+								
+								if (type==null)
+									trucks.put(name, new Truck(item, this));
+								
+								else
+									switch (type) {
+									case "Trailer":
+										trailers.put(name, new Trailer(item));
+										break;
+										
+									default:
+										unexpectedValues.add("Class[trucks] <Truck Type=\"###\">", type);
+										break;
+									}
+								break;
+								
+							case "TruckAddon":
+								truckAddons.put(name, new TruckAddon(item, cargoTypes));
+								break;
+								
+							default:
+								unexpectedValues.add("Class[trucks] <###>", item.content.nodeName);
+								break;
+							}
 						}
-					break;
-					
-				case "TruckAddon":
-					truckAddons.put(name, new TruckAddon(item, cargoTypes));
-					break;
-					
-				default:
-					unexpectedValues.add("Class[trucks] <###>", item.content.nodeName);
-					break;
-				}
+				);
 			});
 		
 		
@@ -282,6 +297,19 @@ public class Data {
 			unexpectedValues.print(System.out,"Unexpected Values");
 	}
 	
+	private void expectRuntimeException(String filePath, Runnable runnable)
+	{
+		try {
+			runnable.run();
+		}
+		catch (RuntimeException ex) {
+			throw new RuntimeException("%s while parsing file \"%s\"".formatted(
+					ex.getClass().getName(),
+					filePath
+			), ex);
+		}
+	}
+
 	private static boolean isCompatibleCarrier(TruckAddon cargo, GameData.GameDataT3NonTruck carrierGameData)
 	{
 		if (carrierGameData==null) return false;
@@ -762,6 +790,13 @@ public class Data {
 			}
 		}
 		
+	}
+
+	private static Integer add(Integer value1, Integer value2)
+	{
+		if (value1==null) return value2;
+		if (value2==null) return value1;
+		return value1 + value2;
 	}
 
 	private static Integer parseInt(String str) {
@@ -1364,8 +1399,11 @@ public class Data {
 				super(gameDataNode, debugOutputPrefix);
 				excludedCargoTypes  = splitColonSeparatedIDList( gameDataNode.attributes.get("ExcludedCargoTypes") );
 				
-				GenericXmlNode addonSlotsNode = gameDataNode.getNode("GameData", "AddonSlots");
-				cargoSlots = parseInt( getAttribute(addonSlotsNode, "Quantity") );
+				GenericXmlNode[] addonSlotsNodes = gameDataNode.getNodes("GameData", "AddonSlots");
+				Integer sum = null;
+				for (GenericXmlNode addonSlotsNode : addonSlotsNodes)
+					sum = Data.add(sum, parseInt( getAttribute(addonSlotsNode, "Quantity") ));
+				cargoSlots = sum;
 				//showAttrsAndSubNodes(addonSlotsNode, "[General]", "AddonSlots");
 				//   [General] <GameData> <AddonSlots ####="...">
 				//    - InitialOffset
