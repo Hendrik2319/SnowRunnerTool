@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -1561,6 +1562,86 @@ public class SnowRunner {
 		}
 		
 	}
+	
+	public static class HiddenWheelTypes
+	{
+		private static final String DELIMITER = "§";
+		private static HiddenWheelTypes instance = null;
+		
+		public static HiddenWheelTypes getInstance()
+		{
+			if (instance == null)
+				instance = new HiddenWheelTypes();
+			return instance;
+		}
+		
+		private final Set<String> hiddenWheelTypes;
+		
+		private HiddenWheelTypes()
+		{
+			hiddenWheelTypes = new HashSet<>();
+			String[] strings = settings.getStrings(AppSettings.ValueKey.HiddenWheelTypes, DELIMITER);
+			if (strings!=null)
+				hiddenWheelTypes.addAll(Arrays.asList(strings));
+		}
+		
+		public boolean contains(Data.TruckTire tire)
+		{
+			if (tire==null) return false;
+			return contains(tire.id);
+		}
+		public boolean contains(String tireID)
+		{
+			if (tireID==null) return false;
+			return hiddenWheelTypes.contains(tireID);
+		}
+		
+		public void add(Data.TruckTire tire)
+		{
+			if (tire==null) return;
+			add(tire.id);
+		}
+		public void add(String tireID)
+		{
+			if (tireID==null) return;
+			hiddenWheelTypes.add(tireID);
+			updateSettings();
+		}
+		public void add(String[] tireIDs)
+		{
+			if (tireIDs==null || tireIDs.length==0) return;
+			for (String tireID : tireIDs)
+				if (tireID!=null)
+					hiddenWheelTypes.add(tireID);
+			updateSettings();
+		}
+
+		public void remove(Data.TruckTire tire)
+		{
+			if (tire==null) return;
+			remove(tire.id);
+		}
+		public void remove(String tireID)
+		{
+			if (tireID==null) return;
+			hiddenWheelTypes.remove(tireID);
+			updateSettings();
+		}
+		public void remove(String[] tireIDs)
+		{
+			if (tireIDs==null || tireIDs.length==0) return;
+			for (String tireID : tireIDs)
+				if (tireID!=null)
+					hiddenWheelTypes.remove(tireID);
+			updateSettings();
+		}
+
+		private void updateSettings()
+		{
+			String[] strings = hiddenWheelTypes.stream().sorted().toArray(String[]::new);
+			settings.putStrings(AppSettings.ValueKey.HiddenWheelTypes, DELIMITER, strings);
+		}
+	}
 
 	private static class TruckAddonsTablePanel extends CombinedTableTabPaneTextPanePanel implements Finalizable {
 		private static final long serialVersionUID = 7841445317301513175L;
@@ -2106,6 +2187,8 @@ public class SnowRunner {
 			TruckImageDialog_WindowY,
 			TruckImageDialog_WindowWidth,
 			TruckImageDialog_WindowHeight,
+			
+			HiddenWheelTypes,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

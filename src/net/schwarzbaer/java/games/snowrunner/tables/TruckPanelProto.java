@@ -912,6 +912,7 @@ public class TruckPanelProto implements Finalizable {
 					}
 					return null;
 				});
+				coloring.addForegroundRowColorizer(row -> SnowRunner.HiddenWheelTypes.getInstance().contains(row.tire.id) ? Color.GRAY : null);
 			}
 
 			private boolean isEqual(double v1, Float v2, double tolerance)
@@ -1002,9 +1003,10 @@ public class TruckPanelProto implements Finalizable {
 				if (compatibleWheels!=null) {
 					for (CompatibleWheel wheel : compatibleWheels) {
 						WheelsDef wheelsDef = wheel.wheelsDef;
-						if (wheelsDef==null) continue;
-						for (TruckTire tire : wheelsDef.truckTires)
-							data.add( new RowItem(wheel.scale, tire) );
+						if (wheelsDef!=null)
+							wheelsDef.forEachTire((i,tire) ->
+								data.add( new RowItem(wheel.scale, tire) )
+							);
 					}
 					Comparator<Float >  floatNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
 					Comparator<String> stringNullsLast = Comparator.nullsLast(Comparator.naturalOrder());
@@ -1061,6 +1063,7 @@ public class TruckPanelProto implements Finalizable {
 		private final Vector<CompatibleWheelsPanel.CWTableModel.RowItem> data;
 		private final WheelsDiagram diagramView;
 		private final Language language;
+		private boolean showHiddenWheelTypes = false;
 		
 		WheelsDiagramDialog(Window owner, Vector<CompatibleWheelsPanel.CWTableModel.RowItem> data, String truckName_StringID, Language language) {
 			super(owner, ModalityType.APPLICATION_MODAL);
@@ -1098,6 +1101,12 @@ public class TruckPanelProto implements Finalizable {
 			optionsPanel.add(createRadioV(GuiObjs.VertAxesMud    , "Mud"    , bgv, AxisValue.Mud    ), c);
 			c.weightx = 1; c.gridwidth = GridBagConstraints.REMAINDER;
 			optionsPanel.add(new JLabel(), c);
+			
+			c.weightx = 1; c.gridwidth = GridBagConstraints.REMAINDER;
+			optionsPanel.add(SnowRunner.createCheckBox("Show hidden wheel types", showHiddenWheelTypes, null, true, b -> {
+				showHiddenWheelTypes = !showHiddenWheelTypes;
+				updateDiagram();
+			}), c);
 			
 			JPanel contentPane = new JPanel(new BorderLayout());
 			contentPane.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
@@ -1141,6 +1150,7 @@ public class TruckPanelProto implements Finalizable {
 		private void updateDiagram() {
 			HashMap<Float,HashMap<Float,WheelsDiagram.DataPoint>> dataPointsMap = new HashMap<>();
 			for (CompatibleWheelsPanel.CWTableModel.RowItem wheel : data) {
+				if (!showHiddenWheelTypes && SnowRunner.HiddenWheelTypes.getInstance().contains(wheel.tire)) continue;
 				Float x = getValue(wheel.tire,horizAxis);
 				Float y = getValue(wheel.tire,vertAxis);
 				if (x!=null && y!=null) {

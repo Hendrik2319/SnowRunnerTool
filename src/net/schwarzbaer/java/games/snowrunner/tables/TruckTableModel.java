@@ -60,7 +60,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private Function<Truck, Color> colorizeTrucksByTrailers;
 	private SaveGame.TruckDesc displayedTruck;
 
-	// Column Widths: [160, 80, 170, 100, 80, 160, 40, 45, 45, 80, 60, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 50, 60, 75, 65, 95, 105, 90, 95, 95, 110, 80, 80, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
+	// Column Widths: [160, 80, 170, 100, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 50, 60, 75, 65, 95, 105, 90, 95, 95, 110, 80, 80, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
@@ -74,7 +74,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "Owned"    , "Owned"                 ,                 Long.class,  45,             null, CENTER,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null :     model_.saveGame.getOwnedTruckCount(truck_))),
 				new ColumnID( "InWareHs" , "In Warehouse"          ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
 				new ColumnID( "InGarage" , "In Garage"             ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, null), (row, model, textOutput) -> getTrucksInGarage   (row, model, textOutput)),
-				new ColumnID( "OnTheRoad", "On the Road"           ,                 Long.class,  50,             null, CENTER,      null, false, (row,model) -> getTrucksOnTheRoad  (row, model, null), (row, model, textOutput) -> getTrucksOnTheRoad  (row, model, textOutput)),
+				new ColumnID( "OnTheRoad", "On the Road"           ,                 Long.class,  75,             null, CENTER,      null, false, (row,model) -> getTrucksOnTheRoad  (row, model, null), (row, model, textOutput) -> getTrucksOnTheRoad  (row, model, textOutput)),
 				new ColumnID( "DLData"   , "DiffLock (from Data)"  ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
 				new ColumnID( "DLUser"   , "DiffLock (by User)"    ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> gfds.userDefinedValues.getTruckValues(((Truck)row).id).realDiffLock),
 				new ColumnID( "DLTool"   , "DiffLock (by Tool)"    ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
@@ -313,25 +313,36 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 			return model_.saveGame.getTrucksOnTheRoad(truck_, textOutput);
 		});
 	}
+	
+	private static class ContainedFloat
+	{
+		Float value = null;
+		
+		void setMax(Float other)
+		{
+			if (value==null)
+				value = other;
+			else if (other!=null)
+				value = Math.max( value, other );
+		}
+	}
 
 	private static Float getMaxWheelValue(Truck truck, Function<TruckTire,Float> getTireValue) {
-		Float max = null;
+		ContainedFloat max = new ContainedFloat();
 		for (CompatibleWheel cw : truck.compatibleWheels)
 			if (cw.wheelsDef!=null)
-				for (TruckTire tire : cw.wheelsDef.truckTires) {
-					Float value = getTireValue.apply(tire);
-					max = max==null ? value : value==null ? max : Math.max(max,value);
-				}
-		return max;
+				cw.wheelsDef.forEachTire((i,tire) -> max.setMax( getTireValue.apply(tire) ));
+		return max.value;
 	}
 	
 	private static String getWheelCategories(Truck truck, Language language) {
 		HashSet<String> tireTypes_StringID = new HashSet<>();
 		for (CompatibleWheel cw : truck.compatibleWheels)
 			if (cw.wheelsDef!=null)
-				for (TruckTire tire : cw.wheelsDef.truckTires)
+				cw.wheelsDef.forEachTire((i,tire) -> {
 					if (tire.tireType_StringID!=null)
 						tireTypes_StringID.add(tire.tireType_StringID);
+				});
 		Vector<String> vec = new Vector<>(tireTypes_StringID);
 		vec.sort(Comparator.comparing(TruckTire::getTypeOrder).thenComparing(Comparator.naturalOrder()));
 		Iterable<String> it = () -> vec.stream().map(stringID->SnowRunner.solveStringID(stringID, language)).iterator();

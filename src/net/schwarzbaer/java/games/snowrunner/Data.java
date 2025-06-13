@@ -2004,7 +2004,7 @@ public class Data {
 
 	public static class WheelsDef extends ItemBased {
 	
-		public final Vector<TruckTire> truckTires;
+		private final Vector<TruckTire> truckTires;
 	
 		private WheelsDef(Item item) {
 			super(item);
@@ -2014,7 +2014,15 @@ public class Data {
 			for (int i=0; i<truckTireNodes.length; i++)
 				truckTires.add(new TruckTire(truckTireNodes[i], id, i, updateLevel));
 		}
-	
+		
+		public interface ForEachTireAction {
+			void accept(int i, TruckTire tire);
+		}
+		
+		public void forEachTire(ForEachTireAction action) {
+			for (int i=0; i<truckTires.size(); i++)
+				action.accept(i, truckTires.get(i));
+		}
 	}
 
 	public static class TruckTire {
@@ -2031,6 +2039,7 @@ public class Data {
 			return 0;
 		}
 	
+		public final String id;
 		public final String wheelsDefID;
 		public final int indexInDef;
 		public final String updateLevel;
@@ -2045,6 +2054,7 @@ public class Data {
 		public final String tireDefID;
 	
 		private TruckTire(GenericXmlNode node, String wheelsDefID, int indexInDef, String updateLevel) {
+			this.id = String.format("%s|%s[%d]", updateLevel==null ? "----" : updateLevel, wheelsDefID, indexInDef);
 			this.wheelsDefID = wheelsDefID;
 			this.indexInDef = indexInDef;
 			this.updateLevel = updateLevel;
@@ -2550,11 +2560,10 @@ public class Data {
 		
 			public void printTireList(ValueListOutput out, int indentLevel) {
 				if (wheelsDef!=null)
-					for (int i=0; i<wheelsDef.truckTires.size(); i++) {
-						TruckTire truckTire = wheelsDef.truckTires.get(i);
+					wheelsDef.forEachTire((i,truckTire) -> {
 						out.add(indentLevel, String.format("[%d]", i+1) );
 						truckTire.printValues(out, indentLevel+1);
-					}
+					});
 				else
 					out.add(indentLevel, "[No TruckTires]" );
 				
