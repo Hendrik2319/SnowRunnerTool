@@ -19,6 +19,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.HiddenWheelTypes;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges.QualityValue;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges.WheelValue;
 import net.schwarzbaer.java.lib.gui.Tables;
@@ -37,7 +38,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 				new ColumnID("UpdateLvl"  , "Update Level"   , String      .class,  80,   null,    null, false, row -> ((RowItem)row).updateLevel),
 				new ColumnID("TireDef"    , "TireDef"        , String      .class, 110,   null,    null, false, row -> ((RowItem)row).tireValues.tireDefID),
 				new ColumnID("Names"      , "Names"          , String      .class, 130,   null,    null, (row,lang) -> SnowRunner.joinStringIDs(((RowItem)row).names_StringID, lang)),
-				new ColumnID(ID_HIDE      , "Hide in Diagram", Boolean     .class,  90,   null,    null, false, row -> SnowRunner.HiddenWheelTypes.getInstance().contains(((RowItem)row).tireID)),
+				new ColumnID(ID_HIDE      , "Hide in Diagram", Boolean     .class,  90,   null,    null, false, row -> HiddenWheelTypes.getInstance().contains(((RowItem)row).tireID)),
 				new ColumnID("Sizes"      , "Sizes"          , String      .class, 300,   null,    null, false, row -> getSizeList ( ((RowItem)row).sizes  )),
 				new ColumnID("Highway"    , "Highway"        , Float       .class,  55,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionHighway), 
 				new ColumnID("Offroad"    , "Offroad"        , Float       .class,  50,  RIGHT, "%1.2f", false, row -> ((RowItem)row).tireValues.frictionOffroad), 
@@ -58,7 +59,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 					case Mud    : fireTableColumnUpdate(ID_QV_MUD ); break;
 				}
 		});
-		coloring.addForegroundRowColorizer(row -> SnowRunner.HiddenWheelTypes.getInstance().contains(row.tireID) ? Color.GRAY : null);
+		coloring.addForegroundRowColorizer(row -> HiddenWheelTypes.getInstance().contains(row.tireID) ? Color.GRAY : null);
 	}
 
 	@Override
@@ -68,7 +69,7 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 		
 		contextMenu.addSeparator();
 		
-		SnowRunner.HiddenWheelTypes hiddenWheelTypes = SnowRunner.HiddenWheelTypes.getInstance();
+		HiddenWheelTypes hiddenWheelTypes = HiddenWheelTypes.getInstance();
 		JMenuItem miHide = contextMenu.add(SnowRunner.createMenuItem("Hide selected wheel types in Wheel Diagram", true, e -> doWithSelectedWheelTypes(table, hiddenWheelTypes::add   )));
 		JMenuItem miShow = contextMenu.add(SnowRunner.createMenuItem("Show selected wheel types in Wheel Diagram", true, e -> doWithSelectedWheelTypes(table, hiddenWheelTypes::remove)));
 		
@@ -289,9 +290,9 @@ public class WheelsTableModel extends VerySimpleTableModel<WheelsTableModel.RowI
 			case ID_HIDE   :
 				if (aValue instanceof Boolean hide) {
 					if (hide.booleanValue())
-						SnowRunner.HiddenWheelTypes.getInstance().add(row.tireID);
+						HiddenWheelTypes.getInstance().add(row.tireID);
 					else
-						SnowRunner.HiddenWheelTypes.getInstance().remove(row.tireID);
+						HiddenWheelTypes.getInstance().remove(row.tireID);
 				}
 				break;
 		}

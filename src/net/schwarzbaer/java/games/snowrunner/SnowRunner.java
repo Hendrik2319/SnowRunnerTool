@@ -1585,22 +1585,12 @@ public class SnowRunner {
 				hiddenWheelTypes.addAll(Arrays.asList(strings));
 		}
 		
-		public boolean contains(Data.TruckTire tire)
-		{
-			if (tire==null) return false;
-			return contains(tire.id);
-		}
 		public boolean contains(String tireID)
 		{
 			if (tireID==null) return false;
 			return hiddenWheelTypes.contains(tireID);
 		}
 		
-		public void add(Data.TruckTire tire)
-		{
-			if (tire==null) return;
-			add(tire.id);
-		}
 		public void add(String tireID)
 		{
 			if (tireID==null) return;
@@ -1616,11 +1606,6 @@ public class SnowRunner {
 			updateSettings();
 		}
 
-		public void remove(Data.TruckTire tire)
-		{
-			if (tire==null) return;
-			remove(tire.id);
-		}
 		public void remove(String tireID)
 		{
 			if (tireID==null) return;

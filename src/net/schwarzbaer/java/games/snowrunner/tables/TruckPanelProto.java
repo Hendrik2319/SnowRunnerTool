@@ -57,6 +57,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.HiddenWheelTypes;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.ImageDialogController;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.WheelsQualityRanges;
 import net.schwarzbaer.java.games.snowrunner.tables.CombinedTableTabTextOutputPanel.CombinedTableTabPaneTextPanePanel;
@@ -859,6 +860,7 @@ public class TruckPanelProto implements Finalizable {
 			private static final String ID_QUALITY_HIGHWAY = "QualityHighway";
 			private static final String ID_QUALITY_OFFROAD = "QualityOffroad";
 			private static final String ID_QUALITY_MUD     = "QualityMud";
+			private static final String ID_HIDE            = "HideInDiagr";
 			private static final Color COLOR_BG_TRUCK_QV   = new Color(0xF1D5D5);
 			private static final Color COLOR_BG_GENERAL_QV = new Color(0xD5F1D5);
 			private static final Color COLOR_BG_DISPLAYED_TRUCK_WHEEL = new Color(0xFFDF00);
@@ -886,6 +888,7 @@ public class TruckPanelProto implements Finalizable {
 						new ColumnID( "Price"              , "Price"                , Integer                         .class,  50,   null, "%d Cr", false, get(row -> row.tire.gameData.price               )),
 						new ColumnID( "UnlockByExploration", "Unlock By Exploration", Boolean                         .class, 120,   null,    null, false, get(row -> row.tire.gameData.unlockByExploration )),
 						new ColumnID( "UnlockByRank"       , "Unlock By Rank"       , Integer                         .class, 100, CENTER,    null, false, get(row -> row.tire.gameData.unlockByRank        )),
+						new ColumnID( ID_HIDE              , "Hide in Diagram"      , Boolean                         .class,  90,   null,    null, false, get(row -> HiddenWheelTypes.getInstance().contains(row.tire.id))),
 						new ColumnID( "Description"        , "Description"          , String                          .class, 200,   null,    null,  true, get(row -> row.tire.gameData.getDescriptionStringID())),
 				});
 				this.displayedTruck = displayedTruck;
@@ -912,7 +915,7 @@ public class TruckPanelProto implements Finalizable {
 					}
 					return null;
 				});
-				coloring.addForegroundRowColorizer(row -> SnowRunner.HiddenWheelTypes.getInstance().contains(row.tire.id) ? Color.GRAY : null);
+				coloring.addForegroundRowColorizer(row -> HiddenWheelTypes.getInstance().contains(row.tire.id) ? Color.GRAY : null);
 			}
 
 			private boolean isEqual(double v1, Float v2, double tolerance)
@@ -1029,6 +1032,7 @@ public class TruckPanelProto implements Finalizable {
 						case ID_QUALITY_HIGHWAY:
 						case ID_QUALITY_OFFROAD:
 						case ID_QUALITY_MUD    :
+						case ID_HIDE:
 							return true;
 					}
 				return false;
@@ -1046,6 +1050,16 @@ public class TruckPanelProto implements Finalizable {
 					case ID_QUALITY_HIGHWAY: row.setQualityValue(WheelsQualityRanges.WheelValue.Highway, (WheelsQualityRanges.QualityValue)aValue); break;
 					case ID_QUALITY_OFFROAD: row.setQualityValue(WheelsQualityRanges.WheelValue.Offroad, (WheelsQualityRanges.QualityValue)aValue); break;
 					case ID_QUALITY_MUD    : row.setQualityValue(WheelsQualityRanges.WheelValue.Mud    , (WheelsQualityRanges.QualityValue)aValue); break;
+					case ID_HIDE:
+						if (aValue instanceof Boolean hide) {
+							if (hide.booleanValue())
+								HiddenWheelTypes.getInstance().add(row.tire.id);
+							else
+								HiddenWheelTypes.getInstance().remove(row.tire.id);
+							fireTableColumnUpdate(ID_HIDE);
+							table.repaint();
+						}
+						break;
 				}
 			}
 		}
@@ -1150,7 +1164,7 @@ public class TruckPanelProto implements Finalizable {
 		private void updateDiagram() {
 			HashMap<Float,HashMap<Float,WheelsDiagram.DataPoint>> dataPointsMap = new HashMap<>();
 			for (CompatibleWheelsPanel.CWTableModel.RowItem wheel : data) {
-				if (!showHiddenWheelTypes && SnowRunner.HiddenWheelTypes.getInstance().contains(wheel.tire)) continue;
+				if (!showHiddenWheelTypes && HiddenWheelTypes.getInstance().contains(wheel.tire.id)) continue;
 				Float x = getValue(wheel.tire,horizAxis);
 				Float y = getValue(wheel.tire,vertAxis);
 				if (x!=null && y!=null) {
