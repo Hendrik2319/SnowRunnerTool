@@ -86,7 +86,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				new ColumnID("UnpTrlDet","Unpack on Trailer Detach", Boolean.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.unpackOnTrailerDetach),
 				new ColumnID("AddonType","Addon Type"              ,  String.class,  85,   null,      null, false, row->((TruckAddon)row).gameData.addonType),
 				new ColumnID("SpecAddon","Special Addon"           ,  String.class,  85,   null,      null, false, row->getAssignedSpecialAddonList(gfds.specialTruckAddons,(TruckAddon)row)),
-				new ColumnID("LoadAreas","Load Areas"              ,  String.class, 200,   null,      null, false, row->Data.GameData.GameDataT3NonTruck.LoadArea.toString(((TruckAddon)row).gameData.loadAreas)),
+				new ColumnID("LoadAreas","Load Areas"              ,  String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.getLoadAreas()),
 				new ColumnID("IsCargo"  ,"Is Cargo"                , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).gameData.isCargo),
 				new ColumnID("CargLngth","Cargo Length"            , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoLength),
 		//		new ColumnID("CargVal"  ,"Cargo Value"             , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoValue_obsolete),

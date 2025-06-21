@@ -12,17 +12,20 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.zip.ZipFile;
 
 import net.schwarzbaer.java.games.snowrunner.MapTypes.SetMap;
@@ -792,6 +795,20 @@ public class Data {
 		
 	}
 
+	public static <V> Map<V, Integer> countDistinctValues(V[] array)
+	{
+		if (array==null) return null;
+		if (array.length==0) return null;
+		Map<V,Integer> map = new HashMap<>();
+		for (V value : array)
+		{
+			Integer n = map.get(value);
+			if (n==null) map.put(value,1);
+			else         map.put(value,n+1);
+		}
+		return map;
+	}
+
 	private static Integer add(Integer value1, Integer value2)
 	{
 		if (value1==null) return value2;
@@ -1452,11 +1469,7 @@ public class Data {
 				//    ? UnlockByRank
 				
 				GenericXmlNode[] loadAreaNodes = gameDataNode.getNodes("GameData", "LoadArea");
-				loadAreas = new LoadArea[loadAreaNodes.length];
-				for (int i=0; i<loadAreaNodes.length; i++) {
-					GenericXmlNode loadAreaNode = loadAreaNodes[i];
-					loadAreas[i] = new LoadArea(loadAreaNode);
-				}
+				loadAreas = Arrays.stream(loadAreaNodes).map(LoadArea::new).toArray(LoadArea[]::new);
 				isCargoCarrier = loadAreas.length==0 && cargoSlots!=null && cargoSlots>0;
 				
 				GenericXmlNode[] requiredAddonNodes = gameDataNode.getNodes("GameData", "RequiredAddon");
@@ -1474,18 +1487,23 @@ public class Data {
 				//      N = 2
 			}
 			
+			public String getLoadAreas()
+			{
+				return LoadArea.toString(loadAreas);
+			}
+			
 			public static class LoadArea {
 
+				private static final Comparator<String > STRING_NULLS_LAST  = Comparator.nullsLast(Comparator.naturalOrder());
+				private static final Comparator<Boolean> BOOLEAN_NULLS_LAST = Comparator.nullsLast(Comparator.naturalOrder());
+				private static final Comparator<LoadArea> COMPARATOR = Comparator
+						.<LoadArea,String>comparing(la -> la.type       , STRING_NULLS_LAST )
+						.thenComparing             (la -> la.subtype    , STRING_NULLS_LAST )
+						.thenComparing             (la -> la.trailerLoad, BOOLEAN_NULLS_LAST);
+				
 				public final String  type;
 				public final String  subtype;
 				public final Boolean trailerLoad;
-
-				@Override public String toString() {
-					String types = String.format("%s|%s", type==null ? "<null>" : type, subtype==null ? "<null>" : subtype);
-					if (trailerLoad!=null)
-						types += " <"+(trailerLoad ? "" : "No ")+"TrailerLoad>";
-					return types;
-				}
 
 				public LoadArea(GenericXmlNode loadAreaNode) {
 					type        =            loadAreaNode.attributes.get("Type"       );
@@ -1534,11 +1552,39 @@ public class Data {
 				}
 				
 				
+				@Override
+				public int hashCode()
+				{
+					return Objects.hash(type, subtype, trailerLoad);
+				}
+
+				@Override
+				public boolean equals(Object obj)
+				{
+					if (this == obj) return true;
+					if (!(obj instanceof LoadArea)) return false;
+					LoadArea other = (LoadArea) obj;
+					return Objects.equals(subtype, other.subtype)
+							&& Objects.equals(trailerLoad, other.trailerLoad)
+							&& Objects.equals(type, other.type);
+				}
+
+				@Override public String toString() {
+					String types = String.format("%s|%s", type==null ? "<null>" : type, subtype==null ? "<null>" : subtype);
+					if (trailerLoad!=null)
+						types += " <"+(trailerLoad ? "" : "No ")+"TrailerLoad>";
+					return types;
+				}
+
 				public static String toString(LoadArea[] loadAreas)
 				{
-					if (loadAreas==null) return null;
-					if (loadAreas.length==0) return null;
-					return Arrays.toString(loadAreas);
+					Map<LoadArea, Integer> map = countDistinctValues(loadAreas);
+					if (map==null) return null;
+					return map.keySet()
+						.stream()
+						.sorted(COMPARATOR)
+						.map(la -> "%s %dx".formatted( la, map.get(la) ))
+						.collect(Collectors.joining(", ", "[ ", " ]"));
 				}
 			}
 		}
