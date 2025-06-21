@@ -50,6 +50,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		this(mainWindow, gfds, connectToGlobalData, true);
 	}
 	public TruckAddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
+		// Column Widths: [50, 230, 80, 150, 200, 60, 200, 45, 130, 70, 80, 50, 85, 50, 50, 80, 90, 50, 120, 100, 60, 200, 150, 200, 70, 80, 90, 140, 85, 130, 85, 85, 200, 80, 80, 170, 120, 150] in ModelOrder
 		super(mainWindow, gfds, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
 				new ColumnID("ID"       ,"ID"                      ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
 				new ColumnID("UpdateLvl", "Update Level"           ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).updateLevel),
@@ -57,6 +58,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 				new ColumnID("Name"     ,"Name"                    ,  String.class, 200,   null,      null,  true, row->((TruckAddon)row).getName_StringID()), 
 				new ColumnID("Owned"    ,"Owned"                   ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
 				new ColumnID("InstallSk","Install Socket"          ,  String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.installSocket),
+				new ColumnID("InstallPs","Pos."                    ,  String.class,  45, CENTER,      null, false, get((model, lang, row)->getAddonSocketPosition(model.truck, row.gameData.installSocket))),
 				new ColumnID("Original" ,"Original Addon"          ,  String.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.originalAddon),
 				new ColumnID("CargoSlts","Cargo Slots"             , Integer.class,  70, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoSlots),
 				new ColumnID("CargoCarr","Cargo Carrier"           , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).gameData.isCargoCarrier),
@@ -362,7 +364,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			doc.append(Style.BOLD,"Install Socket: ");
 			doc.append("%s%n", installSocket);
 			doc.append(Style.BOLD,"Install Socket Pos.: ");
-			doc.append("%s", truck.getAddonSocketPosition(installSocket, (groupIndex, socketIndex) -> String.format("%d.%d", groupIndex+1, socketIndex+1)));
+			doc.append("%s", getAddonSocketPosition(truck, installSocket));
 			SnowRunner.writeInstallSocketIssuesToDoc(doc, Color.GRAY, installSocket, truck.addonSockets, "    ", true);
 		}
 		
@@ -398,5 +400,12 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			//doc.append("%s", SnowRunner.joinTruckNames(usableBy,language));
 		}
 		
+	}
+	
+	private static String getAddonSocketPosition(Truck truck, String installSocket)
+	{
+		if (truck==null) return null;
+		if (installSocket==null) return null;
+		return truck.getAddonSocketPosition(installSocket, (groupIndex, socketIndex) -> String.format("%d.%d", groupIndex+1, socketIndex+1));
 	}
 }
