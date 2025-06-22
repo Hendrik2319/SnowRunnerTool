@@ -2365,13 +2365,18 @@ public class Data {
 				for (AddonSockets.Socket s : as.sockets)
 					action.accept(as, s);
 		}
+		
+		public interface AddonSocketPositionCreator<V>
+		{
+			V create(int groupIndex, int socketIndex);
+		}
 
-		public <Result> Result getAddonSocketPosition(String installSocket, BiFunction<Integer,Integer,Result> createResult)
+		public <Result> Result getAddonSocketPosition(String installSocket, AddonSocketPositionCreator<Result> createResult)
 		{
 			for (AddonSockets as : addonSockets)
 				for (AddonSockets.Socket s : as.sockets)
 					if (contains(s.socketIDs, installSocket))
-						return createResult.apply(as.index, s.index);
+						return createResult.create(as.index, s.index);
 			return null;
 		}
 

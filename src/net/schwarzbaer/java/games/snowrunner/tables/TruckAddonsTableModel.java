@@ -52,49 +52,49 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	public TruckAddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
 		// Column Widths: [50, 230, 80, 150, 200, 60, 200, 45, 130, 70, 80, 50, 85, 50, 50, 80, 90, 50, 120, 100, 60, 200, 150, 200, 70, 80, 90, 140, 85, 130, 85, 85, 200, 80, 80, 170, 120, 150] in ModelOrder
 		super(mainWindow, gfds, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
-				new ColumnID("ID"       ,"ID"                      ,  String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
-				new ColumnID("UpdateLvl", "Update Level"           ,  String.class,  80,   null,      null, false, row->((TruckAddon)row).updateLevel),
-				new ColumnID("Category" ,"Category"                ,  String.class, 150,   null,      null, false, row->((TruckAddon)row).gameData.category),
-				new ColumnID("Name"     ,"Name"                    ,  String.class, 200,   null,      null,  true, row->((TruckAddon)row).getName_StringID()), 
-				new ColumnID("Owned"    ,"Owned"                   ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
-				new ColumnID("InstallSk","Install Socket"          ,  String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.installSocket),
-				new ColumnID("InstallPs","Pos."                    ,  String.class,  45, CENTER,      null, false, get((model, lang, row)->getAddonSocketPosition(model.truck, row.gameData.installSocket))),
-				new ColumnID("Original" ,"Original Addon"          ,  String.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.originalAddon),
-				new ColumnID("CargoSlts","Cargo Slots"             , Integer.class,  70, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoSlots),
-				new ColumnID("CargoCarr","Cargo Carrier"           , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).gameData.isCargoCarrier),
-				new ColumnID("Repairs"  ,"Repairs"                 , Integer.class,  50,  RIGHT,    "%d R", false, row->((TruckAddon)row).repairsCapacity),
-				new ColumnID("WheelRep" ,"Wheel Repairs"           , Integer.class,  85, CENTER,   "%d WR", false, row->((TruckAddon)row).wheelRepairsCapacity),
-				new ColumnID("Fuel"     ,"Fuel"                    , Integer.class,  50,  RIGHT,    "%d L", false, row->((TruckAddon)row).fuelCapacity),
-				new ColumnID("Water"    ,"Water"                   , Integer.class,  50,  RIGHT,    "%d L", false, row->((TruckAddon)row).waterCapacity),
-				new ColumnID("EnAWD"    ,"Enables AWD"             , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).enablesAllWheelDrive), 
-				new ColumnID("EnDiffLck","Enables DiffLock"        , Boolean.class,  90,   null,      null, false, row->((TruckAddon)row).enablesDiffLock), 
-				new ColumnID("Price"    ,"Price"                   , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((TruckAddon)row).gameData.price), 
-				new ColumnID("UnlExpl"  ,"Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.unlockByExploration), 
-				new ColumnID("UnlRank"  ,"Unlock By Rank"          , Integer.class, 100, CENTER, "Rank %d", false, row->((TruckAddon)row).gameData.unlockByRank), 
-				new ColumnID("Unlocked" ,"Unlocked"                , Boolean.class,  60,   null,      null, false, get((model, lang, row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
-				new ColumnID("Desc"     ,"Description"             ,  String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return SnowRunner.getFirstNonNull( row.gameData.getDescriptionStringID(), row.gameData.cargoDescription_StringID ); }), 
-				new ColumnID("ExclCargo","Excluded Cargo Types"    ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((TruckAddon)row).gameData.excludedCargoTypes,true)),
-				new ColumnID("RequAddon","Required Addons"         ,  String.class, 200,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((TruckAddon)row).gameData.requiredAddons)),
-		//		new ColumnID("GaragePts","Garage Points (obs?)"    , Integer.class, 120, CENTER,      null, false, row->((TruckAddon)row).gameData.garagePoints_obsolete),
-		//		new ColumnID("Custmizbl","Is Customizable (obs?)"  , Boolean.class, 125,   null,      null, false, row->((TruckAddon)row).gameData.isCustomizable_obsolete),
-				new ColumnID("LoadPts"  ,"Load Points"             , Integer.class,  70, CENTER,      null, false, row->((TruckAddon)row).gameData.loadPoints),
-				new ColumnID("ManualPts","Manual Loads"            , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.manualLoads),
-				new ColumnID("ManlPts2" ,"Manual Loads 2"          , Integer.class,  90, CENTER,      null, false, row->((TruckAddon)row).gameData.manualLoads_IS),
-		//		new ColumnID("SaddleT"  ,"Saddle Type (obsolete)"  ,  String.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.saddleType_obsolete),
-				new ColumnID("RequAddT" ,"Required Addon Type"     ,  String.class, 140,   null,      null, (obj,lang)->{ TruckAddon row = (TruckAddon)obj; return SnowRunner.getIdAndName(row.gameData.requiredAddonType, row.gameData.requiredAddonType_StringID, lang); }), 
-				new ColumnID("Trls2Unlk","Trials to Unlock"        , Integer.class,  85, CENTER,      null, false, row->((TruckAddon)row).gameData.trialsToUnlock),
-		//		new ColumnID("Wheel2Pck","Wheel to Pack"           , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.wheelToPack_obsolete),
-		//		new ColumnID("ShwPckStp","Show Packing Stoppers"   , Boolean.class, 125,   null,      null, false, row->((TruckAddon)row).gameData.showPackingStoppers_obsolete),
-				new ColumnID("UnpTrlDet","Unpack on Trailer Detach", Boolean.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.unpackOnTrailerDetach),
-				new ColumnID("AddonType","Addon Type"              ,  String.class,  85,   null,      null, false, row->((TruckAddon)row).gameData.addonType),
-				new ColumnID("SpecAddon","Special Addon"           ,  String.class,  85,   null,      null, false, row->getAssignedSpecialAddonList(gfds.specialTruckAddons,(TruckAddon)row)),
-				new ColumnID("LoadAreas","Load Areas"              ,  String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.getLoadAreas()),
-				new ColumnID("IsCargo"  ,"Is Cargo"                , Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).gameData.isCargo),
-				new ColumnID("CargLngth","Cargo Length"            , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoLength),
-		//		new ColumnID("CargVal"  ,"Cargo Value"             , Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoValue_obsolete),
-				new ColumnID("CargType" ,"Cargo Type"              ,  String.class, 170,   null,      null, false, row->((TruckAddon)row).gameData.cargoType),
-				new ColumnID("CargSType","Cargo Addon SubType"     ,  String.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.cargoAddonSubtype),
-				new ColumnID("UsableBy" ,"Usable By"               ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((TruckAddon)row).usableBy, lang)),
+				new ColumnID("ID"       ,"ID"                      ,              String.class, 230,   null,      null, false, row->((TruckAddon)row).id),
+				new ColumnID("UpdateLvl", "Update Level"           ,              String.class,  80,   null,      null, false, row->((TruckAddon)row).updateLevel),
+				new ColumnID("Category" ,"Category"                ,              String.class, 150,   null,      null, false, row->((TruckAddon)row).gameData.category),
+				new ColumnID("Name"     ,"Name"                    ,              String.class, 200,   null,      null,  true, row->((TruckAddon)row).getName_StringID()), 
+				new ColumnID("Owned"    ,"Owned"                   ,                Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
+				new ColumnID("InstallSk","Install Socket"          ,              String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.installSocket),
+				new ColumnID("InstallPs","Pos."                    , AddonSocketPosition.class,  45, CENTER,      null, false, get((model, lang, row)->AddonSocketPosition.create(model.truck, row.gameData.installSocket))),
+				new ColumnID("Original" ,"Original Addon"          ,              String.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.originalAddon),
+				new ColumnID("CargoSlts","Cargo Slots"             ,             Integer.class,  70, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoSlots),
+				new ColumnID("CargoCarr","Cargo Carrier"           ,             Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).gameData.isCargoCarrier),
+				new ColumnID("Repairs"  ,"Repairs"                 ,             Integer.class,  50,  RIGHT,    "%d R", false, row->((TruckAddon)row).repairsCapacity),
+				new ColumnID("WheelRep" ,"Wheel Repairs"           ,             Integer.class,  85, CENTER,   "%d WR", false, row->((TruckAddon)row).wheelRepairsCapacity),
+				new ColumnID("Fuel"     ,"Fuel"                    ,             Integer.class,  50,  RIGHT,    "%d L", false, row->((TruckAddon)row).fuelCapacity),
+				new ColumnID("Water"    ,"Water"                   ,             Integer.class,  50,  RIGHT,    "%d L", false, row->((TruckAddon)row).waterCapacity),
+				new ColumnID("EnAWD"    ,"Enables AWD"             ,             Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).enablesAllWheelDrive), 
+				new ColumnID("EnDiffLck","Enables DiffLock"        ,             Boolean.class,  90,   null,      null, false, row->((TruckAddon)row).enablesDiffLock), 
+				new ColumnID("Price"    ,"Price"                   ,             Integer.class,  50,  RIGHT,   "%d Cr", false, row->((TruckAddon)row).gameData.price), 
+				new ColumnID("UnlExpl"  ,"Unlock By Exploration"   ,             Boolean.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.unlockByExploration), 
+				new ColumnID("UnlRank"  ,"Unlock By Rank"          ,             Integer.class, 100, CENTER, "Rank %d", false, row->((TruckAddon)row).gameData.unlockByRank), 
+				new ColumnID("Unlocked" ,"Unlocked"                ,             Boolean.class,  60,   null,      null, false, get((model, lang, row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
+				new ColumnID("Desc"     ,"Description"             ,              String.class, 200,   null,      null,  true, obj->{ TruckAddon row = (TruckAddon)obj; return SnowRunner.getFirstNonNull( row.gameData.getDescriptionStringID(), row.gameData.cargoDescription_StringID ); }), 
+				new ColumnID("ExclCargo","Excluded Cargo Types"    ,              String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((TruckAddon)row).gameData.excludedCargoTypes,true)),
+				new ColumnID("RequAddon","Required Addons"         ,              String.class, 200,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((TruckAddon)row).gameData.requiredAddons)),
+		//		new ColumnID("GaragePts","Garage Points (obs?)"    ,             Integer.class, 120, CENTER,      null, false, row->((TruckAddon)row).gameData.garagePoints_obsolete),
+		//		new ColumnID("Custmizbl","Is Customizable (obs?)"  ,             Boolean.class, 125,   null,      null, false, row->((TruckAddon)row).gameData.isCustomizable_obsolete),
+				new ColumnID("LoadPts"  ,"Load Points"             ,             Integer.class,  70, CENTER,      null, false, row->((TruckAddon)row).gameData.loadPoints),
+				new ColumnID("ManualPts","Manual Loads"            ,             Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.manualLoads),
+				new ColumnID("ManlPts2" ,"Manual Loads 2"          ,             Integer.class,  90, CENTER,      null, false, row->((TruckAddon)row).gameData.manualLoads_IS),
+		//		new ColumnID("SaddleT"  ,"Saddle Type (obsolete)"  ,              String.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.saddleType_obsolete),
+				new ColumnID("RequAddT" ,"Required Addon Type"     ,              String.class, 140,   null,      null, (obj,lang)->{ TruckAddon row = (TruckAddon)obj; return SnowRunner.getIdAndName(row.gameData.requiredAddonType, row.gameData.requiredAddonType_StringID, lang); }), 
+				new ColumnID("Trls2Unlk","Trials to Unlock"        ,             Integer.class,  85, CENTER,      null, false, row->((TruckAddon)row).gameData.trialsToUnlock),
+		//		new ColumnID("Wheel2Pck","Wheel to Pack"           ,             Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.wheelToPack_obsolete),
+		//		new ColumnID("ShwPckStp","Show Packing Stoppers"   ,             Boolean.class, 125,   null,      null, false, row->((TruckAddon)row).gameData.showPackingStoppers_obsolete),
+				new ColumnID("UnpTrlDet","Unpack on Trailer Detach",             Boolean.class, 130,   null,      null, false, row->((TruckAddon)row).gameData.unpackOnTrailerDetach),
+				new ColumnID("AddonType","Addon Type"              ,              String.class,  85,   null,      null, false, row->((TruckAddon)row).gameData.addonType),
+				new ColumnID("SpecAddon","Special Addon"           ,              String.class,  85,   null,      null, false, row->getAssignedSpecialAddonList(gfds.specialTruckAddons,(TruckAddon)row)),
+				new ColumnID("LoadAreas","Load Areas"              ,              String.class, 200,   null,      null, false, row->((TruckAddon)row).gameData.getLoadAreas()),
+				new ColumnID("IsCargo"  ,"Is Cargo"                ,             Boolean.class,  80,   null,      null, false, row->((TruckAddon)row).gameData.isCargo),
+				new ColumnID("CargLngth","Cargo Length"            ,             Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoLength),
+		//		new ColumnID("CargVal"  ,"Cargo Value"             ,             Integer.class,  80, CENTER,      null, false, row->((TruckAddon)row).gameData.cargoValue_obsolete),
+				new ColumnID("CargType" ,"Cargo Type"              ,              String.class, 170,   null,      null, false, row->((TruckAddon)row).gameData.cargoType),
+				new ColumnID("CargSType","Cargo Addon SubType"     ,              String.class, 120,   null,      null, false, row->((TruckAddon)row).gameData.cargoAddonSubtype),
+				new ColumnID("UsableBy" ,"Usable By"               ,              String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((TruckAddon)row).usableBy, lang)),
 		}));
 		
 		clickedItem = null;
@@ -364,7 +364,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			doc.append(Style.BOLD,"Install Socket: ");
 			doc.append("%s%n", installSocket);
 			doc.append(Style.BOLD,"Install Socket Pos.: ");
-			doc.append("%s", getAddonSocketPosition(truck, installSocket));
+			doc.append("%s", AddonSocketPosition.create(truck, installSocket));
 			SnowRunner.writeInstallSocketIssuesToDoc(doc, Color.GRAY, installSocket, truck.addonSockets, "    ", true);
 		}
 		
@@ -402,10 +402,30 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		
 	}
 	
-	private static String getAddonSocketPosition(Truck truck, String installSocket)
+	record AddonSocketPosition(int groupIndex, int socketIndex) implements Comparable<AddonSocketPosition>
 	{
-		if (truck==null) return null;
-		if (installSocket==null) return null;
-		return truck.getAddonSocketPosition(installSocket, (groupIndex, socketIndex) -> String.format("%d.%d", groupIndex+1, socketIndex+1));
+		static AddonSocketPosition create(Truck truck, String installSocket)
+		{
+			if (truck==null) return null;
+			if (installSocket==null) return null;
+			return truck.getAddonSocketPosition(installSocket, AddonSocketPosition::new);
+		}
+		
+		@Override
+		public String toString()
+		{
+			return "%d.%d".formatted(groupIndex+1, socketIndex+1);
+		}
+
+		@Override
+		public int compareTo(AddonSocketPosition other)
+		{
+			if (other==null) return -1;
+			if (this.groupIndex < other.groupIndex) return -1;
+			if (this.groupIndex > other.groupIndex) return +1;
+			if (this.socketIndex < other.socketIndex) return -1;
+			if (this.socketIndex > other.socketIndex) return +1;
+			return 0;
+		}
 	}
 }

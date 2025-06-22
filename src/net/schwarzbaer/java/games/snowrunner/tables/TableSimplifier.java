@@ -337,7 +337,8 @@ public class TableSimplifier {
 					(columnClass == Truck.TruckType     .class) ||
 					(columnClass == Truck.DiffLockType  .class) ||
 					//(columnClass == TruckAddon.InstState.class) ||
-					(columnClass == Truck.UDV.ItemState .class);
+					(columnClass == Truck.UDV.ItemState .class) ||
+					(columnClass == TruckAddonsTableModel.AddonSocketPosition.class);
 			}
 		
 			@Override
@@ -347,6 +348,7 @@ public class TableSimplifier {
 				else if (columnClass == Truck.DiffLockType  .class) comparator = addComparator(comparator, sortOrder, row->(Truck.DiffLockType  )getValueAtRow.apply(row));
 				//else if (columnClass == TruckAddon.InstState.class) comparator = addComparator(comparator, sortOrder, row->(TruckAddon.InstState)getValueAtRow.apply(row));
 				else if (columnClass == Truck.UDV.ItemState .class) comparator = addComparator(comparator, sortOrder, row->(Truck.UDV.ItemState )getValueAtRow.apply(row));
+				else if (columnClass == TruckAddonsTableModel.AddonSocketPosition.class) comparator = addComparator(comparator, sortOrder, row->(TruckAddonsTableModel.AddonSocketPosition)getValueAtRow.apply(row));
 				return comparator;
 			}
 		}
