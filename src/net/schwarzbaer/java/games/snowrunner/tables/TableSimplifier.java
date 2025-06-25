@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Vector;
 import java.util.function.Consumer;
@@ -39,12 +40,14 @@ public class TableSimplifier {
 		final JScrollPane tableScrollPane;
 		final ContextMenu tableContextMenu;
 		private String clickedStringValue;
+		private int[] selectedRows;
 	
 		private TableSimplifier(SimplifiedTableModel<?> tableModel) {
 			if (tableModel==null)
 				throw new IllegalArgumentException();
 			this.tableModel = tableModel;
 			clickedStringValue = null;
+			selectedRows = null;
 			
 			table = new JTable();
 			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
@@ -78,14 +81,18 @@ public class TableSimplifier {
 				rowSorter.resetSortOrder();
 				table.repaint();
 			}));
-			JMenuItem miCopyValue = tableContextMenu.add(SnowRunner.createMenuItem("Copy Value",true,e->{
+			JMenuItem miCopyValue = tableContextMenu.add(SnowRunner.createMenuItem("###",true,e->{
 				if (clickedStringValue!=null)
 					ClipboardTools.copyToClipBoard(clickedStringValue);
+			}));
+			JMenuItem miCopyRows = tableContextMenu.add(SnowRunner.createMenuItem("###",true,e->{
+				if (selectedRows!=null && selectedRows.length>0)
+					ClipboardTools.copyToClipBoard(getRowsContent(selectedRows, table, this.tableModel));
 			}));
 			tableContextMenu.add(SnowRunner.createMenuItem("Show Column Widths", true, e->{
 				System.out.printf("Column Widths: %s%n", SimplifiedTableModel.getColumnWidthsAsString(table));
 			}));
-			tableContextMenu.addContextMenuInvokeListener((table, x, y) -> {
+			tableContextMenu.addContextMenuInvokeListener((comp, x, y) -> {
 				clickedStringValue = null;
 				if (x!=null && y!=null) {
 					Point point = new Point(x,y);
@@ -98,11 +105,26 @@ public class TableSimplifier {
 					if (columnClass==String.class && value!=null)
 						clickedStringValue = value.toString();
 				}
+				selectedRows = Arrays
+						.stream (table.getSelectedRows())
+						.map    (rowV_ -> rowV_<0 ? -1 : table.convertRowIndexToModel(rowV_))
+						.filter (rowM_ -> rowM_>=0)
+						.toArray();
+				
 				miCopyValue.setEnabled(clickedStringValue!=null);
 				miCopyValue.setText(
 					clickedStringValue==null
-					? "Copy Value to ClipBoard"
-					: String.format("Copy \"%s\" to ClipBoard", SnowRunner.getReducedString(clickedStringValue, 20))
+						? "Copy Value to ClipBoard"
+						: String.format("Copy \"%s\" to ClipBoard", SnowRunner.getReducedString(clickedStringValue, 20))
+				);
+				
+				miCopyRows.setEnabled(selectedRows.length>0);
+				miCopyRows.setText(
+					selectedRows.length==0
+						? "Copy Selected Rows to ClipBoard"
+						: selectedRows.length==1
+							? "Copy 1 Row to ClipBoard"
+							: "Copy %d Rows to ClipBoard".formatted(selectedRows.length)
 				);
 			});
 			
@@ -146,6 +168,30 @@ public class TableSimplifier {
 			public interface ContextMenuInvokeListener {
 				public void contextMenuWillBeInvoked(JTable table, Integer x, Integer y);
 			}
+		}
+
+		private static String getRowsContent(int[] rowsM, JTable table, SimplifiedTableModel<?> tableModel)
+		{
+			VerySimpleTableModel<?> vsTableModel = tableModel instanceof VerySimpleTableModel<?> model ? model : null;
+			
+			StringBuilder sb = new StringBuilder();
+			int colCount = tableModel.getColumnCount();
+			for (int rowM : rowsM)
+			{
+				for (int colV=0; colV<colCount; colV++)
+				{
+					if (colV>0) sb.append("\t");
+					int colM = table.convertColumnIndexToModel(colV);
+					Object value = vsTableModel!=null
+							? vsTableModel.getDisplayedValueAt(rowM, colM)
+							: tableModel.getValueAt(rowM, colM);
+					if (value!=null)
+						sb.append(value);
+				}
+				sb.append("\r\n");
+			}
+				
+			return sb.toString();
 		}
 
 		public static JComponent create(SimplifiedTableModel<?> tableModel) {

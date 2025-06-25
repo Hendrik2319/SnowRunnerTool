@@ -63,6 +63,7 @@ $ cargo_logs_medium_trailer_log
 $ cargo_logs_trailer_log_medium
 
 [[LongLogs]]
+$ cargo_logs_long_pacific_p16_trailer_log_pole
 $ cargo_logs_long_trailer_log_pole
 $ cargo_logs_long_trailer_log_pole_zikz_612h
 

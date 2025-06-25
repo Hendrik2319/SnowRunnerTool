@@ -28,6 +28,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Vector;
@@ -512,6 +513,39 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					return colorComp;
 			}
 		}
+
+		static String getDisplayableString(Object value, ColumnID columnID)
+		{
+			String valueStr = value==null ? null : value.toString();
+			
+			if (columnID.format!=null)
+				valueStr = String.format(Locale.ENGLISH, columnID.format, value);
+			
+			if (value instanceof Data.BooleanWithText boolWithText)
+				valueStr = boolWithText.getText();
+			
+			if (value instanceof Color[] colors)
+				valueStr = toString(colors);
+			
+			if (value instanceof Color color)
+				valueStr = toString(color);
+			
+			return valueStr;
+		}
+
+		static String toString(Color color)
+		{
+			return color==null ? null : "Color(%d,%d,%d)".formatted(color.getRed(), color.getGreen(), color.getBlue());
+		}
+
+		static String toString(Color[] colors)
+		{
+			List<String> strs = Arrays
+					.stream(colors)
+					.map(c -> c==null ? "" : GeneralPurposeTCR.toString(c))
+					.toList();
+			return "[%s]".formatted(String.join(",", strs));
+		}
 	}
 
 	@Override final public void setTable(JTable table) {
@@ -703,6 +737,19 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	Object getValue(ColumnID columnID, int rowIndex, RowType row) {
 		return columnID.getValue(rowIndex, row, language, this);
+	}
+	
+	public Object getDisplayedValueAt(int rowIndex, int columnIndex)
+	{
+		ColumnID columnID = getColumnID(columnIndex);
+		if (columnID==null) return null;
+		
+		RowType row = getRow(rowIndex);
+		if (row==null) return null;
+		
+		Object value = getValue(columnID, rowIndex, row);
+		value = GeneralPurposeTCR.getDisplayableString(value, columnID);
+		return value;
 	}
 	
 	protected void fireTableColumnUpdate(String id)
