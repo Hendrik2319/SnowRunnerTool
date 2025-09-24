@@ -32,6 +32,11 @@ name = Crocodile Pack
 truck = step_3364_crocodile
 
 [DLC]
+name = Freightliner & Western Star Dual Pack
+truck = freightliner_fld120
+truck = western_star_6900xd
+
+[DLC]
 name = GMC Brigadier
 truck = gmc_8000
 
@@ -125,6 +130,16 @@ truck = sleiter_mfk816
 region = us_15
 map = level_us_15_01
 map = level_us_15_02
+
+[DLC]
+name = Season 16: High Voltage
+truck = hib_billert_1980
+truck = plad_440
+truck = sleiter_st833_chimera
+region = us_16
+map = level_us_16_01
+map = level_us_16_02
+map = level_us_16_03
 
 [DLC]
 name = Season 1: Search & Recover
