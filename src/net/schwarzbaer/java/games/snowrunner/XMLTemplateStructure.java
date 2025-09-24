@@ -1620,6 +1620,16 @@ class XMLTemplateStructure {
 					}
 				);
 			
+			// initial.2025.09.04.pak 
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
+					"1F69AA3EEA3042888A30CEA21FB492BF",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"");
+						return rawXML;
+					}
+				);
+			
 			return fixes;
 		}
 	}
