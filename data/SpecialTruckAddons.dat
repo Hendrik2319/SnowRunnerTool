@@ -16,6 +16,7 @@ $ crane_loglift_kenworth_963
 $ crane_loglift_zikz_605r
 $ crane_loglift_zikz_612h_mastodont
 $ futom_7290ra_crane
+$ mack_pinnacle_loglift
 
 [[MiniCrane]]
 $ burlak_minicrane_ru
@@ -26,10 +27,13 @@ $ frame_addon_heavy_repair_mastadon
 $ minicrane_kenworth_963
 $ minicrane_ru
 $ minicrane_ru_zikz_605r
+$ minicrane_sleiter_mfk816
 $ minicrane_us
+$ minicrane_us_kenworth_c500
 $ minicrane_us_loadstar
 $ minicrane_us_navistar
 $ plad_450_minicrane
+$ sleiter_st833_chimera_addon_crane
 $ tatra_crane
 
 [[BigCrane]]
@@ -47,6 +51,7 @@ $ cargo_logs_frame_addon_log_short
 $ cargo_logs_short_aramatsu_forester
 $ cargo_logs_short_frame_addon_kenworth_c500
 $ cargo_logs_short_mack_pinnacle
+$ cargo_logs_short_semitrailer_log_double_ls
 $ cargo_logs_trailer_log_short
 
 [[MediumLogs]]
@@ -64,6 +69,8 @@ $ cargo_logs_trailer_log_medium
 
 [[LongLogs]]
 $ cargo_logs_long_pacific_p16_trailer_log_pole
+$ cargo_logs_long_semitrailer_foldable
+$ cargo_logs_long_semitrailer_log_double_ls
 $ cargo_logs_long_trailer_log_pole
 $ cargo_logs_long_trailer_log_pole_zikz_612h
 
