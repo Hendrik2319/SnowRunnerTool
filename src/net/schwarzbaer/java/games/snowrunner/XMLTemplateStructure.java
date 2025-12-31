@@ -1384,14 +1384,14 @@ class XMLTemplateStructure {
 			if (xmLfix!=null)
 			{
 				String hash = computeHash(rawXML, filePath);
-				if (hash.equals(xmLfix.expectedHash))
+				if (hash.equals(xmLfix.expectedMD5Hash))
 					try { rawXML = xmLfix.fixXML.fixXML(rawXML); }
 					catch (XML.FixXMLException e) { throw new XML.FixXMLException(e, "Exception while fixing known bug in XML: "+e.getMessage()); }
 				else
 				{
 					System.out.printf("###  Found a file with an expected XML bug, but file content has another hash than expected:%n");
 					System.out.printf("   file: \"%s\"%n", filePath);
-					System.out.printf("   expected hash: %s%n", xmLfix.expectedHash);
+					System.out.printf("   expected hash: %s%n", xmLfix.expectedMD5Hash);
 					System.out.printf("        new hash: %s%n", hash);
 				}
 			}
@@ -1407,11 +1407,11 @@ class XMLTemplateStructure {
 			return sb.toString();
 		}
 
-		private record XMLfix(String filePath, String expectedHash, XML.FixXMLFunction fixXML)
+		private record XMLfix(String filePath, String expectedMD5Hash, XML.FixXMLFunction fixXML)
 		{
-			static void add(HashMap<String,XMLfix> fixes, String filePath, String expectedHash, XML.FixXMLFunction fixXML)
+			static void add(HashMap<String,XMLfix> fixes, String filePath, String expectedMD5Hash, XML.FixXMLFunction fixXML)
 			{
-				fixes.put(filePath, new XMLfix(filePath, expectedHash, fixXML));
+				fixes.put(filePath, new XMLfix(filePath, expectedMD5Hash, fixXML));
 			}
 
 			static String remove(String rawXML, String string) throws XML.FixXMLException
@@ -1626,6 +1626,34 @@ class XMLTemplateStructure {
 					"1F69AA3EEA3042888A30CEA21FB492BF",
 					rawXML -> {
 						rawXML = XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"");
+						return rawXML;
+					}
+				);
+			
+			// initial.2025.11.10.pak
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
+					"AA8F2C897C90C29BCEA85ECA2F186ABB",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"");
+						return rawXML;
+					}
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_16_5\\classes\\trucks\\padera_std4_tuning\\padera_std4_protection_1.xml",
+					"595DAFE742ECB58FB1F6668CC8216D8D",
+					rawXML -> {
+						for (int i=0; i<54; i++)
+							rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\"");
+						return rawXML;
+					}
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_16_5\\classes\\trucks\\padera_std4_tuning\\padera_std4_spot_light_1.xml",
+					"A3D8CCC9A5845783C48A737364D61A84",
+					rawXML -> {
+						for (int i=0; i<54; i++)
+							rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\"");
 						return rawXML;
 					}
 				);
