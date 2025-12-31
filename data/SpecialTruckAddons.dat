@@ -3,6 +3,8 @@ $ frame_addon_metal_detector
 
 [[SeismicVibrator]]
 $ frame_addon_seismic_vibrator
+$ frame_addon_seismic_vibrator_avenhorn_a15
+$ frame_addon_seismic_vibrator_padera_std4
 $ frame_addon_seismic_vibrator_zikz_612h
 $ frame_addon_seismic_vibrator_zikz_612h_mastodont
 $ frame_seismic_vibrator_zikz_605r
@@ -13,6 +15,7 @@ $ crane_aramatsu_forester
 $ crane_loglift
 $ crane_loglift_cat_ct681
 $ crane_loglift_kenworth_963
+$ crane_loglift_padera_std4
 $ crane_loglift_zikz_605r
 $ crane_loglift_zikz_612h_mastodont
 $ futom_7290ra_crane
@@ -24,7 +27,9 @@ $ crane_krs_58_bandit
 $ femm_37at_minicrane_ru
 $ frame_addon_heavy_repair
 $ frame_addon_heavy_repair_mastadon
+$ minicrane_avenhorn_a15
 $ minicrane_kenworth_963
+$ minicrane_rear_us_padera_std4
 $ minicrane_ru
 $ minicrane_ru_zikz_605r
 $ minicrane_sleiter_mfk816
@@ -41,6 +46,8 @@ $ big_crane_ru
 $ big_crane_us
 $ big_crane_us_02
 $ big_crane_us_02_zikz_612h
+$ big_crane_us_avenhorn_a15
+$ big_crane_us_padera_std4
 $ big_crane_us_ws4964
 $ big_crane_zikz_605r
 $ big_crane_zikz_612h
