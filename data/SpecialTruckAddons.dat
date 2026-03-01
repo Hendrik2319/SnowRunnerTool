@@ -4,6 +4,7 @@ $ frame_addon_metal_detector
 [[SeismicVibrator]]
 $ frame_addon_seismic_vibrator
 $ frame_addon_seismic_vibrator_avenhorn_a15
+$ frame_addon_seismic_vibrator_jangsu_rx600
 $ frame_addon_seismic_vibrator_padera_std4
 $ frame_addon_seismic_vibrator_zikz_612h
 $ frame_addon_seismic_vibrator_zikz_612h_mastodont
@@ -31,12 +32,14 @@ $ minicrane_avenhorn_a15
 $ minicrane_kenworth_963
 $ minicrane_rear_us_padera_std4
 $ minicrane_ru
+$ minicrane_ru_voron_g5352
 $ minicrane_ru_zikz_605r
 $ minicrane_sleiter_mfk816
 $ minicrane_us
 $ minicrane_us_kenworth_c500
 $ minicrane_us_loadstar
 $ minicrane_us_navistar
+$ minicrane_us_voron_g5352
 $ plad_450_minicrane
 $ sleiter_st833_chimera_addon_crane
 $ tatra_crane
@@ -45,6 +48,8 @@ $ tatra_crane
 $ big_crane_ru
 $ big_crane_us
 $ big_crane_us_02
+$ big_crane_us_02_padera_std4
+$ big_crane_us_02_voron_g5352
 $ big_crane_us_02_zikz_612h
 $ big_crane_us_avenhorn_a15
 $ big_crane_us_padera_std4
@@ -68,6 +73,8 @@ $ cargo_logs_medium_frame_addon
 $ cargo_logs_medium_frame_addon_high
 $ cargo_logs_medium_frame_addon_kenworth_963
 $ cargo_logs_medium_frame_addon_kenworth_c500
+$ cargo_logs_medium_frame_addon_padera_std4
+$ cargo_logs_medium_frame_addon_voron_g5352
 $ cargo_logs_medium_frame_addon_zikz_612h
 $ cargo_logs_medium_mack_pinnacle
 $ cargo_logs_medium_semitrailer_log

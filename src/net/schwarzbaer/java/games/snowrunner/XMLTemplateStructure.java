@@ -1658,6 +1658,44 @@ class XMLTemplateStructure {
 					}
 				);
 			
+			// initial.2026.03.01.pak 
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
+					"5569456C2DAD668B3002A832D1A82062",
+					rawXML -> XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"")
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
+					"796A37A2A9849375F4AD28C6379DE479",
+					rawXML -> XMLfix.replace(rawXML, "<RearWheel\r\n\t\t\tConnectedToHandbrake=\"true\"", "<RearWheel")
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_17\\classes\\trucks\\voron_g5352_tuning\\voron_g5352_protection_1.xml",
+					"309064CFF2F63679C2D42B9F84CA261E",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						return rawXML;
+					}
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\ru_17\\classes\\daytimes\\night_ru_17.xml",
+					"93BEB0DBC1C223F3DEDD4B767E72074E",
+					rawXML -> XMLfix.remove(rawXML, "IntensityDayNightTransitionOffset=\"0.0\"\r\n\t\t\tIntensityDayNightTransitionLength=\"0.03\"")
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\ru_17\\classes\\skies\\sky_ru_17.xml",
+					"14145B896B6F465B2524F3C94D1F15DA",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "FadeInStart=\"0.0\" FadeInStart=\"0.25\"", "FadeInStart=\"0.0\" FadeInEnd=\"0.25\"");
+						rawXML = XMLfix.replace(rawXML, "FadeInStart=\"0.0\" FadeInStart=\"0.25\"", "FadeInStart=\"0.0\" FadeInEnd=\"0.25\"");
+						return rawXML;
+					}
+				);
+			
+			
 			return fixes;
 		}
 	}

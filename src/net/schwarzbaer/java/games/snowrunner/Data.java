@@ -1599,10 +1599,10 @@ public class Data {
 
 			GameDataTruck(GenericXmlNode gameDataNode, String debugOutputPrefix) {
 				super(gameDataNode, debugOutputPrefix);
-				country       = Truck.CountrySet.create( parseEnumSet( splitColonSeparatedIDList( gameDataNode.attributes.get("Country") ), "Country", Truck.Country.values()) );
-				excludeAddons = splitColonSeparatedIDList( gameDataNode.attributes.get("ExcludeAddons") );
-				recallable_obsolete    = parseBool                ( gameDataNode.attributes.get("Recallable") );
-				unlockByObjective = gameDataNode.attributes.get("UnlockByObjective");
+				country       = Truck.CountrySet.create( parseEnumSet( splitColonSeparatedIDList( gameDataNode.attributes.get("Country") ), "Data.Truck.Country", Truck.Country.values()) );
+				excludeAddons       = splitColonSeparatedIDList( gameDataNode.attributes.get("ExcludeAddons") );
+				recallable_obsolete = parseBool                ( gameDataNode.attributes.get("Recallable") );
+				unlockByObjective   = gameDataNode.attributes.get("UnlockByObjective");
 				//showAttr("[General]", null, "ExcludeAddons", excludeAddons);
 				//   [General] <GameData ExcludeAddons="####">
 				//      ford_clt9000_top_fender, semitrailer_m747
@@ -2159,11 +2159,11 @@ public class Data {
 	public static class Truck extends ItemBased implements HasNameAndID {
 
 		public enum DiffLockType {
-			None, Uninstalled, Installed, Always;
+			None, Uninstalled, Installed, Always, Connected;
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
 		}
 		public enum Country {
-			US, RU, CAS, CE, NE;
+			US, RU, CAS, CE, NE, WA;
 			static String toString(Country country) {
 				return country==null ? null : country.toString();
 			}
@@ -2259,10 +2259,10 @@ public class Data {
 			//      TruckImage
 			//      TruckType
 			//      WheelToPack  // removed
-			type         = parseEnum( truckDataNode.attributes.get("TruckType"), "TruckType", TruckType.values());
+			type         = parseEnum( truckDataNode.attributes.get("TruckType"), "Data.Truck.TruckType", TruckType.values());
 			image        =            truckDataNode.attributes.get("TruckImage");
 			fuelCapacity = parseInt ( truckDataNode.attributes.get("FuelCapacity") );
-			diffLockType = parseEnum( truckDataNode.attributes.get("DiffLockType"), "DiffLockType", DiffLockType.values() );
+			diffLockType = parseEnum( truckDataNode.attributes.get("DiffLockType"), "Data.Truck.DiffLockType", DiffLockType.values() );
 			
 			
 			GenericXmlNode gameDataNode = item.content.getNode("Truck", "GameData");
