@@ -1301,6 +1301,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			
 			out.add(indentLevel  , label);
 			out.add(indentLevel+1, "Zone"                       , data.zone                   );
+			out.add(indentLevel+1, "Hide Zone"                  , data.hideZone               , "Yes", "No");
 			out.add(indentLevel+1, "Truck UID"                  , data.truckUid               );
 			out.add(indentLevel+1, "Is Visited"                 , data.isVisited              , "Yes", "No");
 			out.add(indentLevel+1, "Is Visit With Certain Truck", data.isVisitWithCertainTruck, "Yes", "No");
@@ -1311,16 +1312,18 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			if (data==null) return;
 			
 			out.add   (     indentLevel  , label);
-			out.add   (     indentLevel+1, "Map"                     , data.map               );
-			out.add   (     indentLevel+1, "Platform ID"             , data.platformId        );
-			out.add   (     indentLevel+1, "Truck UID"               , data.truckUid          );
+			out.add   (     indentLevel+1, "Map"                     , data.map                  );
+			out.add   (     indentLevel+1, "Platform ID"             , data.platformId           );
+			out.add   (     indentLevel+1, "Truck UID"               , data.truckUid             );
 			out.add   (     indentLevel+1, "Visit On Truck"          , data.isNeedVisitOnTruck, "Needed", "Not Needed");
-			out.add   (     indentLevel+1, "Model Building Tag"      , data.modelBuildingTag  );
-			out.add   (     indentLevel+1, "Unloading Mode"          , data.unloadingMode     );
+			out.add   (     indentLevel+1, "Model Building Tag"      , data.modelBuildingTag     );
+			out.add   (     indentLevel+1, "Unloading Mode"          , data.unloadingMode        );
 			out.add   (     indentLevel+1, "Is Visible With Platform", data.isVisibleWithPlatform);
+			out.add   (     indentLevel+1, "Is Zone Visited"         , data.isZoneVisited        );
 			writeArray(out, indentLevel+1, "Zones"                   , data.zones, WriterFunctions::write);
-			write     (out, indentLevel+1, "CargoState"              , data.cargoState);
+			write     (out, indentLevel+1, "CargoState"              , data.cargoState           );
 			write     (out, indentLevel+1, "Platform Color Override" , data.platformColorOverride);
+			write     (out, indentLevel+1, "Zone Color Override"     , data.zoneColorOverride    );
 		}
 		
 		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction.CargoState data)

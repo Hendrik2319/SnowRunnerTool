@@ -114,6 +114,11 @@ AWD=None
 DiffLock=None
 
 [Truck]
+id=jangsu_rx600
+AWD=Installed
+DiffLock=Permanent
+
+[Truck]
 id=kenworth_963
 AWD=Installed
 DiffLock=Permanent
@@ -227,6 +232,11 @@ DiffLock=Installed
 id=tuz_420_tatarin
 AWD=Permanent
 DiffLock=Permanent
+
+[Truck]
+id=voron_g5352
+AWD=Permanent
+DiffLock=Installed
 
 [Truck]
 id=ws_4964_white

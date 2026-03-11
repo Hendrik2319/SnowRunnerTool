@@ -112,6 +112,8 @@ import net.schwarzbaer.java.lib.system.Settings;
 
 public class SnowRunner {
 
+	private static final boolean DEBUG__SCAN_REGION_NAMES_VERBOSE = false;
+
 	public static final String TruckImagesFile = "SnowRunner - TruckImages.zip";
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
@@ -558,7 +560,7 @@ public class SnowRunner {
 			settings.remove(AppSettings.ValueKey.Language);
 		
 		if (language!=null)
-			language.scanRegionNames(false);
+			language.scanRegionNames(DEBUG__SCAN_REGION_NAMES_VERBOSE);
 		
 		gfds.controllers.languageListeners.setLanguage(language);
 	}

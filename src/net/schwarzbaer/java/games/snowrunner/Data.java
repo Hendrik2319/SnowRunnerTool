@@ -613,8 +613,8 @@ public class Data {
 	
 	public static class RegionNames
 	{
-		private static final int maxRegion = 16;
-		private static final int maxMap    = 6;
+		private static final int MAX_REGION_INDEX = 32;
+		private static final int MAX_MAP_INDEX    = 6;
 		private final HashMap<String, NameDesc[][]> data;
 		
 		private RegionNames() {
@@ -692,11 +692,11 @@ public class Data {
 			for (String country : MapIndex.countries) {
 				if (verbose) System.out.printf("Country: %s%n", country);
 				
-				NameDesc[][] names = new NameDesc[maxRegion][maxMap+1];
-				for (int i=0; i<maxRegion; i++) Arrays.fill(names[i], null);
+				NameDesc[][] names = new NameDesc[MAX_REGION_INDEX][MAX_MAP_INDEX+1];
+				for (int i=0; i<MAX_REGION_INDEX; i++) Arrays.fill(names[i], null);
 				data.put(country, names);
 				
-				for (int region=1; region<=maxRegion; region++) {
+				for (int region=1; region<=MAX_REGION_INDEX; region++) {
 					String regionName_ID = String.format("%s_%02d", country, region);
 					String regionName    = null;
 					
@@ -714,7 +714,7 @@ public class Data {
 					else
 						if (verbose) System.out.printf("   Region[%d] - Name not found%n", region);
 					
-					for (int map=1; map<=maxMap; map++) {
+					for (int map=1; map<=MAX_MAP_INDEX; map++) {
 						String mapName_ID = null;
 						String mapName = null;
 						String mapDesc_ID = null;

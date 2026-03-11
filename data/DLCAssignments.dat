@@ -1,7 +1,6 @@
 [DLC]
 name = < Base Game >
 truck = ank_mk38_ht
-truck = tuz_108_warthog
 region = ru_02
 region = us_01
 region = us_02
@@ -30,6 +29,11 @@ truck = chevy_apache
 [DLC]
 name = Crocodile Pack
 truck = step_3364_crocodile
+
+[DLC]
+name = Dragon Wagons Dual Pack
+truck = avenhorn_a15
+truck = padera_std4
 
 [DLC]
 name = Freightliner & Western Star Dual Pack
@@ -142,8 +146,16 @@ map = level_us_16_02
 map = level_us_16_03
 
 [DLC]
+name = Season 17: Repair & Rescue
+truck = jangsu_rx600
+truck = voron_g5352
+map = level_ru_17_01
+map = level_ru_17_02
+
+[DLC]
 name = Season 1: Search & Recover
 truck = ford_f750
+truck = tuz_108_warthog
 truck = tuz_16_actaeon
 region = ru_03
 map = level_ru_03_01

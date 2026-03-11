@@ -2113,18 +2113,21 @@ public class SaveGameData {
 						public static class ZoneState
 						{
 							private static final KnownJsonValues<NV, V> KNOWN_JSON_VALUES = KJV_FACTORY.create(ZoneState.class)
+									.add("hideZone"               , JSON_Data.Value.Type.Bool  )
 									.add("isVisitWithCertainTruck", JSON_Data.Value.Type.Bool  )
 									.add("isVisited"              , JSON_Data.Value.Type.Bool  )
 									.add("truckUid"               , JSON_Data.Value.Type.String)
 									.add("zone"                   , JSON_Data.Value.Type.String)
 									;
 							/*
-							    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.VisitAllZonesState.ZoneState]" [4]
-							        isVisitWithCertainTruck:Bool
-							        isVisited              :Bool
-							        truckUid               :String
-							        zone                   :String
+							    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.MapZonesStates.ZoneState]" [5]
+							        hideZone                : [Bool, <unset>]
+							        isVisitWithCertainTruck : Bool
+							        isVisited               : Bool
+							        truckUid                : String
+							        zone                    : String
 							 */
+							public final Boolean hideZone;
 							public final boolean isVisitWithCertainTruck;
 							public final boolean isVisited;
 							public final String truckUid;
@@ -2133,6 +2136,7 @@ public class SaveGameData {
 							private ZoneState(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 							{
 								//scanJSON(object, this);
+								hideZone                = JSON_Data.getBoolValue  (object, "hideZone"               , true, false, debugOutputPrefixStr);
 								isVisitWithCertainTruck = JSON_Data.getBoolValue  (object, "isVisitWithCertainTruck", debugOutputPrefixStr);
 								isVisited               = JSON_Data.getBoolValue  (object, "isVisited"              , debugOutputPrefixStr);
 								truckUid                = JSON_Data.getStringValue(object, "truckUid"               , debugOutputPrefixStr);
@@ -2148,39 +2152,51 @@ public class SaveGameData {
 								.add("cargoState"            , JSON_Data.Value.Type.Object )
 								.add("isNeedVisitOnTruck"    , JSON_Data.Value.Type.Bool   )
 								.add("isVisibleWithPlatform" , JSON_Data.Value.Type.Bool   )
+								.add("isZoneVisited"         , JSON_Data.Value.Type.Bool   )
 								.add("map"                   , JSON_Data.Value.Type.String )
 								.add("modelBuildingTag"      , JSON_Data.Value.Type.String )
 								.add("platformId"            , JSON_Data.Value.Type.String )
 								.add("platformColorOverride" , JSON_Data.Value.Type.Null   )
 								.add("platformColorOverride" , JSON_Data.Value.Type.Object )
+								.add("zoneColorOverride"     , JSON_Data.Value.Type.Object )
 								.add("truckUid"              , JSON_Data.Value.Type.String )
 								.add("unloadingMode"         , JSON_Data.Value.Type.Integer)
 								.add("zones"                 , JSON_Data.Value.Type.Array  )
 								;
 						/*
-						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction]" [8]
-						        cargoState        :Object  ->  CargoState
-						        isNeedVisitOnTruck:Bool
-						        map               :String
-						        modelBuildingTag  :String
-						        platformId        :String
-						        truckUid          :String
-						        unloadingMode     :Integer
-						        zones             :Array
-						        
-						        zones[]:String
-						        
-								isVisibleWithPlatform:Bool
-								platformColorOverride:Null
-								platformColorOverride:Object
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction]" [12]
+						        cargoState            : Object
+						        isNeedVisitOnTruck    : Bool
+						        isVisibleWithPlatform : [Bool, <unset>]
+						        isZoneVisited         : [Bool, <unset>]
+						        map                   : String
+						        modelBuildingTag      : String
+						        platformColorOverride : [Null, <unset>]
+						        platformId            : String
+						        truckUid              : String
+						        unloadingMode         : Integer
+						        zoneColorOverride     : [Object, <unset>]
+						        zones                 : Array
+						        zones[]               : String
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction].cargoState" [3]
+						        aimValue:Integer
+						        curValue:Integer
+						        type:String
+						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction].zoneColorOverride" [4]
+						        a:Float
+						        b:Float
+						        g:Float
+						        r:Float
 						 */
 						public final CargoState cargoState;
 						public final boolean isNeedVisitOnTruck;
 						public final Boolean isVisibleWithPlatform;
+						public final Boolean isZoneVisited;
 						public final String map;
 						public final String modelBuildingTag;
 						public final String platformId;
 						public final TintColor platformColorOverride;
+						public final TintColor zoneColorOverride;
 						public final String truckUid;
 						public final long unloadingMode;
 						public final Vector<String> zones;
@@ -2188,15 +2204,17 @@ public class SaveGameData {
 						private CargoDeliveryAction(JSON_Object<NV, V> object, String debugOutputPrefixStr) throws TraverseException
 						{
 							//scanJSON(object, this);
-							JSON_Object<NV, V> cargoState, platformColorOverride;
+							JSON_Object<NV, V> cargoState, platformColorOverride, zoneColorOverride;
 							JSON_Array<NV, V> zones;
 							cargoState            = JSON_Data.getObjectValue (object, "cargoState"           , debugOutputPrefixStr);
 							isNeedVisitOnTruck    = JSON_Data.getBoolValue   (object, "isNeedVisitOnTruck"   , debugOutputPrefixStr);
 							isVisibleWithPlatform = JSON_Data.getBoolValue   (object, "isVisibleWithPlatform", true, false, debugOutputPrefixStr);
+							isZoneVisited         = JSON_Data.getBoolValue   (object, "isZoneVisited"        , true, false, debugOutputPrefixStr);
 							map                   = JSON_Data.getStringValue (object, "map"                  , debugOutputPrefixStr);
 							modelBuildingTag      = JSON_Data.getStringValue (object, "modelBuildingTag"     , debugOutputPrefixStr);
 							platformId            = JSON_Data.getStringValue (object, "platformId"           , debugOutputPrefixStr);
 							platformColorOverride = JSON_Data.getObjectValue (object, "platformColorOverride", true, true, debugOutputPrefixStr);
+							zoneColorOverride     = JSON_Data.getObjectValue (object, "zoneColorOverride"    , true, false, debugOutputPrefixStr);
 							truckUid              = JSON_Data.getStringValue (object, "truckUid"             , debugOutputPrefixStr);
 							unloadingMode         = JSON_Data.getIntegerValue(object, "unloadingMode"        , debugOutputPrefixStr);
 							zones                 = JSON_Data.getArrayValue  (object, "zones"                , debugOutputPrefixStr);
@@ -2205,6 +2223,7 @@ public class SaveGameData {
 							this.cargoState = new CargoState   (cargoState, debugOutputPrefixStr+".cargoState");
 							this.zones      = parseArray_String(zones     , debugOutputPrefixStr+".zones", new Vector<>());
 							this.platformColorOverride = platformColorOverride==null ? null : new TintColor(platformColorOverride, debugOutputPrefixStr+".platformColorOverride");
+							this.zoneColorOverride     = zoneColorOverride    ==null ? null : new TintColor(zoneColorOverride    , debugOutputPrefixStr+".zoneColorOverride"    );
 						}
 						
 						public static class CargoState
