@@ -2159,7 +2159,7 @@ public class Data {
 	public static class Truck extends ItemBased implements HasNameAndID {
 
 		public enum DiffLockType {
-			None, Uninstalled, Installed, Always, Connected;
+			None, Uninstalled, Installed, Always, Connected, Switchable;
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
 		}
 		public enum Country {

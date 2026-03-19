@@ -2,6 +2,7 @@
 $ frame_addon_metal_detector
 
 [[SeismicVibrator]]
+$ frame_addon_seismic_mercedes_zetros_6x6
 $ frame_addon_seismic_vibrator
 $ frame_addon_seismic_vibrator_avenhorn_a15
 $ frame_addon_seismic_vibrator_jangsu_rx600
@@ -16,6 +17,7 @@ $ crane_aramatsu_forester
 $ crane_loglift
 $ crane_loglift_cat_ct681
 $ crane_loglift_kenworth_963
+$ crane_loglift_mercedes_zetros_6x6
 $ crane_loglift_padera_std4
 $ crane_loglift_zikz_605r
 $ crane_loglift_zikz_612h_mastodont
@@ -52,6 +54,7 @@ $ big_crane_us_02_padera_std4
 $ big_crane_us_02_voron_g5352
 $ big_crane_us_02_zikz_612h
 $ big_crane_us_avenhorn_a15
+$ big_crane_us_mercedes_zetros_6x6
 $ big_crane_us_padera_std4
 $ big_crane_us_ws4964
 $ big_crane_zikz_605r

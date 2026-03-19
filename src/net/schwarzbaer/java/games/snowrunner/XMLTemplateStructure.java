@@ -1695,6 +1695,27 @@ class XMLTemplateStructure {
 					}
 				);
 			
+			// initial.2026.03.19.pak
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_roofrack_1.xml",
+					"8E75D350C34A79CDDD6CB6A84BFA99BE",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						return rawXML;
+					}
+				);
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_protection_1.xml",
+					"FC731BAA213FAD625C4A5E890AD11116",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
+						return rawXML;
+					}
+				);
+			
 			
 			return fixes;
 		}

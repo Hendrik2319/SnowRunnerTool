@@ -73,6 +73,11 @@ truck = mack_pinnacle
 truck = mack_terra_pro
 
 [DLC]
+name = Mercedes-Benz Trucks Dual Pack 1
+truck = mercedes_benz_actros_6x6
+truck = mercedes_benz_zetros_6x6
+
+[DLC]
 name = Navistar 5000-MV Tractor
 truck = navistar_5000mv
 
@@ -149,6 +154,7 @@ map = level_us_16_03
 name = Season 17: Repair & Rescue
 truck = jangsu_rx600
 truck = voron_g5352
+region = ru_17
 map = level_ru_17_01
 map = level_ru_17_02
 
