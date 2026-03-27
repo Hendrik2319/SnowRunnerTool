@@ -1118,8 +1118,11 @@ public class Data {
 		return set;
 	}
 
-	public boolean canTruckCombineCompatibleAddons(Truck truck, Predicate<TruckAddon> addonPredicate1, Predicate<TruckAddon> addonPredicate2)
+	public static boolean canTruckCombineCompatibleAddons(Truck truck, Predicate<TruckAddon> addonPredicate1, Predicate<TruckAddon> addonPredicate2)
 	{
+		if (hasCompatibleAddonMeetingBothPredicates(truck, addonPredicate1, addonPredicate2))
+			return true;
+		
 		HashSet<String> socketIDs1 = getSocketIDsOfCompatibleAddons(truck, addonPredicate1);
 		HashSet<String> socketIDs2 = getSocketIDsOfCompatibleAddons(truck, addonPredicate2);
 		
@@ -1143,6 +1146,15 @@ public class Data {
 			}
 		}
 		
+		return false;
+	}
+
+	private static boolean hasCompatibleAddonMeetingBothPredicates(Truck truck, Predicate<TruckAddon> addonPredicate1, Predicate<TruckAddon> addonPredicate2)
+	{
+		for (Vector<TruckAddon> list : truck.compatibleTruckAddons.values())
+			for (TruckAddon addon : list)
+				if (addonPredicate1.test(addon) && addonPredicate2.test(addon))
+					return true;
 		return false;
 	}
 
