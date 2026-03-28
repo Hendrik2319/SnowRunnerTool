@@ -2158,6 +2158,7 @@ public class SaveGameData {
 								.add("platformId"            , JSON_Data.Value.Type.String )
 								.add("platformColorOverride" , JSON_Data.Value.Type.Null   )
 								.add("platformColorOverride" , JSON_Data.Value.Type.Object )
+								.add("zoneColorOverride"     , JSON_Data.Value.Type.Null   )
 								.add("zoneColorOverride"     , JSON_Data.Value.Type.Object )
 								.add("truckUid"              , JSON_Data.Value.Type.String )
 								.add("unloadingMode"         , JSON_Data.Value.Type.Integer)
@@ -2175,7 +2176,7 @@ public class SaveGameData {
 						        platformId            : String
 						        truckUid              : String
 						        unloadingMode         : Integer
-						        zoneColorOverride     : [Object, <unset>]
+						        zoneColorOverride     : [Object, Null, <unset>]
 						        zones                 : Array
 						        zones[]               : String
 						    Block "[SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState.CargoDeliveryAction].cargoState" [3]
@@ -2214,7 +2215,7 @@ public class SaveGameData {
 							modelBuildingTag      = JSON_Data.getStringValue (object, "modelBuildingTag"     , debugOutputPrefixStr);
 							platformId            = JSON_Data.getStringValue (object, "platformId"           , debugOutputPrefixStr);
 							platformColorOverride = JSON_Data.getObjectValue (object, "platformColorOverride", true, true, debugOutputPrefixStr);
-							zoneColorOverride     = JSON_Data.getObjectValue (object, "zoneColorOverride"    , true, false, debugOutputPrefixStr);
+							zoneColorOverride     = JSON_Data.getObjectValue (object, "zoneColorOverride"    , true, true, debugOutputPrefixStr);
 							truckUid              = JSON_Data.getStringValue (object, "truckUid"             , debugOutputPrefixStr);
 							unloadingMode         = JSON_Data.getIntegerValue(object, "unloadingMode"        , debugOutputPrefixStr);
 							zones                 = JSON_Data.getArrayValue  (object, "zones"                , debugOutputPrefixStr);

@@ -520,6 +520,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	
 		StoredTrucksTableModel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController)
 		{
+			// Column Widths: [175, 100, 250, 170, 160, 97, 50, 85, 50, 60, 60, 60, 60, 100, 60, 60, 70, 100, 180, 90, 95, 100, 230, 115, 115, 70, 180, 80, 75, 75, 170, 150, 140, 75, 100, 100, 100, 250, 50, 100, 70, 70, 80, 80, 150] in ModelOrder
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("Location"   ,"Location"                    ,  String .class, 175,   null,      null, false, row->((Row)row).location),
 					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).map.originalMapID()),
@@ -535,6 +536,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrFuelMx"   ,"Max. Fuel"                   ,  Integer.class,  60,   null,    "%d L", false, get((model, data, lang, row)->getTruckValue(row,data,truck->truck.fuelCapacity))),
 					new ColumnID("TrFill"     ,"Fill Level"                  ,  Double .class,  60,   null,"%1.1f %%", false, get((model, data, lang, row)->getNonNull2(row.truckDesc.fuel,getTruckValue(row,data,truck->truck.fuelCapacity),(v1,v2)->v1/v2*100))),
 					new ColumnID("TrFuelTkDmg","Fuel Tank Damage"            ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).truckDesc.fuelTankDamage            ),
+					new ColumnID("AdFuel"     ,"(A) Fuel"                    ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).addonValues.fuel                    ),
+					new ColumnID("AdWater"    ,"(A) Water"                   ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).addonValues.water                   ),
+					new ColumnID("AdRepairs"  ,"(A) Repairs"                 ,  Long   .class,  70,   null,      null, false, row->((Row)row).addonValues.repairs                 ),
+					new ColumnID("AdWheelReps","(A) Wheel Repairs"           ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).addonValues.wheelRepairs            ),
 					new ColumnID("TrEngine"   ,"Engine"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.engine                    ),
 					new ColumnID("TrEngineDmg","Engine Damage"               ,  Long   .class,  90, CENTER,      null, false, row->((Row)row).truckDesc.engineDamage              ),
 					new ColumnID("TrGearbx"   ,"Gearbox"                     ,  String .class,  95,   null,      null, false, row->((Row)row).truckDesc.gearbox                   ),
@@ -651,18 +656,46 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override public Boolean          putOutputInScrollPane() { return false; }
 		@Override public SplitOrientation getSplitOrientation  () { return SplitOrientation.VERTICAL_SPLIT; }
 
-		private record Row(String location, MapIndex map, TruckDesc truckDesc)
+		private record Row(String location, MapIndex map, TruckDesc truckDesc, AddonValues addonValues)
 		{
+			private record AddonValues (
+					double  fuel,
+					double  water,
+					long    repairs,
+					long    wheelRepairs
+			) {
+				private static AddonValues create(Vector <InstalledAddon> addons)
+				{
+					double  fuel = 0;
+					double  water = 0;
+					long    repairs = 0;
+					long    wheelRepairs = 0;
+					for (InstalledAddon addon : addons)
+					{
+						fuel         += addon.fuel;
+						water        += addon.water!=null ? addon.water : 0;
+						repairs      += addon.repairs;
+						wheelRepairs += addon.wheelRepairs;
+					}
+					return new AddonValues(fuel, water, repairs, wheelRepairs);
+				}
+			}
+			
+			private static Row createTruck(String name, MapIndex map, TruckDesc truckDesc)
+			{
+				return new Row(name, map, truckDesc, AddonValues.create(truckDesc.addons));
+			}
+
 			static Row createGarageTruck(TruckDesc truckDesc, MapIndex map, String garageName, int slotIndex)
 			{
 				String name = String.format("Garage \"%s\" Slot %d", garageName, slotIndex+1);
-				return new Row(name, map, truckDesc);
+				return createTruck(name, map, truckDesc);
 			}
 	
 			static Row createWarehouseTruck(TruckDesc truckDesc, int index)
 			{
 				String name = String.format("Warehouse Slot %02d", index+1);
-				return new Row(name, truckDesc.retainedMap, truckDesc);
+				return createTruck(name, truckDesc.retainedMap, truckDesc);
 			}
 		}
 
