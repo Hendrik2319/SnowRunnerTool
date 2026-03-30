@@ -512,7 +512,12 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class StoredTrucksTableModel extends ExtendedVerySimpleTableModelUOS<StoredTrucksTableModel.Row>
 	{
+		private static final String ID_TR_ENGINE = "TrEngine";
+		private static final String ID_TR_GEARBX = "TrGearbx";
+		private static final String ID_TR_SUSPEN = "TrSuspen";
+		private static final String ID_TR_WINCH = "TrWinch";
 		private static final Color BG_COLOR__DISPLAYED_TRUCK = new Color(0xFFDF00);
+		private static final Color FG_COLOR__DEFAULT_ADDON   = new Color(0xADADD3);
 		private Data data;
 		private final InfoPanel infoPanel;
 		private Row clickedRow;
@@ -540,11 +545,11 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("AdWater"    ,"(A) Water"                   ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).addonValues.water                   ),
 					new ColumnID("AdRepairs"  ,"(A) Repairs"                 ,  Long   .class,  70,   null,      null, false, row->((Row)row).addonValues.repairs                 ),
 					new ColumnID("AdWheelReps","(A) Wheel Repairs"           ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).addonValues.wheelRepairs            ),
-					new ColumnID("TrEngine"   ,"Engine"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.engine                    ),
+					new ColumnID(ID_TR_ENGINE ,"Engine"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.engine                    ),
 					new ColumnID("TrEngineDmg","Engine Damage"               ,  Long   .class,  90, CENTER,      null, false, row->((Row)row).truckDesc.engineDamage              ),
-					new ColumnID("TrGearbx"   ,"Gearbox"                     ,  String .class,  95,   null,      null, false, row->((Row)row).truckDesc.gearbox                   ),
+					new ColumnID(ID_TR_GEARBX ,"Gearbox"                     ,  String .class,  95,   null,      null, false, row->((Row)row).truckDesc.gearbox                   ),
 					new ColumnID("TrGearbxDmg","Gearbox Damage"              ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).truckDesc.gearboxDamage             ),
-					new ColumnID("TrSuspen"   ,"Suspension"                  ,  String .class, 230,   null,      null, false, row->((Row)row).truckDesc.suspension                ),
+					new ColumnID(ID_TR_SUSPEN ,"Suspension"                  ,  String .class, 230,   null,      null, false, row->((Row)row).truckDesc.suspension                ),
 					new ColumnID("TrSuspenDmg","Suspension Damage"           ,  Long   .class, 115, CENTER,      null, false, row->((Row)row).truckDesc.suspensionDamage          ),
 					new ColumnID("TrTires"    ,"Tires"                       ,  String .class, 115,   null,      null, false, row->((Row)row).truckDesc.tires                     ),
 					new ColumnID("TrRims"     ,"Rims"                        ,  String .class,  70,   null,      null, false, row->((Row)row).truckDesc.rims                      ),
@@ -554,7 +559,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrWheelsSze","Wheels Size"                 ,  Integer.class,  75,   null,    "%d\"", false, row->CompatibleWheel.computeSize_inch(((Row)row).truckDesc.wheelsScale)),
 					new ColumnID("TrWheelsDmg","Wheels Damage"               ,  String .class, 170,   null,      null, false, row->SaveGameDataPanel.toString(((Row)row).truckDesc.wheelsDamage)),
 					new ColumnID("TrWheelsSHt","Wheels Susp. Height"         ,  String .class, 150,   null,      null, false, row->SaveGameDataPanel.toString(((Row)row).truckDesc.wheelsSuspHeight, "%1.3f")),
-					new ColumnID("TrWinch"    ,"Winch"                       ,  String .class, 140,   null,      null, false, row->((Row)row).truckDesc.winch                     ),
+					new ColumnID(ID_TR_WINCH  ,"Winch"                       ,  String .class, 140,   null,      null, false, row->((Row)row).truckDesc.winch                     ),
 					new ColumnID("TrTruckCRC" ,"<truckCRC>"                  ,  Long   .class,  75,   null,      null, false, row->((Row)row).truckDesc.truckCRC                  ),
 					new ColumnID("TrPhantomMd","<phantomMode>"               ,  Long   .class, 100,   null,      null, false, row->((Row)row).truckDesc.phantomMode               ),
 					new ColumnID("TrTrailGlob","<trailerGlobalId>"           ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.trailerGlobalId           ),
@@ -577,6 +582,40 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				table.repaint();
 			});
 			coloring.addBackgroundRowColorizer(row -> row.truckDesc == displayedTruck ? BG_COLOR__DISPLAYED_TRUCK : null);
+			coloring.setForegroundColumnColoring(false, ID_TR_ENGINE, String.class, (row,value) -> isDefaultAddon(row, ID_TR_ENGINE, value) ? FG_COLOR__DEFAULT_ADDON : null);
+			coloring.setForegroundColumnColoring(false, ID_TR_GEARBX, String.class, (row,value) -> isDefaultAddon(row, ID_TR_GEARBX, value) ? FG_COLOR__DEFAULT_ADDON : null);
+			coloring.setForegroundColumnColoring(false, ID_TR_SUSPEN, String.class, (row,value) -> isDefaultAddon(row, ID_TR_SUSPEN, value) ? FG_COLOR__DEFAULT_ADDON : null);
+			coloring.setForegroundColumnColoring(false, ID_TR_WINCH , String.class, (row,value) -> isDefaultAddon(row, ID_TR_WINCH , value) ? FG_COLOR__DEFAULT_ADDON : null);
+		}
+
+		private boolean isDefaultAddon(Row row, String columnID, String value)
+		{
+			if (data==null || value==null || row==null)
+				return false;
+			
+			String truckID = row.truckDesc.type;
+			Truck truck = data.trucks.get(truckID);
+			if (truck==null)
+				return false;
+			
+			String defaultValue = switch (columnID)
+					{
+						case ID_TR_ENGINE -> truck.defaultEngine_ItemID;
+						case ID_TR_GEARBX -> truck.defaultGearbox_ItemID;
+						case ID_TR_SUSPEN -> truck.defaultSuspension_ItemID;
+						case ID_TR_WINCH  -> truck.defaultWinch_ItemID;
+						default -> null;
+					};
+			
+			return value.equals(defaultValue);
+		}
+		
+		private static boolean isDefaultAddon(Truck truck, String addonID)
+		{
+			if (truck==null || addonID==null)
+				return false;
+			
+			return truck.defaultAddonIDs.contains(addonID);
 		}
 
 		private static <ResultType,V1,V2> ResultType getNonNull2(V1 value1, V2 value2, BiFunction<V1,V2,ResultType> computeValue)
@@ -586,14 +625,19 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			if (value2==null) return null;
 			return computeValue.apply(value1, value2);
 		}
+		
+		private static Truck getTruck(Row row, Data data)
+		{
+			if (data==null) return null;
+			if (row==null) return null;
+			if (row.truckDesc==null) return null;
+			return data.trucks.get(row.truckDesc.type);
+		}
 	
 		private static <ResultType> ResultType getTruckValue(Row row, Data data, Function<Truck,ResultType> getValue)
 		{
 			if (getValue==null) throw new IllegalArgumentException();
-			if (data==null) return null;
-			if (row==null) return null;
-			if (row.truckDesc==null) return null;
-			Truck truck = data.trucks.get(row.truckDesc.type);
+			Truck truck = getTruck(row, data);
 			if (truck==null) return null;
 			return getValue.apply(truck);
 		}
@@ -635,7 +679,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					}
 			}
 			setRowData(rows);
-			infoPanel.setData(null);
+			infoPanel.setData(null,null);
 		}
 	
 		@Override protected String getRowName(Row row) { return row==null ? null : row.location; }
@@ -644,9 +688,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		protected void setContentForRow(int rowIndex, Row row)
 		{
 			if (row!=null)
-				infoPanel.setData(row.truckDesc);
+				infoPanel.setData(getTruck(row, data), row.truckDesc);
 			else
-				infoPanel.setData(null);
+				infoPanel.setData(null,null);
 		}
 
 		@Override public Component createOutputComp() {
@@ -749,13 +793,13 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			private final JTextArea textArea;
 			private final JScrollPane textAreaScrollPane;
 			private final ImageView truckImageView;
-			private String truckID;
+			private Truck truck;
 			
 			InfoPanel(Window mainWindow, GlobalFinalDataStructures gfds, ImageDialogController imageDialogController)
 			{
 				this.gfds = gfds;
 				this.imageDialogController = imageDialogController;
-				truckID = null;
+				truck = null;
 				
 				textArea = new JTextArea();
 				textArea.setEditable(false);
@@ -778,20 +822,20 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 			private void updateTruckImage()
 			{
-				BufferedImage image = truckID==null ? null : gfds.truckImages.get(truckID);
+				BufferedImage image = truck==null ? null : gfds.truckImages.get(truck.id);
 				truckImageView.setImage(image);
 				truckImageView.setZoom(1);
 				imageDialogController.setImage(image);
 			}
 		
-			void setData(TruckDesc data)
+			void setData(Truck truck, TruckDesc data)
 			{
-				truckID = data==null ? null : data.type;
+				this.truck = truck;
 				
 				if (data!=null)
-					installedAddonTableModel.setRowData(data.addons, data.emptyTruckAddonDesc);
+					installedAddonTableModel.setRowData(this.truck, data.addons, data.emptyTruckAddonDesc);
 				else
-					installedAddonTableModel.setRowData(null,null);
+					installedAddonTableModel.setRowData(null,null,null);
 				
 				ScrollPosition scrollPos = ScrollPosition.getVertical(textAreaScrollPane);
 				generateInfo(textArea, data);
@@ -802,14 +846,16 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		
 			private static class InstalledAddonTableModel extends ExtendedVerySimpleTableModelTAOS<InstalledAddon> implements SplitPaneConfigurator
 			{
+				private static final String ID_NAME = "Name";
 				private InstalledAddon emptyTruckAddonDesc = null;
+				private Truck truck = null;
 
 				InstalledAddonTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 				{   // Column Widths: [75, 280, 90, 90, 55, 85, 75, 130, 130, 70, 55, 100, 110, 100, 80] in ModelOrder
 					super(mainWindow, gfds, new ColumnID[] {
 							new ColumnID("EmptyAddon" , "Empty Addon"      ,  Boolean.class,  75,   null, null, false, get((model,lang,row)->row==model.emptyTruckAddonDesc)),
 							
-							new ColumnID("Name"       , "Name"             ,  String .class, 280,   null, null, false, row->((InstalledAddon)row).name              ),
+							new ColumnID(ID_NAME      , "Name"             ,  String .class, 280,   null, null, false, row->((InstalledAddon)row).name              ),
 							
 							new ColumnID("Fuel"       , "Fuel"             ,  Double .class,  90,   null, null, false, row->((InstalledAddon)row).fuel              ),
 							new ColumnID("Water"      , "Water"            ,  Double .class,  90,   null, null, false, row->((InstalledAddon)row).water             ),
@@ -827,6 +873,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 							new ColumnID("ParentFrame", "Parent Frame"     ,  String .class, 100,   null, null, false, row->((InstalledAddon)row).parentFrame       ),
 							new ColumnID("ExtrParents", "Extra Parents"    ,  Integer.class,  80, CENTER, null, false, row->((InstalledAddon)row).extraParents.size()),
 					});
+					coloring.setForegroundColumnColoring(false, ID_NAME, String.class, (row,addonID) -> isDefaultAddon(truck, addonID) ? FG_COLOR__DEFAULT_ADDON : null);
 				}
 				
 				private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,InstalledAddonTableModel,InstalledAddon> getFunction)
@@ -834,8 +881,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					return ColumnID.get(InstalledAddonTableModel.class, InstalledAddon.class, getFunction);
 				}
 
-				public void setRowData(Vector<InstalledAddon> addons, InstalledAddon emptyTruckAddonDesc)
+				public void setRowData(Truck truck, Vector<InstalledAddon> addons, InstalledAddon emptyTruckAddonDesc)
 				{
+					this.truck = truck;
 					this.emptyTruckAddonDesc = emptyTruckAddonDesc;
 					Vector<InstalledAddon> vector = null;
 					if (addons!=null || emptyTruckAddonDesc!=null) {
