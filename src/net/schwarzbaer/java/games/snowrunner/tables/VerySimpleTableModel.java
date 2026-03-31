@@ -754,19 +754,20 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	protected void fireTableColumnUpdate(String id)
 	{
-		int colM = findColumnByID("DLC");
+		int colM = getColumnIndexByIdFromVisible(id);
 		if (colM>=0) fireTableColumnUpdate(colM);
 	}
 	
-	protected int findColumnByID(String id) {
+	protected int getColumnIndexByIdFromVisible(String id)
+	{
 		if (id==null) throw new IllegalArgumentException();
 		for (int i=0; i<super.columns.length; i++)
-			if (id.equals(((ColumnID)super.columns[i]).id))
+			if (id.equals(super.columns[i].id))
 				return i;
 		return -1;
 	}
 	
-	protected ColumnID getColumnID(String id)
+	protected ColumnID getColumnIdByIdFromAll(String id)
 	{
 		for (ColumnID columnID : originalColumns)
 			if (columnID.id.equals(id))
@@ -815,8 +816,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		static <RowType> void updateColoring(VerySimpleTableModel<RowType> tableModel, HashSet<String> activeColorings)
 		{
 			HashMap<String, RowColoringPreset> presets = coloringsMap.getModelPresets(tableModel.tableModelID);
-			Coloring.UserDefinedRowColorizer<RowType> getForeground = generateRowColoringFunction(presets, activeColorings, preset -> preset.foreground, tableModel::getValue, tableModel::getColumnID);
-			Coloring.UserDefinedRowColorizer<RowType> getBackground = generateRowColoringFunction(presets, activeColorings, preset -> preset.background, tableModel::getValue, tableModel::getColumnID);
+			Coloring.UserDefinedRowColorizer<RowType> getForeground = generateRowColoringFunction(presets, activeColorings, preset -> preset.foreground, tableModel::getValue, tableModel::getColumnIdByIdFromAll);
+			Coloring.UserDefinedRowColorizer<RowType> getBackground = generateRowColoringFunction(presets, activeColorings, preset -> preset.background, tableModel::getValue, tableModel::getColumnIdByIdFromAll);
 			tableModel.coloring.setUserDefinedRowColorings(getForeground, getBackground);
 		}
 		

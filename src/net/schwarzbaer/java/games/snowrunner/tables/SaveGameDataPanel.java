@@ -425,7 +425,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class RegionsTableModel extends VerySimpleTableModel<RegionInfos>
 	{
-
+		private static final String ID_DLC = "DLC";
 		private RegionInfos clickedItem;
 
 		RegionsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
@@ -435,13 +435,13 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("Country" , "Country" , String .class,  60, CENTER, null, false, row->((RegionInfos)row).region.country()),
 					new ColumnID("Region"  , "Region"  , Integer.class,  60, CENTER, null, false, row->((RegionInfos)row).region.region()),
 					new ColumnID("Name"    , "Name"    , String .class, 250,   null, null, false, get((model,lang,row)->getMapName(row.region, lang, true))),
-					new ColumnID("DLC"     , "DLC"     , String .class, 170,   null, null, false, get((model,lang,row)->getDLC(row, model, r->r.region.originalMapID(), SnowRunner.DLCs.ItemType.Region))),
+					new ColumnID(ID_DLC    , "DLC"     , String .class, 170,   null, null, false, get((model,lang,row)->getDLC(row, model, r->r.region.originalMapID(), SnowRunner.DLCs.ItemType.Region))),
 					new ColumnID("Known"   , "Known"   , Boolean.class,  60,   null, null, false, row->((RegionInfos)row).isKnown),
 					new ColumnID("Distance", "Distance", Long   .class,  60,   null, null, false, row->((RegionInfos)row).distance),
 					new ColumnID("Payments", "Payments", Long   .class,  60,   null, null, false, row->((RegionInfos)row).paymentsReceived),
 			});
 			clickedItem = null;
-			finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
+			finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
 		}
 		
 		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,RegionsTableModel,RegionInfos> getFunction)
@@ -926,6 +926,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class MapsTableModel extends ExtendedVerySimpleTableModelTAOS<MapInfos> implements SplitPaneConfigurator
 	{
+		private static final String ID_DLC = "DLC";
 		private MapInfos clickedItem;
 		private Data data;
 
@@ -934,7 +935,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("MapID"     ,"Map ID"                ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
 					new ColumnID("Name"      ,"Name"                  ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
-					new ColumnID("DLC"       ,"DLC"                   ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row, model, r->r.map.originalMapID(), SnowRunner.DLCs.ItemType.Map))),
+					new ColumnID(ID_DLC      ,"DLC"                   ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row, model, r->r.map.originalMapID(), SnowRunner.DLCs.ItemType.Map))),
 					new ColumnID("Visited"   ,"Visited"               ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).wasVisited),
 					new ColumnID("Garage"    ,"Garage"                ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).garage!=null),
 					new ColumnID("GarageStat","Garage Status"         ,  Long                      .class,  85, CENTER, null, false, row->((MapInfos)row).garageStatus),
@@ -946,7 +947,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			clickedItem = null;
 			data = null;
 			
-			finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
+			finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
 		}
 		
 		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,MapsTableModel,MapInfos> getFunction)

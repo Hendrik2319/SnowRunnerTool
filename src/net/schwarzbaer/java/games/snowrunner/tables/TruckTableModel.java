@@ -43,6 +43,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	
 	//private static boolean enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
 	//private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);
+	private static final String ID_DLC       = "DLC";
 	private static final String ID_HasImage  = "HasImage" ;
 	private static final String ID_MetalD    = "MetalD"   ;
 	private static final String ID_Seismic   = "Seismic"  ;
@@ -65,7 +66,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
 				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
-				new ColumnID( "DLC"      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLC(((Truck)row).id, SnowRunner.DLCs.ItemType.Truck)),
+				new ColumnID(ID_DLC      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLC(((Truck)row).id, SnowRunner.DLCs.ItemType.Truck)),
 				new ColumnID( "Country"  , "Country"               ,     Truck.CountrySet.class, 140,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
 				new ColumnID( "Type"     , "Type"                  ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
 				new ColumnID( "Name"     , "Name"                  ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.getNameStringID()),
@@ -187,10 +188,10 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				case MediumLogs_burnt: id = ID_MedLogsB ; break;
 			}
 			if (id!=null)
-				fireTableColumnUpdate(findColumnByID(id));
+				fireTableColumnUpdate(getColumnIndexByIdFromVisible(id));
 		});
 		
-		finalizer.addDLCListener(() -> fireTableColumnUpdate("DLC"));
+		finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
 		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
 		
 		finalizer.addStoredTruckDisplayer(displayedTruck -> {
