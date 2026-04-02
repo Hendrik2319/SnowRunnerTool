@@ -428,13 +428,15 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	}
 
 	@Override protected boolean isCellEditable(int rowIndex, int columnIndex, VerySimpleTableModel.ColumnID columnID_) {
-		ColumnID columnID = (ColumnID)columnID_;
+		if (!(columnID_ instanceof ColumnID columnID))
+			return false;
 		return columnID.editMarker!=null;
 	}
 
 	@Override
 	protected void setValueAt(Object aValue, int rowIndex, int columnIndex, VerySimpleTableModel.ColumnID columnID_) {
-		ColumnID columnID = (ColumnID)columnID_;
+		if (!(columnID_ instanceof ColumnID columnID))
+			return;
 		if (columnID.editMarker==null) return;
 		
 		Truck row = getRow(rowIndex);

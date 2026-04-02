@@ -5,6 +5,26 @@ Filter=IsCargo:true:false:BoolFilter:true
 
 [Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset="CAS" Trucks
+Filter=Country:true:false:EnumSetFilter:CountrySet:OneOf:CAS
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset="CE" Trucks
+Filter=Country:true:false:EnumSetFilter:CountrySet:OneOf:CE
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset="NE" Trucks
+Filter=Country:true:false:EnumSetFilter:CountrySet:OneOf:NE
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset="WA" Trucks
+Filter=Country:true:false:EnumSetFilter:CountrySet:OneOf:WA
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
 Preset=Owned Offroad Truck
 Filter=AWDUser:true:true:EnumFilter:ItemStat:Able,Installed,Permanent
 Filter=DLUser:true:true:EnumFilter:ItemStat:Able,Installed,Permanent
