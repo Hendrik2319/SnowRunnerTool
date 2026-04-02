@@ -748,7 +748,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		extraBoolColumnsMenu.removeAll();
 		HashMap<String, RowFiltering.Preset> modelPresets = RowFiltering.presets.getModelPresets(tableModelID);
 		if (modelPresets!=null)
-			modelPresets.forEach((presetName, preset) -> {
+		{
+			List<String> presetNames = new ArrayList<>( modelPresets.keySet() );
+			presetNames.sort(null);
+			for (String presetName : presetNames)
+			{
+				RowFiltering.Preset preset = modelPresets.get(presetName);
 				extraBoolColumnsMenu.add( SnowRunner.createCheckBoxMenuItem(presetName, hasExtraBoolColumn(preset), null, true, checked -> {
 					if (checked)
 						extraBoolColumns.add( new ExtraBoolColumn(presetName, preset) );
@@ -758,7 +763,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					fireTableStructureUpdate();
 					reconfigureAfterTableStructureUpdate();
 				}) );
-			});
+			}
+		}
 	}
 	
 	private boolean hasExtraBoolColumn(RowFiltering.Preset preset)
