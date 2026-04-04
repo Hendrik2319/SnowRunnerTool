@@ -1738,9 +1738,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				BoolFilter   (ValueFilter.BoolFilter   ::parseFilter),
 				EnumFilter   (ValueFilter.EnumFilter   ::parseFilter),
 				EnumSetFilter(ValueFilter.EnumSetFilter::parseFilter),
+				StringFilter (ValueFilter.StringFilter ::parseFilter),
 				;
-				private final Function<String, ValueFilter> parseFilterFcn;
-				FilterType() { this(null); }
+				final Function<String, ValueFilter> parseFilterFcn;
 				FilterType(Function<String, ValueFilter> parseFilterFcn)
 				{
 					this.parseFilterFcn = parseFilterFcn;
@@ -2036,10 +2036,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 		
 				@Override protected boolean equals_SubType(ValueFilter other) {
-					if (other instanceof EnumFilter<?> otherEnumFilter) {
-						if (!filterID.equals(otherEnumFilter.filterID)) return false;
-						if (valueClass != otherEnumFilter.valueClass) return false;
-						if (!haveSameContent(allowedValues, otherEnumFilter.allowedValues)) return false;
+					if (other instanceof EnumFilter<?> otherFilter) {
+						if (!filterID.equals(otherFilter.filterID)) return false;
+						if (valueClass != otherFilter.valueClass) return false;
+						if (!haveSameContent(allowedValues, otherFilter.allowedValues)) return false;
 						return true;
 					}
 					return false;
@@ -2124,11 +2124,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 		
 				@Override protected boolean equals_SubType(ValueFilter other) {
-					if (other instanceof NumberFilter) {
-						NumberFilter<?> numberFilter = (NumberFilter<?>) other;
-						if (valueClass!=numberFilter.valueClass) return false;
-						if (!min.equals(numberFilter.min)) return false;
-						if (!max.equals(numberFilter.max)) return false;
+					if (other instanceof NumberFilter<?> otherFilter) {
+						if (valueClass!=otherFilter.valueClass) return false;
+						if (!min.equals(otherFilter.min)) return false;
+						if (!max.equals(otherFilter.max)) return false;
 						return true;
 					}
 					return false;
@@ -2202,9 +2201,91 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 			
 			
-//			static class StringFilter extends ValueFilter {
-				// TODO: StringFilter
-//			}
+			static class StringFilter extends ValueFilter
+			{
+				enum StringOp
+				{
+					Equals, Contains, StartsWith("Starts With"), EndsWith("Ends With");
+					
+					private final String label;
+					StringOp() { this(null);}
+					StringOp(String label) { this.label = label;}
+					
+					@Override public String toString() { return label==null ? name() : label; }
+					
+					static StringOp parse(String str)
+					{
+						try { return valueOf(str); }
+						catch (Exception e) { return null; }
+					}
+				}
+				
+				StringOp stringOp = StringOp.Contains;
+				String text = "";
+
+				StringFilter()
+				{
+					super(FilterType.StringFilter);
+				}
+				
+				@Override
+				protected boolean valueMeetsFilter_SubType(Object value)
+				{
+					if (stringOp==null)
+						return false;
+					if (text==null || text.isEmpty())
+						return false;
+					
+					if (value instanceof String str)
+						switch (stringOp)
+						{
+							case Contains  : return str.contains  (text);
+							case EndsWith  : return str.endsWith  (text);
+							case Equals    : return str.equals    (text);
+							case StartsWith: return str.startsWith(text);
+						};
+					
+					return false;
+				}
+
+				@Override
+				protected boolean equals_SubType(ValueFilter other)
+				{
+					if (!(other instanceof StringFilter otherFilter)) return false;
+					if (this.stringOp == otherFilter.stringOp) return false;
+					if (this.text==null) return otherFilter.text==null;
+					return this.text.equals(otherFilter.text);
+				}
+
+				@Override
+				protected ValueFilter clone_SubType()
+				{
+					StringFilter newFilter = new StringFilter();
+					newFilter.stringOp = this.stringOp;
+					newFilter.text     = this.text;
+					return newFilter;
+				}
+
+				public static StringFilter parseFilter(String str)
+				{
+					if (str==null) return null;
+					int pos = str.indexOf(':');
+					if (pos<0) return null;
+					StringFilter newFilter = new StringFilter();
+					newFilter.stringOp = StringOp.parse(str.substring(0, pos));
+					newFilter.text     = str.substring(0, pos+1);
+					return newFilter;
+				}
+
+				@Override
+				protected String toParsableString_SubType()
+				{
+					return "%s:%s".formatted(
+							stringOp,
+							text==null ? "" : text
+					);
+				}
+			}
 			
 			
 			static class BoolFilter extends ValueFilter
@@ -2217,39 +2298,33 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 		
 				@Override protected boolean valueMeetsFilter_SubType(Object value) {
-					if (value instanceof Boolean) {
-						Boolean v = (Boolean) value;
+					if (value instanceof Boolean v)
 						return allowTrues == v.booleanValue();
-					}
-					if (value instanceof Data.BooleanWithText) {
-						Data.BooleanWithText v = (Data.BooleanWithText) value;
+					if (value instanceof Data.BooleanWithText v)
 						return allowTrues == v.getBool();
-					}
 					return false;
 				}
 		
 				@Override protected boolean equals_SubType(ValueFilter other) {
-					if (other instanceof BoolFilter) {
-						BoolFilter boolFilter = (BoolFilter) other;
-						return this.allowTrues == boolFilter.allowTrues;
-					}
+					if (other instanceof BoolFilter otherFilter)
+						return this.allowTrues == otherFilter.allowTrues;
 					return false;
 				}
 			
 				@Override protected BoolFilter clone_SubType() {
-					BoolFilter boolFilter = new BoolFilter();
-					boolFilter.allowTrues = allowTrues;
-					return boolFilter;
+					BoolFilter newFilter = new BoolFilter();
+					newFilter.allowTrues = allowTrues;
+					return newFilter;
 				}
 		
 				public static BoolFilter parseFilter(String str) {
-					BoolFilter boolFilter = new BoolFilter();
+					BoolFilter newFilter = new BoolFilter();
 					switch (str) {
-					case "true" : boolFilter.allowTrues = true; break;
-					case "false": boolFilter.allowTrues = false; break;
+					case "true" : newFilter.allowTrues = true; break;
+					case "false": newFilter.allowTrues = false; break;
 					default: return null;
 					}
-					return boolFilter;
+					return newFilter;
 				}
 		
 				@Override protected String toParsableString_SubType() {
