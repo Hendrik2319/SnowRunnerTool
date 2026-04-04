@@ -70,6 +70,7 @@ import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.DataFiles;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
@@ -902,6 +903,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					.sorted()
 					.collect(Collectors.joining())
 			);
+		else
+			System.out.println("No deficits found in VerySimpleTableModel");
 	}
 
 	private static class RowColoring
@@ -1640,6 +1643,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	private static class RowFiltering
 	{
 		private static final RegisteredFilters RegisteredFilters = new RegisteredFilters()
+				.setExcludedClasses(
+					java.awt.Color[].class,
+					SaveGameData.SaveGame.Addon.DamagableData.class,
+					SaveGameData.SaveGame.MapInfos.DiscoveredObjects.class,
+					TruckAddonsTableModel.AddonSocketPosition.class
+				)
 				.addBoolean  ()
 				.addBooleanWT(Data.Capability    .class)
 				.addNumber   (Integer            .class, ValueFilter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null            )
@@ -1649,9 +1658,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				.addEnum     (Truck.Country      .class, "Country"     , Truck.Country      ::valueOf)
 				.addEnum     (Truck.DiffLockType .class, "DiffLockType", Truck.DiffLockType ::valueOf)
 				.addEnum     (Truck.TruckType    .class, "TruckType"   , Truck.TruckType    ::valueOf)
-				.addEnum     (Truck.UDV.ItemState.class, "ItemStat"    , Truck.UDV.ItemState::valueOf)
+				.addEnum     (Truck.UDV.ItemState.class, "ItemState"    , Truck.UDV.ItemState::valueOf)
 				.addEnumSet  (Truck.CountrySet   .class, Truck.Country.class, "CountrySet", Truck.Country::valueOf)
-				.addEnum     (SnowRunner.WheelsQualityRanges.QualityValue.class, "WheelsQualityValue", SnowRunner.WheelsQualityRanges.QualityValue::valueOf)
+				.addEnum     (SnowRunner.WheelsQualityRanges.QualityValue .class, "WheelsQualityValue"   , SnowRunner.WheelsQualityRanges.QualityValue ::valueOf)
+				.addEnum     (SaveGameDataPanel.AddonsTableModel.AddonType.class, "SaveGameDataAddonType", SaveGameDataPanel.AddonsTableModel.AddonType::valueOf)
 				;
 		static final Set<Class<?>> NeededFilters = new HashSet<>();
 		
@@ -1749,7 +1759,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			for (ColumnID column : columns)
 			{
 				Class<?> columnClass = column.config.columnClass;
-				if (columnClass!=null && !RegisteredFilters.containsKey(columnClass))
+				if (columnClass!=null && !RegisteredFilters.isExcluded(columnClass) && !RegisteredFilters.containsKey(columnClass))
 					NeededFilters.add(columnClass);
 			}
 		}
@@ -1757,6 +1767,19 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		static class RegisteredFilters extends HashMap<Class<?>, RowFilterPanel.ValueFilterGuiElement.OptionsPanelConstructor>
 		{
 			private static final long serialVersionUID = 8818514973740822303L;
+			final Set<Class<?>> excludedClasses = new HashSet<>();
+			
+			RegisteredFilters setExcludedClasses(Class<?>... excludedClasses)
+			{
+				this.excludedClasses.addAll(Arrays.asList(excludedClasses));
+				return this;
+			}
+			
+			boolean isExcluded(Class<?> columnClass)
+			{
+				return excludedClasses.contains(columnClass);
+			}
+			
 			
 			RegisteredFilters add(Class<?> columnClass, RowFilterPanel.ValueFilterGuiElement.OptionsPanelConstructor constructor)
 			{
@@ -2598,8 +2621,12 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 							super(null, null);
 							
 							String message;
-							if (columnClass==String.class) message = "---   No Filter for text values   ---";
-							else message = String.format("---   No Filter for Column of %s   ---", getClassName(columnClass));
+							if (RegisteredFilters.isExcluded(columnClass))
+								message = "---   No Filter for this type value type    ---";
+							else if (columnClass==String.class)
+								message = "---   No Filter for text values   ---";
+							else
+								message = String.format("---   No Filter for Column of %s   ---", getClassName(columnClass));
 							
 							JLabel msgComp = new JLabel(message);
 							msgComp.setEnabled(false);

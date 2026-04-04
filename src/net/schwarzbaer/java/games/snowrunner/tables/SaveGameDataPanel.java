@@ -1156,7 +1156,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override protected String getRowName(Row row) { return row==null ? null : row.name; }
 	}
 
-	private static class AddonsTableModel extends VerySimpleTableModel<AddonsTableModel.Row>
+	static class AddonsTableModel extends VerySimpleTableModel<AddonsTableModel.Row>
 	{
 		private Data data;
 		
@@ -1177,7 +1177,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			return ColumnID.get(AddonsTableModel.class, Row.class, m->m.data, getFunction);
 		}
 		
-		private enum AddonType { TruckAddon, Trailer, Engine, Gearbox, Suspensions, Winch }
+		enum AddonType { TruckAddon, Trailer, Engine, Gearbox, Suspensions, Winch }
 		
 		private record Row(Addon addon, Data.HasNameAndID item, AddonType type)
 		{

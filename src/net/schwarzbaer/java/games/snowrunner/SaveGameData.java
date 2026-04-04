@@ -12,6 +12,8 @@ import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
@@ -1822,9 +1824,16 @@ public class SaveGameData {
 				@Override
 				public String toString()
 				{
-					Function<long[],List<String>> convert1 = arr->Arrays.stream(arr).mapToObj(n->Long.toString(n)).toList();
-					Function<List<String>,String> toString = list->String.format("[%s]", String.join(",", list));
-					return toString.apply( Arrays.stream(itemsDamage).map( arr->toString.apply( convert1.apply(arr) ) ).toList() );
+					Collector<CharSequence, ?, String> joining = Collectors.joining( ",", "[", "]" );
+					return Arrays
+						.stream( itemsDamage )
+						.map(
+							arr -> Arrays
+								.stream( arr )
+								.mapToObj( Long::toString )
+								.collect( joining )
+						)
+						.collect( joining );
 				}
 			}
 		}
