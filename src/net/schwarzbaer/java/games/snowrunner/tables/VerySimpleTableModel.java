@@ -33,12 +33,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -136,6 +138,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		clickedColumnIndex = -1;
 		clickedRow = null;
 		coloring = new Coloring<>(this);
+		
+		RowFiltering.checkFiltersForColumnClasses(originalColumns);
 		
 		finalizer.addLanguageListener(lang->{
 			clearCacheOfColumns(ColumnID.Update.Language);
@@ -889,6 +893,17 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		x = RowColoring.activeColoringsStorage;
 	}
 
+	public static void showGUIImplementationDeficits()
+	{
+		if (!RowFiltering.NeededFilters.isEmpty())
+			System.err.printf("Filters needed for:%n%s", RowFiltering.NeededFilters
+					.stream()
+					.map(clazz -> "\t%s%n".formatted( clazz.getCanonicalName() ))
+					.sorted()
+					.collect(Collectors.joining())
+			);
+	}
+
 	private static class RowColoring
 	{
 		static final RowColoringsMap coloringsMap = new RowColoringsMap();
@@ -1624,6 +1639,22 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	private static class RowFiltering
 	{
+		private static final RegisteredFilters RegisteredFilters = new RegisteredFilters()
+				.addBoolean  ()
+				.addBooleanWT(Data.Capability    .class)
+				.addNumber   (Integer            .class, ValueFilter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null            )
+				.addNumber   (Long               .class, ValueFilter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null            )
+				.addNumber   (Float              .class, ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite)
+				.addNumber   (Double             .class, ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite)
+				.addEnum     (Truck.Country      .class, "Country"     , Truck.Country      ::valueOf)
+				.addEnum     (Truck.DiffLockType .class, "DiffLockType", Truck.DiffLockType ::valueOf)
+				.addEnum     (Truck.TruckType    .class, "TruckType"   , Truck.TruckType    ::valueOf)
+				.addEnum     (Truck.UDV.ItemState.class, "ItemStat"    , Truck.UDV.ItemState::valueOf)
+				.addEnumSet  (Truck.CountrySet   .class, Truck.Country.class, "CountrySet", Truck.Country::valueOf)
+				.addEnum     (SnowRunner.WheelsQualityRanges.QualityValue.class, "WheelsQualityValue", SnowRunner.WheelsQualityRanges.QualityValue::valueOf)
+				;
+		static final Set<Class<?>> NeededFilters = new HashSet<>();
+		
 		static final Presets presets = new Presets();
 
 		static class Presets extends PresetMaps<Preset>
@@ -1711,6 +1742,50 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 			}
 			return true;
+		}
+		
+		static void checkFiltersForColumnClasses(ColumnID[] columns)
+		{
+			for (ColumnID column : columns)
+			{
+				Class<?> columnClass = column.config.columnClass;
+				if (columnClass!=null && !RegisteredFilters.containsKey(columnClass))
+					NeededFilters.add(columnClass);
+			}
+		}
+		
+		static class RegisteredFilters extends HashMap<Class<?>, RowFilterPanel.ValueFilterGuiElement.OptionsPanelConstructor>
+		{
+			private static final long serialVersionUID = 8818514973740822303L;
+			
+			RegisteredFilters add(Class<?> columnClass, RowFilterPanel.ValueFilterGuiElement.OptionsPanelConstructor constructor)
+			{
+				put(columnClass, constructor);
+				return this;
+			}
+			
+			RegisteredFilters addBoolean()
+			{
+				return add(Boolean.class, uac->new RowFilterPanel.ValueFilterGuiElement.OptionsPanel.BoolOptions(new ValueFilter.BoolFilter(), uac));
+			}
+			<V extends Data.BooleanWithText> RegisteredFilters addBooleanWT(Class<V> columnClass)
+			{
+				return add(columnClass  , uac->new RowFilterPanel.ValueFilterGuiElement.OptionsPanel.BoolOptions(new ValueFilter.BoolFilter(), uac));
+			}
+			<V extends Number> RegisteredFilters addNumber(Class<V> columnClass, ValueFilter.NumberFilter<V> filter, Function<V,String> toString, Function<String,V> convert, Predicate<V> isOK)
+			{
+				return add(columnClass, uac->new RowFilterPanel.ValueFilterGuiElement.OptionsPanel.NumberOptions<>(filter, toString, convert, isOK, uac));
+			}
+			<V extends Enum<V>> RegisteredFilters addEnum(Class<V> columnClass, String filterID, Function<String, V> parseValue)
+			{
+				ValueFilter.EnumFilter.registerFilter(filterID, columnClass, parseValue);
+				return add(columnClass, uac->new RowFilterPanel.ValueFilterGuiElement.OptionsPanel.EnumOptions<>(columnClass, uac));
+			}
+			<V extends Data.EnumSetContainer<E>, E extends Enum<E>> RegisteredFilters addEnumSet(Class<V> columnClass, Class<E> enumClass, String filterID, Function<String, E> parseEnum)
+			{
+				ValueFilter.EnumSetFilter.registerFilter(filterID, columnClass, enumClass, parseEnum);
+				return add(columnClass, uac->new RowFilterPanel.ValueFilterGuiElement.OptionsPanel.EnumSetOptions<>(columnClass, enumClass, uac));
+			}
 		}
 
 		interface FixedValueFilterContainer
@@ -1859,10 +1934,6 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			static class EnumSetFilter<B extends Data.EnumSetContainer<E>, E extends Enum<E>> extends ValueFilter {
 				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
 				private final static HashMap<String,BiFunction<Type,String[],EnumSetFilter<?,?>>> KnownTypes = new HashMap<>();
-				
-				static {
-					registerFilter("CountrySet", Truck.CountrySet.class, Truck.Country.class, Truck.Country::valueOf);
-				}
 		
 				private static <B extends Data.EnumSetContainer<E>, E extends Enum<E>> void registerFilter(String filterID, Class<B> baseClass, Class<E> enumClass, Function<String, E> parseEnum) {
 					KnownFilterIDs.put(baseClass,filterID);
@@ -1995,13 +2066,6 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			static class EnumFilter<E extends Enum<E>> extends ValueFilter {
 				private final static HashMap<Class<?>,String> KnownFilterIDs = new HashMap<>();
 				private final static HashMap<String,Function<String[],EnumFilter<?>>> KnownTypes = new HashMap<>();
-				
-				static {
-					registerFilter("DiffLockType", Truck.DiffLockType .class, Truck.DiffLockType ::valueOf);
-					registerFilter("Country"     , Truck.Country      .class, Truck.Country      ::valueOf);
-					registerFilter("TruckType"   , Truck.TruckType    .class, Truck.TruckType    ::valueOf);
-					registerFilter("ItemStat"    , Truck.UDV.ItemState.class, Truck.UDV.ItemState::valueOf);
-				}
 		
 				private static <E extends Enum<E>> void registerFilter(String filterID, Class<E> valueClass, Function<String, E> parseValue) {
 					KnownFilterIDs.put(valueClass,filterID);
@@ -2412,21 +2476,6 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					OptionsPanel<?> create(Runnable updateAfterChange);
 				}
 				
-				private static final HashMap<Class<?>,OptionsPanelConstructor> RegisteredOptionsPanels = new HashMap<>();
-				static {
-					RegisteredOptionsPanels.put(Boolean            .class, uac->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter(), uac));
-					RegisteredOptionsPanels.put(Data.Capability    .class, uac->new OptionsPanel.BoolOptions(new ValueFilter.BoolFilter(), uac));
-					RegisteredOptionsPanels.put(Integer            .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null            , uac ));
-					RegisteredOptionsPanels.put(Long               .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createLongFilter()  , v->Long   .toString(v), Long   ::parseLong  , null            , uac ));
-					RegisteredOptionsPanels.put(Float              .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createFloatFilter() , v->Float  .toString(v), Float  ::parseFloat , Float ::isFinite, uac ));
-					RegisteredOptionsPanels.put(Double             .class, uac->new OptionsPanel.NumberOptions<>( ValueFilter.NumberFilter.createDoubleFilter(), v->Double .toString(v), Double ::parseDouble, Double::isFinite, uac ));
-					RegisteredOptionsPanels.put(Truck.Country      .class, uac->new OptionsPanel.EnumOptions<>(Truck.Country      .class, uac));
-					RegisteredOptionsPanels.put(Truck.DiffLockType .class, uac->new OptionsPanel.EnumOptions<>(Truck.DiffLockType .class, uac));
-					RegisteredOptionsPanels.put(Truck.TruckType    .class, uac->new OptionsPanel.EnumOptions<>(Truck.TruckType    .class, uac));
-					RegisteredOptionsPanels.put(Truck.UDV.ItemState.class, uac->new OptionsPanel.EnumOptions<>(Truck.UDV.ItemState.class, uac));
-					RegisteredOptionsPanels.put(Truck.CountrySet   .class, uac->new OptionsPanel.EnumSetOptions<>(Truck.CountrySet.class, Truck.Country.class, uac));
-				}
-				
 				private static final Color COLOR_BG_ACTIVE_FILTER = new Color(0xFFDB00);
 				private final String id;
 				private final JCheckBox baseCheckBox;
@@ -2449,7 +2498,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					this.id = id;
 					this.updateAfterChange = updateAfterChange;
 					
-					OptionsPanelConstructor creator = RegisteredOptionsPanels.get(valueClass);
+					OptionsPanelConstructor creator = RegisteredFilters.get(valueClass);
 					if (creator==null) optionsPanel = new OptionsPanel.DummyOptions(valueClass);
 					else               optionsPanel = creator.create(updateAfterChange);
 					
@@ -2542,6 +2591,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			
 					static class DummyOptions extends OptionsPanel<ValueFilter.BoolFilter>
 					{
+						private static final String BASE_PACKAGE_PATH = "net.schwarzbaer.java.games.snowrunner.";
 						private static final long serialVersionUID = 4500779916477896148L;
 			
 						public DummyOptions(Class<?> columnClass) {
@@ -2549,13 +2599,24 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 							
 							String message;
 							if (columnClass==String.class) message = "---   No Filter for text values   ---";
-							else message = String.format("---   No Filter for Column of %s   ---", columnClass==null ? "<null>" : columnClass.getCanonicalName());
+							else message = String.format("---   No Filter for Column of %s   ---", getClassName(columnClass));
 							
 							JLabel msgComp = new JLabel(message);
 							msgComp.setEnabled(false);
 							
 							c.weightx = 1;
 							add(msgComp, c);
+						}
+
+						private String getClassName(Class<?> columnClass)
+						{
+							if (columnClass==null)
+								return "<null>";
+							
+							String name = columnClass.getCanonicalName();
+							if (name.startsWith(BASE_PACKAGE_PATH))
+								name = name.substring(BASE_PACKAGE_PATH.length());
+							return name;
 						}
 					}
 					

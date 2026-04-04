@@ -290,6 +290,9 @@ public class SnowRunner {
 		testingMenu.add(createMenuItem("Show Event Listeners", true, e->{
 			gfds.controllers.showListeners();
 		}));
+		testingMenu.add(createMenuItem("Show deficits in GUI implementation", true, e->{
+			VerySimpleTableModel.showGUIImplementationDeficits();
+		}));
 		
 		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
 		mainWindow.startGUI(contentPane, menuBar);
@@ -303,7 +306,6 @@ public class SnowRunner {
 		
 		if (loadInitialPAK()) updateAfterDataChange();
 		reloadSaveGameData();
-		
 	}
 
 	private void reloadSaveGameData() {
