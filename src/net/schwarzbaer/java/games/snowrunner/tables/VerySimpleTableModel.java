@@ -1725,10 +1725,37 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			void setFilter(ValueFilter filter);
 		}
 
-		static abstract class ValueFilter {
+		static abstract class ValueFilter
+		{
+			enum FilterType
+			{
+				NumberFilter (ValueFilter.NumberFilter ::parseFilter),
+				BoolFilter   (ValueFilter.BoolFilter   ::parseFilter),
+				EnumFilter   (ValueFilter.EnumFilter   ::parseFilter),
+				EnumSetFilter(ValueFilter.EnumSetFilter::parseFilter),
+				;
+				private final Function<String, ValueFilter> parseFilterFcn;
+				FilterType() { this(null); }
+				FilterType(Function<String, ValueFilter> parseFilterFcn)
+				{
+					this.parseFilterFcn = parseFilterFcn;
+				}
+				
+				static FilterType parse(String str)
+				{
+					try { return valueOf(str); }
+					catch (Exception e) { return null; }
+				}
+			}
 			
 			boolean active = false;
 			boolean allowUnset = false;
+			final FilterType type;
+			
+			protected ValueFilter(FilterType type)
+			{
+				this.type = type;
+			}
 		
 			boolean valueMeetsFilter(Object value) {
 				if (allowUnset && value==null)
@@ -1766,16 +1793,13 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				
 				pos = str.indexOf(':');
 				if (pos<0) return null;
-				String simpleClassName = str.substring(0, pos);
+				String filterTypeStr = str.substring(0, pos);
 				str = str.substring(pos+1);
 				
-				ValueFilter filter = null;
-				switch (simpleClassName) {
-				case "NumberFilter" : filter = NumberFilter .parseFilter(str); break;
-				case "BoolFilter"   : filter = BoolFilter   .parseFilter(str); break;
-				case "EnumFilter"   : filter = EnumFilter   .parseFilter(str); break;
-				case "EnumSetFilter": filter = EnumSetFilter.parseFilter(str); break;
-				}
+				FilterType filterType = FilterType.parse(filterTypeStr);
+				if (filterType==null) return null;
+				
+				ValueFilter filter = filterType.parseFilterFcn.apply(str);
 				
 				if (filter != null) {
 					filter.active = active;
@@ -1786,7 +1810,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 		
 			final String toParsableString() {
-				return String.format("%s:%s:%s:%s", active, allowUnset, getClass().getSimpleName(), toParsableString_SubType());
+				return String.format("%s:%s:%s:%s", active, allowUnset, type.name(), toParsableString_SubType());
 			}
 		
 			@Override final public boolean equals(Object obj) {
@@ -1856,6 +1880,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				
 				EnumSetFilter(String filterID, Class<B> baseClass, Class<E> enumClass)
 				{
+					super(FilterType.EnumSetFilter);
 					this.filterID = filterID;
 					this.baseClass = baseClass;
 					this.enumClass = enumClass;
@@ -1988,7 +2013,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				private final Class<E> valueClass;
 				private final EnumSet<E> allowedValues;
 		
-				EnumFilter(String filterID, Class<E> valueClass) {
+				EnumFilter(String filterID, Class<E> valueClass)
+				{
+					super(FilterType.EnumFilter);
 					this.filterID = filterID;
 					if (valueClass==null) throw new IllegalArgumentException();
 					this.valueClass = valueClass;
@@ -2065,7 +2092,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				private final Function<V, String> toParsableString;
 				private final BiFunction<V, V, Integer> compare;
 				
-				NumberFilter(Class<V> valueClass, V min, V max, BiFunction<V,V,Integer> compare, Function<V,String> toParsableString) {
+				NumberFilter(Class<V> valueClass, V min, V max, BiFunction<V,V,Integer> compare, Function<V,String> toParsableString)
+				{
+					super(FilterType.NumberFilter);
 					this.valueClass = valueClass;
 					this.min = min;
 					this.max = max;
@@ -2168,9 +2197,19 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 			
 			
-			static class BoolFilter extends ValueFilter {
+//			static class StringFilter extends ValueFilter {
+				// TODO: StringFilter
+//			}
 			
+			
+			static class BoolFilter extends ValueFilter
+			{
 				boolean allowTrues = true;
+			
+				BoolFilter()
+				{
+					super(FilterType.BoolFilter);
+				}
 		
 				@Override protected boolean valueMeetsFilter_SubType(Object value) {
 					if (value instanceof Boolean) {
