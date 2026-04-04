@@ -10,6 +10,10 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Window;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
@@ -1649,6 +1653,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					SaveGameData.SaveGame.MapInfos.DiscoveredObjects.class,
 					TruckAddonsTableModel.AddonSocketPosition.class
 				)
+				.addString   ()
 				.addBoolean  ()
 				.addBooleanWT(Data.Capability    .class)
 				.addNumber   (Integer            .class, ValueFilter.NumberFilter.createIntFilter()   , v->Integer.toString(v), Integer::parseInt   , null            )
@@ -1787,6 +1792,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				return this;
 			}
 			
+			RegisteredFilters addString()
+			{
+				return add(String.class, uac->new RowFilterPanel.ValueFilterGuiElement.OptionsPanel.StringOptions(new ValueFilter.StringFilter(), uac));
+			}
 			RegisteredFilters addBoolean()
 			{
 				return add(Boolean.class, uac->new RowFilterPanel.ValueFilterGuiElement.OptionsPanel.BoolOptions(new ValueFilter.BoolFilter(), uac));
@@ -2320,7 +2329,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				{
 					if (stringOp==null)
 						return false;
-					if (text==null || text.isEmpty())
+					if (!isTextOk())
 						return false;
 					
 					if (value instanceof String str)
@@ -2333,6 +2342,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 						};
 					
 					return false;
+				}
+
+				private boolean isTextOk()
+				{
+					return text!=null && !text.isEmpty();
 				}
 
 				@Override
@@ -2360,7 +2374,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					if (pos<0) return null;
 					StringFilter newFilter = new StringFilter();
 					newFilter.stringOp = StringOp.parse(str.substring(0, pos));
-					newFilter.text     = str.substring(0, pos+1);
+					newFilter.text     = str.substring(pos+1);
 					return newFilter;
 				}
 
@@ -2789,8 +2803,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			
 						@Override void setValues(ValueFilter filter) {
 							super.setValues(filter);
-							if (filter instanceof ValueFilter.EnumFilter) {
-								ValueFilter.EnumFilter<?> enumFilter = (ValueFilter.EnumFilter<?>) filter;
+							if (filter instanceof ValueFilter.EnumFilter<?> enumFilter) {
 								
 								if (this.filter.valueClass!=enumFilter.valueClass)
 									throw new IllegalStateException();
@@ -2849,8 +2862,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			
 						@Override void setValues(ValueFilter filter) {
 							super.setValues(filter);
-							if (filter instanceof ValueFilter.NumberFilter) {
-								ValueFilter.NumberFilter<?> numberFilter = (ValueFilter.NumberFilter<?>) filter;
+							if (filter instanceof ValueFilter.NumberFilter<?> numberFilter) {
 								if (this.filter.valueClass!=numberFilter.valueClass)
 									throw new IllegalStateException(String.format("filter.valueClass(%s) != numberFilter.valueClass(%s)", this.filter.valueClass, numberFilter.valueClass));
 								this.filter.min = this.filter.valueClass.cast(numberFilter.min);
@@ -2863,6 +2875,94 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					}
 			
 			
+					static class StringOptions extends OptionsPanel<ValueFilter.StringFilter> 
+					{
+						private static final long serialVersionUID = 8312554048990241069L;
+						private static final Color BGCOLOR_WRONG_INPUT   = new Color(0xFFAFAF);
+						private static final Color BGCOLOR_UNSAVED_INPUT = new Color(0xFFAFFF);
+						
+						private final JComboBox<ValueFilter.StringFilter.StringOp> cmbbxStringOps;
+						private final JTextField fldText;
+						private final Color fldTextDefaultBackground;
+
+						StringOptions(ValueFilter.StringFilter filter, Runnable updateAfterChange)
+						{
+							super(filter, updateAfterChange);
+							c.weightx = 0;
+							add(cmbbxStringOps = new JComboBox<>(ValueFilter.StringFilter.StringOp.values()));
+							add(fldText = new JTextField("", 20));
+							c.weightx = 1;
+							add(new JLabel(), c);
+							
+							cmbbxStringOps.setSelectedItem( this.filter.stringOp );
+							cmbbxStringOps.addActionListener(e -> {
+								this.filter.stringOp = cmbbxStringOps.getItemAt( cmbbxStringOps.getSelectedIndex() );
+								updateAfterChange();
+							});
+							
+							fldTextDefaultBackground = fldText.getBackground();
+							
+							fldText.addActionListener(e -> storeTextInput());
+							
+							fldText.addKeyListener(new KeyListener() {
+								@Override public void keyPressed (KeyEvent e) {}
+								@Override public void keyTyped   (KeyEvent e) {}
+								@Override public void keyReleased(KeyEvent e) { checkUnsavedInput(); }
+							} );
+							
+							fldText.addFocusListener(new FocusListener() {
+								@Override public void focusGained(FocusEvent e) {}
+								@Override public void focusLost  (FocusEvent e) { storeTextInput(); }
+							});
+						}
+						
+						private void checkUnsavedInput()
+						{
+							fldText.setBackground(
+									!fldText.getText().equals(filter.text)
+										? BGCOLOR_UNSAVED_INPUT
+										: !filter.isTextOk()
+											? BGCOLOR_WRONG_INPUT
+											: fldTextDefaultBackground
+							);
+						}
+
+						private void storeTextInput()
+						{
+							filter.text = fldText.getText();
+							fldText.setBackground(
+									!filter.isTextOk()
+										? BGCOLOR_WRONG_INPUT
+										: fldTextDefaultBackground
+							);
+						}
+
+						@Override
+						void setEnableOptions(boolean isEnabled)
+						{
+							super.setEnableOptions(isEnabled);
+							cmbbxStringOps.setEnabled(isEnabled);
+							fldText       .setEnabled(isEnabled);
+						}
+
+						@Override
+						void setValues(ValueFilter filter)
+						{
+							super.setValues(filter);
+							if (filter instanceof ValueFilter.StringFilter stringFilter)
+							{
+								cmbbxStringOps.setSelectedItem(this.filter.stringOp = stringFilter.stringOp);
+								fldText.setText(this.filter.text = stringFilter.text);
+								fldText.setBackground(
+										!this.filter.isTextOk() && this.filter.active
+											? BGCOLOR_WRONG_INPUT
+											: fldTextDefaultBackground
+								);
+							}
+						}
+					}
+					
+					
 					static class BoolOptions extends OptionsPanel<ValueFilter.BoolFilter> {
 						private static final long serialVersionUID = 1821563263682227455L;
 						private final JRadioButton rbtnTrue;
@@ -2887,8 +2987,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			
 						@Override void setValues(ValueFilter filter) {
 							super.setValues(filter);
-							if (filter instanceof ValueFilter.BoolFilter) {
-								ValueFilter.BoolFilter boolFilter = (ValueFilter.BoolFilter) filter;
+							if (filter instanceof ValueFilter.BoolFilter boolFilter) {
 								this.filter.allowTrues = boolFilter.allowTrues;
 								if (this.filter.allowTrues) rbtnTrue .setSelected(true);
 								else                        rbtnFalse.setSelected(true);
