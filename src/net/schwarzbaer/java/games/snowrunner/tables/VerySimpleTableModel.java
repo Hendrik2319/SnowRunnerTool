@@ -826,6 +826,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		return rows.get(rowIndex);
 	}
 
+	public int getRowIndex(Object row)
+	{
+		return rows.indexOf(row);
+	}
+	
 	protected abstract String getRowName(RowType row);
 
 	@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
@@ -834,7 +839,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		return getValue(columnID, rowIndex, row);
 	}
 	
-	Object getValue(ColumnID columnID, int rowIndex, RowType row) {
+	Object getValue(ColumnID columnID, int rowIndex, Object row) {
 		return columnID.getValue(rowIndex, row, language, this);
 	}
 	
@@ -3377,7 +3382,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		
 		ExtraBoolColumn(String presetName, RowFiltering.Preset preset)
 		{
-			super(createID(), "{ %s }".formatted( presetName ), Boolean.class, 75, null, null, false, createGetFcn(preset));
+			super(createID(), "{ %s }".formatted( presetName ), Boolean.class, 75, null, null, false, (row,model) -> rowMeetsPreset(model, row, preset));
 			this.presetName = Objects.requireNonNull( presetName );
 			this.preset     = Objects.requireNonNull( preset     );
 		}
@@ -3386,20 +3391,19 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		{
 			return "ExtraBoolColumn %s".formatted( ID_POOL.createNew() );
 		}
-		
-		private static TableModelBasedBuilder<Boolean> createGetFcn(RowFiltering.Preset preset)
-		{
-			return (row,model) -> rowMeetsPreset(model, row, preset);
-		}
 
-		private static boolean rowMeetsPreset(VerySimpleTableModel<?> model, Object row, RowFiltering.Preset preset)
+		private static Boolean rowMeetsPreset(VerySimpleTableModel<?> model, Object row, RowFiltering.Preset preset)
 		{
+			int rowIndex = model.getRowIndex(row);
+			if (rowIndex<0)
+				return null;
+			
 			for (ColumnID columnID : model.originalColumns)
 			{
 				RowFiltering.ValueFilter filter = preset.get(columnID.id);
 				if (filter!=null && filter.active)
 				{
-					Object value = columnID.getValue_uncached(row, null, model); // expects, that there are no String filters
+					Object value = model.getValue(columnID, rowIndex, row);
 					if (!filter.valueMeetsFilter(value))
 						return false;
 				}
