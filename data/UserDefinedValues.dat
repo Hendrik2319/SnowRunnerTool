@@ -105,7 +105,7 @@ DiffLock=Installed
 
 [Truck]
 id=international_scout_800
-AWD=Permanent
+AWD=Installed
 DiffLock=Permanent
 
 [Truck]
@@ -247,6 +247,11 @@ DiffLock=Able
 id=ws_6900xd_twin
 AWD=Able
 DiffLock=Installed
+
+[Truck]
+id=yar_87
+AWD=Installed
+DiffLock=Permanent
 
 [Truck]
 id=zikz_605r

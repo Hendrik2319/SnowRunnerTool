@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -616,7 +617,7 @@ public class TruckPanelProto implements Finalizable {
 		
 		void setData(Truck.Wheels wheels)
 		{
-			tableModel.setRowData(wheels==null || wheels.wheels==null ? null : new ArrayList<>( Arrays.asList(wheels.wheels) ));
+			tableModel.setData(wheels==null ? null : wheels.wheels);
 		}
 
 		@Override
@@ -625,34 +626,64 @@ public class TruckPanelProto implements Finalizable {
 			finalizer.removeSubCompsAndListenersFromGUI();
 		}
 		
-		private static class ChassisTableModel extends VerySimpleTableModel<Truck.Wheels.Wheel>
+		private static class ChassisTableModel extends VerySimpleTableModel<ChassisTableModel.Row>
 		{
-			private static final GetValueConverter<Truck.Wheels.Wheel> GET = new GetValueConverter<>(Truck.Wheels.Wheel.class);
+			private static final GetValueConverter<ChassisTableModel.Row> GET = new GetValueConverter<>(ChassisTableModel.Row.class);
+			private static final Comparator<Data.Coord3F> COMPARATOR_COORD3F = Comparator
+					.<Data.Coord3F,Float>comparing(coord->coord.x, Comparator.reverseOrder())
+					.thenComparing(coord->coord.y, Comparator.reverseOrder())
+					.thenComparing(coord->coord.z, Comparator.reverseOrder());
+			private static final Comparator<Truck.Wheels.Wheel> COMPARATOR_WHEEL = Comparator
+					.<Truck.Wheels.Wheel,Data.Coord3F>comparing(wh->wh.pos, Comparator.nullsLast(COMPARATOR_COORD3F))
+					.thenComparing(wh->wh.rightSide, Comparator.nullsLast(Comparator.naturalOrder()));
+			private static final Comparator<Row> COMPARATOR_ROW = Comparator.nullsLast(
+					Comparator.<Row,Truck.Wheels.Wheel>comparing(row->row.wheel, Comparator.nullsLast(COMPARATOR_WHEEL))
+			);
 
 			ChassisTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 			{
-				// Column Widths: [120, 120, 150, 135, 55, 90, 130, 55, 85, 90, 120, 90, 70] in ModelOrder
+				// Column Widths: [55, 40, 70, 65, 190, 180, 85, 90, 120, 120, 120, 110, 60] in ModelOrder
 				super(mainWindow, gfds, new ColumnID[] {
-						new ColumnID( "camberAnglePhysics"        , "camberAnglePhysics"        ,  String.class, 120,   null,    null, false, GET.get(row -> row.camberAnglePhysics        )),
-						new ColumnID( "camberAngleRender"         , "camberAngleRender"         ,  String.class, 120,   null,    null, false, GET.get(row -> row.camberAngleRender         )),
-						new ColumnID( "camberSuspensionMultiplier", "camberSuspensionMultiplier",  String.class, 150,   null,    null, false, GET.get(row -> row.camberSuspensionMultiplier)),
-						new ColumnID( "connectedToHandbrake"      , "connectedToHandbrake"      ,  String.class, 135,   null,    null, false, GET.get(row -> row.connectedToHandbrake      )),
-						new ColumnID( "location"                  , "location"                  ,  String.class,  55,   null,    null, false, GET.get(row -> row.location                  )),
-						new ColumnID( "parentFrame"               , "parentFrame"               ,  String.class,  90,   null,    null, false, GET.get(row -> row.parentFrame               )),
-						new ColumnID( "pos"                       , "pos"                       ,  String.class, 130,   null,    null, false, GET.get(row -> row.pos                       )),
-						new ColumnID( "rightSide"                 , "rightSide"                 ,  String.class,  55,   null,    null, false, GET.get(row -> row.rightSide                 )),
-						new ColumnID( "steeringAngle"             , "steeringAngle"             ,  String.class,  85,   null,    null, false, GET.get(row -> row.steeringAngle             )),
-						new ColumnID( "steeringCastor"            , "steeringCastor"            ,  String.class,  90,   null,    null, false, GET.get(row -> row.steeringCastor            )),
-						new ColumnID( "steeringJointOffset"       , "steeringJointOffset"       ,  String.class, 120,   null,    null, false, GET.get(row -> row.steeringJointOffset       )),
-						new ColumnID( "suspensionMin"             , "suspensionMin"             ,  String.class,  90,   null,    null, false, GET.get(row -> row.suspensionMin             )),
-						new ColumnID( "torque"                    , "torque"                    ,  String.class,  70,   null,    null, false, GET.get(row -> row.torque                    )),
+						new ColumnID( "#"                         , "#"                     ,  Integer     .class,  30, CENTER,    null, false, GET.get(row->row.index                                   )),
+						new ColumnID( "location"                  , "Location"              ,  String      .class,  55,   null,    null, false, GET.get(row->row.wheel, wh->wh.location                  )),
+						new ColumnID( "rightSide"                 , "Side"                  ,  String      .class,  40, CENTER,    null, false, GET.get(row->row.wheel, wh->wh.rightSide, "R","L"        )),
+						new ColumnID( "torque"                    , "Torque"                ,  String      .class,  70,   null,    null, false, GET.get(row->row.wheel, wh->wh.torque                    )),
+						new ColumnID( "connectedToHandbrake"      , "Handbrake"             ,  Boolean     .class,  65,   null,    null, false, GET.get(row->row.wheel, wh->wh.connectedToHandbrake      )),
+						new ColumnID( "pos"                       , "Posistion"             ,  Data.Coord3F.class, 190,   null,    null, false, GET.get(row->row.wheel, wh->wh.pos                       )),
+						new ColumnID( "parentFrame"               , "ParentFrame"           ,  String      .class, 180,   null,    null, false, GET.get(row->row.wheel, wh->wh.parentFrame               )),
+						new ColumnID( "steeringAngle"             , "Steering Angle"        ,  Float       .class,  85,   null,    null, false, GET.get(row->row.wheel, wh->wh.steeringAngle             )),
+						new ColumnID( "steeringCastor"            , "Steering Castor"       ,  Float       .class,  90,   null,    null, false, GET.get(row->row.wheel, wh->wh.steeringCastor            )),
+						new ColumnID( "steeringJointOffset"       , "Steering Joint Offset" ,  Float       .class, 120,   null,    null, false, GET.get(row->row.wheel, wh->wh.steeringJointOffset       )),
+						new ColumnID( "camberAnglePhysics"        , "Camber Angle Physics"  ,  Float       .class, 120,   null,    null, false, GET.get(row->row.wheel, wh->wh.camberAnglePhysics        )),
+						new ColumnID( "camberAngleRender"         , "Camber Angle Render"   ,  Float       .class, 120,   null,    null, false, GET.get(row->row.wheel, wh->wh.camberAngleRender         )),
+						new ColumnID( "camberSuspensionMultiplier", "Camber Susp. Multi."   ,  Float       .class, 110,   null,    null, false, GET.get(row->row.wheel, wh->wh.camberSuspensionMultiplier)),
+						new ColumnID( "suspensionMin"             , "Susp. Min"             ,  Float       .class,  60,   null,    null, false, GET.get(row->row.wheel, wh->wh.suspensionMin             )),
 				});
+			}
+			
+			record Row(String rowName, int index, Truck.Wheels.Wheel wheel) {}
+
+			void setData(Truck.Wheels.Wheel[] wheels)
+			{
+				List<Row> rows = null;
+				if (wheels!=null)
+				{
+					rows = new ArrayList<>();
+					for (int i=0; i<wheels.length; i++)
+					{
+						Truck.Wheels.Wheel wheel = wheels[i];
+						String rowName = wheel == null ? "<null>" : "Wheel[%016X]".formatted(wheel.hashCode());
+						rows.add(new Row(rowName, i+1, wheel));
+					}
+					rows.sort(COMPARATOR_ROW);
+				}
+				setRowData(rows);
 			}
 
 			@Override
-			protected String getRowName(Truck.Wheels.Wheel row)
+			protected String getRowName(Row row)
 			{
-				return row == null ? "<null>" : "Wheel[%016X]".formatted(row.hashCode());
+				return row == null ? "<null>" : row.rowName;
 			}
 		}
 	}

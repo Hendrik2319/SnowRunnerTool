@@ -3633,17 +3633,31 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			this.rowTypeClass = Objects.requireNonNull( rowTypeClass );
 		}
 		
+		Function<Object,String> get(Function<RowType, Boolean> getValue, String trueStr, String falseStr)
+		{
+			return obj -> bool2string(getRowValue(obj, getValue), trueStr, falseStr);
+		}
+		
 		<ValueType> Function<Object,ValueType> get(Function<RowType, ValueType> getValue)
 		{
 			return obj -> getRowValue(obj, getValue);
 		}
 	
-		// getValue1 & getValue2 will be called only, if obj & interValue are not NULL
 		<InterValueType, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, ValueType> getValue2)
 		{
 			return obj -> getIfNotNull(getRowValue(obj, getValue1), getValue2);
 		}
-	
+		
+		<InterValueType> Function<Object,String> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, Boolean> getValue2, String trueStr, String falseStr)
+		{
+			return obj -> bool2string(getIfNotNull(getRowValue(obj, getValue1), getValue2), trueStr, falseStr);
+		}
+
+		static String bool2string(Boolean value, String trueStr, String falseStr)
+		{
+			return value==null ? null : value.booleanValue() ? trueStr : falseStr;
+		}
+		
 		static <Type1, Type2> Type2 getIfNotNull(Type1 value, Function<Type1, Type2> getValue)
 		{
 			return value==null ? null : getValue.apply(value);

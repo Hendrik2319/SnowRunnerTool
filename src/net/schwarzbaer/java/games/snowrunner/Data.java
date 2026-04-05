@@ -834,6 +834,26 @@ public class Data {
 		} catch (NumberFormatException e) {}
 		return null;
 	}
+	
+	private static float[] parseFloatArr(String str, int expectedLength) {
+		str = str.trim();
+		if (str.startsWith("(")) str = str.substring(1);
+		if (str.  endsWith(")")) str = str.substring(0,str.length()-1);
+		
+		String[] parts = str.split(";");
+		if (parts.length!=expectedLength) return null;
+		
+		float[] values = new float[expectedLength];
+		for (int i=0; i<expectedLength; i++)
+		{
+			try {
+				values[i] = Float.parseFloat(parts[i].trim());
+				if (!Float.isFinite(values[i])) return null;
+			}
+			catch (NumberFormatException e) { return null; }
+		}
+		return values;
+	}
 
 	private static Boolean parseBool(String str) {
 		if (str==null) return null;
@@ -1223,19 +1243,26 @@ public class Data {
 		}
 	}
 	
+	@SuppressWarnings("unused")
 	private static class KnownValuesCheck
 	{
 		private final String checkedClassName;
 		private final Set<String> knownAttrs;
 		private final Set<String> knownSubNodeNames;
+		private final String logID_UnexpectedValue;
+		private final String logID_UnexpectedFloatValue;
+		private final String logID_UnexpectedBoolValue;
 		private final String logID_UnexpectedAttributes;
 		private final String logID_UnexpectedSubNodes;
 
 		KnownValuesCheck(Class<?> checkedClass)
 		{
 			checkedClassName = getName(checkedClass);
-			logID_UnexpectedAttributes = "[KnownValuesCheck] <%s> Unexpected Attributes".formatted(checkedClassName);
-			logID_UnexpectedSubNodes   = "[KnownValuesCheck] <%s> Unexpected SubNodes"  .formatted(checkedClassName);
+			logID_UnexpectedValue      = "[KnownValuesCheck] <%s> Unexpected Value"      .formatted(checkedClassName);
+			logID_UnexpectedFloatValue = "[KnownValuesCheck] <%s> Unexpected Float Value".formatted(checkedClassName);
+			logID_UnexpectedBoolValue  = "[KnownValuesCheck] <%s> Unexpected Bool Value" .formatted(checkedClassName);
+			logID_UnexpectedAttributes = "[KnownValuesCheck] <%s> Unexpected Attributes" .formatted(checkedClassName);
+			logID_UnexpectedSubNodes   = "[KnownValuesCheck] <%s> Unexpected SubNodes"   .formatted(checkedClassName);
 			knownAttrs = new HashSet<>();
 			knownSubNodeNames = new HashSet<>();
 		}
@@ -1274,6 +1301,43 @@ public class Data {
 						unexpectedValues.add(logID_UnexpectedSubNodes, subNodeName);
 				} );
 			}
+		}
+
+		<Result> Result parse(String valueStr, String attr, Function<String,Result> parseResult)
+		{
+			if (valueStr==null) return null;
+			try {
+				return parseResult.apply(valueStr);
+			} catch (Exception e) {}
+			unexpectedValues.add("%s in attribute \"%s\"".formatted(logID_UnexpectedValue, attr), "\"%s\"".formatted(valueStr));
+			return null;
+		}
+
+		Float parseFloat(String valueStr, String attr)
+		{
+			if (valueStr==null) return null;
+			try {
+				float f = Float.parseFloat(valueStr);
+				if (!Float.isNaN(f)) return f;
+			} catch (NumberFormatException e) {}
+			unexpectedValues.add("%s in attribute \"%s\"".formatted(logID_UnexpectedFloatValue, attr), "\"%s\"".formatted(valueStr));
+			return null;
+		}
+
+		Boolean parseBool(String valueStr, String attr) {
+			if (valueStr==null) return null;
+			if ("true" .equalsIgnoreCase(valueStr)) return true;
+			if ("false".equalsIgnoreCase(valueStr)) return false;
+			unexpectedValues.add("%s in attribute \"%s\"".formatted(logID_UnexpectedBoolValue, attr), "\"%s\"".formatted(valueStr));
+			return null;
+		}
+
+		boolean parseBool(String valueStr, String attr, boolean defaultValue) {
+			if (valueStr==null) return defaultValue;
+			if ("true" .equalsIgnoreCase(valueStr)) return true;
+			if ("false".equalsIgnoreCase(valueStr)) return false;
+			unexpectedValues.add("%s in attribute \"%s\"".formatted(logID_UnexpectedBoolValue, attr), "\"%s\"".formatted(valueStr));
+			return defaultValue;
 		}
 	}
 
@@ -1348,6 +1412,26 @@ public class Data {
 			icon328x458 = getAttribute(uiDescNode, "UiIcon328x458");
 			icon40x40   = getAttribute(uiDescNode, "UiIcon40x40"  );
 			iconLogo    = getAttribute(uiDescNode, "UiIconLogo"   );
+		}
+	}
+	
+	public static class Coord3F
+	{
+		public final float x,y,z;
+		
+		Coord3F(String str)
+		{
+			float[] values = parseFloatArr(str, 3);
+			if (values==null) throw new RuntimeException();
+			x = values[0];
+			y = values[1];
+			z = values[2];
+		}
+
+		@Override
+		public String toString()
+		{
+			return String.format("(x=%s; y=%s; z=%s)", x, y, z);
 		}
 	}
 
@@ -2727,6 +2811,7 @@ public class Data {
 			public final String defaultTire;
 			public final String defaultWheelType;
 			public final Wheel[] wheels;
+			public final UDV.ItemState awdState;
 			
 			public Wheels(GenericXmlNode wheelsNode)
 			{
@@ -2742,7 +2827,43 @@ public class Data {
 					.map( wheelNode -> wheelNode==null ? null : new Wheel(wheelNode) )
 					.toArray( Wheel[]::new );
 				
+				awdState = getAWDState(this.wheels);
+				
 				kvc.checkUnknowns(wheelsNode);
+			}
+			
+			private static UDV.ItemState getAWDState(Wheel[] wheels)
+			{
+				if (wheels==null) return null;
+				
+				Set<String> torqueValues = new HashSet<>();
+				for (Wheel wheel : wheels)
+					if (wheel!=null && wheel.torque!=null)
+						torqueValues.add(wheel.torque.trim().toLowerCase());
+				
+				if (torqueValues.size()==1)
+				{
+					if (torqueValues.contains("default"))
+						return UDV.ItemState.Permanent;
+					if (torqueValues.contains("full")) // additional case
+						return UDV.ItemState.Installed;
+					if (torqueValues.contains("connectable")) // additional case
+						return UDV.ItemState.Able;
+					if (torqueValues.contains("none")) // additional case
+						return UDV.ItemState.None;
+				}
+				
+				if (torqueValues.size()==2 && torqueValues.contains("default"))
+				{
+					if (torqueValues.contains("full"))
+						return UDV.ItemState.Installed;
+					if (torqueValues.contains("connectable"))
+						return UDV.ItemState.Able;
+					if (torqueValues.contains("none"))
+						return UDV.ItemState.None;
+				}
+				
+				return null;
 			}
 			
 			public static class Wheel
@@ -2764,37 +2885,37 @@ public class Data {
 				      Torque
 				 */
 				
-				public final String camberAnglePhysics;
-				public final String camberAngleRender;
-				public final String camberSuspensionMultiplier;
-				public final String connectedToHandbrake;
-				public final String location;
-				public final String parentFrame;
-				public final String pos;
-				public final String rightSide;
-				public final String steeringAngle;
-				public final String steeringCastor;
-				public final String steeringJointOffset;
-				public final String suspensionMin;
-				public final String torque;
+				public final Float   camberAnglePhysics;
+				public final Float   camberAngleRender;
+				public final Float   camberSuspensionMultiplier;
+				public final Boolean connectedToHandbrake;
+				public final String  location;
+				public final String  parentFrame;
+				public final Coord3F pos;
+				public final Boolean rightSide;
+				public final Float   steeringAngle;
+				public final Float   steeringCastor;
+				public final Float   steeringJointOffset;
+				public final Float   suspensionMin;
+				public final String  torque;
 
 				public Wheel(GenericXmlNode wheelNode)
 				{
 					KnownValuesCheck kvc = new KnownValuesCheck(Wheel.class);
 					
-					camberAnglePhysics         = getAttribute(wheelNode, kvc.addKnownAttr( "CamberAnglePhysics"         ));
-					camberAngleRender          = getAttribute(wheelNode, kvc.addKnownAttr( "CamberAngleRender"          ));
-					camberSuspensionMultiplier = getAttribute(wheelNode, kvc.addKnownAttr( "CamberSuspensionMultiplier" ));
-					connectedToHandbrake       = getAttribute(wheelNode, kvc.addKnownAttr( "ConnectedToHandbrake"       ));
-					location                   = getAttribute(wheelNode, kvc.addKnownAttr( "Location"                   ));
-					parentFrame                = getAttribute(wheelNode, kvc.addKnownAttr( "ParentFrame"                ));
-					pos                        = getAttribute(wheelNode, kvc.addKnownAttr( "Pos"                        ));
-					rightSide                  = getAttribute(wheelNode, kvc.addKnownAttr( "RightSide"                  ));
-					steeringAngle              = getAttribute(wheelNode, kvc.addKnownAttr( "SteeringAngle"              ));
-					steeringCastor             = getAttribute(wheelNode, kvc.addKnownAttr( "SteeringCastor"             ));
-					steeringJointOffset        = getAttribute(wheelNode, kvc.addKnownAttr( "SteeringJointOffset"        ));
-					suspensionMin              = getAttribute(wheelNode, kvc.addKnownAttr( "SuspensionMin"              ));
-					torque                     = getAttribute(wheelNode, kvc.addKnownAttr( "Torque"                     ));
+					camberAnglePhysics         = kvc.parseFloat( getAttribute(wheelNode, kvc.addKnownAttr( "CamberAnglePhysics"         )), "CamberAnglePhysics"        );
+					camberAngleRender          = kvc.parseFloat( getAttribute(wheelNode, kvc.addKnownAttr( "CamberAngleRender"          )), "CamberAngleRender"         );
+					camberSuspensionMultiplier = kvc.parseFloat( getAttribute(wheelNode, kvc.addKnownAttr( "CamberSuspensionMultiplier" )), "CamberSuspensionMultiplier");
+					connectedToHandbrake       = kvc.parseBool ( getAttribute(wheelNode, kvc.addKnownAttr( "ConnectedToHandbrake"       )), "ConnectedToHandbrake", false);
+					location                   =                 getAttribute(wheelNode, kvc.addKnownAttr( "Location"                   ));
+					parentFrame                =                 getAttribute(wheelNode, kvc.addKnownAttr( "ParentFrame"                ));
+					pos                        = kvc.parse     ( getAttribute(wheelNode, kvc.addKnownAttr( "Pos"                        )), "Pos", Coord3F::new         );
+					rightSide                  = kvc.parseBool ( getAttribute(wheelNode, kvc.addKnownAttr( "RightSide"                  )), "RightSide", false          );
+					steeringAngle              = kvc.parseFloat( getAttribute(wheelNode, kvc.addKnownAttr( "SteeringAngle"              )), "SteeringAngle"             );
+					steeringCastor             = kvc.parseFloat( getAttribute(wheelNode, kvc.addKnownAttr( "SteeringCastor"             )), "SteeringCastor"            );
+					steeringJointOffset        = kvc.parseFloat( getAttribute(wheelNode, kvc.addKnownAttr( "SteeringJointOffset"        )), "SteeringJointOffset"       );
+					suspensionMin              = kvc.parseFloat( getAttribute(wheelNode, kvc.addKnownAttr( "SuspensionMin"              )), "SuspensionMin"             );
+					torque                     =                 getAttribute(wheelNode, kvc.addKnownAttr( "Torque"                     ));
 					
 					kvc.checkUnknowns(wheelNode);
 				}

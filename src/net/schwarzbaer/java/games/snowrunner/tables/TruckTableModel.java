@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
@@ -79,10 +80,10 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "OnTheRoad", "On the Road"           ,                 Long.class,  75,             null, CENTER,      null, false, (row,model) -> getTrucksOnTheRoad  (row, model, null), (row, model, textOutput) -> getTrucksOnTheRoad  (row, model, textOutput)),
 				new ColumnID( "DLData"   , "DiffLock (from Data)"  ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, GET.get(t->t.diffLockType)),
 				new ColumnID( "DLUser"   , "DiffLock (by User)"    ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> gfds.userDefinedValues.getTruckValues(((Truck)row).id).realDiffLock),
-				new ColumnID( "DLTool"   , "DiffLock (by Tool)"    ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
+				new ColumnID( "DLTool"   , "DiffLock (by Tool)"    ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, GET.get(tr->getInstState(tr, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock))),
 				new ColumnID( "AWDData"  , "AWD (from Data)"       ,               String.class,  95,             null, CENTER,      null, false, row -> "??? t.b.d."),
 				new ColumnID( "AWDUser"  , "AWD (by User)"         ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> gfds.userDefinedValues.getTruckValues(((Truck)row).id).realAWD),
-				new ColumnID( "AWDTool"  , "AWD (by Tool)"         ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
+				new ColumnID( "AWDTool"  , "AWD (by Tool)"         ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, GET.get(TruckTableModel::getAwdState)),
 				new ColumnID( "AutoWinch", "Automatic Winch"       ,              Boolean.class,  90,             null,   null,      null, false, GET.get(t->t.hasCompatibleAutomaticWinch)),
 				new ColumnID(ID_MetalD   , "Metal Detector"        ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.MetalDetector   ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID(ID_Seismic  , "Seismic Vibrator"      ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.SeismicVibrator ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
@@ -354,24 +355,40 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 		return String.join(", ", it);
 	}
 
+	private static Truck.UDV.ItemState getAwdState(Truck truck)
+	{
+		if (truck.defaultAWD!=null && truck.defaultAWD.enablesAllWheelDrive!=null && truck.defaultAWD.enablesAllWheelDrive.booleanValue())
+			return Truck.UDV.ItemState.Installed;
+		
+		if (truck.hasCompatibleAWD)
+			return Truck.UDV.ItemState.Able;
+		
+		Truck.UDV.ItemState awdState = truck.wheels.awdState;
+		if (awdState == Truck.UDV.ItemState.Able)
+		{
+			if (!truck.hasCompatibleAWD)
+				return Truck.UDV.ItemState.None;
+		}
+		return awdState;
+	}
+
 	private static Truck.UDV.ItemState getInstState(
 			Truck truck,
-			Function<Truck,Boolean> isAddonCategoryInstallable,
+			Predicate<Truck> hasInstallableEnablingAddon,
 			Function<Truck,TruckAddon> getDefaultAddon,
 			Function<TruckAddon,Boolean> addonEnablesFeature
 	) {
 		if (truck==null) return null;
 		
-		Boolean bIsAddonInstallable = isAddonCategoryInstallable.apply(truck);
-		if (bIsAddonInstallable==null || !bIsAddonInstallable.booleanValue())
-			return null; // None || Permanent 
-		
 		TruckAddon defaultAddon = getDefaultAddon.apply(truck);
-		Boolean bAddonEnablesFeature = defaultAddon==null ? false : addonEnablesFeature.apply(defaultAddon);
-		if (bAddonEnablesFeature==null || !bAddonEnablesFeature.booleanValue())
+		Boolean defaultAddonEnablesFeature = defaultAddon==null ? false : addonEnablesFeature.apply(defaultAddon);
+		if (defaultAddonEnablesFeature!=null && defaultAddonEnablesFeature.booleanValue())
+			return Truck.UDV.ItemState.Installed;
+		
+		if (hasInstallableEnablingAddon.test(truck))
 			return Truck.UDV.ItemState.Able;
-			
-		return Truck.UDV.ItemState.Installed;
+		
+		return null; // None || Permanent 
 	}
 
 	private static String joinWheelSizes(CompatibleWheel[] compatibleWheels) {
