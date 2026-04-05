@@ -14,9 +14,9 @@ Preset=for Short Logs
 Filter=LoadAreas:true:false:StringFilter:Contains:CargoLogsShort
 
 [Preset]
-TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel
-Preset=is Cargo
-Filter=IsCargo:true:false:BoolFilter:true
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TrailersTableModel
+Preset=with TrailerLoad
+Filter=LoadAreas:true:false:StringFilter:Contains:TrailerLoad
 
 [Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel
@@ -32,6 +32,16 @@ Filter=LoadAreas:true:false:StringFilter:Contains:CargoLogsMedium
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel
 Preset=for Short Logs
 Filter=LoadAreas:true:false:StringFilter:Contains:CargoLogsShort
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel
+Preset=with TrailerLoad
+Filter=LoadAreas:true:false:StringFilter:Contains:TrailerLoad
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckAddonsTableModel
+Preset=is Cargo
+Filter=IsCargo:true:false:BoolFilter:true
 
 [Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel

@@ -1083,7 +1083,7 @@ public class Data {
 		if (gameData == null) throw new IllegalStateException();
 		
 		for (GameData.GameDataT3NonTruck.LoadArea loadArea : gameData.loadAreas)
-			if (
+			if (// TODO: [LoadArea] check meaning of type, subtype and trailerLoad and differences between TruckAddons and Trailers
 					(requiredCargoType         == null || requiredCargoType        .equals(loadArea.type   )) && // Cat 745C can only M logs and no S logs
 					(requiredCargoAddonSubtype == null || requiredCargoAddonSubtype.equals(loadArea.subtype)) &&
 					(ignoreTrailerLoad || (loadArea.trailerLoad != null && loadArea.trailerLoad.booleanValue()))
