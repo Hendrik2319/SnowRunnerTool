@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -1222,6 +1223,60 @@ public class Data {
 		}
 	}
 	
+	private static class KnownValuesCheck
+	{
+		private final String checkedClassName;
+		private final Set<String> knownAttrs;
+		private final Set<String> knownSubNodeNames;
+		private final String logID_UnexpectedAttributes;
+		private final String logID_UnexpectedSubNodes;
+
+		KnownValuesCheck(Class<?> checkedClass)
+		{
+			checkedClassName = getName(checkedClass);
+			logID_UnexpectedAttributes = "[KnownValuesCheck] <%s> Unexpected Attributes".formatted(checkedClassName);
+			logID_UnexpectedSubNodes   = "[KnownValuesCheck] <%s> Unexpected SubNodes"  .formatted(checkedClassName);
+			knownAttrs = new HashSet<>();
+			knownSubNodeNames = new HashSet<>();
+		}
+
+		private static String getName(Class<?> checkedClass)
+		{
+			if (checkedClass==null) throw new IllegalArgumentException();
+			String name = checkedClass.getCanonicalName();
+			String basePath = Data.class.getCanonicalName();
+			if (name.startsWith(basePath))
+				name = Data.class.getSimpleName() + name.substring(basePath.length());
+			return name;
+		}
+
+		String addKnownAttr(String knownAttr)
+		{
+			knownAttrs.add(knownAttr);
+			return knownAttr;
+		}
+
+		String addKnownSubNode(String knownSubNodeName)
+		{
+			knownSubNodeNames.add(knownSubNodeName);
+			return knownSubNodeName;
+		}
+
+		void checkUnknowns(GenericXmlNode node)
+		{
+			if (node!=null) {
+				node.attributes.keySet().forEach( attrName -> {
+					if (!knownAttrs.contains(attrName))
+						unexpectedValues.add(logID_UnexpectedAttributes, attrName);
+				} );
+				node.nodes.keySet().forEach( subNodeName -> {
+					if (!knownSubNodeNames.contains(subNodeName))
+						unexpectedValues.add(logID_UnexpectedSubNodes, subNodeName);
+				} );
+			}
+		}
+	}
+
 	public static class EnumSetContainer<E extends Enum<E>>
 	{
 		private final EnumSet<E> set;
@@ -2675,15 +2730,19 @@ public class Data {
 			
 			public Wheels(GenericXmlNode wheelsNode)
 			{
-				defaultRim       = getAttribute(wheelsNode, "DefaultRim"      );
-				defaultTire      = getAttribute(wheelsNode, "DefaultTire"     );
-				defaultWheelType = getAttribute(wheelsNode, "DefaultWheelType");
+				KnownValuesCheck kvc = new KnownValuesCheck(Wheels.class);
 				
-				GenericXmlNode[] wheelNodes = wheelsNode.getNodes("Wheels", "Wheel");
+				defaultRim       = getAttribute(wheelsNode, kvc.addKnownAttr( "DefaultRim"       ));
+				defaultTire      = getAttribute(wheelsNode, kvc.addKnownAttr( "DefaultTire"      ));
+				defaultWheelType = getAttribute(wheelsNode, kvc.addKnownAttr( "DefaultWheelType" ));
+				
+				GenericXmlNode[] wheelNodes = wheelsNode.getNodes("Wheels", kvc.addKnownSubNode("Wheel"));
 				this.wheels = Arrays
 					.stream( wheelNodes )
 					.map( wheelNode -> wheelNode==null ? null : new Wheel(wheelNode) )
 					.toArray( Wheel[]::new );
+				
+				kvc.checkUnknowns(wheelsNode);
 			}
 			
 			public static class Wheel
@@ -2721,19 +2780,23 @@ public class Data {
 
 				public Wheel(GenericXmlNode wheelNode)
 				{
-					camberAnglePhysics         = getAttribute(wheelNode, "CamberAnglePhysics"        );
-					camberAngleRender          = getAttribute(wheelNode, "CamberAngleRender"         );
-					camberSuspensionMultiplier = getAttribute(wheelNode, "CamberSuspensionMultiplier");
-					connectedToHandbrake       = getAttribute(wheelNode, "ConnectedToHandbrake"      );
-					location                   = getAttribute(wheelNode, "Location"                  );
-					parentFrame                = getAttribute(wheelNode, "ParentFrame"               );
-					pos                        = getAttribute(wheelNode, "Pos"                       );
-					rightSide                  = getAttribute(wheelNode, "RightSide"                 );
-					steeringAngle              = getAttribute(wheelNode, "SteeringAngle"             );
-					steeringCastor             = getAttribute(wheelNode, "SteeringCastor"            );
-					steeringJointOffset        = getAttribute(wheelNode, "SteeringJointOffset"       );
-					suspensionMin              = getAttribute(wheelNode, "SuspensionMin"             );
-					torque                     = getAttribute(wheelNode, "Torque"                    );
+					KnownValuesCheck kvc = new KnownValuesCheck(Wheel.class);
+					
+					camberAnglePhysics         = getAttribute(wheelNode, kvc.addKnownAttr( "CamberAnglePhysics"         ));
+					camberAngleRender          = getAttribute(wheelNode, kvc.addKnownAttr( "CamberAngleRender"          ));
+					camberSuspensionMultiplier = getAttribute(wheelNode, kvc.addKnownAttr( "CamberSuspensionMultiplier" ));
+					connectedToHandbrake       = getAttribute(wheelNode, kvc.addKnownAttr( "ConnectedToHandbrake"       ));
+					location                   = getAttribute(wheelNode, kvc.addKnownAttr( "Location"                   ));
+					parentFrame                = getAttribute(wheelNode, kvc.addKnownAttr( "ParentFrame"                ));
+					pos                        = getAttribute(wheelNode, kvc.addKnownAttr( "Pos"                        ));
+					rightSide                  = getAttribute(wheelNode, kvc.addKnownAttr( "RightSide"                  ));
+					steeringAngle              = getAttribute(wheelNode, kvc.addKnownAttr( "SteeringAngle"              ));
+					steeringCastor             = getAttribute(wheelNode, kvc.addKnownAttr( "SteeringCastor"             ));
+					steeringJointOffset        = getAttribute(wheelNode, kvc.addKnownAttr( "SteeringJointOffset"        ));
+					suspensionMin              = getAttribute(wheelNode, kvc.addKnownAttr( "SuspensionMin"              ));
+					torque                     = getAttribute(wheelNode, kvc.addKnownAttr( "Torque"                     ));
+					
+					kvc.checkUnknowns(wheelNode);
 				}
 			}
 		}

@@ -3417,7 +3417,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		protected abstract void parseLine(String line, Preset preset);
 		protected abstract void writePresetInLines(Preset preset, PrintWriter out);
 	}
-
+	
 	public static class ColumnID implements Tables.SimplifiedColumnIDInterface, RowFiltering.ValueFilterContainer {
 		
 		public interface TableModelBasedBuilder<ValueType> {
@@ -3586,6 +3586,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			ResultType get(ModelType model, Language language, RowType row);
 		}
 		
+		// TODO: move get() to GetValueConverter
 		public static <ResultType, ModelType extends VerySimpleTableModel<RowType>, RowType>
 			TableModelBasedBuilder<ResultType>
 			get(
@@ -3604,6 +3605,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			};
 		}
 		
+		// TODO: move get() to GetValueConverter
 		public static <ResultType, ModelType extends VerySimpleTableModel<RowType>, RowType>
 			TableModelBasedBuilder<ResultType>
 			get(
@@ -3620,21 +3622,39 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				return getFunction.get(model, model.language, row);
 			};
 		}
-		
-		public static <ResultType, RowType>
-			Function<Object, ResultType>
-			get(
-					Class<RowType> rowClass,
-					Function<RowType, ResultType> getFunction
-			)
+	}
+
+	public static class GetValueConverter<RowType>
+	{
+		private final Class<RowType> rowTypeClass;
+	
+		GetValueConverter(Class<RowType> rowTypeClass)
 		{
-			return row_ -> {
-				if (row_==null || !rowClass.isAssignableFrom(row_.getClass())) return null;
-				RowType row = rowClass.cast(row_);
-				return getFunction.apply(row);
-			};
+			this.rowTypeClass = Objects.requireNonNull( rowTypeClass );
+		}
+		
+		<ValueType> Function<Object,ValueType> get(Function<RowType, ValueType> getValue)
+		{
+			return obj -> getRowValue(obj, getValue);
+		}
+	
+		// getValue1 & getValue2 will be called only, if obj & interValue are not NULL
+		<InterValueType, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, ValueType> getValue2)
+		{
+			return obj -> getIfNotNull(getRowValue(obj, getValue1), getValue2);
+		}
+	
+		static <Type1, Type2> Type2 getIfNotNull(Type1 value, Function<Type1, Type2> getValue)
+		{
+			return value==null ? null : getValue.apply(value);
+		}
+	
+		<ValueType> ValueType getRowValue(Object rowObj, Function<RowType, ValueType> getValue)
+		{
+			return rowTypeClass.isInstance(rowObj) ? getValue.apply( rowTypeClass.cast(rowObj) ) : null;
 		}
 	}
+
 
 	private static class ExtraBoolColumn extends ColumnID
 	{

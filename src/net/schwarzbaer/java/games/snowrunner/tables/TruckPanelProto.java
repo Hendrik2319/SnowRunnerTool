@@ -17,6 +17,7 @@ import java.awt.Stroke;
 import java.awt.Window;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -86,6 +87,7 @@ public class TruckPanelProto implements Finalizable {
 	private final JTextArea truckInfoTextArea;
 	private final JScrollPane truckInfoTextAreaScrollPane;
 	private final CompatibleWheelsPanel compatibleWheelsPanel;
+	private final ChassisPanel chassisPanel;
 	private final AddonSocketsPanel addonSocketsPanel;
 	private final AddonSocketGroupsPanel addonSocketGroupsPanel;
 	private final AddonCategoriesPanel addonCategoriesPanel;
@@ -116,6 +118,7 @@ public class TruckPanelProto implements Finalizable {
 		
 		SaveGame.TruckDesc displayedTruck = gfds.controllers.storedTruckDisplayers.getDisplayedTruck();
 		finalizer.addSubComp(compatibleWheelsPanel  = new CompatibleWheelsPanel (mainWindow, gfds, displayedTruck));
+		finalizer.addSubComp(chassisPanel           = new ChassisPanel          (mainWindow, gfds));
 		finalizer.addSubComp(addonSocketsPanel      = new AddonSocketsPanel     (mainWindow, gfds));
 		finalizer.addSubComp(addonSocketGroupsPanel = new AddonSocketGroupsPanel(mainWindow, gfds));
 		finalizer.addSubComp(addonCategoriesPanel   = new AddonCategoriesPanel  (mainWindow, gfds, displayedTruck));
@@ -187,6 +190,7 @@ public class TruckPanelProto implements Finalizable {
 
 	private void addStandardTabsTo(JTabbedPane tabbedPanel) {
 		tabbedPanel.addTab("Compatible Wheels"     , compatibleWheelsPanel);
+		tabbedPanel.addTab("Chassis"               , chassisPanel.rootComp);
 		tabbedPanel.addTab("Addon Sockets"         , addonSocketsPanel.rootComp);
 		tabbedPanel.addTab("Addons by Socket Group", addonSocketGroupsPanel);
 		tabbedPanel.addTab("Addons by Category"    , addonCategoriesPanel);
@@ -195,6 +199,7 @@ public class TruckPanelProto implements Finalizable {
 	public void setTruck(Truck truck, Data data) {
 		this.truck = truck;
 		compatibleWheelsPanel .setData(truck==null ? null : truck.compatibleWheels, truck==null ? null : truck.id, truck==null ? null : truck.gameData.getNameStringID());
+		chassisPanel          .setData(truck==null ? null : truck.wheels);
 		addonSocketsPanel     .setData(truck==null ? null : truck.addonSockets);
 		addonSocketGroupsPanel.setData(truck==null ? null : truck.addonSockets);
 		addonCategoriesPanel  .setData(truck, data);
@@ -595,6 +600,62 @@ public class TruckPanelProto implements Finalizable {
 			}
 		}
 	}
+	
+	private static class ChassisPanel implements Finalizable
+	{
+		private final Finalizer finalizer;
+		private final ChassisTableModel tableModel;
+		private final JComponent rootComp;
+
+		ChassisPanel(Window mainWindow, GlobalFinalDataStructures gfds)
+		{
+			this.finalizer = gfds.controllers.createNewFinalizer();
+			finalizer.addSubComp(tableModel = new ChassisTableModel(mainWindow, gfds));
+			rootComp = TableSimplifier.create(tableModel);
+		}
+		
+		void setData(Truck.Wheels wheels)
+		{
+			tableModel.setRowData(wheels==null || wheels.wheels==null ? null : new ArrayList<>( Arrays.asList(wheels.wheels) ));
+		}
+
+		@Override
+		public void prepareRemovingFromGUI()
+		{
+			finalizer.removeSubCompsAndListenersFromGUI();
+		}
+		
+		private static class ChassisTableModel extends VerySimpleTableModel<Truck.Wheels.Wheel>
+		{
+			private static final GetValueConverter<Truck.Wheels.Wheel> GET = new GetValueConverter<>(Truck.Wheels.Wheel.class);
+
+			ChassisTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
+			{
+				// Column Widths: [120, 120, 150, 135, 55, 90, 130, 55, 85, 90, 120, 90, 70] in ModelOrder
+				super(mainWindow, gfds, new ColumnID[] {
+						new ColumnID( "camberAnglePhysics"        , "camberAnglePhysics"        ,  String.class, 120,   null,    null, false, GET.get(row -> row.camberAnglePhysics        )),
+						new ColumnID( "camberAngleRender"         , "camberAngleRender"         ,  String.class, 120,   null,    null, false, GET.get(row -> row.camberAngleRender         )),
+						new ColumnID( "camberSuspensionMultiplier", "camberSuspensionMultiplier",  String.class, 150,   null,    null, false, GET.get(row -> row.camberSuspensionMultiplier)),
+						new ColumnID( "connectedToHandbrake"      , "connectedToHandbrake"      ,  String.class, 135,   null,    null, false, GET.get(row -> row.connectedToHandbrake      )),
+						new ColumnID( "location"                  , "location"                  ,  String.class,  55,   null,    null, false, GET.get(row -> row.location                  )),
+						new ColumnID( "parentFrame"               , "parentFrame"               ,  String.class,  90,   null,    null, false, GET.get(row -> row.parentFrame               )),
+						new ColumnID( "pos"                       , "pos"                       ,  String.class, 130,   null,    null, false, GET.get(row -> row.pos                       )),
+						new ColumnID( "rightSide"                 , "rightSide"                 ,  String.class,  55,   null,    null, false, GET.get(row -> row.rightSide                 )),
+						new ColumnID( "steeringAngle"             , "steeringAngle"             ,  String.class,  85,   null,    null, false, GET.get(row -> row.steeringAngle             )),
+						new ColumnID( "steeringCastor"            , "steeringCastor"            ,  String.class,  90,   null,    null, false, GET.get(row -> row.steeringCastor            )),
+						new ColumnID( "steeringJointOffset"       , "steeringJointOffset"       ,  String.class, 120,   null,    null, false, GET.get(row -> row.steeringJointOffset       )),
+						new ColumnID( "suspensionMin"             , "suspensionMin"             ,  String.class,  90,   null,    null, false, GET.get(row -> row.suspensionMin             )),
+						new ColumnID( "torque"                    , "torque"                    ,  String.class,  70,   null,    null, false, GET.get(row -> row.torque                    )),
+				});
+			}
+
+			@Override
+			protected String getRowName(Truck.Wheels.Wheel row)
+			{
+				return row == null ? "<null>" : "Wheel[%016X]".formatted(row.hashCode());
+			}
+		}
+	}
 
 	private static class AddonSocketsPanel implements Finalizable
 	{
@@ -620,20 +681,17 @@ public class TruckPanelProto implements Finalizable {
 
 		private static class AddonSocketsTableModel extends ExtendedVerySimpleTableModelTAOS<AddonSocketsTableModel.RowItem> implements SplitPaneConfigurator
 		{
+			private static final GetValueConverter<AddonSocketsTableModel.RowItem> GET = new GetValueConverter<>(AddonSocketsTableModel.RowItem.class);
+			
 			AddonSocketsTableModel(Window mainWindow, GlobalFinalDataStructures gfds) {
 				super(mainWindow, gfds, new ColumnID[] {
-						new ColumnID( "IndexAS         ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexAS+1                          )), 
-						new ColumnID( "DefaultAddon    ", "Default Addon"    ,  String.class, 210,   null,    null, false, get(row -> row.as.defaultAddonID                  )),
-						new ColumnID( "IndexSocket     ", "#"                , Integer.class,  30, CENTER,    null, false, get(row -> row.indexSocket+1                      )),
-						new ColumnID( "SocketID        ", "SocketID"         ,  String.class, 230,   null,    null, false, get(row -> toString( row.socket.socketIDs )       )),
-						new ColumnID( "InCockpit       ", "In Cockpit"       , Boolean.class,  60,   null,    null, false, get(row -> row.socket.isInCockpit                 )),
+						new ColumnID( "IndexAS         ", "#"                , Integer.class,  30, CENTER,    null, false, GET.get(row -> row.indexAS+1                          )), 
+						new ColumnID( "DefaultAddon    ", "Default Addon"    ,  String.class, 210,   null,    null, false, GET.get(row -> row.as.defaultAddonID                  )),
+						new ColumnID( "IndexSocket     ", "#"                , Integer.class,  30, CENTER,    null, false, GET.get(row -> row.indexSocket+1                      )),
+						new ColumnID( "SocketID        ", "SocketID"         ,  String.class, 230,   null,    null, false, GET.get(row -> toString( row.socket.socketIDs )       )),
+						new ColumnID( "InCockpit       ", "In Cockpit"       , Boolean.class,  60,   null,    null, false, GET.get(row -> row.socket.isInCockpit                 )),
 				});
 				coloring.addBackgroundRowColorizer(Coloring.createOddEvenColorizer(row -> row.indexAS));
-			}
-			
-			private static <ResultType> Function<Object,ResultType> get(Function<RowItem,ResultType> getFunction)
-			{
-				return ColumnID.get(RowItem.class, getFunction);
 			}
 			
 			@Override public boolean useLineWrap() { return false; }
@@ -857,6 +915,7 @@ public class TruckPanelProto implements Finalizable {
 
 		private static class CWTableModel extends VerySimpleTableModel<CWTableModel.RowItem>
 		{
+			private static final GetValueConverter<CWTableModel.RowItem> GET = new GetValueConverter<>(CWTableModel.RowItem.class);
 			private static final String ID_QUALITY_HIGHWAY = "QualityHighway";
 			private static final String ID_QUALITY_OFFROAD = "QualityOffroad";
 			private static final String ID_QUALITY_MUD     = "QualityMud";
@@ -871,25 +930,25 @@ public class TruckPanelProto implements Finalizable {
 			CWTableModel(Window mainWindow, GlobalFinalDataStructures gfds, SaveGame.TruckDesc displayedTruck)
 			{
 				super(mainWindow, gfds, new ColumnID[] {
-						new ColumnID( "WheelsDefID"        , "WheelsDef"            , String                          .class, 140,   null,    null, false, get(row -> row.wheelsDefID                )),
-						new ColumnID( "TireDef"            , "TireDef"              , String                          .class, 110,   null,    null, false, get(row -> row.tire.tireDefID)),
-						new ColumnID( "Type"               , "Type"                 , String                          .class,  80,   null,    null,  true, get(row -> row.tire.tireType_StringID     )),
-						new ColumnID( "Name"               , "Name"                 , String                          .class, 130,   null,    null,  true, get(row -> row.tire.gameData.getNameStringID())),
-						new ColumnID( "UpdateLevel"        , "Update Level"         , String                          .class,  80,   null,    null, false, get(row -> row.updateLevel                )),
-						new ColumnID( "Scale"              , "Scale"                , Float                           .class,  50,   null, "%1.4f", false, get(row -> row.scale                      )),
-						new ColumnID( "Size"               , "Size"                 , Integer                         .class,  50, CENTER,  "%d\"", false, get(row -> row.getSize()                  )),
-						new ColumnID( "FrictionHighway"    , "Highway"              , Float                           .class,  55,   null, "%1.2f", false, get(row -> row.tire.frictionHighway       )),
-						new ColumnID( "FrictionOffroad"    , "Offroad"              , Float                           .class,  50,   null, "%1.2f", false, get(row -> row.tire.frictionOffroad       )),
-						new ColumnID( "FrictionMud"        , "Mud"                  , Float                           .class,  50,   null, "%1.2f", false, get(row -> row.tire.frictionMud           )),
-						new ColumnID( "OnIce"              , "On Ice"               , Boolean                         .class,  50,   null,    null, false, get(row -> row.tire.onIce                 )),
-						new ColumnID( ID_QUALITY_HIGHWAY   , "Highway"              , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Highway))),
-						new ColumnID( ID_QUALITY_OFFROAD   , "Offroad"              , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Offroad))),
-						new ColumnID( ID_QUALITY_MUD       , "Mud"                  , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Mud    ))),
-						new ColumnID( "Price"              , "Price"                , Integer                         .class,  50,   null, "%d Cr", false, get(row -> row.tire.gameData.price               )),
-						new ColumnID( "UnlockByExploration", "Unlock By Exploration", Boolean                         .class, 120,   null,    null, false, get(row -> row.tire.gameData.unlockByExploration )),
-						new ColumnID( "UnlockByRank"       , "Unlock By Rank"       , Integer                         .class, 100, CENTER,    null, false, get(row -> row.tire.gameData.unlockByRank        )),
-						new ColumnID( ID_HIDE              , "Hide in Diagram"      , Boolean                         .class,  90,   null,    null, false, get(row -> HiddenWheelTypes.getInstance().contains(row.tire.id))),
-						new ColumnID( "Description"        , "Description"          , String                          .class, 200,   null,    null,  true, get(row -> row.tire.gameData.getDescriptionStringID())),
+						new ColumnID( "WheelsDefID"        , "WheelsDef"            , String                          .class, 140,   null,    null, false, GET.get(row -> row.wheelsDefID                )),
+						new ColumnID( "TireDef"            , "TireDef"              , String                          .class, 110,   null,    null, false, GET.get(row -> row.tire.tireDefID)),
+						new ColumnID( "Type"               , "Type"                 , String                          .class,  80,   null,    null,  true, GET.get(row -> row.tire.tireType_StringID     )),
+						new ColumnID( "Name"               , "Name"                 , String                          .class, 130,   null,    null,  true, GET.get(row -> row.tire.gameData.getNameStringID())),
+						new ColumnID( "UpdateLevel"        , "Update Level"         , String                          .class,  80,   null,    null, false, GET.get(row -> row.updateLevel                )),
+						new ColumnID( "Scale"              , "Scale"                , Float                           .class,  50,   null, "%1.4f", false, GET.get(row -> row.scale                      )),
+						new ColumnID( "Size"               , "Size"                 , Integer                         .class,  50, CENTER,  "%d\"", false, GET.get(row -> row.getSize()                  )),
+						new ColumnID( "FrictionHighway"    , "Highway"              , Float                           .class,  55,   null, "%1.2f", false, GET.get(row -> row.tire.frictionHighway       )),
+						new ColumnID( "FrictionOffroad"    , "Offroad"              , Float                           .class,  50,   null, "%1.2f", false, GET.get(row -> row.tire.frictionOffroad       )),
+						new ColumnID( "FrictionMud"        , "Mud"                  , Float                           .class,  50,   null, "%1.2f", false, GET.get(row -> row.tire.frictionMud           )),
+						new ColumnID( "OnIce"              , "On Ice"               , Boolean                         .class,  50,   null,    null, false, GET.get(row -> row.tire.onIce                 )),
+						new ColumnID( ID_QUALITY_HIGHWAY   , "Highway"              , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, GET.get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Highway))),
+						new ColumnID( ID_QUALITY_OFFROAD   , "Offroad"              , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, GET.get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Offroad))),
+						new ColumnID( ID_QUALITY_MUD       , "Mud"                  , WheelsQualityRanges.QualityValue.class,  55, CENTER,    null, false, GET.get(row -> row.getQualityValue(WheelsQualityRanges.WheelValue.Mud    ))),
+						new ColumnID( "Price"              , "Price"                , Integer                         .class,  50,   null, "%d Cr", false, GET.get(row -> row.tire.gameData.price               )),
+						new ColumnID( "UnlockByExploration", "Unlock By Exploration", Boolean                         .class, 120,   null,    null, false, GET.get(row -> row.tire.gameData.unlockByExploration )),
+						new ColumnID( "UnlockByRank"       , "Unlock By Rank"       , Integer                         .class, 100, CENTER,    null, false, GET.get(row -> row.tire.gameData.unlockByRank        )),
+						new ColumnID( ID_HIDE              , "Hide in Diagram"      , Boolean                         .class,  90,   null,    null, false, GET.get(row -> HiddenWheelTypes.getInstance().contains(row.tire.id))),
+						new ColumnID( "Description"        , "Description"          , String                          .class, 200,   null,    null,  true, GET.get(row -> row.tire.gameData.getDescriptionStringID())),
 				});
 				this.displayedTruck = displayedTruck;
 				truckId = null;
@@ -940,11 +999,6 @@ public class TruckPanelProto implements Finalizable {
 					WheelsQualityRanges.QualityValue generalQV = row.getGeneralQualityValue(wheelValue);
 					return truckQV==generalQV ? COLOR_BG_GENERAL_QV : COLOR_BG_TRUCK_QV;
 				});
-			}
-			
-			private static <ResultType> Function<Object,ResultType> get(Function<RowItem,ResultType> getFunction)
-			{
-				return ColumnID.get(RowItem.class, getFunction);
 			}
 
 			class RowItem {

@@ -38,6 +38,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 
 	private static final Color BG_COLOR__TRUCK_CAN_USE_TRAILER = new Color(0xCEFFC5);
 	private static final Color BG_COLOR__DISPLAYED_TRUCK = new Color(0xFFDF00);
+	private static final GetValueConverter<Truck> GET = new GetValueConverter<>(Truck.class);
 
 	private enum Edit { UD_DiffLock, UD_AWD }
 	
@@ -61,28 +62,28 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 	private Function<Truck, Color> colorizeTrucksByTrailers;
 	private SaveGame.TruckDesc displayedTruck;
 
-	// Column Widths: [160, 80, 170, 140, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 60, 90, 90, 90, 90, 105, 90, 95, 95, 110, 80, 80, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
+	// Column Widths: [160, 80, 170, 140, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 60, 90, 90, 90, 90, 105, 90, 95, 95, 110, 80, 235, 125, 95, 80, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
-				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, row -> ((Truck)row).id),
-				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, row -> ((Truck)row).updateLevel),
+				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, GET.get(t->t.id         )),
+				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, GET.get(t->t.updateLevel)),
 				new ColumnID(ID_DLC      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, (row,model) -> gfds.dlcs.getDLC(((Truck)row).id, SnowRunner.DLCs.ItemType.Truck)),
-				new ColumnID( "Country"  , "Country"               ,     Truck.CountrySet.class, 140,             null, CENTER,      null, false, row -> ((Truck)row).gameData.country),
-				new ColumnID( "Type"     , "Type"                  ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, row -> ((Truck)row).type),
-				new ColumnID( "Name"     , "Name"                  ,               String.class, 160,             null,   null,      null,  true, row -> ((Truck)row).gameData.getNameStringID()),
+				new ColumnID( "Country"  , "Country"               ,     Truck.CountrySet.class, 140,             null, CENTER,      null, false, GET.get(t->t.gameData, gd->gd.country)),
+				new ColumnID( "Type"     , "Type"                  ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, GET.get(t->t.type)),
+				new ColumnID( "Name"     , "Name"                  ,               String.class, 160,             null,   null,      null,  true, GET.get(t->t.gameData, gd->gd.getNameStringID())),
 				new ColumnID(ID_HasImage , "Image"                 ,              Boolean.class,  40,             null,   null,      null, false, (row,model) -> gfds.truckImages.contains(((Truck)row).id)),
 				new ColumnID( "OwnedBool", "Owned"                 ,              Boolean.class,  45,             null,   null,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null : 0 < model_.saveGame.getOwnedTruckCount(truck_))),
 				new ColumnID( "Owned"    , "Owned"                 ,                 Long.class,  45,             null, CENTER,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> model_.saveGame==null ? null :     model_.saveGame.getOwnedTruckCount(truck_))),
 				new ColumnID( "InWareHs" , "In Warehouse"          ,              Integer.class,  80,             null, CENTER,      null, false, (row,model) -> getTrucksInWarehouse(row, model, null), (row, model, textOutput) -> getTrucksInWarehouse(row, model, textOutput)), 
 				new ColumnID( "InGarage" , "In Garage"             ,              Integer.class,  60,             null, CENTER,      null, false, (row,model) -> getTrucksInGarage   (row, model, null), (row, model, textOutput) -> getTrucksInGarage   (row, model, textOutput)),
 				new ColumnID( "OnTheRoad", "On the Road"           ,                 Long.class,  75,             null, CENTER,      null, false, (row,model) -> getTrucksOnTheRoad  (row, model, null), (row, model, textOutput) -> getTrucksOnTheRoad  (row, model, textOutput)),
-				new ColumnID( "DLData"   , "DiffLock (from Data)"  ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, row -> ((Truck)row).diffLockType),
+				new ColumnID( "DLData"   , "DiffLock (from Data)"  ,   Truck.DiffLockType.class, 110,             null, CENTER,      null, false, GET.get(t->t.diffLockType)),
 				new ColumnID( "DLUser"   , "DiffLock (by User)"    ,  Truck.UDV.ItemState.class, 100, Edit.UD_DiffLock, CENTER,      null, false, row -> gfds.userDefinedValues.getTruckValues(((Truck)row).id).realDiffLock),
 				new ColumnID( "DLTool"   , "DiffLock (by Tool)"    ,  Truck.UDV.ItemState.class, 100,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleDiffLock, t->t.defaultDiffLock, addon->addon.enablesDiffLock)),
 				new ColumnID( "AWDData"  , "AWD (from Data)"       ,               String.class,  95,             null, CENTER,      null, false, row -> "??? t.b.d."),
 				new ColumnID( "AWDUser"  , "AWD (by User)"         ,  Truck.UDV.ItemState.class,  85,      Edit.UD_AWD, CENTER,      null, false, row -> gfds.userDefinedValues.getTruckValues(((Truck)row).id).realAWD),
 				new ColumnID( "AWDTool"  , "AWD (by Tool)"         ,  Truck.UDV.ItemState.class,  85,             null, CENTER,      null, false, row -> getInstState((Truck)row, t->t.hasCompatibleAWD, t->t.defaultAWD, addon->addon.enablesAllWheelDrive)),
-				new ColumnID( "AutoWinch", "Automatic Winch"       ,              Boolean.class,  90,             null,   null,      null, false, row -> ((Truck)row).hasCompatibleAutomaticWinch),
+				new ColumnID( "AutoWinch", "Automatic Winch"       ,              Boolean.class,  90,             null,   null,      null, false, GET.get(t->t.hasCompatibleAutomaticWinch)),
 				new ColumnID(ID_MetalD   , "Metal Detector"        ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.MetalDetector   ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.MetalDetector   ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID(ID_Seismic  , "Seismic Vibrator"      ,      Data.Capability.class,  90,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.SeismicVibrator ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.SeismicVibrator ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID(ID_BigCrane , "Big Crane"             ,      Data.Capability.class,  60,             null,   null,      null, false, createIsCapableFcn(SpecialTruckAddons.AddonCategory.BigCrane        ), createIsCapableFcn_verbose(SpecialTruckAddons.AddonCategory.BigCrane        ) ).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
@@ -97,31 +98,34 @@ public class TruckTableModel extends VerySimpleTableModel<Truck> {
 				new ColumnID( "LogLiftM" , "Log Lift & M-Logs"     ,              Boolean.class,  95,             null,   null,      null, false, (row,model) -> canLogLiftAndLogs   (row,model,SpecialTruckAddons.AddonCategory.MediumLogs      )).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID( "LogLiftS" , "Log Lift & S-Logs"     ,              Boolean.class,  95,             null,   null,      null, false, (row,model) -> canLogLiftAndLogs   (row,model,SpecialTruckAddons.AddonCategory.ShortLogs       )).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
 				new ColumnID( "LogLiftMB", "Log Lift & M-Logs (B)" ,              Boolean.class, 110,             null,   null,      null, false, (row,model) -> canLogLiftAndLogs   (row,model,SpecialTruckAddons.AddonCategory.MediumLogs_burnt)).configureCaching(ColumnID.Update.Data, ColumnID.Update.SpecialTruckAddons),
-				new ColumnID( "FuelCap"  , "Fuel Capacity"         ,              Integer.class,  80,             null,   null,    "%d L", false, row -> ((Truck)row).fuelCapacity),
+				new ColumnID( "FuelCap"  , "Fuel Capacity"         ,              Integer.class,  80,             null,   null,    "%d L", false, GET.get(t->t.fuelCapacity)),
+				new ColumnID( "DefWhType", "Default Wheel Type"    ,               String.class, 235,             null,   null,      null, false, GET.get(t->t.wheels, wh->wh.defaultWheelType)),
+				new ColumnID( "DefTire"  , "Default Tire"          ,               String.class, 125,             null,   null,      null, false, GET.get(t->t.wheels, wh->wh.defaultTire)),
+				new ColumnID( "DefRim"   , "Default Rim"           ,               String.class,  95,             null,   null,      null, false, GET.get(t->t.wheels, wh->wh.defaultRim)),
 				new ColumnID( "WheelSizs", "Wheel Sizes"           ,               String.class,  80,             null,   null,      null, false, row -> joinWheelSizes(((Truck)row).compatibleWheels)),
 				new ColumnID( "WheelTyps", "Wheel Types"           ,               String.class, 280,             null,   null,      null, (row,lang) -> getWheelCategories((Truck)row,lang)),
 				new ColumnID( "WhHigh"   , "[W] Highway"           ,                Float.class,  75,             null,   null,   "%1.2f", false, row -> getMaxWheelValue((Truck)row, tire->tire.frictionHighway)),
 				new ColumnID( "WhOffr"   , "[W] Offroad"           ,                Float.class,  75,             null,   null,   "%1.2f", false, row -> getMaxWheelValue((Truck)row, tire->tire.frictionOffroad)),
 				new ColumnID( "WhMud"    , "[W] Mud"               ,                Float.class,  75,             null,   null,   "%1.2f", false, row -> getMaxWheelValue((Truck)row, tire->tire.frictionMud)),
-				new ColumnID( "Price"    , "Price"                 ,              Integer.class,  60,             null,   null,   "%d Cr", false, row -> ((Truck)row).gameData.price), 
-				new ColumnID( "UnlExpl"  , "Unlock By Exploration" ,              Boolean.class, 120,             null,   null,      null, false, row -> ((Truck)row).gameData.unlockByExploration), 
-				new ColumnID( "UnlObject", "Unlock By Objective"   ,               String.class, 120,             null,   null,      null, false, row -> ((Truck)row).gameData.unlockByObjective), 
-				new ColumnID( "UnlRank"  , "Unlock By Rank"        ,              Integer.class, 100,             null, CENTER, "Rank %d", false, row -> ((Truck)row).gameData.unlockByRank), 
+				new ColumnID( "Price"    , "Price"                 ,              Integer.class,  60,             null,   null,   "%d Cr", false, GET.get(t->t.gameData, gd->gd.price              )), 
+				new ColumnID( "UnlExpl"  , "Unlock By Exploration" ,              Boolean.class, 120,             null,   null,      null, false, GET.get(t->t.gameData, gd->gd.unlockByExploration)), 
+				new ColumnID( "UnlObject", "Unlock By Objective"   ,               String.class, 120,             null,   null,      null, false, GET.get(t->t.gameData, gd->gd.unlockByObjective  )), 
+				new ColumnID( "UnlRank"  , "Unlock By Rank"        ,              Integer.class, 100,             null, CENTER, "Rank %d", false, GET.get(t->t.gameData, gd->gd.unlockByRank       )), 
 				new ColumnID( "Unlocked" , "Unlocked"              ,              Boolean.class,  60,             null,   null,      null, false, (row,model) -> castNCall(row, model, (truck_, model_) -> SaveGame.isUnlockedItem(model_.saveGame, truck_.id))),
-				new ColumnID( "Desc"     , "Description"           ,               String.class, 200,             null,   null,      null,  true, row -> ((Truck)row).gameData.getDescriptionStringID()), 
+				new ColumnID( "Desc"     , "Description"           ,               String.class, 200,             null,   null,      null,  true, GET.get(t->t.gameData, gd->gd.getDescriptionStringID())), 
 				new ColumnID( "DefEngine", "Default Engine"        ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultEngine    , ((Truck)row).defaultEngine_ItemID, lang)),
 				new ColumnID( "DefGearbx", "Default Gearbox"       ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultGearbox   , ((Truck)row).defaultGearbox_ItemID, lang)),
 				new ColumnID( "DefSusp"  , "Default Suspension"    ,               String.class, 110,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultSuspension, ((Truck)row).defaultSuspension_ItemID, lang)),
 				new ColumnID( "DefWinch" , "Default Winch"         ,               String.class, 130,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultWinch     , ((Truck)row).defaultWinch_ItemID, lang)),
 				new ColumnID( "DefDifLck", "Default DiffLock"      ,               String.class,  95,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultDiffLock  , lang)),
 				new ColumnID( "DefAWD"   , "Default AWD"           ,               String.class,  90,             null,   null,      null, (row,lang) -> SnowRunner.solveStringID(((Truck)row).defaultAWD       , lang)),
-				new ColumnID( "UpgrWinch", "Upgradable Winch"      ,              Boolean.class, 110,             null,   null,      null, false, row -> ((Truck)row).isWinchUpgradable),
+				new ColumnID( "UpgrWinch", "Upgradable Winch"      ,              Boolean.class, 110,             null,   null,      null, false, GET.get(t->t.isWinchUpgradable)),
 		//		new ColumnID( "MaxWhWoSp", "Max. WheelRadius Without Suspension" , String.class, 200,             null,   null,      null, false, row -> ((Truck)row).maxWheelRadiusWithoutSuspension),
-				new ColumnID( "Image"    , "Image"                 ,               String.class, 130,             null,   null,      null, false, row -> ((Truck)row).image),
-				new ColumnID( "CargoSlts", "Cargo Slots"           ,              Integer.class,  70,             null, CENTER,      null, false, row -> ((Truck)row).gameData.cargoSlots),
-				new ColumnID( "CargoCarr", "Cargo Carrier"         ,              Boolean.class,  80,             null,   null,      null, false, row -> ((Truck)row).gameData.isCargoCarrier),
+				new ColumnID( "Image"    , "Image"                 ,               String.class, 130,             null,   null,      null, false, GET.get(t->t.image)),
+				new ColumnID( "CargoSlts", "Cargo Slots"           ,              Integer.class,  70,             null, CENTER,      null, false, GET.get(t->t.gameData, gd->gd.cargoSlots    )),
+				new ColumnID( "CargoCarr", "Cargo Carrier"         ,              Boolean.class,  80,             null,   null,      null, false, GET.get(t->t.gameData, gd->gd.isCargoCarrier)),
 				new ColumnID( "ExclCargo", "Excluded Cargo Types"  ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludedCargoTypes,true)),
-				new ColumnID( "ExclAddon", "Exclude Addons"        ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludeAddons,true)),
+				new ColumnID( "ExclAddon", "Exclude Addons"        ,               String.class, 150,             null,   null,      null, false, row -> SnowRunner.joinAddonIDs(((Truck)row).gameData.excludeAddons     ,true)),
 		//		new ColumnID( "Recall"   , "Recallable"            ,              Boolean.class,  60,             null,   null,      null, false, row -> ((Truck)row).gameData.recallable_obsolete),
 		});
 		this.data = null;
