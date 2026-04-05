@@ -1193,7 +1193,20 @@ public class Data {
 		}
 	}
 	
+	@SuppressWarnings("unused")
+	private static void scanNodes(int depth, GenericXmlNode[] nodes, String prefix, String nodeName)
+	{
+		unexpectedValues.add(String.format("%s Group of <%s>", prefix, nodeName), "N = %d".formatted(nodes.length));
+		for (GenericXmlNode node : nodes)
+			scanNode(depth, node, prefix, nodeName);
+	}
+	
 	private static void scanNode(GenericXmlNode node, String prefix, String nodeName)
+	{
+		scanNode(1, node, prefix, nodeName);
+	}
+	
+	private static void scanNode(int depth, GenericXmlNode node, String prefix, String nodeName)
 	{
 		if (node!=null) {
 			node.attributes.forEach((key,value)->{
@@ -1201,6 +1214,10 @@ public class Data {
 			});
 			node.nodes.keySet().forEach(key->{
 				unexpectedValues.add(String.format("%s <%s> <####>", prefix, nodeName), key);
+				if (depth>1)
+					node.nodes.get(key).forEach(
+							subNode -> scanNode(depth-1, subNode, "%s <%s>".formatted(prefix, nodeName), subNode.nodeName)
+					);
 			});
 		}
 	}
@@ -2240,6 +2257,8 @@ public class Data {
 		
 		public final GameData.GameDataTruck gameData;
 		
+		public final Wheels wheels;
+		
 		private Truck(Item item, Data data) {
 			super(item);
 			if (!item.className.equals("trucks"))
@@ -2366,6 +2385,12 @@ public class Data {
 			compatibleWheels = new CompatibleWheel[compatibleWheelsNodes.length];
 			for (int i=0; i<compatibleWheelsNodes.length; i++)
 				compatibleWheels[i] = new CompatibleWheel(compatibleWheelsNodes[i], data.wheels::get);
+			
+			// GenericXmlNode[] wheelsNodes = truckDataNode.getNodes("TruckData","Wheels");
+			// scanNodes(3, wheelsNodes, "[<%s> <%s>]".formatted("Truck", "TruckData"), "Wheels");
+			GenericXmlNode wheelsNode = truckDataNode.getNode("TruckData","Wheels");
+			// scanNode(3, wheelsNode, "[<%s> <%s>]".formatted("Truck", "TruckData"), "Wheels");
+			wheels = wheelsNode==null ? null : new Wheels(wheelsNode);
 			
 			compatibleTrailers = new HashSet<>();
 			compatibleTruckAddons = new StringVectorMap<>();
@@ -2630,6 +2655,86 @@ public class Data {
 				else
 					out.add(indentLevel, "[No TruckTires]" );
 				
+			}
+		}
+		
+		public static class Wheels
+		{
+			/*
+			   [<Truck> <TruckData>] <Wheels ####="...">
+			      DefaultRim
+			      DefaultTire
+			      DefaultWheelType
+			   [<Truck> <TruckData>] <Wheels> <####>
+			      Wheel
+			 */
+			public final String defaultRim;
+			public final String defaultTire;
+			public final String defaultWheelType;
+			public final Wheel[] wheels;
+			
+			public Wheels(GenericXmlNode wheelsNode)
+			{
+				defaultRim       = getAttribute(wheelsNode, "DefaultRim"      );
+				defaultTire      = getAttribute(wheelsNode, "DefaultTire"     );
+				defaultWheelType = getAttribute(wheelsNode, "DefaultWheelType");
+				
+				GenericXmlNode[] wheelNodes = wheelsNode.getNodes("Wheels", "Wheel");
+				this.wheels = Arrays
+					.stream( wheelNodes )
+					.map( wheelNode -> wheelNode==null ? null : new Wheel(wheelNode) )
+					.toArray( Wheel[]::new );
+			}
+			
+			public static class Wheel
+			{
+				/*
+				   [<Truck> <TruckData>] <Wheels> <Wheel ####="...">
+				      CamberAnglePhysics
+				      CamberAngleRender
+				      CamberSuspensionMultiplier
+				      ConnectedToHandbrake
+				      Location
+				      ParentFrame
+				      Pos
+				      RightSide
+				      SteeringAngle
+				      SteeringCastor
+				      SteeringJointOffset
+				      SuspensionMin
+				      Torque
+				 */
+				
+				public final String camberAnglePhysics;
+				public final String camberAngleRender;
+				public final String camberSuspensionMultiplier;
+				public final String connectedToHandbrake;
+				public final String location;
+				public final String parentFrame;
+				public final String pos;
+				public final String rightSide;
+				public final String steeringAngle;
+				public final String steeringCastor;
+				public final String steeringJointOffset;
+				public final String suspensionMin;
+				public final String torque;
+
+				public Wheel(GenericXmlNode wheelNode)
+				{
+					camberAnglePhysics         = getAttribute(wheelNode, "CamberAnglePhysics"        );
+					camberAngleRender          = getAttribute(wheelNode, "CamberAngleRender"         );
+					camberSuspensionMultiplier = getAttribute(wheelNode, "CamberSuspensionMultiplier");
+					connectedToHandbrake       = getAttribute(wheelNode, "ConnectedToHandbrake"      );
+					location                   = getAttribute(wheelNode, "Location"                  );
+					parentFrame                = getAttribute(wheelNode, "ParentFrame"               );
+					pos                        = getAttribute(wheelNode, "Pos"                       );
+					rightSide                  = getAttribute(wheelNode, "RightSide"                 );
+					steeringAngle              = getAttribute(wheelNode, "SteeringAngle"             );
+					steeringCastor             = getAttribute(wheelNode, "SteeringCastor"            );
+					steeringJointOffset        = getAttribute(wheelNode, "SteeringJointOffset"       );
+					suspensionMin              = getAttribute(wheelNode, "SuspensionMin"             );
+					torque                     = getAttribute(wheelNode, "Torque"                    );
+				}
 			}
 		}
 	}

@@ -23,9 +23,7 @@ public class MapTypes {
 		
 		void add(MapKeyType key, SetValueType value) {
 			if (key==null) new IllegalArgumentException();
-			HashSet<SetValueType> set = get(key);
-			if (set==null) put(key, set = new HashSet<>());
-			set.add(value);
+			computeIfAbsent(key, k->new HashSet<>()).add(value);
 		}
 		
 		void print(PrintStream out, String label) {
@@ -62,15 +60,11 @@ public class MapTypes {
 		private static final long serialVersionUID = -5963711992044437609L;
 
 		void add(KeyType key, ValueType value) {
-			Vector<ValueType> list = get(key);
-			if (list==null) put(key, list = new Vector<>());
-			list.add(value);
+			computeIfAbsent(key, k->new Vector<>()).add(value);
 		}
 		
 		void addAll(KeyType key, Collection<ValueType> values) {
-			Vector<ValueType> list = get(key);
-			if (list==null) put(key, list = new Vector<>());
-			list.addAll(values);
+			computeIfAbsent(key, k->new Vector<>()).addAll(values);
 		}
 
 		void forEachPair(BiConsumer<KeyType,ValueType> action) {
@@ -93,14 +87,9 @@ public class MapTypes {
 		private static final long serialVersionUID = -1085811850916454661L;
 
 		void add(KeyType1 key1, KeyType2 key2, ValueType value) {
-			
-			HashMap<KeyType2, Vector<ValueType>> map2 = get(key1);
-			if (map2==null) put(key1, map2 = new HashMap<>());
-			
-			Vector<ValueType> vector = map2.get(key2);
-			if (vector==null) map2.put(key2, vector = new Vector<>());
-			
-			vector.add(value);
+			computeIfAbsent(key1, k->new HashMap<>())
+			.computeIfAbsent(key2, k->new Vector<>())
+			.add(value);
 		}
 	}
 	
