@@ -512,6 +512,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class StoredTrucksTableModel extends ExtendedVerySimpleTableModelUOS<StoredTrucksTableModel.Row>
 	{
+		private static final String ID_TR_WHEELS = "TrWheels";
+		private static final String ID_TR_RIMS = "TrRims";
+		private static final String ID_TR_TIRES = "TrTires";
 		private static final String ID_TR_ENGINE = "TrEngine";
 		private static final String ID_TR_GEARBX = "TrGearbx";
 		private static final String ID_TR_SUSPEN = "TrSuspen";
@@ -551,9 +554,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("TrGearbxDmg","Gearbox Damage"              ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).truckDesc.gearboxDamage             ),
 					new ColumnID(ID_TR_SUSPEN ,"Suspension"                  ,  String .class, 230,   null,      null, false, row->((Row)row).truckDesc.suspension                ),
 					new ColumnID("TrSuspenDmg","Suspension Damage"           ,  Long   .class, 115, CENTER,      null, false, row->((Row)row).truckDesc.suspensionDamage          ),
-					new ColumnID("TrTires"    ,"Tires"                       ,  String .class, 115,   null,      null, false, row->((Row)row).truckDesc.tires                     ),
-					new ColumnID("TrRims"     ,"Rims"                        ,  String .class,  70,   null,      null, false, row->((Row)row).truckDesc.rims                      ),
-					new ColumnID("TrWheels"   ,"Wheels"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.wheels                    ),
+					new ColumnID(ID_TR_TIRES  ,"Tires"                       ,  String .class, 115,   null,      null, false, row->((Row)row).truckDesc.tires                     ),
+					new ColumnID(ID_TR_RIMS   ,"Rims"                        ,  String .class,  70,   null,      null, false, row->((Row)row).truckDesc.rims                      ),
+					new ColumnID(ID_TR_WHEELS ,"Wheels"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.wheels                    ),
 					new ColumnID("TrWheelReps","Wheel Repairs"               ,  Long   .class,  80, CENTER,      null, false, row->((Row)row).truckDesc.wheelRepairs              ),
 					new ColumnID("TrWheelsScl","Wheels Scale"                ,  Double .class,  75,   null,   "%1.3f", false, row->((Row)row).truckDesc.wheelsScale               ),
 					new ColumnID("TrWheelsSze","Wheels Size"                 ,  Integer.class,  75,   null,    "%d\"", false, row->CompatibleWheel.computeSize_inch(((Row)row).truckDesc.wheelsScale)),
@@ -586,6 +589,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			coloring.setForegroundColumnColoring(false, ID_TR_GEARBX, String.class, (row,value) -> isDefaultAddon(row, ID_TR_GEARBX, value) ? FG_COLOR__DEFAULT_ADDON : null);
 			coloring.setForegroundColumnColoring(false, ID_TR_SUSPEN, String.class, (row,value) -> isDefaultAddon(row, ID_TR_SUSPEN, value) ? FG_COLOR__DEFAULT_ADDON : null);
 			coloring.setForegroundColumnColoring(false, ID_TR_WINCH , String.class, (row,value) -> isDefaultAddon(row, ID_TR_WINCH , value) ? FG_COLOR__DEFAULT_ADDON : null);
+			coloring.setForegroundColumnColoring(false, ID_TR_TIRES , String.class, (row,value) -> isDefaultAddon(row, ID_TR_TIRES , value) ? FG_COLOR__DEFAULT_ADDON : null);
+			coloring.setForegroundColumnColoring(false, ID_TR_RIMS  , String.class, (row,value) -> isDefaultAddon(row, ID_TR_RIMS  , value) ? FG_COLOR__DEFAULT_ADDON : null);
+			coloring.setForegroundColumnColoring(false, ID_TR_WHEELS, String.class, (row,value) -> isDefaultAddon(row, ID_TR_WHEELS, value) ? FG_COLOR__DEFAULT_ADDON : null);
 		}
 
 		private boolean isDefaultAddon(Row row, String columnID, String value)
@@ -604,6 +610,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 						case ID_TR_GEARBX -> truck.defaultGearbox_ItemID;
 						case ID_TR_SUSPEN -> truck.defaultSuspension_ItemID;
 						case ID_TR_WINCH  -> truck.defaultWinch_ItemID;
+						case ID_TR_TIRES  -> truck.wheels!=null ? truck.wheels.defaultTire      : null;
+						case ID_TR_RIMS   -> truck.wheels!=null ? truck.wheels.defaultRim       : null;
+						case ID_TR_WHEELS -> truck.wheels!=null ? truck.wheels.defaultWheelType : null;
 						default -> null;
 					};
 			
