@@ -22,8 +22,9 @@ import net.schwarzbaer.java.games.snowrunner.tables.TableSimplifier.ContextMenu;
 import net.schwarzbaer.java.games.snowrunner.tables.VerySimpleTableModel.ExtendedVerySimpleTableModelTPOS;
 import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
 
-public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer> {
-	
+public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer>
+{
+	private static final GetValueConverter<Trailer,TrailersTableModel> GET = new GetValueConverter<>(Trailer.class, TrailersTableModel.class);
 	private static final Color BG_COLOR__CARRIER_CAN_LOAD_CARGO = new Color(0xCEFFC5);
 	
 	private HashMap<String, TruckAddon> truckAddons;
@@ -40,29 +41,29 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 	}
 	public TrailersTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData) {
 		super(mainWindow, gfds, new ColumnID[] {
-				new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, row->((Trailer)row).id),
-				new ColumnID("Name"     ,"Name"                 ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.getNameStringID()), 
-				new ColumnID("UpdateLvl","Update Level"         ,  String.class,  80,   null,      null, false, row->((Trailer)row).updateLevel),
-				new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
-				new ColumnID("InstallSk","Install Socket"       ,  String.class, 130,   null,      null, false, row->((Trailer)row).gameData.installSocket),
-				new ColumnID("CargoSlts","Cargo Slots"          , Integer.class,  70, CENTER,      null, false, row->((Trailer)row).gameData.cargoSlots),
-				new ColumnID("CargoCarr","Cargo Carrier"        , Boolean.class,  80,   null,      null, false, row->((Trailer)row).gameData.isCargoCarrier),
-				new ColumnID("Repairs"  ,"Repairs"              , Integer.class,  50,  RIGHT,    "%d R", false, row->((Trailer)row).repairsCapacity),
-				new ColumnID("WheelRep" ,"Wheel Repairs"        , Integer.class,  85, CENTER,   "%d WR", false, row->((Trailer)row).wheelRepairsCapacity),
-				new ColumnID("Fuel"     ,"Fuel"                 , Integer.class,  50,  RIGHT,    "%d L", false, row->((Trailer)row).fuelCapacity),
-				new ColumnID("Water"    ,"Water"                , Integer.class,  50,  RIGHT,    "%d L", false, row->((Trailer)row).waterCapacity),
-				new ColumnID("QuestItm" ,"Is Quest Item"        , Boolean.class,  80,   null,      null, false, row->((Trailer)row).gameData.isQuestItem),
-				new ColumnID("Price"    ,"Price"                , Integer.class,  50,  RIGHT,   "%d Cr", false, row->((Trailer)row).gameData.price), 
-				new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Trailer)row).gameData.unlockByExploration), 
-				new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, row->((Trailer)row).gameData.unlockByRank), 
-				new ColumnID("Unlocked" ,"Unlocked"             , Boolean.class,  60,   null,      null, false, get((model, lang, row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
-				new ColumnID("AttachTyp","Attach Type"          ,  String.class,  70,   null,      null, false, row->((Trailer)row).attachType),
-				new ColumnID("AddonType","Addon Type"           ,  String.class,  70,   null,      null, false, row->((Trailer)row).gameData.addonType),
-				new ColumnID("Desc"     ,"Description"          ,  String.class, 200,   null,      null,  true, row->((Trailer)row).gameData.getDescriptionStringID()), 
-				new ColumnID("ExclCargo","Excluded Cargo Types" ,  String.class, 150,   null,      null, false, row->SnowRunner.joinAddonIDs(((Trailer)row).gameData.excludedCargoTypes,true)),
-				new ColumnID("RequAddon","Required Addons"      ,  String.class, 150,   null,      null, false, row->SnowRunner.joinRequiredAddonsToString_OneLine(((Trailer)row).gameData.requiredAddons)),
-				new ColumnID("LoadAreas","Load Areas"           ,  String.class, 200,   null,      null, false, row->((Trailer)row).gameData.getLoadAreas()),
-				new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Trailer)row).usableBy, lang)),
+				new ColumnID("ID"       ,"ID"                   ,  String.class, 230,   null,      null, false, GET.get(row->row.id)),
+				new ColumnID("Name"     ,"Name"                 ,  String.class, 200,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getNameStringID())), 
+				new ColumnID("UpdateLvl","Update Level"         ,  String.class,  80,   null,      null, false, GET.get(row->row.updateLevel)),
+				new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, GET.get(TrailersTableModel::getOwnedCount)),
+				new ColumnID("InstallSk","Install Socket"       ,  String.class, 130,   null,      null, false, GET.get(row->row.gameData, gd->gd.installSocket)),
+				new ColumnID("CargoSlts","Cargo Slots"          , Integer.class,  70, CENTER,      null, false, GET.get(row->row.gameData, gd->gd.cargoSlots)),
+				new ColumnID("CargoCarr","Cargo Carrier"        , Boolean.class,  80,   null,      null, false, GET.get(row->row.gameData, gd->gd.isCargoCarrier)),
+				new ColumnID("Repairs"  ,"Repairs"              , Integer.class,  50,  RIGHT,    "%d R", false, GET.get(row->row.repairsCapacity)),
+				new ColumnID("WheelRep" ,"Wheel Repairs"        , Integer.class,  85, CENTER,   "%d WR", false, GET.get(row->row.wheelRepairsCapacity)),
+				new ColumnID("Fuel"     ,"Fuel"                 , Integer.class,  50,  RIGHT,    "%d L", false, GET.get(row->row.fuelCapacity)),
+				new ColumnID("Water"    ,"Water"                , Integer.class,  50,  RIGHT,    "%d L", false, GET.get(row->row.waterCapacity)),
+				new ColumnID("QuestItm" ,"Is Quest Item"        , Boolean.class,  80,   null,      null, false, GET.get(row->row.gameData, gd->gd.isQuestItem)),
+				new ColumnID("Price"    ,"Price"                , Integer.class,  50,  RIGHT,   "%d Cr", false, GET.get(row->row.gameData, gd->gd.price)), 
+				new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, GET.get(row->row.gameData, gd->gd.unlockByExploration)), 
+				new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class, 100, CENTER, "Rank %d", false, GET.get(row->row.gameData, gd->gd.unlockByRank)), 
+				new ColumnID("Unlocked" ,"Unlocked"             , Boolean.class,  60,   null,      null, false, GET.get((model,row)->SaveGame.isUnlockedItem(model.saveGame, row.id))),
+				new ColumnID("AttachTyp","Attach Type"          ,  String.class,  70,   null,      null, false, GET.get(row->row.attachType)),
+				new ColumnID("AddonType","Addon Type"           ,  String.class,  70,   null,      null, false, GET.get(row->row.gameData, gd->gd.addonType)),
+				new ColumnID("Desc"     ,"Description"          ,  String.class, 200,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getDescriptionStringID())), 
+				new ColumnID("ExclCargo","Excluded Cargo Types" ,  String.class, 150,   null,      null, false, GET.get(row->row.gameData, gd->gd.excludedCargoTypes, d->SnowRunner.joinAddonIDs(d,true))),
+				new ColumnID("RequAddon","Required Addons"      ,  String.class, 150,   null,      null, false, GET.get(row->row.gameData, gd->gd.requiredAddons    , SnowRunner::joinRequiredAddonsToString_OneLine)),
+				new ColumnID("LoadAreas","Load Areas"           ,  String.class, 200,   null,      null, false, GET.get(row->row.gameData, gd->gd.getLoadAreas())),
+				new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null,        GET.getL((lang,row)->SnowRunner.joinNames(row.usableBy, lang))),
 		});
 		
 		truckAddons = null;
@@ -95,10 +96,6 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 			SwingUtilities.invokeLater(()->setCargoForFilter(filter));
 		
 		setInitialRowOrder(Comparator.<Trailer,String>comparing(row->row.id));
-	}
-	private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,TrailersTableModel,Trailer> getFunction)
-	{
-		return ColumnID.get(TrailersTableModel.class, Trailer.class, getFunction);
 	}
 	
 	private static Long getOwnedCount(TrailersTableModel model, Trailer row)

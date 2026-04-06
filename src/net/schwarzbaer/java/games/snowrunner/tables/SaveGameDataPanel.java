@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
@@ -399,11 +400,6 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		if (p.isZero()) return "(0,0,0)";
 		return String.format(Locale.ENGLISH, "( %1.3f, %1.3f, %1.3f )", p.x, p.y, p.z);
 	}
-	
-	private static <ObjectType, ResultType> ResultType ifNotNull(ObjectType obj, Function<ObjectType,ResultType> getValue)
-	{
-		return obj==null ? null : getValue.apply(obj);
-	}
 
 	private record TruckName(String id, String name)
 	{
@@ -425,28 +421,24 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class RegionsTableModel extends VerySimpleTableModel<RegionInfos>
 	{
+		private static final GetValueConverter<RegionInfos,RegionsTableModel> GET = new GetValueConverter<>(RegionInfos.class, RegionsTableModel.class);
 		private static final String ID_DLC = "DLC";
 		private RegionInfos clickedItem;
 
 		RegionsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("ID"      , "ID"      , String .class,  60,   null, null, false, row->((RegionInfos)row).region.originalMapID()),
-					new ColumnID("Country" , "Country" , String .class,  60, CENTER, null, false, row->((RegionInfos)row).region.country()),
-					new ColumnID("Region"  , "Region"  , Integer.class,  60, CENTER, null, false, row->((RegionInfos)row).region.region()),
-					new ColumnID("Name"    , "Name"    , String .class, 250,   null, null, false, get((model,lang,row)->getMapName(row.region, lang, true))),
-					new ColumnID(ID_DLC    , "DLC"     , String .class, 170,   null, null, false, get((model,lang,row)->getDLC(row, model, r->r.region.originalMapID(), SnowRunner.DLCs.ItemType.Region))),
-					new ColumnID("Known"   , "Known"   , Boolean.class,  60,   null, null, false, row->((RegionInfos)row).isKnown),
-					new ColumnID("Distance", "Distance", Long   .class,  60,   null, null, false, row->((RegionInfos)row).distance),
-					new ColumnID("Payments", "Payments", Long   .class,  60,   null, null, false, row->((RegionInfos)row).paymentsReceived),
+					new ColumnID("ID"      , "ID"      , String .class,  60,   null, null, false, GET.get(row->row.region.originalMapID())),
+					new ColumnID("Country" , "Country" , String .class,  60, CENTER, null, false, GET.get(row->row.region.country())),
+					new ColumnID("Region"  , "Region"  , Integer.class,  60, CENTER, null, false, GET.get(row->row.region.region())),
+					new ColumnID("Name"    , "Name"    , String .class, 250,   null, null, false, GET.get((model,lang,row)->getMapName(row.region, lang, true))),
+					new ColumnID(ID_DLC    , "DLC"     , String .class, 170,   null, null, false, GET.get((model,row)->getDLC(row, model, r->r.region.originalMapID(), SnowRunner.DLCs.ItemType.Region))),
+					new ColumnID("Known"   , "Known"   , Boolean.class,  60,   null, null, false, GET.get(row->row.isKnown)),
+					new ColumnID("Distance", "Distance", Long   .class,  60,   null, null, false, GET.get(row->row.distance)),
+					new ColumnID("Payments", "Payments", Long   .class,  60,   null, null, false, GET.get(row->row.paymentsReceived)),
 			});
 			clickedItem = null;
 			finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
-		}
-		
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,RegionsTableModel,RegionInfos> getFunction)
-		{
-			return ColumnID.get(RegionsTableModel.class, RegionInfos.class, getFunction);
 		}
 
 		void setData(SaveGame saveGame)
@@ -512,6 +504,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class StoredTrucksTableModel extends ExtendedVerySimpleTableModelUOS<StoredTrucksTableModel.Row>
 	{
+		private static final GetValueConverter<StoredTrucksTableModel.Row,StoredTrucksTableModel> GET = new GetValueConverter<>(StoredTrucksTableModel.Row.class, StoredTrucksTableModel.class, m->m.data);
 		private static final String ID_TR_WHEELS = "TrWheels";
 		private static final String ID_TR_RIMS = "TrRims";
 		private static final String ID_TR_TIRES = "TrTires";
@@ -530,51 +523,51 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		{
 			// Column Widths: [175, 100, 250, 170, 160, 97, 50, 85, 50, 60, 60, 60, 60, 100, 60, 60, 70, 100, 180, 90, 95, 100, 230, 115, 115, 70, 180, 80, 75, 75, 170, 150, 140, 75, 100, 100, 100, 250, 50, 100, 70, 70, 80, 80, 150] in ModelOrder
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("Location"   ,"Location"                    ,  String .class, 175,   null,      null, false, row->((Row)row).location),
-					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, row->((Row)row).map.originalMapID()),
-					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, get((model, data, lang, row)->getMapName(row.map,lang, true))),
-					new ColumnID("TrType"     ,"type"                        ,  String .class, 170,   null,      null, false, get((model, data, lang, row)->row.truckDesc.type         )),
-					new ColumnID("Truck"      ,"Truck"                       ,  String .class, 160,   null,      null, false, get((model, data, lang, row)->TruckName.getTruckLabel(row.truckDesc.type, data, lang))),
-					new ColumnID("Colors"     ,"Colors"                      ,  Color[].class,  97,   null,      null, false, row->((Row)row).truckDesc.customizationPreset.toColorArray()),
-					new ColumnID("TrDamage"   ,"Damage"                      ,  Long   .class,  50,   null,      null, false, row->((Row)row).truckDesc.damage                    ),
-					new ColumnID("TrDmgDecals","Damage Decals"               ,  Integer.class,  85,   null,      null, false, row->((Row)row).truckDesc.damageDecals.length/4     ),
-					new ColumnID("TrRepairs"  ,"Repairs"                     ,  Long   .class,  50,   null,      null, false, row->((Row)row).truckDesc.repairs                   ),
-					new ColumnID("TrWater"    ,"Water"                       ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).truckDesc.water                     ),
-					new ColumnID("TrFuel"     ,"Fuel"                        ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).truckDesc.fuel                      ),
-					new ColumnID("TrFuelMx"   ,"Max. Fuel"                   ,  Integer.class,  60,   null,    "%d L", false, get((model, data, lang, row)->getTruckValue(row,data,truck->truck.fuelCapacity))),
-					new ColumnID("TrFill"     ,"Fill Level"                  ,  Double .class,  60,   null,"%1.1f %%", false, get((model, data, lang, row)->getNonNull2(row.truckDesc.fuel,getTruckValue(row,data,truck->truck.fuelCapacity),(v1,v2)->v1/v2*100))),
-					new ColumnID("TrFuelTkDmg","Fuel Tank Damage"            ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).truckDesc.fuelTankDamage            ),
-					new ColumnID("AdFuel"     ,"(A) Fuel"                    ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).addonValues.fuel                    ),
-					new ColumnID("AdWater"    ,"(A) Water"                   ,  Double .class,  60,   null, "%1.1f L", false, row->((Row)row).addonValues.water                   ),
-					new ColumnID("AdRepairs"  ,"(A) Repairs"                 ,  Long   .class,  70,   null,      null, false, row->((Row)row).addonValues.repairs                 ),
-					new ColumnID("AdWheelReps","(A) Wheel Repairs"           ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).addonValues.wheelRepairs            ),
-					new ColumnID(ID_TR_ENGINE ,"Engine"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.engine                    ),
-					new ColumnID("TrEngineDmg","Engine Damage"               ,  Long   .class,  90, CENTER,      null, false, row->((Row)row).truckDesc.engineDamage              ),
-					new ColumnID(ID_TR_GEARBX ,"Gearbox"                     ,  String .class,  95,   null,      null, false, row->((Row)row).truckDesc.gearbox                   ),
-					new ColumnID("TrGearbxDmg","Gearbox Damage"              ,  Long   .class, 100, CENTER,      null, false, row->((Row)row).truckDesc.gearboxDamage             ),
-					new ColumnID(ID_TR_SUSPEN ,"Suspension"                  ,  String .class, 230,   null,      null, false, row->((Row)row).truckDesc.suspension                ),
-					new ColumnID("TrSuspenDmg","Suspension Damage"           ,  Long   .class, 115, CENTER,      null, false, row->((Row)row).truckDesc.suspensionDamage          ),
-					new ColumnID(ID_TR_TIRES  ,"Tires"                       ,  String .class, 115,   null,      null, false, row->((Row)row).truckDesc.tires                     ),
-					new ColumnID(ID_TR_RIMS   ,"Rims"                        ,  String .class,  70,   null,      null, false, row->((Row)row).truckDesc.rims                      ),
-					new ColumnID(ID_TR_WHEELS ,"Wheels"                      ,  String .class, 180,   null,      null, false, row->((Row)row).truckDesc.wheels                    ),
-					new ColumnID("TrWheelReps","Wheel Repairs"               ,  Long   .class,  80, CENTER,      null, false, row->((Row)row).truckDesc.wheelRepairs              ),
-					new ColumnID("TrWheelsScl","Wheels Scale"                ,  Double .class,  75,   null,   "%1.3f", false, row->((Row)row).truckDesc.wheelsScale               ),
-					new ColumnID("TrWheelsSze","Wheels Size"                 ,  Integer.class,  75,   null,    "%d\"", false, row->CompatibleWheel.computeSize_inch(((Row)row).truckDesc.wheelsScale)),
-					new ColumnID("TrWheelsDmg","Wheels Damage"               ,  String .class, 170,   null,      null, false, row->SaveGameDataPanel.toString(((Row)row).truckDesc.wheelsDamage)),
-					new ColumnID("TrWheelsSHt","Wheels Susp. Height"         ,  String .class, 150,   null,      null, false, row->SaveGameDataPanel.toString(((Row)row).truckDesc.wheelsSuspHeight, "%1.3f")),
-					new ColumnID(ID_TR_WINCH  ,"Winch"                       ,  String .class, 140,   null,      null, false, row->((Row)row).truckDesc.winch                     ),
-					new ColumnID("TrTruckCRC" ,"<truckCRC>"                  ,  Long   .class,  75,   null,      null, false, row->((Row)row).truckDesc.truckCRC                  ),
-					new ColumnID("TrPhantomMd","<phantomMode>"               ,  Long   .class, 100,   null,      null, false, row->((Row)row).truckDesc.phantomMode               ),
-					new ColumnID("TrTrailGlob","<trailerGlobalId>"           ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.trailerGlobalId           ),
-					new ColumnID("TrItmfObjId","<itemForObjectiveId>"        ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.itemForObjectiveId        ),
-					new ColumnID("TrGlobalID" ,"<globalId>"                  ,  String .class, 250,   null,      null, false, row->((Row)row).truckDesc.globalId                  ),
-					new ColumnID("TrID"       ,"<id>"                        ,  String .class,  50,   null,      null, false, row->((Row)row).truckDesc.id                        ),
-					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, row->((Row)row).truckDesc.retainedMap.originalMapID()),
-					new ColumnID("TrInvalid"  ,"<isInvalid>"                 ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isInvalid                 ),
-					new ColumnID("TrPacked"   ,"<isPacked>"                  ,  Boolean.class,  70,   null,      null, false, row->((Row)row).truckDesc.isPacked                  ),
-					new ColumnID("TrUnlocked" ,"<isUnlocked>"                ,  Boolean.class,  80,   null,      null, false, row->((Row)row).truckDesc.isUnlocked                ),
-					new ColumnID("TrFreezed"  ,"<isFreezed>"                 ,  Boolean.class,  80,   null,      null, false, row->((Row)row).truckDesc.isFreezedByObjective      ),
-					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, row->((Row)row).truckDesc.needToInstallDefaultAddons),
+					new ColumnID("Location"   ,"Location"                    ,  String .class, 175,   null,      null, false, GET.get(row->row.location)),
+					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, GET.get(row->row.map, MapIndex::originalMapID)),
+					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, GET.get((model, lang, row)->getMapName(row.map,lang, true))),
+					new ColumnID("TrType"     ,"type"                        ,  String .class, 170,   null,      null, false, GET.get(row->row.truckDesc, td->td.type         )),
+					new ColumnID("Truck"      ,"Truck"                       ,  String .class, 160,   null,      null, false, GET.get((model, data, lang, row)->TruckName.getTruckLabel(row.truckDesc.type, data, lang))),
+					new ColumnID("Colors"     ,"Colors"                      ,  Color[].class,  97,   null,      null, false, GET.get(row->row.truckDesc, td->td.customizationPreset.toColorArray())),
+					new ColumnID("TrDamage"   ,"Damage"                      ,  Long   .class,  50,   null,      null, false, GET.get(row->row.truckDesc, td->td.damage                    )),
+					new ColumnID("TrDmgDecals","Damage Decals"               ,  Integer.class,  85,   null,      null, false, GET.get(row->row.truckDesc, td->td.damageDecals.length/4     )),
+					new ColumnID("TrRepairs"  ,"Repairs"                     ,  Long   .class,  50,   null,      null, false, GET.get(row->row.truckDesc, td->td.repairs                   )),
+					new ColumnID("TrWater"    ,"Water"                       ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.truckDesc, td->td.water                     )),
+					new ColumnID("TrFuel"     ,"Fuel"                        ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.truckDesc, td->td.fuel                      )),
+					new ColumnID("TrFuelMx"   ,"Max. Fuel"                   ,  Integer.class,  60,   null,    "%d L", false, GET.get((model, data, lang, row)->getTruckValue(row,data,truck->truck.fuelCapacity))),
+					new ColumnID("TrFill"     ,"Fill Level"                  ,  Double .class,  60,   null,"%1.1f %%", false, GET.get((model, data, lang, row)->getNonNull2(row.truckDesc.fuel,getTruckValue(row,data,truck->truck.fuelCapacity),(v1,v2)->v1/v2*100))),
+					new ColumnID("TrFuelTkDmg","Fuel Tank Damage"            ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.fuelTankDamage            )),
+					new ColumnID("AdFuel"     ,"(A) Fuel"                    ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.addonValues, av->av.fuel                    )),
+					new ColumnID("AdWater"    ,"(A) Water"                   ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.addonValues, av->av.water                   )),
+					new ColumnID("AdRepairs"  ,"(A) Repairs"                 ,  Long   .class,  70,   null,      null, false, GET.get(row->row.addonValues, av->av.repairs                 )),
+					new ColumnID("AdWheelReps","(A) Wheel Repairs"           ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.addonValues, av->av.wheelRepairs            )),
+					new ColumnID(ID_TR_ENGINE ,"Engine"                      ,  String .class, 180,   null,      null, false, GET.get(row->row.truckDesc, td->td.engine                    )),
+					new ColumnID("TrEngineDmg","Engine Damage"               ,  Long   .class,  90, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.engineDamage              )),
+					new ColumnID(ID_TR_GEARBX ,"Gearbox"                     ,  String .class,  95,   null,      null, false, GET.get(row->row.truckDesc, td->td.gearbox                   )),
+					new ColumnID("TrGearbxDmg","Gearbox Damage"              ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.gearboxDamage             )),
+					new ColumnID(ID_TR_SUSPEN ,"Suspension"                  ,  String .class, 230,   null,      null, false, GET.get(row->row.truckDesc, td->td.suspension                )),
+					new ColumnID("TrSuspenDmg","Suspension Damage"           ,  Long   .class, 115, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.suspensionDamage          )),
+					new ColumnID(ID_TR_TIRES  ,"Tires"                       ,  String .class, 115,   null,      null, false, GET.get(row->row.truckDesc, td->td.tires                     )),
+					new ColumnID(ID_TR_RIMS   ,"Rims"                        ,  String .class,  70,   null,      null, false, GET.get(row->row.truckDesc, td->td.rims                      )),
+					new ColumnID(ID_TR_WHEELS ,"Wheels"                      ,  String .class, 180,   null,      null, false, GET.get(row->row.truckDesc, td->td.wheels                    )),
+					new ColumnID("TrWheelReps","Wheel Repairs"               ,  Long   .class,  80, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.wheelRepairs              )),
+					new ColumnID("TrWheelsScl","Wheels Scale"                ,  Double .class,  75,   null,   "%1.3f", false, GET.get(row->row.truckDesc, td->td.wheelsScale               )),
+					new ColumnID("TrWheelsSze","Wheels Size"                 ,  Integer.class,  75,   null,    "%d\"", false, GET.get(row->row.truckDesc, td->CompatibleWheel.computeSize_inch(td.wheelsScale))),
+					new ColumnID("TrWheelsDmg","Wheels Damage"               ,  String .class, 170,   null,      null, false, GET.get(row->row.truckDesc, td->td.wheelsDamage    , arr->SaveGameDataPanel.toString(arr))),
+					new ColumnID("TrWheelsSHt","Wheels Susp. Height"         ,  String .class, 150,   null,      null, false, GET.get(row->row.truckDesc, td->td.wheelsSuspHeight, arr->SaveGameDataPanel.toString(arr, "%1.3f"))),
+					new ColumnID(ID_TR_WINCH  ,"Winch"                       ,  String .class, 140,   null,      null, false, GET.get(row->row.truckDesc, td->td.winch                     )),
+					new ColumnID("TrTruckCRC" ,"<truckCRC>"                  ,  Long   .class,  75,   null,      null, false, GET.get(row->row.truckDesc, td->td.truckCRC                  )),
+					new ColumnID("TrPhantomMd","<phantomMode>"               ,  Long   .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.phantomMode               )),
+					new ColumnID("TrTrailGlob","<trailerGlobalId>"           ,  String .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.trailerGlobalId           )),
+					new ColumnID("TrItmfObjId","<itemForObjectiveId>"        ,  String .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.itemForObjectiveId        )),
+					new ColumnID("TrGlobalID" ,"<globalId>"                  ,  String .class, 250,   null,      null, false, GET.get(row->row.truckDesc, td->td.globalId                  )),
+					new ColumnID("TrID"       ,"<id>"                        ,  String .class,  50,   null,      null, false, GET.get(row->row.truckDesc, td->td.id                        )),
+					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.retainedMap, MapIndex::originalMapID)),
+					new ColumnID("TrInvalid"  ,"<isInvalid>"                 ,  Boolean.class,  70,   null,      null, false, GET.get(row->row.truckDesc, td->td.isInvalid                 )),
+					new ColumnID("TrPacked"   ,"<isPacked>"                  ,  Boolean.class,  70,   null,      null, false, GET.get(row->row.truckDesc, td->td.isPacked                  )),
+					new ColumnID("TrUnlocked" ,"<isUnlocked>"                ,  Boolean.class,  80,   null,      null, false, GET.get(row->row.truckDesc, td->td.isUnlocked                )),
+					new ColumnID("TrFreezed"  ,"<isFreezed>"                 ,  Boolean.class,  80,   null,      null, false, GET.get(row->row.truckDesc, td->td.isFreezedByObjective      )),
+					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, GET.get(row->row.truckDesc, td->td.needToInstallDefaultAddons)),
 			});
 			data = null;
 			clickedRow = null;
@@ -649,11 +642,6 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			Truck truck = getTruck(row, data);
 			if (truck==null) return null;
 			return getValue.apply(truck);
-		}
-	
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,StoredTrucksTableModel,Row> getFunction)
-		{
-			return ColumnID.get(StoredTrucksTableModel.class, Row.class, model->model.data, getFunction);
 		}
 		
 		void setData(Data data)
@@ -855,6 +843,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		
 			private static class InstalledAddonTableModel extends ExtendedVerySimpleTableModelTAOS<InstalledAddon> implements SplitPaneConfigurator
 			{
+				private static final GetValueConverter<InstalledAddon,InstalledAddonTableModel> GET = new GetValueConverter<>(InstalledAddon.class, InstalledAddonTableModel.class);
 				private static final String ID_NAME = "Name";
 				private InstalledAddon emptyTruckAddonDesc = null;
 				private Truck truck = null;
@@ -862,32 +851,27 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				InstalledAddonTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 				{   // Column Widths: [75, 280, 90, 90, 55, 85, 75, 130, 130, 70, 55, 100, 110, 100, 80] in ModelOrder
 					super(mainWindow, gfds, new ColumnID[] {
-							new ColumnID("EmptyAddon" , "Empty Addon"      ,  Boolean.class,  75,   null, null, false, get((model,lang,row)->row==model.emptyTruckAddonDesc)),
+							new ColumnID("EmptyAddon" , "Empty Addon"      ,  Boolean.class,  75,   null, null, false, GET.get((model,row)->row==model.emptyTruckAddonDesc)),
 							
-							new ColumnID(ID_NAME      , "Name"             ,  String .class, 280,   null, null, false, row->((InstalledAddon)row).name              ),
+							new ColumnID(ID_NAME      , "Name"             ,  String .class, 280,   null, null, false, GET.get(row->row.name               )),
 							
-							new ColumnID("Fuel"       , "Fuel"             ,  Double .class,  90,   null, null, false, row->((InstalledAddon)row).fuel              ),
-							new ColumnID("Water"      , "Water"            ,  Double .class,  90,   null, null, false, row->((InstalledAddon)row).water             ),
-							new ColumnID("Repairs"    , "Repairs"          ,  Long   .class,  55, CENTER, null, false, row->((InstalledAddon)row).repairs           ),
-							new ColumnID("WheelReps"  , "WheelRepairs"     ,  Long   .class,  85, CENTER, null, false, row->((InstalledAddon)row).wheelRepairs      ),
+							new ColumnID("Fuel"       , "Fuel"             ,  Double .class,  90,   null, null, false, GET.get(row->row.fuel               )),
+							new ColumnID("Water"      , "Water"            ,  Double .class,  90,   null, null, false, GET.get(row->row.water              )),
+							new ColumnID("Repairs"    , "Repairs"          ,  Long   .class,  55, CENTER, null, false, GET.get(row->row.repairs            )),
+							new ColumnID("WheelReps"  , "WheelRepairs"     ,  Long   .class,  85, CENTER, null, false, GET.get(row->row.wheelRepairs       )),
 							
-							new ColumnID("IsInCockpit", "Is in Cockpit"    ,  Boolean.class,  75,   null, null, false, row->((InstalledAddon)row).isInCockpit       ),
-							new ColumnID("Position"   , "Position"         ,  String .class, 130,   null, null, false, row->SaveGameDataPanel.toString(((InstalledAddon)row).position   )),
-							new ColumnID("EulerAngles", "Euler Angles"     ,  String .class, 130,   null, null, false, row->SaveGameDataPanel.toString(((InstalledAddon)row).eulerAngles)),
+							new ColumnID("IsInCockpit", "Is in Cockpit"    ,  Boolean.class,  75,   null, null, false, GET.get(row->row.isInCockpit        )),
+							new ColumnID("Position"   , "Position"         ,  String .class, 130,   null, null, false, GET.get(row->row.position   , SaveGameDataPanel::toString)),
+							new ColumnID("EulerAngles", "Euler Angles"     ,  String .class, 130,   null, null, false, GET.get(row->row.eulerAngles, SaveGameDataPanel::toString)),
 							
-							new ColumnID("AddonCRC"   , "Addon CRC"        ,  Long   .class,  70, CENTER, null, false, row->((InstalledAddon)row).addonCRC          ),
-							new ColumnID("FirstSlot"  , "First Slot"       ,  Long   .class,  55, CENTER, null, false, row->((InstalledAddon)row).firstSlot         ),
-							new ColumnID("OverrideMat", "Override Material",  String .class, 100,   null, null, false, row->((InstalledAddon)row).overrideMaterial  ),
-							new ColumnID("ParentAddTp", "Parent Addon Type",  String .class, 110,   null, null, false, row->((InstalledAddon)row).parentAddonType   ),
-							new ColumnID("ParentFrame", "Parent Frame"     ,  String .class, 100,   null, null, false, row->((InstalledAddon)row).parentFrame       ),
-							new ColumnID("ExtrParents", "Extra Parents"    ,  Integer.class,  80, CENTER, null, false, row->((InstalledAddon)row).extraParents.size()),
+							new ColumnID("AddonCRC"   , "Addon CRC"        ,  Long   .class,  70, CENTER, null, false, GET.get(row->row.addonCRC           )),
+							new ColumnID("FirstSlot"  , "First Slot"       ,  Long   .class,  55, CENTER, null, false, GET.get(row->row.firstSlot          )),
+							new ColumnID("OverrideMat", "Override Material",  String .class, 100,   null, null, false, GET.get(row->row.overrideMaterial   )),
+							new ColumnID("ParentAddTp", "Parent Addon Type",  String .class, 110,   null, null, false, GET.get(row->row.parentAddonType    )),
+							new ColumnID("ParentFrame", "Parent Frame"     ,  String .class, 100,   null, null, false, GET.get(row->row.parentFrame        )),
+							new ColumnID("ExtrParents", "Extra Parents"    ,  Integer.class,  80, CENTER, null, false, GET.get(row->row.extraParents, Vector::size)),
 					});
 					coloring.setForegroundColumnColoring(false, ID_NAME, String.class, (row,addonID) -> isDefaultAddon(truck, addonID) ? FG_COLOR__DEFAULT_ADDON : null);
-				}
-				
-				private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,InstalledAddonTableModel,InstalledAddon> getFunction)
-				{
-					return ColumnID.get(InstalledAddonTableModel.class, InstalledAddon.class, getFunction);
 				}
 
 				public void setRowData(Truck truck, Vector<InstalledAddon> addons, InstalledAddon emptyTruckAddonDesc)
@@ -935,6 +919,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class MapsTableModel extends ExtendedVerySimpleTableModelTAOS<MapInfos> implements SplitPaneConfigurator
 	{
+		private static final GetValueConverter<MapInfos,MapsTableModel> GET = new GetValueConverter<>(MapInfos.class, MapsTableModel.class, m->m.data);
 		private static final String ID_DLC = "DLC";
 		private MapInfos clickedItem;
 		private Data data;
@@ -942,26 +927,21 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		MapsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("MapID"     ,"Map ID"                ,  String                    .class, 140,   null, null, false, row->((MapInfos)row).map.originalMapID()),
-					new ColumnID("Name"      ,"Name"                  ,  String                    .class, 300,   null, null, false, get((model, lang, row)->getMapName(row.map,lang,true))),
-					new ColumnID(ID_DLC      ,"DLC"                   ,  String                    .class, 170,   null, null, false, get((model, lang, row)->getDLC(row, model, r->r.map.originalMapID(), SnowRunner.DLCs.ItemType.Map))),
-					new ColumnID("Visited"   ,"Visited"               ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).wasVisited),
-					new ColumnID("Garage"    ,"Garage"                ,  Boolean                   .class,  50,   null, null, false, row->((MapInfos)row).garage!=null),
-					new ColumnID("GarageStat","Garage Status"         ,  Long                      .class,  85, CENTER, null, false, row->((MapInfos)row).garageStatus),
-					new ColumnID("UpgrGarags","Upgradable Garages"    ,  Integer                   .class, 115, CENTER, null, false, row->((MapInfos)row).upgradableGarages.size()),
-					new ColumnID("DiscTrucks","Discovered Trucks"     ,  MapInfos.DiscoveredObjects.class, 100, CENTER, null, false, row->((MapInfos)row).discoveredTrucks),
-					new ColumnID("DiscUpgrds","Discovered Upgrades"   ,  MapInfos.DiscoveredObjects.class, 115, CENTER, null, false, row->((MapInfos)row).discoveredUpgrades),
-					new ColumnID("DiscWatchP","Discovered WatchPoints",  String                    .class, 130, CENTER, null, false, row->SaveGameDataPanel.toString(((MapInfos)row).watchPoints.values())),
+					new ColumnID("MapID"     ,"Map ID"                ,  String                    .class, 140,   null, null, false, GET.get(row->row.map, m->m.originalMapID())),
+					new ColumnID("Name"      ,"Name"                  ,  String                    .class, 300,   null, null, false, GET.get((model, lang, row)->getMapName(row.map,lang,true))),
+					new ColumnID(ID_DLC      ,"DLC"                   ,  String                    .class, 170,   null, null, false, GET.get((model, row)->getDLC(row, model, r->r.map.originalMapID(), SnowRunner.DLCs.ItemType.Map))),
+					new ColumnID("Visited"   ,"Visited"               ,  Boolean                   .class,  50,   null, null, false, GET.get(row->row.wasVisited)),
+					new ColumnID("Garage"    ,"Garage"                ,  Boolean                   .class,  50,   null, null, false, GET.get(row->row.garage!=null)),
+					new ColumnID("GarageStat","Garage Status"         ,  Long                      .class,  85, CENTER, null, false, GET.get(row->row.garageStatus)),
+					new ColumnID("UpgrGarags","Upgradable Garages"    ,  Integer                   .class, 115, CENTER, null, false, GET.get(row->row.upgradableGarages, HashMap::size)),
+					new ColumnID("DiscTrucks","Discovered Trucks"     ,  MapInfos.DiscoveredObjects.class, 100, CENTER, null, false, GET.get(row->row.discoveredTrucks)),
+					new ColumnID("DiscUpgrds","Discovered Upgrades"   ,  MapInfos.DiscoveredObjects.class, 115, CENTER, null, false, GET.get(row->row.discoveredUpgrades)),
+					new ColumnID("DiscWatchP","Discovered WatchPoints",  String                    .class, 130, CENTER, null, false, GET.get(row->row.watchPoints, HashMap::values, SaveGameDataPanel::toString)),
 			});
 			clickedItem = null;
 			data = null;
 			
 			finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
-		}
-		
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,MapsTableModel,MapInfos> getFunction)
-		{
-			return ColumnID.get(MapsTableModel.class, MapInfos.class, getFunction);
 		}
 
 		void setData(Data data)
@@ -1121,29 +1101,24 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class CustomColorsTableModel extends VerySimpleTableModel<CustomColorsTableModel.Row>
 	{
+		private static final GetValueConverter<CustomColorsTableModel.Row,CustomColorsTableModel> GET = new GetValueConverter<>(CustomColorsTableModel.Row.class, CustomColorsTableModel.class);
+		
 		CustomColorsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			// Column Widths: [60, 35, 75, 130, 110, 60, 97] in ModelOrder
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("name"                     ,"Name"                  , String  .class,  60,   null, null, false, row->((Row)row).name),
-					new ColumnID("data.id"                  ,"ID"                    , Long    .class,  35,   null, null, false, row->Row.getDataValue(row, data -> data.id                  )),
-					new ColumnID("data.isSpecialSkin"       ,"Special Skin"          , Boolean .class,  75,   null, null, false, row->Row.getDataValue(row, data -> data.isSpecialSkin       )),
-					new ColumnID("data.overrideMaterialName","Override Material Name", String  .class, 130,   null, null, false, row->Row.getDataValue(row, data -> data.overrideMaterialName)),
-					new ColumnID("data.materialColorType"   ,"Material Color Type"   , Long    .class, 110,   null, null, false, row->Row.getDataValue(row, data -> data.materialColorType   )),
-					new ColumnID("data.uiName"              ,"UI Name"               , String  .class,  60,   null, null, false, row->Row.getDataValue(row, data -> data.uiName              )),
-					new ColumnID("data.colors"              ,"Colors"                , Color[] .class,  97,   null, null, false, row->Row.getDataValue(row, data -> data.toColorArray()      )),
+					new ColumnID("name"                     ,"Name"                  , String  .class,  60,   null, null, false, GET.get(row->row.name)),
+					new ColumnID("data.id"                  ,"ID"                    , Long    .class,  35,   null, null, false, GET.get(row->row.data, data->data.id                  )),
+					new ColumnID("data.isSpecialSkin"       ,"Special Skin"          , Boolean .class,  75,   null, null, false, GET.get(row->row.data, data->data.isSpecialSkin       )),
+					new ColumnID("data.overrideMaterialName","Override Material Name", String  .class, 130,   null, null, false, GET.get(row->row.data, data->data.overrideMaterialName)),
+					new ColumnID("data.materialColorType"   ,"Material Color Type"   , Long    .class, 110,   null, null, false, GET.get(row->row.data, data->data.materialColorType   )),
+					new ColumnID("data.uiName"              ,"UI Name"               , String  .class,  60,   null, null, false, GET.get(row->row.data, data->data.uiName              )),
+					new ColumnID("data.colors"              ,"Colors"                , Color[] .class,  97,   null, null, false, GET.get(row->row.data, data->data.toColorArray()      )),
 			});
 		}
 
 		record Row(String name, TruckDesc.CustomizationPreset data)
 		{
-			static <V> V getDataValue(Object rowObj, Function<TruckDesc.CustomizationPreset,V> getFunction)
-			{
-				if (rowObj instanceof Row row && row.data!=null)
-					return getFunction.apply(row.data);
-				return null;
-			}
-			
 			static List<Row> getRows(HashMap<String, TruckDesc.CustomizationPreset> customColors)
 			{
 				List<Row> rows = new Vector<>();
@@ -1167,23 +1142,17 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	static class AddonsTableModel extends VerySimpleTableModel<AddonsTableModel.Row>
 	{
-		private Data data;
+		private static final GetValueConverter<AddonsTableModel.Row,AddonsTableModel> GET = new GetValueConverter<>(AddonsTableModel.Row.class, AddonsTableModel.class);
 		
 		AddonsTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("ID"       ,"ID"       , String             .class, 300,   null, null, false, row->((Row)row).addon.addonId),
-					new ColumnID("Type"     ,"Type"     , AddonType          .class,  80,   null, null, false, row->((Row)row).type),
-					new ColumnID("Name"     ,"Name"     , String             .class, 180,   null, null, false, get((model, data, lang, row)->SnowRunner.solveStringID(row.item, lang))),
-					new ColumnID("Owned"    ,"Owned"    , Long               .class,  50, CENTER, null, false, row->((Row)row).addon.owned),
-					new ColumnID("Damagable","Damagable", Addon.DamagableData.class, 350,   null, null, false, row->((Row)row).addon.damagable),
+					new ColumnID("ID"       ,"ID"       , String             .class, 300,   null, null, false, GET.get(row->row.addon, a->a.addonId)),
+					new ColumnID("Type"     ,"Type"     , AddonType          .class,  80,   null, null, false, GET.get(row->row.type)),
+					new ColumnID("Name"     ,"Name"     , String             .class, 180,   null, null, false, GET.get((model, lang, row)->SnowRunner.solveStringID(row.item, lang))),
+					new ColumnID("Owned"    ,"Owned"    , Long               .class,  50, CENTER, null, false, GET.get(row->row.addon, a->a.owned)),
+					new ColumnID("Damagable","Damagable", Addon.DamagableData.class, 350,   null, null, false, GET.get(row->row.addon, a->a.damagable)),
 			});
-			data = null;
-		}
-		
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MDLR<ResultType,AddonsTableModel,Row> getFunction)
-		{
-			return ColumnID.get(AddonsTableModel.class, Row.class, m->m.data, getFunction);
 		}
 		
 		enum AddonType { TruckAddon, Trailer, Engine, Gearbox, Suspensions, Winch }
@@ -1226,33 +1195,29 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 	private static class ObjectivesTableModel extends ExtendedVerySimpleTableModelTAOS<Objective> implements SplitPaneConfigurator
 	{
+		private static final GetValueConverter<Objective,ObjectivesTableModel> GET = new GetValueConverter<>(Objective.class, ObjectivesTableModel.class, m->m.data);
 		private Data data;
 		
 		ObjectivesTableModel(Window mainWindow, GlobalFinalDataStructures gfds)
 		{
 			super(mainWindow, gfds, new ColumnID[] {
-					new ColumnID("ID"        ,"ID"                                       ,  String .class, 320,   null,    null, false, row->((Objective)row).objectiveId      ),
-					new ColumnID("Attempts"  ,"Attempts"                                 ,  Long   .class,  60,   null,    null, false, row->((Objective)row).attempts         ),
-					new ColumnID("Times"     ,"Times"                                    ,  Long   .class,  40,   null,    null, false, row->((Objective)row).times            ),
-					new ColumnID("LastTimes" ,"Last Times"                               ,  Long   .class,  60,   null,    null, false, row->((Objective)row).lastTimes        ),
-					new ColumnID("Discovered","Discovered"                               ,  Boolean.class,  65,   null,    null, false, row->((Objective)row).discovered       ),
-					new ColumnID("Finished"  ,"Finished"                                 ,  Boolean.class,  55,   null,    null, false, row->((Objective)row).finished         ),
-					new ColumnID("ViewdUnact","Viewed, but Unactivated"                  ,  Boolean.class, 130,   null,    null, false, row->((Objective)row).viewedUnactivated),
-					new ColumnID("SCNtbRoR"  ,"Saved Cargo Need To Be Removed On Restart",  Integer.class,  50, CENTER,    null, false, row->((Objective)row).savedCargoNeedToBeRemovedOnRestart.size()),
-					new ColumnID("ID2"       ,"ID[2]"                                    ,  String .class, 200,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.id                     )),
-					new ColumnID("Stages"    ,"Stages"                                   ,  Integer.class,  45, CENTER,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.stagesState.size()     )),
-					new ColumnID("SpentTime" ,"Spent Time"                               ,  Double .class,  75,   null, "%1.4f", false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.spentTime              )),
-					new ColumnID("IsFinished","Is Finished"                              ,  Boolean.class,  65,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.isFinished             )),
-					new ColumnID("TimrStartd","Is Timer Started"                         ,  Boolean.class,  90,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.isTimerStarted         )),
-					new ColumnID("ComplOnce" ,"Was Completed At Least Once"              ,  Boolean.class, 160,   null,    null, false, row->ifNotNull(((Objective)row).objectiveStates, objst->objst.wasCompletedAtLeastOnce)),
+					new ColumnID("ID"        ,"ID"                                       ,  String .class, 320,   null,    null, false, GET.get(row->row.objectiveId      )),
+					new ColumnID("Attempts"  ,"Attempts"                                 ,  Long   .class,  60,   null,    null, false, GET.get(row->row.attempts         )),
+					new ColumnID("Times"     ,"Times"                                    ,  Long   .class,  40,   null,    null, false, GET.get(row->row.times            )),
+					new ColumnID("LastTimes" ,"Last Times"                               ,  Long   .class,  60,   null,    null, false, GET.get(row->row.lastTimes        )),
+					new ColumnID("Discovered","Discovered"                               ,  Boolean.class,  65,   null,    null, false, GET.get(row->row.discovered       )),
+					new ColumnID("Finished"  ,"Finished"                                 ,  Boolean.class,  55,   null,    null, false, GET.get(row->row.finished         )),
+					new ColumnID("ViewdUnact","Viewed, but Unactivated"                  ,  Boolean.class, 130,   null,    null, false, GET.get(row->row.viewedUnactivated)),
+					new ColumnID("SCNtbRoR"  ,"Saved Cargo Need To Be Removed On Restart",  Integer.class,  50, CENTER,    null, false, GET.get(row->row.savedCargoNeedToBeRemovedOnRestart, HashSet::size)),
+					new ColumnID("ID2"       ,"ID[2]"                                    ,  String .class, 200,   null,    null, false, GET.get(row->row.objectiveStates, objst->objst.id                     )),
+					new ColumnID("Stages"    ,"Stages"                                   ,  Integer.class,  45, CENTER,    null, false, GET.get(row->row.objectiveStates, objst->objst.stagesState, Vector::size)),
+					new ColumnID("SpentTime" ,"Spent Time"                               ,  Double .class,  75,   null, "%1.4f", false, GET.get(row->row.objectiveStates, objst->objst.spentTime              )),
+					new ColumnID("IsFinished","Is Finished"                              ,  Boolean.class,  65,   null,    null, false, GET.get(row->row.objectiveStates, objst->objst.isFinished             )),
+					new ColumnID("TimrStartd","Is Timer Started"                         ,  Boolean.class,  90,   null,    null, false, GET.get(row->row.objectiveStates, objst->objst.isTimerStarted         )),
+					new ColumnID("ComplOnce" ,"Was Completed At Least Once"              ,  Boolean.class, 160,   null,    null, false, GET.get(row->row.objectiveStates, objst->objst.wasCompletedAtLeastOnce)),
 			});
 			data = null;
 		}
-		
-		//private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunctionMDLR<ResultType,ContestTableModel,Contest> getFunction)
-		//{
-		//	return ColumnID.get(ContestTableModel.class, Contest.class, m->m.data, getFunction);
-		//}
 		
 		void setData(Data data)
 		{

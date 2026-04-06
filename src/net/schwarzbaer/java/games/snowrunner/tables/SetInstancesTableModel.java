@@ -75,34 +75,32 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 		return addon==null ? null : addon.owned;
 	}
 
-	public static class EnginesTableModel extends SetInstancesTableModel<Engine> {
+	public static class EnginesTableModel extends SetInstancesTableModel<Engine>
+	{
+		private static final GetValueConverter<Engine, EnginesTableModel> GET = new GetValueConverter<>(Engine.class, EnginesTableModel.class);
 	
 		public EnginesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame) {
 			this(mainWindow, gfds, connectToGlobalData, saveGame, true);
 		}
 		public EnginesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
 			super(mainWindow, gfds, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
-					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 160,   null,      null, false, row->((Engine)row).setID),
-					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 190,   null,      null, false, row->((Engine)row).id),
-					new ColumnID("Name"     ,"Name"                 ,  String.class, 130,   null,      null,  true, row->((Engine)row).gameData.getNameStringID()),
-					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, row->((Engine)row).gameData.getDescriptionStringID()),
-					new ColumnID("Price"    ,"Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Engine)row).gameData.price),
-					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
-					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Engine)row).gameData.unlockByExploration),
-					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Engine)row).gameData.unlockByRank),
-					new ColumnID("Torque"   ,"Torque"               , Integer.class,  70,   null,      null, false, row->((Engine)row).torque),
-					new ColumnID("FuelCons" ,"Fuel Consumption"     ,   Float.class, 100,  RIGHT,   "%1.2f", false, row->((Engine)row).fuelConsumption),
-					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,  RIGHT,    "%d R", false, row->((Engine)row).damageCapacity),
-					new ColumnID("BrakesDel","Brakes Delay"         ,   Float.class,  70,  RIGHT,   "%1.2f", false, row->((Engine)row).brakesDelay),
-					new ColumnID("Respons"  ,"Responsiveness"       ,   Float.class,  90,  RIGHT,   "%1.4f", false, row->((Engine)row).engineResponsiveness),
-					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Engine)row).usableBy, lang)),
+					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 160,   null,      null, false, GET.get(row->row.setID)),
+					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 190,   null,      null, false, GET.get(row->row.id)),
+					new ColumnID("Name"     ,"Name"                 ,  String.class, 130,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getNameStringID())),
+					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getDescriptionStringID())),
+					new ColumnID("Price"    ,"Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, GET.get(row->row.gameData, gd->gd.price)),
+					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, GET.get(SetInstancesTableModel::getOwnedCount)),
+					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, GET.get(row->row.gameData, gd->gd.unlockByExploration)),
+					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, GET.get(row->row.gameData, gd->gd.unlockByRank)),
+					new ColumnID("Torque"   ,"Torque"               , Integer.class,  70,   null,      null, false, GET.get(row->row.torque)),
+					new ColumnID("FuelCons" ,"Fuel Consumption"     ,   Float.class, 100,  RIGHT,   "%1.2f", false, GET.get(row->row.fuelConsumption)),
+					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,  RIGHT,    "%d R", false, GET.get(row->row.damageCapacity)),
+					new ColumnID("BrakesDel","Brakes Delay"         ,   Float.class,  70,  RIGHT,   "%1.2f", false, GET.get(row->row.brakesDelay)),
+					new ColumnID("Respons"  ,"Responsiveness"       ,   Float.class,  90,  RIGHT,   "%1.4f", false, GET.get(row->row.engineResponsiveness)),
+					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null,        GET.getL((lang,row)->SnowRunner.joinNames(row.usableBy, lang))),
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.engines.getAllInstances());
-		}
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,EnginesTableModel,Engine> getFunction)
-		{
-			return ColumnID.get(EnginesTableModel.class, Engine.class, getFunction);
 		}
 		@Override boolean isComponentOfDisplayedTruck(Engine row)
 		{
@@ -110,38 +108,36 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 		}
 	}
 
-	public static class GearboxesTableModel extends SetInstancesTableModel<Gearbox> {
+	public static class GearboxesTableModel extends SetInstancesTableModel<Gearbox>
+	{
+		private static final GetValueConverter<Gearbox, GearboxesTableModel> GET = new GetValueConverter<>(Gearbox.class, GearboxesTableModel.class);
 	
 		public GearboxesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame) {
 			this(mainWindow, gfds, connectToGlobalData, saveGame, true);
 		}
 		public GearboxesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
 			super(mainWindow, gfds, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
-					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 180,   null,      null, false, row->((Gearbox)row).setID),
-					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 140,   null,      null, false, row->((Gearbox)row).id),
-					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, row->((Gearbox)row).gameData.getNameStringID()),
-					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, row->((Gearbox)row).gameData.getDescriptionStringID()),
-					new ColumnID("Price"    ,"Price"                , Integer.class,  60,   null,   "%d Cr", false, row->((Gearbox)row).gameData.price),
-					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
-					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Gearbox)row).gameData.unlockByExploration),
-					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Gearbox)row).gameData.unlockByRank),
-					new ColumnID("GearH"    ,"(H)"                  , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsHighGear),
-					new ColumnID("GearL"    ,"(L)"                  , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsLowerGear),
-					new ColumnID("GearLP"   ,"(L+)"                 , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsLowerPlusGear),
-					new ColumnID("GearLM"   ,"(L-)"                 , Boolean.class,  35,   null,      null, false, row->((Gearbox)row).existsLowerMinusGear),
-					new ColumnID("ManualLG" ,"is Manual Low Gear"   , Boolean.class, 110,   null,      null, false, row->((Gearbox)row).isManualLowGear),
-					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, row->((Gearbox)row).damageCapacity),
-					new ColumnID("AWDCons"  ,"AWD Consumption Mod." ,   Float.class, 130,   null,   "%1.2f", false, row->((Gearbox)row).awdConsumptionModifier),
-					new ColumnID("FuelCons" ,"Fuel Consumption"     ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).fuelConsumption),
-					new ColumnID("IdleFuel" ,"Idle Fuel Modifier"   ,   Float.class, 100,   null,   "%1.2f", false, row->((Gearbox)row).idleFuelModifier),
-					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Gearbox)row).usableBy, lang)),
+					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 180,   null,      null, false, GET.get(row->row.setID)),
+					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 140,   null,      null, false, GET.get(row->row.id)),
+					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getNameStringID())),
+					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getDescriptionStringID())),
+					new ColumnID("Price"    ,"Price"                , Integer.class,  60,   null,   "%d Cr", false, GET.get(row->row.gameData, gd->gd.price)),
+					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, GET.get(SetInstancesTableModel::getOwnedCount)),
+					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, GET.get(row->row.gameData, gd->gd.unlockByExploration)),
+					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, GET.get(row->row.gameData, gd->gd.unlockByRank)),
+					new ColumnID("GearH"    ,"(H)"                  , Boolean.class,  35,   null,      null, false, GET.get(row->row.existsHighGear)),
+					new ColumnID("GearL"    ,"(L)"                  , Boolean.class,  35,   null,      null, false, GET.get(row->row.existsLowerGear)),
+					new ColumnID("GearLP"   ,"(L+)"                 , Boolean.class,  35,   null,      null, false, GET.get(row->row.existsLowerPlusGear)),
+					new ColumnID("GearLM"   ,"(L-)"                 , Boolean.class,  35,   null,      null, false, GET.get(row->row.existsLowerMinusGear)),
+					new ColumnID("ManualLG" ,"is Manual Low Gear"   , Boolean.class, 110,   null,      null, false, GET.get(row->row.isManualLowGear)),
+					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, GET.get(row->row.damageCapacity)),
+					new ColumnID("AWDCons"  ,"AWD Consumption Mod." ,   Float.class, 130,   null,   "%1.2f", false, GET.get(row->row.awdConsumptionModifier)),
+					new ColumnID("FuelCons" ,"Fuel Consumption"     ,   Float.class, 100,   null,   "%1.2f", false, GET.get(row->row.fuelConsumption)),
+					new ColumnID("IdleFuel" ,"Idle Fuel Modifier"   ,   Float.class, 100,   null,   "%1.2f", false, GET.get(row->row.idleFuelModifier)),
+					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null,        GET.getL((lang,row)->SnowRunner.joinNames(row.usableBy, lang))),
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.gearboxes.getAllInstances());
-		}
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,GearboxesTableModel,Gearbox> getFunction)
-		{
-			return ColumnID.get(GearboxesTableModel.class, Gearbox.class, getFunction);
 		}
 		@Override boolean isComponentOfDisplayedTruck(Gearbox row)
 		{
@@ -149,31 +145,29 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 		}
 	}
 
-	public static class SuspensionsTableModel extends SetInstancesTableModel<Suspension> {
+	public static class SuspensionsTableModel extends SetInstancesTableModel<Suspension>
+	{
+		private static final GetValueConverter<Suspension, SuspensionsTableModel> GET = new GetValueConverter<>(Suspension.class, SuspensionsTableModel.class);
 	
 		public SuspensionsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame) {
 			this(mainWindow, gfds, connectToGlobalData, saveGame, true);
 		}
 		public SuspensionsTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
 			super(mainWindow, gfds, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
-					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 130,   null,      null, false, row->((Suspension)row).setID),
-					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 220,   null,      null, false, row->((Suspension)row).id),
-					new ColumnID("Type"     ,"Type"                 ,  String.class, 110,   null,      null,  true, row->((Suspension)row).type_StringID),
-					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, row->((Suspension)row).gameData.getNameStringID()),
-					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, row->((Suspension)row).gameData.getDescriptionStringID()),
-					new ColumnID("Price"    ,"Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Suspension)row).gameData.price),
-					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
-					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, row->((Suspension)row).gameData.unlockByExploration),
-					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, row->((Suspension)row).gameData.unlockByRank),
-					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, row->((Suspension)row).damageCapacity),
-					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Suspension)row).usableBy, lang)),
+					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 130,   null,      null, false, GET.get(row->row.setID)),
+					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 220,   null,      null, false, GET.get(row->row.id)),
+					new ColumnID("Type"     ,"Type"                 ,  String.class, 110,   null,      null,  true, GET.get(row->row.type_StringID)),
+					new ColumnID("Name"     ,"Name"                 ,  String.class, 110,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getNameStringID())),
+					new ColumnID("Desc"     ,"Description"          ,  String.class, 150,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getDescriptionStringID())),
+					new ColumnID("Price"    ,"Price"                , Integer.class,  60,  RIGHT,   "%d Cr", false, GET.get(row->row.gameData, gd->gd.price)),
+					new ColumnID("Owned"    ,"Owned"                ,    Long.class,  60, CENTER,      null, false, GET.get(SetInstancesTableModel::getOwnedCount)),
+					new ColumnID("UnlExpl"  ,"Unlock By Exploration", Boolean.class, 120,   null,      null, false, GET.get(row->row.gameData, gd->gd.unlockByExploration)),
+					new ColumnID("UnlRank"  ,"Unlock By Rank"       , Integer.class,  85, CENTER, "Rank %d", false, GET.get(row->row.gameData, gd->gd.unlockByRank)),
+					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, GET.get(row->row.damageCapacity)),
+					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null,        GET.getL((lang,row)->SnowRunner.joinNames(row.usableBy, lang))),
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.suspensions.getAllInstances());
-		}
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,SuspensionsTableModel,Suspension> getFunction)
-		{
-			return ColumnID.get(SuspensionsTableModel.class, Suspension.class, getFunction);
 		}
 		@Override boolean isComponentOfDisplayedTruck(Suspension row)
 		{
@@ -181,32 +175,30 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 		}
 	}
 
-	public static class WinchesTableModel extends SetInstancesTableModel<Winch> {
+	public static class WinchesTableModel extends SetInstancesTableModel<Winch>
+	{
+		private static final GetValueConverter<Winch, WinchesTableModel> GET = new GetValueConverter<>(Winch.class, WinchesTableModel.class);
 
 		public WinchesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame) {
 			this(mainWindow, gfds, connectToGlobalData, saveGame, true);
 		}
 		public WinchesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
 			super(mainWindow, gfds, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
-					new ColumnID("SetID"    ,"Set ID"                  ,  String.class, 140,   null,      null, false, row->((Winch)row).setID),
-					new ColumnID("ItemID"   ,"Item ID"                 ,  String.class, 160,   null,      null, false, row->((Winch)row).id),
-					new ColumnID("Name"     ,"Name"                    ,  String.class, 150,   null,      null,  true, row->((Winch)row).gameData.getNameStringID()),
-					new ColumnID("Desc"     ,"Description"             ,  String.class, 150,   null,      null,  true, row->((Winch)row).gameData.getDescriptionStringID()),
-					new ColumnID("Price"    ,"Price"                   , Integer.class,  60,  RIGHT,   "%d Cr", false, row->((Winch)row).gameData.price),
-					new ColumnID("Owned"    ,"Owned"                   ,    Long.class,  60, CENTER,      null, false, get((model, lang, row)->getOwnedCount(model,row))),
-					new ColumnID("UnlExpl"  ,"Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, row->((Winch)row).gameData.unlockByExploration),
-					new ColumnID("UnlRank"  ,"Unlock By Rank"          , Integer.class,  85, CENTER, "Rank %d", false, row->((Winch)row).gameData.unlockByRank),
-					new ColumnID("RequEngI" ,"Requires Engine Ignition", Boolean.class, 130,   null,      null, false, row->((Winch)row).isEngineIgnitionRequired),
-					new ColumnID("Length"   ,"Length"                  , Integer.class,  50, CENTER,      null, false, row->((Winch)row).length),
-					new ColumnID("StrengthM","Strength Multi"          ,   Float.class,  80, CENTER,   "%1.2f", false, row->((Winch)row).strengthMult),
-					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null, (row,lang)->SnowRunner.joinNames(((Winch)row).usableBy, lang)),
+					new ColumnID("SetID"    ,"Set ID"                  ,  String.class, 140,   null,      null, false, GET.get(row->row.setID)),
+					new ColumnID("ItemID"   ,"Item ID"                 ,  String.class, 160,   null,      null, false, GET.get(row->row.id)),
+					new ColumnID("Name"     ,"Name"                    ,  String.class, 150,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getNameStringID())),
+					new ColumnID("Desc"     ,"Description"             ,  String.class, 150,   null,      null,  true, GET.get(row->row.gameData, gd->gd.getDescriptionStringID())),
+					new ColumnID("Price"    ,"Price"                   , Integer.class,  60,  RIGHT,   "%d Cr", false, GET.get(row->row.gameData, gd->gd.price)),
+					new ColumnID("Owned"    ,"Owned"                   ,    Long.class,  60, CENTER,      null, false, GET.get(SetInstancesTableModel::getOwnedCount)),
+					new ColumnID("UnlExpl"  ,"Unlock By Exploration"   , Boolean.class, 120,   null,      null, false, GET.get(row->row.gameData, gd->gd.unlockByExploration)),
+					new ColumnID("UnlRank"  ,"Unlock By Rank"          , Integer.class,  85, CENTER, "Rank %d", false, GET.get(row->row.gameData, gd->gd.unlockByRank)),
+					new ColumnID("RequEngI" ,"Requires Engine Ignition", Boolean.class, 130,   null,      null, false, GET.get(row->row.isEngineIgnitionRequired)),
+					new ColumnID("Length"   ,"Length"                  , Integer.class,  50, CENTER,      null, false, GET.get(row->row.length)),
+					new ColumnID("StrengthM","Strength Multi"          ,   Float.class,  80, CENTER,   "%1.2f", false, GET.get(row->row.strengthMult)),
+					new ColumnID("UsableBy" ,"Usable By"               ,  String.class, 150,   null,      null,        GET.getL((lang,row)->SnowRunner.joinNames(row.usableBy, lang))),
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.winches.getAllInstances());
-		}
-		private static <ResultType> ColumnID.TableModelBasedBuilder<ResultType> get(ColumnID.GetFunction_MLR<ResultType,WinchesTableModel,Winch> getFunction)
-		{
-			return ColumnID.get(WinchesTableModel.class, Winch.class, getFunction);
 		}
 		@Override boolean isComponentOfDisplayedTruck(Winch row)
 		{

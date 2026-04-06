@@ -3575,62 +3575,75 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		public boolean hasShowValueComputationFcn() {
 			return showValueComputation!=null || showValueComputationL!=null || showValueComputationT!=null;
 		}
-		
-		public interface GetFunction_MDLR<ResultType, ModelType, RowType>
+	}
+
+	public static class GetValueConverter<RowType, ModelType extends VerySimpleTableModel<RowType>>
+	{
+		public interface GetFunction_LR<RowType, ResultType>
+		{
+			ResultType get(Language language, RowType row);
+		}
+		public interface GetFunction_MDLR<ModelType, RowType, ResultType>
 		{
 			ResultType get(ModelType model, Data data, Language language, RowType row);
 		}
-		
-		public interface GetFunction_MLR<ResultType, ModelType, RowType>
+		public interface GetFunction_MLR<ModelType, RowType, ResultType>
 		{
 			ResultType get(ModelType model, Language language, RowType row);
 		}
-		
-		// TODO: move get() to GetValueConverter
-		public static <ResultType, ModelType extends VerySimpleTableModel<RowType>, RowType>
-			TableModelBasedBuilder<ResultType>
-			get(
-					Class<ModelType> modelClass,
-					Class<RowType> rowClass,
-					Function<ModelType,Data> getData,
-					GetFunction_MDLR<ResultType, ModelType, RowType> getFunction
-			)
+		public interface GetFunction_MRT<ModelType, RowType, ResultType>
 		{
-			return (row_,model_) -> {
-				if (  row_==null || !  rowClass.isAssignableFrom(  row_.getClass())) return null;
-				if (model_==null || !modelClass.isAssignableFrom(model_.getClass())) return null;
-				RowType   row   =   rowClass.cast(  row_);
-				ModelType model = modelClass.cast(model_);
-				return getFunction.get(model, getData.apply(model), model.language, row);
-			};
+			ResultType get(ModelType model, RowType row, TextOutput textOutput);
 		}
 		
-		// TODO: move get() to GetValueConverter
-		public static <ResultType, ModelType extends VerySimpleTableModel<RowType>, RowType>
-			TableModelBasedBuilder<ResultType>
-			get(
-					Class<ModelType> modelClass,
-					Class<RowType> rowClass,
-					GetFunction_MLR<ResultType, ModelType, RowType> getFunction
-			)
-		{
-			return (row_,model_) -> {
-				if (  row_==null || !  rowClass.isAssignableFrom(  row_.getClass())) return null;
-				if (model_==null || !modelClass.isAssignableFrom(model_.getClass())) return null;
-				RowType   row   =   rowClass.cast(  row_);
-				ModelType model = modelClass.cast(model_);
-				return getFunction.get(model, model.language, row);
-			};
-		}
-	}
-
-	public static class GetValueConverter<RowType>
-	{
-		private final Class<RowType> rowTypeClass;
+		private final Class<RowType> rowClass;
+		private final Class<ModelType> modelClass;
+		private final Function<ModelType, Data> getData;
 	
-		GetValueConverter(Class<RowType> rowTypeClass)
+		GetValueConverter(Class<RowType> rowClass, Class<ModelType> modelClass)
 		{
-			this.rowTypeClass = Objects.requireNonNull( rowTypeClass );
+			this(rowClass, modelClass, null);
+		}
+		GetValueConverter(Class<RowType> rowClass, Class<ModelType> modelClass, Function<ModelType,Data> getData)
+		{
+			this.rowClass = Objects.requireNonNull( rowClass );
+			this.modelClass = Objects.requireNonNull( modelClass );
+			this.getData = getData;
+		}
+		
+		<ValueType> ColumnID.TableModelBasedBuilder<ValueType> get(BiFunction<ModelType, RowType, ValueType> getValue)
+		{
+			return (obj,model0) -> castRowAndModel(model0, obj, getValue);
+		}
+		
+		<ValueType> ColumnID.TableModelBasedBuilder<ValueType> get(GetFunction_MLR<ModelType, RowType, ValueType> getValue)
+		{
+			return get((m,r)->getValue.get(m, m.language, r));
+		}
+		
+		<ValueType> ColumnID.TableModelBasedBuilder<ValueType> get(GetFunction_MDLR<ModelType, RowType, ValueType> getValue)
+		{
+			if (getData==null) throw new UnsupportedOperationException();
+			return get((m,r)->getValue.get(m, getData.apply(m), m.language, r));
+		}
+		
+		<ValueType> ColumnID.VerboseTableModelBasedBuilder<ValueType> getV(GetFunction_MRT<ModelType, RowType, ValueType> getValue)
+		{
+			return (obj,model0,textOutput) -> castRowAndModel(model0, obj, (m,r)->getValue.get(m,r,textOutput));
+		}
+		
+		ColumnID.LanguageBasedStringBuilder getL(GetFunction_LR<RowType, String> getValue)
+		{
+			return (obj,lang) -> getRowValue(obj, row -> getValue.get(lang, row));
+		}
+		
+		<ValueType> ValueType castRowAndModel(VerySimpleTableModel<?> model0, Object obj, BiFunction<ModelType,RowType,ValueType> getValue)
+		{
+			if (!rowClass  .isInstance(obj   )) return null;
+			if (!modelClass.isInstance(model0)) return null;
+			RowType   row   = rowClass  .cast(obj   );
+			ModelType model = modelClass.cast(model0);
+			return getValue.apply(model, row);
 		}
 		
 		Function<Object,String> get(Function<RowType, Boolean> getValue, String trueStr, String falseStr)
@@ -3646,6 +3659,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		<InterValueType, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, ValueType> getValue2)
 		{
 			return obj -> getIfNotNull(getRowValue(obj, getValue1), getValue2);
+		}
+		
+		<InterValueType1, InterValueType2, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType1> getValue1, Function<InterValueType1, InterValueType2> getValue2, Function<InterValueType2, ValueType> getValue3)
+		{
+			return obj -> getIfNotNull(getIfNotNull(getRowValue(obj, getValue1), getValue2), getValue3);
 		}
 		
 		<InterValueType> Function<Object,String> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, Boolean> getValue2, String trueStr, String falseStr)
@@ -3665,7 +3683,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 		<ValueType> ValueType getRowValue(Object rowObj, Function<RowType, ValueType> getValue)
 		{
-			return rowTypeClass.isInstance(rowObj) ? getValue.apply( rowTypeClass.cast(rowObj) ) : null;
+			return rowClass.isInstance(rowObj) ? getValue.apply( rowClass.cast(rowObj) ) : null;
 		}
 	}
 
