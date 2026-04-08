@@ -569,8 +569,35 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	}
 	
 	public void reconfigureAfterTableStructureUpdate() {
-		setColumnWidths(table);
+		setColumnWidths2(table, (columnID,column) -> {
+			if (columnID!=null && columnID.config!=null)
+			{
+				setColumnWidth(columnID.config, column);
+				if (column!=null && columnID.savedColumnWidth!=null)
+				{
+					column.setWidth         (columnID.savedColumnWidth);
+					column.setPreferredWidth(columnID.savedColumnWidth);
+				}
+			}
+		});
 		setCellRenderers();
+	}
+	
+	private void resetColumnWidths()
+	{
+		for (ColumnID columnID : originalColumns)
+			columnID.savedColumnWidth = null;
+		for (ColumnID columnID : extraBoolColumns)
+			columnID.savedColumnWidth = null;
+		setColumnWidths(table);
+	}
+	
+	private void saveColumnWidths()
+	{
+		forEachColum((columnID,column) -> {
+			if (columnID!=null)
+				columnID.savedColumnWidth = column==null ? null : column.getWidth();
+		});
 	}
 
 	private void setCellRenderers() {
@@ -590,7 +617,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		}
 	}
 	
-	@Override public void modifyTableContextMenu(JTable table, TableSimplifier.ContextMenu contextMenu) {
+	@Override public void modifyTableContextMenu(JTable table, TableSimplifier.ContextMenu contextMenu)
+	{
+		contextMenu.add(SnowRunner.createMenuItem("Reset Column Widths", true, e->{
+			resetColumnWidths();
+		}));
 		
 		contextMenu.addSeparator();
 		
@@ -634,7 +665,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			}
 		}));
 		
-		contextMenu.add(extraBoolColumnsMenu = new JMenu("Extra Bool Columns"));
+		contextMenu.add(extraBoolColumnsMenu = new JMenu("Extra Bool Columns (based on Row Presets)"));
 		
 		JMenuItem miRemoveExtraBoolColumn = contextMenu.add(SnowRunner.createMenuItem("###", false, e->{
 			if (clickedColumn instanceof ExtraBoolColumn columnID)
@@ -752,6 +783,14 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		updateExtraBoolColumnsMenu();
 	}
 	
+	public void addExtraBoolColumn(String title, List<RowType> rows)
+	{
+		extraBoolColumns.add(new ExtraBoolColumn(title, rows));
+		updateColumnArray();
+		fireTableStructureUpdate();
+		reconfigureAfterTableStructureUpdate();
+	}
+	
 	private void updateExtraBoolColumnsMenu()
 	{
 		extraBoolColumnsMenu.removeAll();
@@ -763,7 +802,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			for (String presetName : presetNames)
 			{
 				RowFiltering.Preset preset = modelPresets.get(presetName);
-				extraBoolColumnsMenu.add( SnowRunner.createCheckBoxMenuItem(presetName, hasExtraBoolColumn(preset), null, true, checked -> {
+				extraBoolColumnsMenu.add( SnowRunner.createCheckBoxMenuItem(presetName, hasExtraBoolColumnBasedOnPreset(preset), null, true, checked -> {
 					if (checked)
 						extraBoolColumns.add( new ExtraBoolColumn(presetName, preset) );
 					else
@@ -776,10 +815,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		}
 	}
 	
-	private boolean hasExtraBoolColumn(RowFiltering.Preset preset)
+	private boolean hasExtraBoolColumnBasedOnPreset(RowFiltering.Preset preset)
 	{
 		for (ExtraBoolColumn column : extraBoolColumns)
-			if (column.preset == preset)
+			if (column.source==ExtraBoolColumn.Source.RowFilteringPreset && column.preset == preset)
 				return true;
 		return false;
 	}
@@ -791,12 +830,15 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		for (int i=0; i<extraBoolColumns.size(); i++)
 		{
 			ExtraBoolColumn columnID = extraBoolColumns.get(i);
-			RowFiltering.Preset preset = modelPresets.get( columnID.presetName );
-			if (preset==null || columnID.preset != preset)
+			if (columnID.source == ExtraBoolColumn.Source.RowFilteringPreset)
 			{
-				changed = true;
-				extraBoolColumns.remove(i);
-				i--;
+				RowFiltering.Preset preset = modelPresets.get( columnID.presetName );
+				if (preset==null || columnID.preset != preset)
+				{
+					changed = true;
+					extraBoolColumns.remove(i);
+					i--;
+				}
 			}
 		}
 		updateExtraBoolColumnsMenu();
@@ -807,6 +849,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	private void updateColumnArray()
 	{
+		saveColumnWidths();
 		ArrayList<ColumnID> columns = new ArrayList<>();
 		columns.addAll(extraBoolColumns);
 		columns.addAll(
@@ -3418,8 +3461,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		protected abstract void writePresetInLines(Preset preset, PrintWriter out);
 	}
 	
-	public static class ColumnID implements Tables.SimplifiedColumnIDInterface, RowFiltering.ValueFilterContainer {
-		
+	public static class ColumnID implements Tables.SimplifiedColumnIDInterface, RowFiltering.ValueFilterContainer
+	{
 		public interface TableModelBasedBuilder<ValueType> {
 			ValueType getValue(Object value, VerySimpleTableModel<?> tableModel);
 		}
@@ -3451,6 +3494,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		private final String format;
 		private boolean isVisible;
 		private RowFiltering.ValueFilter filter;
+		private Integer savedColumnWidth;
 		private final EnumSet<Update> cacheUpdateEvents;
 		private final HashMap<Integer, Object> valueCache;
 		
@@ -3488,6 +3532,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		) {
 			this.isVisible = true;
 			this.filter = null;
+			this.savedColumnWidth = null;
 			this.id = ID;
 			this.horizontalAlignment = horizontalAlignment;
 			this.format = format;
@@ -3691,14 +3736,27 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	private static class ExtraBoolColumn extends ColumnID
 	{
 		private static final UniqueStringID ID_POOL = new UniqueStringID(5);
+		
+		enum Source { RowFilteringPreset, RowList }
+		
+		private final Source source;
 		private final RowFiltering.Preset preset;
 		private final String presetName;
 		
 		ExtraBoolColumn(String presetName, RowFiltering.Preset preset)
 		{
 			super(createID(), "{ %s }".formatted( presetName ), Boolean.class, 75, null, null, false, (row,model) -> rowMeetsPreset(model, row, preset));
+			source = Source.RowFilteringPreset;
 			this.presetName = Objects.requireNonNull( presetName );
 			this.preset     = Objects.requireNonNull( preset     );
+		}
+		
+		ExtraBoolColumn(String title, List<?> rows)
+		{
+			super(createID(), title, Boolean.class, 75, null, null, false, rows::contains);
+			source = Source.RowList;
+			this.presetName = null;
+			this.preset     = null;
 		}
 		
 		private static String createID()

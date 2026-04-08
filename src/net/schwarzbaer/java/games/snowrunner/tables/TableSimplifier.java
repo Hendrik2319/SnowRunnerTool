@@ -55,8 +55,8 @@ public class TableSimplifier {
 			
 			table.setModel(this.tableModel);
 			this.tableModel.setTable(table);
-			if (this.tableModel instanceof VerySimpleTableModel)
-				((VerySimpleTableModel<?>) this.tableModel).reconfigureAfterTableStructureUpdate();
+			if (this.tableModel instanceof VerySimpleTableModel verySimpleTableModel)
+				verySimpleTableModel.reconfigureAfterTableStructureUpdate();
 			else
 				this.tableModel.setColumnWidths(table);
 			
@@ -135,7 +135,7 @@ public class TableSimplifier {
 		static class ContextMenu extends JPopupMenu {
 			private static final long serialVersionUID = 2403688936186717306L;
 			
-			private Vector<ContextMenu.ContextMenuInvokeListener> listeners = new Vector<>();
+			private Vector<ContextMenuInvokeListener> listeners = new Vector<>();
 			
 			public void addTo(JTable table, JScrollPane scrollPane) {
 				table.addMouseListener(new MouseAdapter() {
@@ -158,12 +158,12 @@ public class TableSimplifier {
 			}
 			
 			private void notifyListeners(JTable table, Integer x, Integer y) {
-				for (ContextMenu.ContextMenuInvokeListener listener:listeners)
+				for (ContextMenuInvokeListener listener:listeners)
 					listener.contextMenuWillBeInvoked(table, x, y);
 			}
 			
-			public void    addContextMenuInvokeListener( ContextMenu.ContextMenuInvokeListener listener ) { listeners.   add(listener); } 
-			public void removeContextMenuInvokeListener( ContextMenu.ContextMenuInvokeListener listener ) { listeners.remove(listener); }
+			public void    addContextMenuInvokeListener( ContextMenuInvokeListener listener ) { listeners.   add(listener); } 
+			public void removeContextMenuInvokeListener( ContextMenuInvokeListener listener ) { listeners.remove(listener); }
 			
 			public interface ContextMenuInvokeListener {
 				public void contextMenuWillBeInvoked(JTable table, Integer x, Integer y);

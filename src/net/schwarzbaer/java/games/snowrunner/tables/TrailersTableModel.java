@@ -159,6 +159,11 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 		
 		contextMenu.addSeparator();
 		
+		JMenuItem miAddBoolColumnToTrucks = contextMenu.add(SnowRunner.createMenuItem("###", true, e->{
+			if (clickedRow!=null && !clickedRow.usableBy.isEmpty())
+				gfds.controllers.addBoolColumnToTrucks.addBoolColumn("Trailer \"%s\" [%s]".formatted(SnowRunner.solveStringID(clickedRow, language), clickedRow.id), clickedRow.usableBy);
+		}));
+		
 		JMenuItem miFilterTrucksByTrailer = contextMenu.add(SnowRunner.createMenuItem("Filter Trucks by usability of this trailer", true, e->{
 			if (clickedRow != null)
 				gfds.controllers.filterTrucksByTrailersListeners.setFilter(clickedRow);
@@ -185,6 +190,12 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 						: String.format("Filter Trucks by usability of trailer \"%s\"", trailerName)
 			);
 			
+			miAddBoolColumnToTrucks.setEnabled(clickedRow!=null && !clickedRow.usableBy.isEmpty());
+			miAddBoolColumnToTrucks.setText(
+					clickedRow==null
+						? "Add bool column to trucks table"
+						: "Add bool column to trucks table for trailer \"%s\"".formatted( SnowRunner.solveStringID(clickedRow, language) )
+			);
 		});
 	}
 }

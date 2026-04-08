@@ -240,6 +240,11 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 		
 		contextMenu.addSeparator();
 		
+		JMenuItem miAddBoolColumnToTrucks = contextMenu.add(SnowRunner.createMenuItem("###", true, e->{
+			if (clickedItem!=null && !clickedItem.usableBy.isEmpty())
+				gfds.controllers.addBoolColumnToTrucks.addBoolColumn("Addon \"%s\" [%s]".formatted(SnowRunner.solveStringID(clickedItem, language), clickedItem.id), clickedItem.usableBy);
+		}));
+		
 		JMenuItem miFilterTrailersByCargo = contextMenu.add(SnowRunner.createMenuItem("Filter Trailers and TruckAddons by compatibility of cargo", true, e->{
 			if (clickedItem != null && clickedItem.gameData.isCargo)
 				gfds.controllers.filterCarriersByCargoListeners.setFilter(clickedItem);
@@ -315,6 +320,13 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 					itemName == null
 						?               "Filter Trailers and TruckAddons by compatibility of cargo"
 						: String.format("Filter Trailers and TruckAddons by compatibility of cargo \"%s\"", itemName)
+			);
+			
+			miAddBoolColumnToTrucks.setEnabled(clickedItem!=null && !clickedItem.usableBy.isEmpty());
+			miAddBoolColumnToTrucks.setText(
+					clickedItem==null
+						? "Add bool column to trucks table"
+						: "Add bool column to trucks table for addon \"%s\"".formatted( SnowRunner.solveStringID(clickedItem, language) )
 			);
 		});
 	}

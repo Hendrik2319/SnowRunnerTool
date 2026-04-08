@@ -197,6 +197,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		
 		finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
 		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
+		finalizer.addAddBoolColumnToTrucksListener(this::addExtraBoolColumn);
 		
 		finalizer.addStoredTruckDisplayer(displayedTruck -> {
 			this.displayedTruck = displayedTruck;

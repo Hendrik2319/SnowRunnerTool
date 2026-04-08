@@ -1941,6 +1941,7 @@ public class SnowRunner {
 		public final TruckImagesController truckImagesListeners;
 		public final WheelsQualityRangesController wheelsQualityRangesListeners;
 		public final StoredTruckDisplayerController storedTruckDisplayers;
+		public final AddBoolColumnController<Truck> addBoolColumnToTrucks;
 		
 		Controllers() {
 			languageListeners               = new LanguageController();
@@ -1953,6 +1954,7 @@ public class SnowRunner {
 			truckImagesListeners            = new TruckImagesController();
 			wheelsQualityRangesListeners    = new WheelsQualityRangesController();
 			storedTruckDisplayers           = new StoredTruckDisplayerController();
+			addBoolColumnToTrucks           = new AddBoolColumnController<>();
 		}
 		
 		void showListeners() {
@@ -1969,6 +1971,7 @@ public class SnowRunner {
 			truckImagesListeners           .showListeners(indent, "TruckImagesListeners"           );
 			wheelsQualityRangesListeners   .showListeners(indent, "WheelsQualityRangesListeners"   );
 			storedTruckDisplayers          .showListeners(indent, "StoredTruckDisplayers"          );
+			addBoolColumnToTrucks          .showListeners(indent, "AddBoolColumnToTrucks"          );
 		}
 		
 		public interface Finalizable {
@@ -2013,6 +2016,7 @@ public class SnowRunner {
 				truckImagesListeners           .removeListenersOfSource(this);
 				wheelsQualityRangesListeners   .removeListenersOfSource(this);
 				storedTruckDisplayers          .removeListenersOfSource(this);
+				addBoolColumnToTrucks          .removeListenersOfSource(this);
 			}
 			
 			public void removeVolatileSubCompsFromGUI(String listID) {
@@ -2033,13 +2037,14 @@ public class SnowRunner {
 			public void addTruckImagesListener           (TruckImages.Listener l                                ) { truckImagesListeners           .add(this,l); }
 			public void addWheelsQualityRangesListener   (WheelsQualityRanges.Listener l                        ) { wheelsQualityRangesListeners   .add(this,l); }
 			public void addStoredTruckDisplayer          (SaveGameDataPanel.StoredTruckDisplayer l              ) { storedTruckDisplayers          .add(this,l); }
+			public void addAddBoolColumnToTrucksListener (AddBoolColumnReceiver<Truck> l                        ) { addBoolColumnToTrucks          .add(this,l); }
 		}
 
 		private static class AbstractController<Listener> {
 			protected final Vector<Listener> listeners = new Vector<>();
 			private final VectorMap<Finalizer, Listener> listenersOfSource = new VectorMap<>();
 			
-			public void add(Finalizer source, Listener l) {
+			void add(Finalizer source, Listener l) {
 				listenersOfSource.add(source, l);
 				listeners.add(l);
 			}
@@ -2152,6 +2157,20 @@ public class SnowRunner {
 			public SaveGame.TruckDesc getDisplayedTruck()
 			{
 				return displayedTruck;
+			}
+		}
+		
+		public interface AddBoolColumnReceiver<RowType>
+		{
+			void addBoolColumn(String title, List<RowType> rows);
+		}
+		
+		public static class AddBoolColumnController<RowType> extends AbstractController<AddBoolColumnReceiver<RowType>> implements AddBoolColumnReceiver<RowType>
+		{
+			@Override public void addBoolColumn(String title, List<RowType> rows)
+			{
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).addBoolColumn(title, rows);
 			}
 		}
 	}
