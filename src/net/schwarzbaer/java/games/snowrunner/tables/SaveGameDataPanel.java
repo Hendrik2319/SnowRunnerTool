@@ -6,6 +6,7 @@ import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Window;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -37,11 +38,11 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Addon;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Coord3F;
-import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Garage;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.MapInfos;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.Objective.ObjectiveStates.StagesState;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.RegionInfos;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.StoredTrucks.StoredTruck;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TintColor;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.TruckDesc.InstalledAddon;
@@ -524,50 +525,50 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			// Column Widths: [175, 100, 250, 170, 160, 97, 50, 85, 50, 60, 60, 60, 60, 100, 60, 60, 70, 100, 180, 90, 95, 100, 230, 115, 115, 70, 180, 80, 75, 75, 170, 150, 140, 75, 100, 100, 100, 250, 50, 100, 70, 70, 80, 80, 150] in ModelOrder
 			super(mainWindow, gfds, new ColumnID[] {
 					new ColumnID("Location"   ,"Location"                    ,  String .class, 175,   null,      null, false, GET.get(row->row.location)),
-					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, GET.get(row->row.map, MapIndex::originalMapID)),
-					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, GET.get((model, lang, row)->getMapName(row.map,lang, true))),
-					new ColumnID("TrType"     ,"type"                        ,  String .class, 170,   null,      null, false, GET.get(row->row.truckDesc, td->td.type         )),
-					new ColumnID("Truck"      ,"Truck"                       ,  String .class, 160,   null,      null, false, GET.get((model, data, lang, row)->TruckName.getTruckLabel(row.truckDesc.type, data, lang))),
-					new ColumnID("Colors"     ,"Colors"                      ,  Color[].class,  97,   null,      null, false, GET.get(row->row.truckDesc, td->td.customizationPreset.toColorArray())),
-					new ColumnID("TrDamage"   ,"Damage"                      ,  Long   .class,  50,   null,      null, false, GET.get(row->row.truckDesc, td->td.damage                    )),
-					new ColumnID("TrDmgDecals","Damage Decals"               ,  Integer.class,  85,   null,      null, false, GET.get(row->row.truckDesc, td->td.damageDecals.length/4     )),
-					new ColumnID("TrRepairs"  ,"Repairs"                     ,  Long   .class,  50,   null,      null, false, GET.get(row->row.truckDesc, td->td.repairs                   )),
-					new ColumnID("TrWater"    ,"Water"                       ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.truckDesc, td->td.water                     )),
-					new ColumnID("TrFuel"     ,"Fuel"                        ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.truckDesc, td->td.fuel                      )),
+					new ColumnID("MapID"      ,"Map ID"                      ,  String .class, 100,   null,      null, false, GET.get(row->row.truck, t->t.mapIndex(), MapIndex::originalMapID)),
+					new ColumnID("MapName"    ,"Map"                         ,  String .class, 250,   null,      null, false, GET.get((model, lang, row)->getMapName(row.truck.mapIndex(),lang, true))),
+					new ColumnID("TrType"     ,"type"                        ,  String .class, 170,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.type         )),
+					new ColumnID("Truck"      ,"Truck"                       ,  String .class, 160,   null,      null, false, GET.get((model, data, lang, row)->TruckName.getTruckLabel(row.truck.truckDesc().type, data, lang))),
+					new ColumnID("Colors"     ,"Colors"                      ,  Color[].class,  97,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.customizationPreset.toColorArray())),
+					new ColumnID("TrDamage"   ,"Damage"                      ,  Long   .class,  50,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.damage                    )),
+					new ColumnID("TrDmgDecals","Damage Decals"               ,  Integer.class,  85,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.damageDecals.length/4     )),
+					new ColumnID("TrRepairs"  ,"Repairs"                     ,  Long   .class,  50,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.repairs                   )),
+					new ColumnID("TrWater"    ,"Water"                       ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.truck, t->t.truckDesc(), td->td.water                     )),
+					new ColumnID("TrFuel"     ,"Fuel"                        ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.truck, t->t.truckDesc(), td->td.fuel                      )),
 					new ColumnID("TrFuelMx"   ,"Max. Fuel"                   ,  Integer.class,  60,   null,    "%d L", false, GET.get((model, data, lang, row)->getTruckValue(row,data,truck->truck.fuelCapacity))),
-					new ColumnID("TrFill"     ,"Fill Level"                  ,  Double .class,  60,   null,"%1.1f %%", false, GET.get((model, data, lang, row)->getNonNull2(row.truckDesc.fuel,getTruckValue(row,data,truck->truck.fuelCapacity),(v1,v2)->v1/v2*100))),
-					new ColumnID("TrFuelTkDmg","Fuel Tank Damage"            ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.fuelTankDamage            )),
+					new ColumnID("TrFill"     ,"Fill Level"                  ,  Double .class,  60,   null,"%1.1f %%", false, GET.get((model, data, lang, row)->getNonNull2(row.truck.truckDesc().fuel,getTruckValue(row,data,truck->truck.fuelCapacity),(v1,v2)->v1/v2*100))),
+					new ColumnID("TrFuelTkDmg","Fuel Tank Damage"            ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.fuelTankDamage            )),
 					new ColumnID("AdFuel"     ,"(A) Fuel"                    ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.addonValues, av->av.fuel                    )),
 					new ColumnID("AdWater"    ,"(A) Water"                   ,  Double .class,  60,   null, "%1.1f L", false, GET.get(row->row.addonValues, av->av.water                   )),
 					new ColumnID("AdRepairs"  ,"(A) Repairs"                 ,  Long   .class,  70,   null,      null, false, GET.get(row->row.addonValues, av->av.repairs                 )),
 					new ColumnID("AdWheelReps","(A) Wheel Repairs"           ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.addonValues, av->av.wheelRepairs            )),
-					new ColumnID(ID_TR_ENGINE ,"Engine"                      ,  String .class, 180,   null,      null, false, GET.get(row->row.truckDesc, td->td.engine                    )),
-					new ColumnID("TrEngineDmg","Engine Damage"               ,  Long   .class,  90, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.engineDamage              )),
-					new ColumnID(ID_TR_GEARBX ,"Gearbox"                     ,  String .class,  95,   null,      null, false, GET.get(row->row.truckDesc, td->td.gearbox                   )),
-					new ColumnID("TrGearbxDmg","Gearbox Damage"              ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.gearboxDamage             )),
-					new ColumnID(ID_TR_SUSPEN ,"Suspension"                  ,  String .class, 230,   null,      null, false, GET.get(row->row.truckDesc, td->td.suspension                )),
-					new ColumnID("TrSuspenDmg","Suspension Damage"           ,  Long   .class, 115, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.suspensionDamage          )),
-					new ColumnID(ID_TR_TIRES  ,"Tires"                       ,  String .class, 115,   null,      null, false, GET.get(row->row.truckDesc, td->td.tires                     )),
-					new ColumnID(ID_TR_RIMS   ,"Rims"                        ,  String .class,  70,   null,      null, false, GET.get(row->row.truckDesc, td->td.rims                      )),
-					new ColumnID(ID_TR_WHEELS ,"Wheels"                      ,  String .class, 180,   null,      null, false, GET.get(row->row.truckDesc, td->td.wheels                    )),
-					new ColumnID("TrWheelReps","Wheel Repairs"               ,  Long   .class,  80, CENTER,      null, false, GET.get(row->row.truckDesc, td->td.wheelRepairs              )),
-					new ColumnID("TrWheelsScl","Wheels Scale"                ,  Double .class,  75,   null,   "%1.3f", false, GET.get(row->row.truckDesc, td->td.wheelsScale               )),
-					new ColumnID("TrWheelsSze","Wheels Size"                 ,  Integer.class,  75,   null,    "%d\"", false, GET.get(row->row.truckDesc, td->CompatibleWheel.computeSize_inch(td.wheelsScale))),
-					new ColumnID("TrWheelsDmg","Wheels Damage"               ,  String .class, 170,   null,      null, false, GET.get(row->row.truckDesc, td->td.wheelsDamage    , arr->SaveGameDataPanel.toString(arr))),
-					new ColumnID("TrWheelsSHt","Wheels Susp. Height"         ,  String .class, 150,   null,      null, false, GET.get(row->row.truckDesc, td->td.wheelsSuspHeight, arr->SaveGameDataPanel.toString(arr, "%1.3f"))),
-					new ColumnID(ID_TR_WINCH  ,"Winch"                       ,  String .class, 140,   null,      null, false, GET.get(row->row.truckDesc, td->td.winch                     )),
-					new ColumnID("TrTruckCRC" ,"<truckCRC>"                  ,  Long   .class,  75,   null,      null, false, GET.get(row->row.truckDesc, td->td.truckCRC                  )),
-					new ColumnID("TrPhantomMd","<phantomMode>"               ,  Long   .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.phantomMode               )),
-					new ColumnID("TrTrailGlob","<trailerGlobalId>"           ,  String .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.trailerGlobalId           )),
-					new ColumnID("TrItmfObjId","<itemForObjectiveId>"        ,  String .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.itemForObjectiveId        )),
-					new ColumnID("TrGlobalID" ,"<globalId>"                  ,  String .class, 250,   null,      null, false, GET.get(row->row.truckDesc, td->td.globalId                  )),
-					new ColumnID("TrID"       ,"<id>"                        ,  String .class,  50,   null,      null, false, GET.get(row->row.truckDesc, td->td.id                        )),
-					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, GET.get(row->row.truckDesc, td->td.retainedMap, MapIndex::originalMapID)),
-					new ColumnID("TrInvalid"  ,"<isInvalid>"                 ,  Boolean.class,  70,   null,      null, false, GET.get(row->row.truckDesc, td->td.isInvalid                 )),
-					new ColumnID("TrPacked"   ,"<isPacked>"                  ,  Boolean.class,  70,   null,      null, false, GET.get(row->row.truckDesc, td->td.isPacked                  )),
-					new ColumnID("TrUnlocked" ,"<isUnlocked>"                ,  Boolean.class,  80,   null,      null, false, GET.get(row->row.truckDesc, td->td.isUnlocked                )),
-					new ColumnID("TrFreezed"  ,"<isFreezed>"                 ,  Boolean.class,  80,   null,      null, false, GET.get(row->row.truckDesc, td->td.isFreezedByObjective      )),
-					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, GET.get(row->row.truckDesc, td->td.needToInstallDefaultAddons)),
+					new ColumnID(ID_TR_ENGINE ,"Engine"                      ,  String .class, 180,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.engine                    )),
+					new ColumnID("TrEngineDmg","Engine Damage"               ,  Long   .class,  90, CENTER,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.engineDamage              )),
+					new ColumnID(ID_TR_GEARBX ,"Gearbox"                     ,  String .class,  95,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.gearbox                   )),
+					new ColumnID("TrGearbxDmg","Gearbox Damage"              ,  Long   .class, 100, CENTER,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.gearboxDamage             )),
+					new ColumnID(ID_TR_SUSPEN ,"Suspension"                  ,  String .class, 230,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.suspension                )),
+					new ColumnID("TrSuspenDmg","Suspension Damage"           ,  Long   .class, 115, CENTER,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.suspensionDamage          )),
+					new ColumnID(ID_TR_TIRES  ,"Tires"                       ,  String .class, 115,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.tires                     )),
+					new ColumnID(ID_TR_RIMS   ,"Rims"                        ,  String .class,  70,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.rims                      )),
+					new ColumnID(ID_TR_WHEELS ,"Wheels"                      ,  String .class, 180,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.wheels                    )),
+					new ColumnID("TrWheelReps","Wheel Repairs"               ,  Long   .class,  80, CENTER,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.wheelRepairs              )),
+					new ColumnID("TrWheelsScl","Wheels Scale"                ,  Double .class,  75,   null,   "%1.3f", false, GET.get(row->row.truck, t->t.truckDesc(), td->td.wheelsScale               )),
+					new ColumnID("TrWheelsSze","Wheels Size"                 ,  Integer.class,  75,   null,    "%d\"", false, GET.get(row->row.truck, t->t.truckDesc(), td->CompatibleWheel.computeSize_inch(td.wheelsScale))),
+					new ColumnID("TrWheelsDmg","Wheels Damage"               ,  String .class, 170,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.wheelsDamage    , arr->SaveGameDataPanel.toString(arr))),
+					new ColumnID("TrWheelsSHt","Wheels Susp. Height"         ,  String .class, 150,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.wheelsSuspHeight, arr->SaveGameDataPanel.toString(arr, "%1.3f"))),
+					new ColumnID(ID_TR_WINCH  ,"Winch"                       ,  String .class, 140,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.winch                     )),
+					new ColumnID("TrTruckCRC" ,"<truckCRC>"                  ,  Long   .class,  75,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.truckCRC                  )),
+					new ColumnID("TrPhantomMd","<phantomMode>"               ,  Long   .class, 100,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.phantomMode               )),
+					new ColumnID("TrTrailGlob","<trailerGlobalId>"           ,  String .class, 100,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.trailerGlobalId           )),
+					new ColumnID("TrItmfObjId","<itemForObjectiveId>"        ,  String .class, 100,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.itemForObjectiveId        )),
+					new ColumnID("TrGlobalID" ,"<globalId>"                  ,  String .class, 250,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.globalId                  )),
+					new ColumnID("TrID"       ,"<id>"                        ,  String .class,  50,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.id                        )),
+					new ColumnID("TrRMapID"   ,"<retainedMapId>"             ,  String .class, 100,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.retainedMap, MapIndex::originalMapID)),
+					new ColumnID("TrInvalid"  ,"<isInvalid>"                 ,  Boolean.class,  70,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.isInvalid                 )),
+					new ColumnID("TrPacked"   ,"<isPacked>"                  ,  Boolean.class,  70,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.isPacked                  )),
+					new ColumnID("TrUnlocked" ,"<isUnlocked>"                ,  Boolean.class,  80,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.isUnlocked                )),
+					new ColumnID("TrFreezed"  ,"<isFreezed>"                 ,  Boolean.class,  80,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.isFreezedByObjective      )),
+					new ColumnID("TrInstDefAd","<needToInstallDefaultAddons>",  Boolean.class, 150,   null,      null, false, GET.get(row->row.truck, t->t.truckDesc(), td->td.needToInstallDefaultAddons)),
 			});
 			data = null;
 			clickedRow = null;
@@ -577,7 +578,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				this.displayedTruck = displayedTruck;
 				table.repaint();
 			});
-			coloring.addBackgroundRowColorizer(row -> row.truckDesc == displayedTruck ? BG_COLOR__DISPLAYED_TRUCK : null);
+			coloring.addBackgroundRowColorizer(row -> row.truck.truckDesc() == displayedTruck ? BG_COLOR__DISPLAYED_TRUCK : null);
 			coloring.setForegroundColumnColoring(false, ID_TR_ENGINE, String.class, (row,value) -> isDefaultAddon(row, ID_TR_ENGINE, value) ? FG_COLOR__DEFAULT_ADDON : null);
 			coloring.setForegroundColumnColoring(false, ID_TR_GEARBX, String.class, (row,value) -> isDefaultAddon(row, ID_TR_GEARBX, value) ? FG_COLOR__DEFAULT_ADDON : null);
 			coloring.setForegroundColumnColoring(false, ID_TR_SUSPEN, String.class, (row,value) -> isDefaultAddon(row, ID_TR_SUSPEN, value) ? FG_COLOR__DEFAULT_ADDON : null);
@@ -592,7 +593,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			if (data==null || value==null || row==null)
 				return false;
 			
-			String truckID = row.truckDesc.type;
+			String truckID = row.truck.truckDesc().type;
 			Truck truck = data.trucks.get(truckID);
 			if (truck==null)
 				return false;
@@ -632,8 +633,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		{
 			if (data==null) return null;
 			if (row==null) return null;
-			if (row.truckDesc==null) return null;
-			return data.trucks.get(row.truckDesc.type);
+			if (row.truck.truckDesc()==null) return null;
+			return data.trucks.get(row.truck.truckDesc().type);
 		}
 	
 		private static <ResultType> ResultType getTruckValue(Row row, Data data, Function<Truck,ResultType> getValue)
@@ -652,29 +653,15 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 	
 		void setData(SaveGame saveGame)
 		{
-			Vector<Row> rows = new Vector<>();
+			List<Row> rows;
 			if (saveGame!=null)
-			{
-				for (MapInfos map : saveGame.maps.values())
-				{
-					Garage garage = map.garage;
-					if (garage!=null)
-						for (int i=0; i<garage.garageSlots.length; i++)
-						{
-							TruckDesc truckDesc = garage.garageSlots[i];
-							if (truckDesc!=null)
-								rows.add(Row.createGarageTruck(truckDesc, map.map, garage.name, i));
-						}
-					
-				}
-				
-				if (saveGame.ppd!=null)
-					for (int i=0; i<saveGame.ppd.trucksInWarehouse.size(); i++)
-					{
-						TruckDesc truckDesc = saveGame.ppd.trucksInWarehouse.get(i);
-						rows.add(Row.createWarehouseTruck(truckDesc, i));
-					}
-			}
+				rows = saveGame.storedTrucks.trucks
+							.stream()
+							.map(Row::createTruck)
+							.toList();
+			else
+				rows = new ArrayList<>();
+			
 			setRowData(rows);
 			infoPanel.setData(null,null);
 		}
@@ -685,7 +672,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		protected void setContentForRow(int rowIndex, Row row)
 		{
 			if (row!=null)
-				infoPanel.setData(getTruck(row, data), row.truckDesc);
+				infoPanel.setData(getTruck(row, data), row.truck.truckDesc());
 			else
 				infoPanel.setData(null,null);
 		}
@@ -697,7 +684,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		@Override public Boolean          putOutputInScrollPane() { return false; }
 		@Override public SplitOrientation getSplitOrientation  () { return SplitOrientation.VERTICAL_SPLIT; }
 
-		private record Row(String location, MapIndex map, TruckDesc truckDesc, AddonValues addonValues)
+		private record Row(String location, StoredTruck truck, AddonValues addonValues)
 		{
 			private record AddonValues (
 					double  fuel,
@@ -705,38 +692,43 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					long    repairs,
 					long    wheelRepairs
 			) {
-				private static AddonValues create(Vector <InstalledAddon> addons)
+				private static AddonValues create(StoredTruck truck)
 				{
 					double  fuel = 0;
 					double  water = 0;
 					long    repairs = 0;
 					long    wheelRepairs = 0;
-					for (InstalledAddon addon : addons)
-					{
-						fuel         += addon.fuel;
-						water        += addon.water!=null ? addon.water : 0;
-						repairs      += addon.repairs;
-						wheelRepairs += addon.wheelRepairs;
-					}
+					
+					if (truck!=null && truck.truckDesc()!=null && truck.truckDesc().addons!=null)
+						for (InstalledAddon addon : truck.truckDesc().addons)
+						{
+							fuel         += addon.fuel;
+							water        += addon.water!=null ? addon.water : 0;
+							repairs      += addon.repairs;
+							wheelRepairs += addon.wheelRepairs;
+						}
+					
 					return new AddonValues(fuel, water, repairs, wheelRepairs);
 				}
 			}
 			
-			private static Row createTruck(String name, MapIndex map, TruckDesc truckDesc)
+			private static Row createTruck(StoredTruck truck)
 			{
-				return new Row(name, map, truckDesc, AddonValues.create(truckDesc.addons));
-			}
-
-			static Row createGarageTruck(TruckDesc truckDesc, MapIndex map, String garageName, int slotIndex)
-			{
-				String name = String.format("Garage \"%s\" Slot %d", garageName, slotIndex+1);
-				return createTruck(name, map, truckDesc);
-			}
-	
-			static Row createWarehouseTruck(TruckDesc truckDesc, int index)
-			{
-				String name = String.format("Warehouse Slot %02d", index+1);
-				return createTruck(name, truckDesc.retainedMap, truckDesc);
+				String location = truck.isGarageTruck()
+						? "Garage %s Slot %s".formatted(
+								truck.garage()==null || truck.garage().name==null
+									? "<null>"
+									: "\"%s\"".formatted( truck.garage().name ),
+								truck.garageSlotIndex()==null
+									? "<null>"
+									: truck.garageSlotIndex()
+						)
+						: "Warehouse Slot %s".formatted(
+								truck.warehouseIndex()==null
+									? "<null>"
+									: "%02d".formatted( truck.warehouseIndex() )
+						);
+				return new Row(location, truck, AddonValues.create(truck));
 			}
 		}
 
@@ -758,8 +750,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			contextMenu.addSeparator();
 			
 			JMenuItem miShowTruckInTruckTable = contextMenu.add(SnowRunner.createMenuItem("Show truck in truck table", true, e->{
-				if (clickedRow!=null)
-					gfds.controllers.storedTruckDisplayers.setDisplayedTruck(clickedRow.truckDesc);
+				if (clickedRow!=null && clickedRow.truck!=null && clickedRow.truck.truckDesc()!=null)
+					gfds.controllers.storedTruckDisplayers.setDisplayedTruck(clickedRow.truck.truckDesc());
 			}));
 			JMenuItem miClearTruckDisplay = contextMenu.add(SnowRunner.createMenuItem("Clear truck display", true, e->{
 				if (displayedTruck!=null)
@@ -773,9 +765,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				miClearTruckDisplay.setEnabled(displayedTruck!=null);
 				miShowTruckInTruckTable.setEnabled(clickedRow!=null);
 				miShowTruckInTruckTable.setText(
-					clickedRow == null
-						? "Show truck in truck table"
-						: String.format("Show \"%s\" in truck table", TruckName.getTruckLabel(clickedRow.truckDesc.type, data, language))
+						clickedRow!=null && clickedRow.truck!=null && clickedRow.truck.truckDesc()!=null
+							? String.format("Show \"%s\" in truck table", TruckName.getTruckLabel(clickedRow.truck.truckDesc().type, data, language))
+							: "Show truck in truck table"
 				);
 			});
 		}

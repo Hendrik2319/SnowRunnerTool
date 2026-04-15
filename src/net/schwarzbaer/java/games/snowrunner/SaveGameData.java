@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -360,6 +361,7 @@ public class SaveGameData {
 		public final HashMap<String, Boolean> tutorialStates;
 		public final HashMap<String, String> forcedModelStates;
 		public final GameStat gameStat;
+		public final StoredTrucks storedTrucks;
 
 		private SaveGame(String fileName, String indexStr, JSON_Data.Value<NV, V> data) throws TraverseException {
 			if (data==null)
@@ -519,6 +521,8 @@ public class SaveGameData {
 			Objective.parseObjectiveStates                   (objectives, objectiveStates                   , debugOutputPrefixStr+".objectiveStates"                   );
 			Objective.parseSavedCargoNeedToBeRemovedOnRestart(objectives, savedCargoNeedToBeRemovedOnRestart, debugOutputPrefixStr+".savedCargoNeedToBeRemovedOnRestart");
 			Objective.parseViewedUnactivatedObjectives       (objectives, viewedUnactivatedObjectives       , debugOutputPrefixStr+".viewedUnactivatedObjectives"       );
+			
+			storedTrucks = new StoredTrucks(maps,ppd);
 		}
 
 		public String getGameTimeStr()
@@ -2424,6 +2428,69 @@ public class SaveGameData {
 				}
 			}
 		}
-	}
+		
+		public static class StoredTrucks
+		{
+			public final Map<MapIndex,List<StoredTruck>> trucksInMaps;
+			public final Map<String,List<StoredTruck>> trucksByID;
+			public final List<StoredTruck> trucks;
+			
+			private StoredTrucks(HashMap<String, MapInfos> maps, PersistentProfileData ppd)
+			{
+				trucksInMaps = new HashMap<>();
+				trucksByID = new HashMap<>();
+				trucks = new Vector<>();
+				
+				if (maps!=null)
+					for (MapInfos map : maps.values())
+					{
+						Garage garage = map.garage;
+						if (garage!=null)
+							for (int i=0; i<garage.garageSlots.length; i++)
+							{
+								TruckDesc truckDesc = garage.garageSlots[i];
+								if (truckDesc!=null)
+									addTruck(trucks, trucksByID, trucksInMaps, StoredTruck.createGarageTruck(truckDesc, map, garage, i));
+							}
+						
+					}
+				
+				if (ppd!=null)
+					for (int i=0; i<ppd.trucksInWarehouse.size(); i++)
+					{
+						TruckDesc truckDesc = ppd.trucksInWarehouse.get(i);
+						addTruck(trucks, trucksByID, trucksInMaps, StoredTruck.createWarehouseTruck(truckDesc, i));
+					}
+			}
 
+			private static void addTruck(List<StoredTruck> trucks, Map<String, List<StoredTruck>> trucksByID, Map<MapIndex, List<StoredTruck>> trucksInMaps, StoredTruck truck)
+			{
+				if (truck==null)
+					return;
+				
+				if (trucks!=null)
+					trucks.add(truck);
+				
+				String truckID = truck.truckDesc.type;
+				if (trucksByID!=null && truckID!=null)
+					trucksByID.computeIfAbsent(truckID, k->new Vector<>()).add(truck);
+				
+				MapIndex mapIndex = truck.mapIndex;
+				if (trucksInMaps!=null && mapIndex!=null)
+					trucksInMaps.computeIfAbsent(mapIndex, k->new Vector<>()).add(truck);
+			}
+
+			public record StoredTruck(TruckDesc truckDesc, MapIndex mapIndex, boolean isGarageTruck, MapInfos map, Garage garage, Integer garageSlotIndex, Integer warehouseIndex)
+			{
+				private static StoredTruck createGarageTruck(TruckDesc truckDesc, MapInfos map, Garage garage, int garageSlotIndex)
+				{
+					return new StoredTruck(truckDesc, map.map, true, map, garage, garageSlotIndex, null);
+				}
+				private static StoredTruck createWarehouseTruck(TruckDesc truckDesc, int warehouseIndex)
+				{
+					return new StoredTruck(truckDesc, truckDesc.retainedMap, false, null, null, null, warehouseIndex);
+				}
+			}
+		}
+	}
 }

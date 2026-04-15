@@ -3711,6 +3711,11 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			return obj -> getIfNotNull(getIfNotNull(getRowValue(obj, getValue1), getValue2), getValue3);
 		}
 		
+		<InterValueType1, InterValueType2, InterValueType3, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType1> getValue1, Function<InterValueType1, InterValueType2> getValue2, Function<InterValueType2, InterValueType3> getValue3, Function<InterValueType3, ValueType> getValue4)
+		{
+			return obj -> getIfNotNull(getIfNotNull(getIfNotNull(getRowValue(obj, getValue1), getValue2), getValue3), getValue4);
+		}
+		
 		<InterValueType> Function<Object,String> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, Boolean> getValue2, String trueStr, String falseStr)
 		{
 			return obj -> bool2string(getIfNotNull(getRowValue(obj, getValue1), getValue2), trueStr, falseStr);

@@ -40,7 +40,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
-import javax.swing.SwingUtilities;
 
 import net.schwarzbaer.java.games.snowrunner.Data;
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
@@ -55,6 +54,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.Data.WheelsDef;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.StoredTrucks.StoredTruck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
@@ -246,6 +246,34 @@ public class TruckPanelProto implements Finalizable {
 		if (saveGame!=null) {
 			outTop.add(0, "");
 			outTop.add(0, "Owned by Player", saveGame.getOwnedTruckCount(truck));
+			List<StoredTruck> storedTrucks = saveGame.storedTrucks.trucksByID.get(truck.id);
+			if (storedTrucks!=null && !storedTrucks.isEmpty())
+			{
+				outTop.add(0, "Stored", storedTrucks.size());
+				for (StoredTruck truck : storedTrucks)
+				{
+					String defMapName = "Map <"+truck.mapIndex().originalMapID()+">";
+					String mapName = language==null ? defMapName : language.regionNames.getName(truck.mapIndex(), ()->defMapName);
+					
+					String location = truck.isGarageTruck()
+							? "Garage %s -> Slot %s".formatted(
+									truck.garage()==null || truck.garage().name==null
+										? "<null>"
+										: "\"%s\"".formatted( truck.garage().name ),
+									truck.garageSlotIndex()==null
+										? "<null>"
+										: truck.garageSlotIndex()
+							)
+							: "Warehouse Slot %s".formatted(
+									truck.warehouseIndex()==null
+										? "<null>"
+										: "%02d".formatted( truck.warehouseIndex() )
+							);
+					
+					outTop.add(1, "%s -> %s".formatted( mapName, location ));
+				}
+				
+			}
 		}
 		
 		
@@ -272,9 +300,11 @@ public class TruckPanelProto implements Finalizable {
 			outTop.add(0, "DefaultAddons", "%s", SnowRunner.joinTruckAddonNames(truck.defaultAddons, addonCategories, language));
 		}
 		
-		ScrollPosition scrollPos = ScrollPosition.getVertical(truckInfoTextAreaScrollPane);
-		truckInfoTextArea.setText(outTop.generateOutput());
-		if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(truckInfoTextAreaScrollPane));
+		ScrollPosition.keepScrollPos(
+				truckInfoTextAreaScrollPane,
+				ScrollPosition.ScrollBarType.Vertical,
+				() -> truckInfoTextArea.setText(outTop.generateOutput())
+		);
 	}
 
 	static class AddonCategoriesPanel extends CombinedTableTabPaneTextPanePanel implements Finalizable {
