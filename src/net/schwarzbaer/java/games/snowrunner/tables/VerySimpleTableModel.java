@@ -785,10 +785,37 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	
 	public void addExtraBoolColumn(String title, List<RowType> rows)
 	{
-		extraBoolColumns.add(new ExtraBoolColumn(title, rows));
+		addExtraBoolColumn(new ExtraBoolColumn(title, rows));
+	}
+	
+	private void addExtraBoolColumn(ExtraBoolColumn extraBoolColumn)
+	{
+		extraBoolColumns.add(extraBoolColumn);
 		updateColumnArray();
 		fireTableStructureUpdate();
 		reconfigureAfterTableStructureUpdate();
+	}
+	
+	public void addPredicateExtraBoolColumn(PredicateExtraBoolColumn extraBoolColumn)
+	{
+		addExtraBoolColumn(extraBoolColumn);
+	}
+	public void removePredicateExtraBoolColumn(Predicate<PredicateExtraBoolColumn> shouldBeRemoved)
+	{
+		boolean removed = extraBoolColumns.removeIf(column -> column instanceof PredicateExtraBoolColumn column2 ? shouldBeRemoved.test(column2) : false);
+		if (removed)
+		{
+			updateColumnArray();
+			fireTableStructureUpdate();
+			reconfigureAfterTableStructureUpdate();
+		}
+	}
+	public boolean hasPredicateExtraBoolColumn(Predicate<PredicateExtraBoolColumn> test)
+	{
+		for (ExtraBoolColumn column : extraBoolColumns)
+			if (column instanceof PredicateExtraBoolColumn column2 && test.test(column2))
+				return true;
+		return false;
 	}
 	
 	private void updateExtraBoolColumnsMenu()
@@ -3742,7 +3769,7 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 	{
 		private static final UniqueStringID ID_POOL = new UniqueStringID(5);
 		
-		enum Source { RowFilteringPreset, RowList }
+		enum Source { RowFilteringPreset, RowList, Predicate }
 		
 		private final Source source;
 		private final RowFiltering.Preset preset;
@@ -3760,6 +3787,14 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 		{
 			super(createID(), title, Boolean.class, 75, null, null, false, rows::contains);
 			source = Source.RowList;
+			this.presetName = null;
+			this.preset     = null;
+		}
+		
+		ExtraBoolColumn(String title, TableModelBasedBuilder<Boolean> getValue)
+		{
+			super(createID(), title, Boolean.class, 75, null, null, false, getValue);
+			source = Source.Predicate;
 			this.presetName = null;
 			this.preset     = null;
 		}
@@ -3786,6 +3821,14 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 				}
 			}
 			return true;
+		}
+	}
+	
+	public static class PredicateExtraBoolColumn extends ExtraBoolColumn
+	{
+		public PredicateExtraBoolColumn(String title, TableModelBasedBuilder<Boolean> getValue)
+		{
+			super(title, getValue);
 		}
 	}
 	

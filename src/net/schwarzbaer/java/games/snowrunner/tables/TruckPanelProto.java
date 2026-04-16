@@ -262,12 +262,12 @@ public class TruckPanelProto implements Finalizable {
 										: "\"%s\"".formatted( truck.garage().name ),
 									truck.garageSlotIndex()==null
 										? "<null>"
-										: truck.garageSlotIndex()
+										: truck.garageSlotIndex()+1
 							)
 							: "Warehouse Slot %s".formatted(
 									truck.warehouseIndex()==null
 										? "<null>"
-										: "%02d".formatted( truck.warehouseIndex() )
+										: "%02d".formatted( truck.warehouseIndex()+1 )
 							);
 					
 					outTop.add(1, "%s -> %s".formatted( mapName, location ));

@@ -499,6 +499,22 @@ public class Data {
 		ZipEntryTreeNode[] languageNodes = zipRoot.getSubFiles("[strings]", isSTR);
 		readEntries(zipFile, languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
 	}
+	
+	private static int compareNullsLast(String v1, String v2)
+	{
+		return compareNullsLast(v1,v2, String::compareTo);
+	}
+	private static int compareNullsLast(Integer v1, Integer v2)
+	{
+		return compareNullsLast(v1,v2, Integer::compareTo);
+	}
+	private static <V> int compareNullsLast(V v1, V v2, BiFunction<V,V,Integer> compareValues)
+	{
+		if (v1==null && v2==null) return 0;
+		if (v1==null) return +1;
+		if (v2==null) return -1;
+		return compareValues.apply(v1,v2);
+	}
 
 	public static class Language {
 		public  String name;
@@ -558,13 +574,29 @@ public class Data {
 		}
 	}
 	
-	public record MapIndex(String country, Integer region, Integer map, String originalMapID, String extra)
+	public record MapIndex(String country, Integer region, Integer map, String originalMapID, String extra) implements Comparable<MapIndex>
 	{
 		private static final String[] countries = new String[] {"US","RU"};
 		
 		public boolean isMap    () { return country!=null && region!=null && map!=null; }
 		public boolean isRegion () { return country!=null && region!=null && map==null; }
 		public boolean isCountry() { return country!=null && region==null && map==null; }
+		
+		public MapIndex toRegion () { return new MapIndex(country, region, null, null, null); }
+		public MapIndex toCountry() { return new MapIndex(country,   null, null, null, null); }
+		
+		@Override
+		public int compareTo(MapIndex other)
+		{
+			if (other==null) return -1;
+			int cmp;
+			if ( (cmp=compareNullsLast(this.country      , other.country      ))!=0 ) return cmp;
+			if ( (cmp=compareNullsLast(this.region       , other.region       ))!=0 ) return cmp;
+			if ( (cmp=compareNullsLast(this.map          , other.map          ))!=0 ) return cmp;
+			if ( (cmp=compareNullsLast(this.extra        , other.extra        ))!=0 ) return cmp;
+			if ( (cmp=compareNullsLast(this.originalMapID, other.originalMapID))!=0 ) return cmp;
+			return 0;
+		}
 		
 		public static MapIndex parse(String mapID)
 		{

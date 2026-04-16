@@ -6,12 +6,18 @@ import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Vector;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
@@ -19,12 +25,14 @@ import javax.swing.SwingUtilities;
 
 import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.Data;
+import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck.CompatibleWheel;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckTire;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
+import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame.StoredTrucks.StoredTruck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.SpecialTruckAddons;
@@ -61,6 +69,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 	private Truck clickedItem;
 	private Function<Truck, Color> colorizeTrucksByTrailers;
 	private SaveGame.TruckDesc displayedTruck;
+	private ExtraBoolColumnsMenuForStoredTrucks extraBoolColumnsMenuForStoredTrucks;
 
 	// Column Widths: [160, 80, 170, 140, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 60, 90, 90, 90, 90, 105, 90, 95, 95, 110, 80, 235, 125, 95, 80, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
@@ -132,6 +141,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		this.saveGame = null;
 		colorizeTrucksByTrailers = null;
 		displayedTruck = gfds.controllers.storedTruckDisplayers.getDisplayedTruck();
+		extraBoolColumnsMenuForStoredTrucks = null;
 		
 		connectToGlobalData(true, data->{
 			this.data = data;
@@ -177,6 +187,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		finalizer.addSaveGameListener(saveGame_->{
 			this.saveGame = saveGame_;
 			table.repaint();
+			if (extraBoolColumnsMenuForStoredTrucks!=null)
+				extraBoolColumnsMenuForStoredTrucks.rebuild();
 		});
 		finalizer.addSpecialTruckAddonsListener((list,change)->{
 			String id = null;
@@ -195,7 +207,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 				fireTableColumnUpdate(getColumnIndexByIdFromVisible(id));
 		});
 		
-		finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
+		finalizer.addDLCListener(() -> {
+			fireTableColumnUpdate(ID_DLC);
+			if (extraBoolColumnsMenuForStoredTrucks!=null)
+				extraBoolColumnsMenuForStoredTrucks.rebuild();
+		});
 		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
 		finalizer.addAddBoolColumnToTrucksListener(this::addExtraBoolColumn);
 		
@@ -457,6 +473,11 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		
 		contextMenu.addSeparator();
 		
+		extraBoolColumnsMenuForStoredTrucks = new ExtraBoolColumnsMenuForStoredTrucks("Extra Bool Columns (Stored in Region)");
+		contextMenu.add(extraBoolColumnsMenuForStoredTrucks);
+		
+		contextMenu.addSeparator();
+		
 		contextMenu.add(SnowRunner.createMenuItem("Filter by Trailer -> context menu of any \"Trailers\" table", true, e->{}));
 		contextMenu.add(SnowRunner.createMenuItem("Reset Trailer Filter", true, e->{
 			gfds.controllers.filterTrucksByTrailersListeners.setFilter(null);
@@ -528,6 +549,8 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 			
 			//miEnableOwnedTrucksHighlighting.setSelected(enableOwnedTrucksHighlighting);
 			//miEnableDLCTrucksHighlighting  .setSelected(enableDLCTrucksHighlighting  );
+			
+			extraBoolColumnsMenuForStoredTrucks.update();
 		});
 		
 		//   why here?  ->  moved into constructor
@@ -537,5 +560,120 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		//		TruckTableModel.this.truckToDLCAssignments = truckToDLCAssignments;
 		//	}
 		//});
+	}
+	
+	private class ExtraBoolColumnsMenuForStoredTrucks extends JMenu
+	{
+		private static final long serialVersionUID = -7313034647458907217L;
+		private final Map<MapIndex,JCheckBoxMenuItem> menuItems;
+
+		ExtraBoolColumnsMenuForStoredTrucks(String title)
+		{
+			super(title);
+			menuItems = new HashMap<>();
+			rebuild();
+		}
+
+		private void update()
+		{
+			menuItems.forEach((region,mi) -> mi.setSelected(hasColumn(region)));
+		}
+
+		private void rebuild()
+		{
+			removeAll();
+			menuItems.clear();
+			
+			if (saveGame==null || saveGame.storedTrucks==null || saveGame.storedTrucks.trucksInMaps==null)
+				setEnabled(false);
+			
+			else
+			{
+				List<MapIndex> regions = saveGame.storedTrucks.trucksInMaps
+						.keySet()
+						.stream()
+						.map(MapIndex::toRegion)
+						.distinct().sorted().toList();
+				setEnabled(!regions.isEmpty());
+				
+				for (MapIndex region : regions)
+				{
+					String title = getRegionName(region);
+					String regionId = "%s_%02d".formatted(region.country(), region.region()).toLowerCase();
+					String dlc = gfds.dlcs.getDLC(regionId, SnowRunner.DLCs.ItemType.Region);
+					//System.out.printf("Region \"%s\" -> %s -> DLC: %s%n", title, regionId, dlc);
+					if (dlc!=null) title = "%s (%s)".formatted(title, dlc);
+					
+					boolean isSelected = hasColumn(region);
+					JCheckBoxMenuItem checkBoxMenuItem = SnowRunner.createCheckBoxMenuItem(title, isSelected, null, true, b -> {
+						if (b)
+							addPredicateExtraBoolColumn(new ExtraBoolColumnStoredTrucks(region));
+						else
+							removePredicateExtraBoolColumn(column -> isColumnForRegion(column, region));
+					});
+					menuItems.put(region, checkBoxMenuItem);
+					add(checkBoxMenuItem);
+				}
+			}
+		}
+
+		private boolean isColumnForRegion(PredicateExtraBoolColumn column_, MapIndex region)
+		{
+			if (column_ instanceof ExtraBoolColumnStoredTrucks column)
+				return column.region.equals(region);
+			return false;
+		}
+
+		private boolean hasColumn(MapIndex region)
+		{
+			return hasPredicateExtraBoolColumn(column -> isColumnForRegion(column, region));
+		}
+
+		private String getRegionName(MapIndex region)
+		{
+			String defName = "Region \"%s_%s\"".formatted(region.country(), region.region());
+			String name = language==null ? defName : language.regionNames.getName(region, ()->defName);
+			return name;
+		}
+		
+		private boolean isTruckStoredInRegion(Truck truck, MapIndex region)
+		{
+			if (truck==null || region==null)
+				return false;
+			if (saveGame==null || saveGame.storedTrucks==null || saveGame.storedTrucks.trucksByID==null)
+				return false;
+			
+			List<StoredTruck> storedTrucks = saveGame.storedTrucks.trucksByID.get(truck.id);
+			if (storedTrucks==null)
+				return false;
+			
+			for (StoredTruck storedTruck : storedTrucks)
+				if (isSameRegion(storedTruck.mapIndex(), region))
+					return true;
+			return false;
+		}
+		
+		private static boolean isSameRegion(MapIndex mapIndex, MapIndex region)
+		{
+			if (mapIndex==null) return false;
+			if (region==null) return false;
+			if (!Objects.equals(mapIndex.country(), region.country())) return false;
+			if (!Objects.equals(mapIndex.region (), region.region ())) return false;
+			return true;
+		}
+		
+		private class ExtraBoolColumnStoredTrucks extends PredicateExtraBoolColumn
+		{
+			private final MapIndex region;
+
+			ExtraBoolColumnStoredTrucks(MapIndex region)
+			{
+				super(
+						"Stored in %s".formatted( getRegionName(region) ),
+						GET.get((model, truck) -> isTruckStoredInRegion(truck, region))
+				);
+				this.region = region;
+			}
+		}
 	}
 }

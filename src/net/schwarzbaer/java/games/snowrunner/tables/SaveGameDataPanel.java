@@ -715,18 +715,18 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			private static Row createTruck(StoredTruck truck)
 			{
 				String location = truck.isGarageTruck()
-						? "Garage %s Slot %s".formatted(
+						? "Garage %s, Slot %s".formatted(
 								truck.garage()==null || truck.garage().name==null
 									? "<null>"
 									: "\"%s\"".formatted( truck.garage().name ),
 								truck.garageSlotIndex()==null
 									? "<null>"
-									: truck.garageSlotIndex()
+									: truck.garageSlotIndex()+1
 						)
 						: "Warehouse Slot %s".formatted(
 								truck.warehouseIndex()==null
 									? "<null>"
-									: "%02d".formatted( truck.warehouseIndex() )
+									: "%02d".formatted( truck.warehouseIndex()+1 )
 						);
 				return new Row(location, truck, AddonValues.create(truck));
 			}
