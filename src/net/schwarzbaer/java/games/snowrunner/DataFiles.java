@@ -64,9 +64,9 @@ public class DataFiles
 		if (dataFile==null)
 			throw new IllegalArgumentException();
 		
-		System.out.printf("getDataSourceForReading: %s%n", dataFile.getFile().getAbsolutePath());
-		if (dataFile.getFile().isFile())
-			return new DataSource(dataFile.getFile());
+		File file = dataFile.getFile();
+		if (file.isFile())
+			return new DataSource(file);
 		
 		return new DataSource(dataFile.getResourcePath());
 	}

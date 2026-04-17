@@ -75,6 +75,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 import net.schwarzbaer.java.games.snowrunner.Data.AddonCategories;
 import net.schwarzbaer.java.games.snowrunner.Data.Language;
+import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Trailer;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
@@ -1280,6 +1281,41 @@ public class SnowRunner {
 		public void               setDLC(String id, ItemType type, String dlc) { checkInitialized();        type.getAssignments.apply(this).put(id, dlc); }
 		public String             getDLC(String id, ItemType type            ) { checkInitialized(); return type.getAssignments.apply(this).get(id     ); }
 		public Collection<String> getIDs(           ItemType type            ) { checkInitialized(); return type.getAssignments.apply(this).keySet(); }
+		
+		public String getDLCOfTruck(Truck truck)
+		{
+			if (truck==null) return null;
+			
+			String id = truck.id;
+			
+			if (id==null) return null;
+			
+			return getDLC(id, ItemType.Truck);
+		}
+		public String getDLCOfRegion(MapIndex region)
+		{
+			if (region==null) return null;
+			
+			String id = region.originalMapID();
+			if (id==null && region.region()!=null)
+				id = "%s_%02d".formatted(region.country(), region.region()).toLowerCase();
+			
+			if (id==null) return null;
+			
+			return getDLC(id, ItemType.Region);
+		}
+		public String getDLCOfMap(MapIndex map)
+		{
+			if (map==null) return null;
+			
+			String id = map.originalMapID();
+			if (id==null && map.region()!=null && map.map()!=null)
+				id = "level_%s_%02d_%02d".formatted(map.country(), map.region(), map.map()).toLowerCase();
+			
+			if (id==null) return null;
+			
+			return getDLC(id, ItemType.Map);
+		}
 		
 		private static HashMap<String,Vector<String>> getReversedMap(HashMap<String,String> assignments)
 		{

@@ -76,7 +76,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, GET.get(t->t.id         )),
 				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, GET.get(t->t.updateLevel)),
-				new ColumnID(ID_DLC      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, GET.get(t->gfds.dlcs.getDLC(t.id, SnowRunner.DLCs.ItemType.Truck))),
+				new ColumnID(ID_DLC      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, GET.get(t->gfds.dlcs.getDLCOfTruck(t))),
 				new ColumnID( "Country"  , "Country"               ,     Truck.CountrySet.class, 140,             null, CENTER,      null, false, GET.get(t->t.gameData, gd->gd.country)),
 				new ColumnID( "Type"     , "Type"                  ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, GET.get(t->t.type)),
 				new ColumnID( "Name"     , "Name"                  ,               String.class, 160,             null,   null,      null,  true, GET.get(t->t.gameData, gd->gd.getNameStringID())),
@@ -599,8 +599,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 				for (MapIndex region : regions)
 				{
 					String title = getRegionName(region);
-					String regionId = "%s_%02d".formatted(region.country(), region.region()).toLowerCase();
-					String dlc = gfds.dlcs.getDLC(regionId, SnowRunner.DLCs.ItemType.Region);
+					String dlc = gfds.dlcs.getDLCOfRegion(region);
 					//System.out.printf("Region \"%s\" -> %s -> DLC: %s%n", title, regionId, dlc);
 					if (dlc!=null) title = "%s (%s)".formatted(title, dlc);
 					

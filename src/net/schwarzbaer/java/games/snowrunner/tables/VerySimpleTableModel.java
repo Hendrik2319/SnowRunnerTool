@@ -3683,34 +3683,47 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			this.getData = getData;
 		}
 		
-		<ValueType> ColumnID.TableModelBasedBuilder<ValueType> get(BiFunction<ModelType, RowType, ValueType> getValue)
-		{
+		<ValueType>
+		ColumnID.TableModelBasedBuilder<ValueType> get(
+				BiFunction<ModelType, RowType, ValueType> getValue
+		) {
 			return (obj,model0) -> castRowAndModel(model0, obj, getValue);
 		}
 		
-		<ValueType> ColumnID.TableModelBasedBuilder<ValueType> get(GetFunction_MLR<ModelType, RowType, ValueType> getValue)
-		{
+		<ValueType>
+		ColumnID.TableModelBasedBuilder<ValueType> get(
+				GetFunction_MLR<ModelType, RowType, ValueType> getValue
+		) {
 			return get((m,r)->getValue.get(m, m.language, r));
 		}
 		
-		<ValueType> ColumnID.TableModelBasedBuilder<ValueType> get(GetFunction_MDLR<ModelType, RowType, ValueType> getValue)
-		{
+		<ValueType>
+		ColumnID.TableModelBasedBuilder<ValueType> get(
+				GetFunction_MDLR<ModelType, RowType, ValueType> getValue
+		) {
 			if (getData==null) throw new UnsupportedOperationException();
 			return get((m,r)->getValue.get(m, getData.apply(m), m.language, r));
 		}
 		
-		<ValueType> ColumnID.VerboseTableModelBasedBuilder<ValueType> getV(GetFunction_MRT<ModelType, RowType, ValueType> getValue)
-		{
+		<ValueType>
+		ColumnID.VerboseTableModelBasedBuilder<ValueType> getV(
+				GetFunction_MRT<ModelType, RowType, ValueType> getValue
+		) {
 			return (obj,model0,textOutput) -> castRowAndModel(model0, obj, (m,r)->getValue.get(m,r,textOutput));
 		}
 		
-		ColumnID.LanguageBasedStringBuilder getL(GetFunction_LR<RowType, String> getValue)
-		{
+		ColumnID.LanguageBasedStringBuilder getL(
+				GetFunction_LR<RowType, String> getValue
+		) {
 			return (obj,lang) -> getRowValue(obj, row -> getValue.get(lang, row));
 		}
 		
-		<ValueType> ValueType castRowAndModel(VerySimpleTableModel<?> model0, Object obj, BiFunction<ModelType,RowType,ValueType> getValue)
-		{
+		<ValueType>
+		ValueType castRowAndModel(
+				VerySimpleTableModel<?> model0,
+				Object obj,
+				BiFunction<ModelType,RowType,ValueType> getValue
+		) {
 			if (!rowClass  .isInstance(obj   )) return null;
 			if (!modelClass.isInstance(model0)) return null;
 			RowType   row   = rowClass  .cast(obj   );
@@ -3718,33 +3731,53 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			return getValue.apply(model, row);
 		}
 		
-		Function<Object,String> get(Function<RowType, Boolean> getValue, String trueStr, String falseStr)
-		{
+		Function<Object,String> get(
+				Function<RowType, Boolean> getValue,
+				String trueStr, String falseStr
+		) {
 			return obj -> bool2string(getRowValue(obj, getValue), trueStr, falseStr);
 		}
 		
-		<ValueType> Function<Object,ValueType> get(Function<RowType, ValueType> getValue)
-		{
+		<ValueType>
+		Function<Object,ValueType> get(
+				Function<RowType, ValueType> getValue
+		) {
 			return obj -> getRowValue(obj, getValue);
 		}
 	
-		<InterValueType, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, ValueType> getValue2)
-		{
+		<InterValueType, ValueType>
+		Function<Object,ValueType> get(
+				Function<RowType       , InterValueType> getValue1,
+				Function<InterValueType, ValueType     > getValue2
+		) {
 			return obj -> getIfNotNull(getRowValue(obj, getValue1), getValue2);
 		}
 		
-		<InterValueType1, InterValueType2, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType1> getValue1, Function<InterValueType1, InterValueType2> getValue2, Function<InterValueType2, ValueType> getValue3)
-		{
+		<InterValueType1, InterValueType2, ValueType>
+		Function<Object,ValueType> get(
+				Function<RowType        , InterValueType1> getValue1,
+				Function<InterValueType1, InterValueType2> getValue2,
+				Function<InterValueType2, ValueType      > getValue3
+		) {
 			return obj -> getIfNotNull(getIfNotNull(getRowValue(obj, getValue1), getValue2), getValue3);
 		}
 		
-		<InterValueType1, InterValueType2, InterValueType3, ValueType> Function<Object,ValueType> get(Function<RowType, InterValueType1> getValue1, Function<InterValueType1, InterValueType2> getValue2, Function<InterValueType2, InterValueType3> getValue3, Function<InterValueType3, ValueType> getValue4)
-		{
+		<InterValueType1, InterValueType2, InterValueType3, ValueType>
+		Function<Object,ValueType> get(
+				Function<RowType        , InterValueType1> getValue1,
+				Function<InterValueType1, InterValueType2> getValue2,
+				Function<InterValueType2, InterValueType3> getValue3,
+				Function<InterValueType3, ValueType      > getValue4
+		) {
 			return obj -> getIfNotNull(getIfNotNull(getIfNotNull(getRowValue(obj, getValue1), getValue2), getValue3), getValue4);
 		}
 		
-		<InterValueType> Function<Object,String> get(Function<RowType, InterValueType> getValue1, Function<InterValueType, Boolean> getValue2, String trueStr, String falseStr)
-		{
+		<InterValueType>
+		Function<Object,String> get(
+				Function<RowType       , InterValueType> getValue1,
+				Function<InterValueType, Boolean       > getValue2,
+				String trueStr, String falseStr
+		) {
 			return obj -> bool2string(getIfNotNull(getRowValue(obj, getValue1), getValue2), trueStr, falseStr);
 		}
 
