@@ -11,6 +11,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -907,6 +908,14 @@ public class Data {
 		if ("true" .equalsIgnoreCase(str)) return true;
 		if ("false".equalsIgnoreCase(str)) return false;
 		return defaultValue;
+	}
+
+	private static <ValueType> List<ValueType> parseArray(GenericXmlNode[] nodes, Function<GenericXmlNode,ValueType> constructor)
+	{
+		List<ValueType> values = new ArrayList<>();
+		for (GenericXmlNode node : nodes)
+			values.add(constructor.apply(node));
+		return values;
 	}
 
 	private static String getAttribute(GenericXmlNode[] nodes, String key) {
@@ -2196,51 +2205,94 @@ public class Data {
 		public final Float fuelConsumption;
 		public final Float awdConsumptionModifier;
 		public final Float idleFuelModifier;
+		public final Float damageConsumptionModifier;
 		public final boolean existsHighGear;
 		public final boolean existsLowerGear;
 		public final boolean existsLowerMinusGear;
 		public final boolean existsLowerPlusGear;
 		public final boolean isManualLowGear;
+		public final GearValues[] gears;
+		public final GearValues[] highGears;
+		public final GearValues[] reverseGears;
 
 		Gearbox(String setName, GenericXmlNode node, String filePath) {
 			super(setName, node, "Gearbox", filePath);
 			
-			//node.attributes.forEach((key,value)->{
-			//	unexpectedValues.add("[VariantSetInstance] <Gearbox ####=\"...\">", key);
-			//});
-			//   [VariantSetInstance] <Gearbox ####="...">
-			//      AWDConsumptionModifier
-			//      CriticalDamageThreshold
-			//      DamageCapacity
-			//      DamagedConsumptionModifier
-			//      FuelConsumption
-			//      IdleFuelModifier
-			//      MaxBreakFreq
-			//      MinBreakFreq
-			//      Name
-			damageCapacity         = parseInt  ( node.attributes.get("DamageCapacity") );
-			fuelConsumption        = parseFloat( node.attributes.get("FuelConsumption") );
-			awdConsumptionModifier = parseFloat( node.attributes.get("AWDConsumptionModifier") );
-			idleFuelModifier       = parseFloat( node.attributes.get("IdleFuelModifier") );
+			//scanNode(10, node, "[%s]".formatted(SnowRunner.getShortCanonicalName(Gearbox.class)), "Gearbox");
+			/*
+			   [Data.Gearbox] <Gearbox ####="...">
+			   *  AWDConsumptionModifier
+			      CriticalDamageThreshold
+			   *  DamageCapacity
+			   *  DamagedConsumptionModifier
+			   *  FuelConsumption
+			   *  IdleFuelModifier
+			      MaxBreakFreq
+			      MinBreakFreq
+			  TC  Name
+  			 */
+			damageCapacity            = parseInt  ( node.attributes.get("DamageCapacity") );
+			fuelConsumption           = parseFloat( node.attributes.get("FuelConsumption") );
+			awdConsumptionModifier    = parseFloat( node.attributes.get("AWDConsumptionModifier") );
+			idleFuelModifier          = parseFloat( node.attributes.get("IdleFuelModifier") );
+			damageConsumptionModifier = parseFloat( node.attributes.get("DamagedConsumptionModifier") );
 			
+			/*
+			   [Data.Gearbox] <Gearbox> <GameData> <####>
+			      GearboxParams
+			      UiDesc
+			   [Data.Gearbox] <Gearbox> <GameData> <GearboxParams ####="...">
+			      IsHighGearExists
+			      IsLowerGearExists
+			      IsLowerMinusGearExists
+			      IsLowerPlusGearExists
+			      IsManualLowGear
+			 */
 			GenericXmlNode paramsNode = gameDataNode.getNode("GameData", "GearboxParams");
-			//if (paramsNode!=null)
-			//	paramsNode.attributes.forEach((key,value)->{
-			//		unexpectedValues.add("[VariantSetInstance] <Winch> <GameData> <GearboxParams ####=\"...\">", key);
-			//	});
-			//   [VariantSetInstance] <Winch> <GameData> <GearboxParams ####="...">
-			//      IsHighGearExists
-			//      IsLowerGearExists
-			//      IsLowerMinusGearExists
-			//      IsLowerPlusGearExists
-			//      IsManualLowGear
 			existsHighGear       = parseBool ( getAttribute( paramsNode, "IsHighGearExists"), false );
 			existsLowerGear      = parseBool ( getAttribute( paramsNode, "IsLowerGearExists"), false );
 			existsLowerMinusGear = parseBool ( getAttribute( paramsNode, "IsLowerMinusGearExists"), false );
 			existsLowerPlusGear  = parseBool ( getAttribute( paramsNode, "IsLowerPlusGearExists"), false );
 			isManualLowGear      = parseBool ( getAttribute( paramsNode, "IsManualLowGear"), false );
+			
+			/*
+			   [Data.Gearbox] <Gearbox> <####>
+			      GameData
+			      Gear
+			      HighGear
+			      ReverseGear
+			   [Data.Gearbox] <Gearbox> <Gear ####="...">
+			      AngVel
+			      FuelModifier
+			   [Data.Gearbox] <Gearbox> <HighGear ####="...">
+			      AngVel
+			      FuelModifier
+			   [Data.Gearbox] <Gearbox> <ReverseGear ####="...">
+			      AngVel
+			      FuelModifier
+			 */
+			gears        = parseArray(node.getNodes("Gearbox", "Gear"       ), GearValues::new).toArray(GearValues[]::new);
+			highGears    = parseArray(node.getNodes("Gearbox", "HighGear"   ), GearValues::new).toArray(GearValues[]::new);
+			reverseGears = parseArray(node.getNodes("Gearbox", "ReverseGear"), GearValues::new).toArray(GearValues[]::new);
+			
 		}
+		
+		public static class GearValues
+		{
+			public final Float angVel;
+			public final Float fuelModifier;
 
+			GearValues(GenericXmlNode node)
+			{
+				/*
+				   [Data.Gearbox] <Gearbox> <XYZ ####="...">
+				      AngVel
+				      FuelModifier
+				 */
+				angVel       = parseFloat( node.attributes.get("AngVel"      ) );
+				fuelModifier = parseFloat( node.attributes.get("FuelModifier") );
+			}
+		}
 	}
 
 	public static class Engine extends TruckComponent {

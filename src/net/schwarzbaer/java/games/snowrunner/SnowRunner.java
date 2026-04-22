@@ -815,6 +815,15 @@ public class SnowRunner {
 			throw new IllegalArgumentException();
 		return comp;
 	}
+	
+	public static String getShortCanonicalName(Class<?> clazz)
+	{
+		String canonicalName = clazz.getCanonicalName();
+		String packageName = SnowRunner.class.getPackageName()+'.';
+		if (canonicalName.startsWith(packageName))
+			canonicalName = canonicalName.substring(packageName.length());
+		return canonicalName;
+	}
 
 	public static String[][] getNamesFromIDs(String[][] idLists, Function<String, String> getName_StringID, Language language) {
 		String[][] names = new String[idLists.length][];

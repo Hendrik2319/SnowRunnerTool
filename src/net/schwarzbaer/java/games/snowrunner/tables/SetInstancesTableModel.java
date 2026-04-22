@@ -3,9 +3,12 @@ package net.schwarzbaer.java.games.snowrunner.tables;
 import java.awt.Color;
 import java.awt.Window;
 import java.util.Comparator;
+import java.util.Locale;
+import java.util.function.BiPredicate;
 
 import net.schwarzbaer.java.games.snowrunner.Data.Engine;
 import net.schwarzbaer.java.games.snowrunner.Data.Gearbox;
+import net.schwarzbaer.java.games.snowrunner.Data.Gearbox.GearValues;
 import net.schwarzbaer.java.games.snowrunner.Data.Suspension;
 import net.schwarzbaer.java.games.snowrunner.Data.TruckComponent;
 import net.schwarzbaer.java.games.snowrunner.Data.Winch;
@@ -116,6 +119,7 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 			this(mainWindow, gfds, connectToGlobalData, saveGame, true);
 		}
 		public GearboxesTableModel(Window mainWindow, GlobalFinalDataStructures gfds, boolean connectToGlobalData, SaveGame saveGame, boolean addExtraColumnsBeforeStandard, ColumnID... extraColumns) {
+			// Column Widths: [180, 140, 110, 150, 60, 60, 120, 85, 35, 35, 35, 35, 110, 75, 65, 95, 80, 110, 170, 110, 110, 250] in ModelOrder
 			super(mainWindow, gfds, saveGame, SnowRunner.mergeArrays(extraColumns, addExtraColumnsBeforeStandard, new ColumnID[] {
 					new ColumnID("SetID"    ,"Set ID"               ,  String.class, 180,   null,      null, false, GET.get(row->row.setID)),
 					new ColumnID("ItemID"   ,"Item ID"              ,  String.class, 140,   null,      null, false, GET.get(row->row.id)),
@@ -130,11 +134,15 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 					new ColumnID("GearLP"   ,"(L+)"                 , Boolean.class,  35,   null,      null, false, GET.get(row->row.existsLowerPlusGear)),
 					new ColumnID("GearLM"   ,"(L-)"                 , Boolean.class,  35,   null,      null, false, GET.get(row->row.existsLowerMinusGear)),
 					new ColumnID("ManualLG" ,"is Manual Low Gear"   , Boolean.class, 110,   null,      null, false, GET.get(row->row.isManualLowGear)),
-					new ColumnID("DamageCap","Damage Capacity"      , Integer.class, 100,   null,    "%d R", false, GET.get(row->row.damageCapacity)),
-					new ColumnID("AWDCons"  ,"AWD Consumption Mod." ,   Float.class, 130,   null,   "%1.2f", false, GET.get(row->row.awdConsumptionModifier)),
-					new ColumnID("FuelCons" ,"Fuel Consumption"     ,   Float.class, 100,   null,   "%1.2f", false, GET.get(row->row.fuelConsumption)),
-					new ColumnID("IdleFuel" ,"Idle Fuel Modifier"   ,   Float.class, 100,   null,   "%1.2f", false, GET.get(row->row.idleFuelModifier)),
-					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 150,   null,      null,        GET.getL((lang,row)->SnowRunner.joinNames(row.usableBy, lang))),
+					new ColumnID("DamageCap","Damage Cap."          , Integer.class,  75, CENTER,    "%d R", false, GET.get(row->row.damageCapacity)),
+					new ColumnID("FuelCons" ,"Fuel Cons."           ,   Float.class,  65, CENTER,   "%1.2f", false, GET.get(row->row.fuelConsumption)),
+					new ColumnID("AWDCons"  ,"AWD Cons. Mod."       ,   Float.class,  95, CENTER,   "%1.2f", false, GET.get(row->row.awdConsumptionModifier)),
+					new ColumnID("IdleFuel" ,"Idle Fuel Mod."       ,   Float.class,  80, CENTER,   "%1.2f", false, GET.get(row->row.idleFuelModifier)),
+					new ColumnID("DamConsMd","Dam. Cons. Mod."      ,   Float.class, 110, CENTER,   "%1.2f", false, GET.get(row->row.damageConsumptionModifier)),
+					new ColumnID("Gears"    ,"Gears"                ,  String.class, 170,   null,      null, false, GET.get(row->toString(row.gears       ))),
+					new ColumnID("HighGears","High Gears"           ,  String.class, 110,   null,      null, false, GET.get(row->toString(row.highGears   ))),
+					new ColumnID("RevGears" ,"Reverse Gears"        ,  String.class, 110,   null,      null, false, GET.get(row->toString(row.reverseGears))),
+					new ColumnID("UsableBy" ,"Usable By"            ,  String.class, 250,   null,      null,        GET.getL((lang,row)->SnowRunner.joinNames(row.usableBy, lang))),
 			}));
 			if (connectToGlobalData)
 				connectToGlobalData(data->data.gearboxes.getAllInstances());
@@ -142,6 +150,41 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 		@Override boolean isComponentOfDisplayedTruck(Gearbox row)
 		{
 			return row!=null && displayedTruck!=null && row.id!=null && row.id.equals(displayedTruck.gearbox);
+		}
+		private static String toString(GearValues[] gearValues)
+		{
+			if (gearValues==null || gearValues.length==0)
+				return null;
+			
+			if (gearValues.length==1)
+				return "1x S/F:%s".formatted(toString(gearValues[0]));
+			
+			GearValues min = getMinVel(gearValues);
+			GearValues max = getMaxVel(gearValues);
+			return "%dx S/F:%s..%s".formatted(gearValues.length, toString(min), toString(max));
+		}
+		private static String toString(GearValues gearValues)
+		{
+			if (gearValues==null) return "??";
+			return String.format(Locale.ENGLISH, "%1.2f/%1.2f", gearValues.angVel, gearValues.fuelModifier);
+		}
+		
+		private static GearValues getMinVel(GearValues[] gearValues) { return getExtVel(gearValues, (v1,v2)->v1>v2); }
+		private static GearValues getMaxVel(GearValues[] gearValues) { return getExtVel(gearValues, (v1,v2)->v1<v2); }
+		private static GearValues getExtVel(GearValues[] gearValues, BiPredicate<Float, Float> compare)
+		{
+			if (gearValues==null)
+				return null;
+			
+			float value = Float.NaN;
+			GearValues returnValue = null;
+			for (GearValues gearValue : gearValues)
+				if (gearValue.angVel!=null && (Float.isNaN(value) || compare.test(value, gearValue.angVel)))
+				{
+					value = gearValue.angVel.floatValue();
+					returnValue = gearValue;
+				}
+			return returnValue;
 		}
 	}
 
