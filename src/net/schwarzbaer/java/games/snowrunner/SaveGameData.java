@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import net.schwarzbaer.java.games.snowrunner.Data.MapIndex;
 import net.schwarzbaer.java.games.snowrunner.Data.Truck;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
+import net.schwarzbaer.java.lib.gui.ProgressDialog;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Array;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Object;
@@ -69,14 +70,18 @@ public class SaveGameData {
 		saveGames = new HashMap<>();
 	}
 
-	void readData() {
+	void readData(ProgressDialog pd) {
 		rawJsonData.clear();
 		saveGames.clear();
 		KJV_FACTORY.clearStatementList();
 		optionalValues.clear();
 		
+		SnowRunner.setTitleOfTask(pd, "Read Data from SaveGame Folder: Default Files", 0, DEFAULT_FILES.size());
 		File[] defaultFiles = DEFAULT_FILES.stream().<File>map(name->new File(saveGameFolder,name)).toArray(File[]::new);
-		for (File file : defaultFiles) {
+		for (int i=0; i<defaultFiles.length; i++)
+		{
+			SnowRunner.setTaskStep(pd, i);
+			File file = defaultFiles[i];
 			JSON_Data.Value<NV, V> value = readJsonFile(file);
 			if (value!=null) rawJsonData.put(file.getName(), value);
 		}
@@ -90,7 +95,11 @@ public class SaveGameData {
 			if (!name.  endsWith(SAVEGAME_SUFFIX)) return false;
 			return true; // !name.equals(SAVEGAME_PREFIX+SAVEGAME_SUFFIX); // "CompleteSave.cfg" is also a save file 
 		});
-		for (File file : saveFiles) {
+		SnowRunner.setTitleOfTask(pd, "Read Data from SaveGame Folder: Save Files", 0, saveFiles.length);
+		for (int i=0; i<saveFiles.length; i++)
+		{
+			SnowRunner.setTaskStep(pd, i);
+			File file = saveFiles[i];
 			JSON_Data.Value<NV, V> value = readJsonFile(file);
 			if (value!=null) {
 				String fileName = file.getName();

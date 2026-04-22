@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
@@ -37,6 +38,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.TextOutput;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.Class_.Item;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode;
+import net.schwarzbaer.java.lib.gui.ProgressDialog;
 import net.schwarzbaer.java.lib.gui.ValueListOutput;
 
 public class Data {
@@ -337,17 +339,24 @@ public class Data {
 	{
 		private final HashMap<String,Truck.UDV> truckValues = new HashMap<>();
 
-		void read()
+		void read(ProgressDialog pd)
 		{
+			SnowRunner.setTitleOfIndeterminateTask(pd, "Read UserDefinedValues");
 			DataFiles.DataSource ds = DataFiles.DataFile.UserDefinedValuesFile.getDataSourceForReading();
 			System.out.printf("Read UserDefinedValues from %s ...%n", ds);
 			truckValues.clear();
 			
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8))) {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8)))
+			{
+				List<String> lines = in.lines().toList();
+				SnowRunner.setTitleOfTask(pd, "Read UserDefinedValues", 0, lines.size());
 				
 				Truck.UDV truckValues = null;
-				String line, valueStr;
-				while ( (line=in.readLine())!=null ) {
+				String valueStr;
+				for (int i=0; i<lines.size(); i++)
+				{
+					SnowRunner.setTaskStep(pd, i);
+					String line = lines.get(i);
 					
 					if (line.equals(""))
 						truckValues = null;
@@ -364,12 +373,11 @@ public class Data {
 					
 					if ( (valueStr=getLineValue(line,"DiffLock="))!=null && truckValues!=null)
 						truckValues.realDiffLock = Truck.UDV.ItemState.parse(valueStr);
-					
 				}
 				
 			} catch (FileNotFoundException e) {
 				//e.printStackTrace();
-			} catch (IOException e) {
+			} catch (IOException | UncheckedIOException e) {
 				e.printStackTrace();
 			}
 			//showValues();

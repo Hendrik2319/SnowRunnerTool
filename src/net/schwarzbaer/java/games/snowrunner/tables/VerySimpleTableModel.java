@@ -960,12 +960,9 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 
 	public static void initializePresetMaps()
 	{
-		@SuppressWarnings("unused")
-		Object x;
-		x = ColumnHiding.presets;
-		x = RowFiltering.presets;
-		x = RowColoring.coloringsMap;
-		x = RowColoring.activeColoringsStorage;
+		ColumnHiding.presets.read();
+		RowFiltering.presets.read();
+		RowColoring.coloringsMap.read();
 	}
 
 	public static void showGUIImplementationDeficits()
@@ -3402,7 +3399,6 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			this.createEmptyPreset = createEmptyPreset;
 			this.dataFile = dataFile;
 			this.presets = new HashMap<>();
-			read();
 		}
 	
 		HashMap<String, Preset> getModelPresets(String tableModelID) {

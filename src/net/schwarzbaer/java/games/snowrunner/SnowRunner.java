@@ -19,6 +19,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -173,13 +174,13 @@ public class SnowRunner {
 			wheelsQualityRanges = new WheelsQualityRanges(controllers.wheelsQualityRangesListeners);
 		}
 
-		private void initialize()
+		private void initialize(ProgressDialog pd)
 		{
-			truckImages.read();
-			userDefinedValues.read();
-			specialTruckAddons.readFromFile();
-			dlcs.loadStoredData();
-			wheelsQualityRanges.readFile();
+			truckImages.read(pd);
+			userDefinedValues.read(pd);
+			specialTruckAddons.readFromFile(pd);
+			dlcs.loadStoredData(pd);
+			wheelsQualityRanges.readFile(pd);
 		}
 	}
 
@@ -302,20 +303,52 @@ public class SnowRunner {
 	}
 	
 	private void initialize() {
-		DataFiles.checkDataFolder();
-		gfds.initialize();
-		
-		if (loadInitialPAK()) updateAfterDataChange();
-		reloadSaveGameData();
+		ProgressDialog.runWithProgressDialog(mainWindow, "Initialization", 600, pd -> {
+			setTitleOfIndeterminateTask(pd, "Check DataFolder");
+			DataFiles.checkDataFolder();
+			
+			gfds.initialize(pd);
+			
+			if (loadInitialPAK(pd)) updateAfterDataChange();
+			reloadSaveGameData(pd);
+		});
+	}
+	
+	public static void setTitleOfIndeterminateTask(ProgressDialog pd, String taskTitle)
+	{
+		SwingUtilities.invokeLater(() -> {
+			pd.setTaskTitle(taskTitle);
+			pd.setIndeterminate(true);
+		});
+	}
+	
+	public static void setTitleOfTask(ProgressDialog pd, String taskTitle, int min, int max)
+	{
+		SwingUtilities.invokeLater(() -> {
+			pd.setTaskTitle(taskTitle);
+			pd.setValue(min, min, max);
+		});
+	}
+	
+	public static void setTaskStep(ProgressDialog pd, int value)
+	{
+		SwingUtilities.invokeLater(() -> {
+			pd.setValue(value);
+		});
 	}
 
 	private void reloadSaveGameData() {
+		ProgressDialog.runWithProgressDialog(mainWindow, "Read Data from SaveGame Folder", 600, this::reloadSaveGameData);
+	}
+
+	private void reloadSaveGameData(ProgressDialog pd) {
 		File saveGameFolder = getSaveGameFolder();
 		if (saveGameFolder==null) return;
 		
+		setTitleOfIndeterminateTask(pd, "Read Data from SaveGame Folder");
 		System.out.printf("Read Data from SaveGame Folder \"%s\" ...%n", saveGameFolder.getAbsolutePath());
 		saveGameData = new SaveGameData(saveGameFolder);
-		saveGameData.readData();
+		saveGameData.readData(pd);
 		System.out.printf("... done%n");
 		
 		Vector<String> indexStrs = new Vector<>(saveGameData.saveGames.keySet());
@@ -371,19 +404,30 @@ public class SnowRunner {
 		return String.format("SaveGame %s (%s, %s)", indexStr, mode, saveTime);
 	}
 
-	private boolean loadInitialPAK() {
-		return loadInitialPAK(getInitialPAK());
+	private boolean loadInitialPAK()
+	{
+		return loadInitialPAK(null, getInitialPAK());
 	}
-
+	private boolean loadInitialPAK(ProgressDialog pd)
+	{
+		return loadInitialPAK(pd, getInitialPAK());
+	}
 	private boolean loadInitialPAK(File initialPAK)
 	{
-		if (initialPAK!=null) {
-			Data newData = ProgressDialog.runWithProgressDialogRV(mainWindow, String.format("Read \"%s\"", initialPAK.getAbsolutePath()), 600, pd->{
-				Data localData = readXMLTemplateStructure(pd,initialPAK);
-				if (Thread.currentThread().isInterrupted()) return null;
-				return localData;
-			});
-			if (newData!=null) {
+		return loadInitialPAK(null, initialPAK);
+	}
+	private boolean loadInitialPAK(ProgressDialog pd, File initialPAK)
+	{
+		if (initialPAK!=null)
+		{
+			Data newData;
+			if (pd==null)
+				newData = ProgressDialog.runWithProgressDialogRV(mainWindow, String.format("Read \"%s\"", initialPAK.getAbsolutePath()), 600, pd_->readXMLTemplateStructure(pd_,initialPAK));
+			else
+				newData = readXMLTemplateStructure(pd,initialPAK);
+			
+			if (newData!=null)
+			{
 				data = newData;
 				loadedInitialPAK = initialPAK;
 				return true;
@@ -394,11 +438,11 @@ public class SnowRunner {
 	}
 	
 	private Data readXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
-		setTask(pd, "Read XMLTemplateStructure");
+		setTitleOfIndeterminateTask(pd, "Read XMLTemplateStructure");
 		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
 		if (structure==null) return null;
 		if (Thread.currentThread().isInterrupted()) return null;
-		setTask(pd, "Parse Data from XMLTemplateStructure");
+		setTitleOfIndeterminateTask(pd, "Parse Data from XMLTemplateStructure");
 		System.out.printf("Parse Data from XMLTemplateStructure ...%n");
 		Data data = new Data(structure);
 		System.out.printf("... done%n");
@@ -407,13 +451,6 @@ public class SnowRunner {
 	}
 
 
-	static void setTask(ProgressDialog pd, String taskTitle) {
-		SwingUtilities.invokeLater(()->{
-			pd.setTaskTitle(taskTitle);
-			pd.setIndeterminate(true);
-		});
-	}
-	 
 	private File getSaveGameFolder() {
 		// c:\\Program Files (x86)\\Steam\\userdata\\<Account>\\1465360\\remote
 		File saveGameFolder = settings.getFile(AppSettings.ValueKey.SaveGameFolder, null);
@@ -1174,8 +1211,9 @@ public class SnowRunner {
 			return images.containsKey(truckID);
 		}
 		
-		private void read()
+		private void read(ProgressDialog pd)
 		{
+			setTitleOfIndeterminateTask(pd, "Read Truck Images");
 			File file = new File(TruckImagesFile);
 			if (!file.isFile()) return;
 			
@@ -1186,9 +1224,15 @@ public class SnowRunner {
 			try (ZipFile zipFile = new ZipFile(file, ZipFile.OPEN_READ); )
 			{
 				Enumeration<? extends ZipEntry> entries = zipFile.entries();
+				List<ZipEntry> entyList = new ArrayList<>();
 				while (entries.hasMoreElements())
+					entyList.add(entries.nextElement());
+				setTitleOfTask(pd, "Read Truck Images", 0, entyList.size()-1);
+				
+				for (int i=0; i<entyList.size(); i++)
 				{
-					ZipEntry zipEntry = entries.nextElement();
+					setTaskStep(pd, i);
+					ZipEntry zipEntry = entyList.get(i);
 					String truckID = zipEntry.getName();
 					try
 					{
@@ -1372,8 +1416,9 @@ public class SnowRunner {
 					out.printf("%s = %s%n", fieldName, id);
 		}
 
-		void loadStoredData()
+		void loadStoredData(ProgressDialog pd)
 		{
+			setTitleOfIndeterminateTask(pd, "Read DLCs");
 			DataFiles.DataSource ds = DataFiles.DataFile.DLCAssignmentsFile.getDataSourceForReading();
 			System.out.printf("Read DLCs from %s ...%n", ds);
 			
@@ -1381,10 +1426,16 @@ public class SnowRunner {
 			regions.clear();
 			maps   .clear();
 			
-			try (BufferedReader in = new BufferedReader( new InputStreamReader( ds.createInputStream(), StandardCharsets.UTF_8) )) {
+			try (BufferedReader in = new BufferedReader( new InputStreamReader( ds.createInputStream(), StandardCharsets.UTF_8) ))
+			{
+				List<String> lines = in.lines().toList();
+				setTitleOfTask(pd, "Read DLCs", 0, lines.size());
 				
-				String line, value, lastDLC=null;
-				while ( (line=in.readLine())!=null ) {
+				String value, lastDLC=null;
+				for (int i=0; i<lines.size(); i++)
+				{
+					String line = lines.get(i);
+					setTaskStep(pd, i);
 					
 					if (line.equals("[DLC]"))
 						lastDLC = null;
@@ -1465,17 +1516,24 @@ public class SnowRunner {
 				lists.put(cat, new SpecialTruckAddonList(cat));
 		}
 
-		public void readFromFile()
+		public void readFromFile(ProgressDialog pd)
 		{
+			setTitleOfIndeterminateTask(pd, "Read SpecialTruckAddons");
 			DataFiles.DataSource ds = DataFiles.DataFile.SpecialTruckAddonsFile.getDataSourceForReading();
 			
 			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8)))
 			{
+				List<String> lines = in.lines().toList();
+				setTitleOfTask(pd, "Read SpecialTruckAddons", 0, lines.size());
+				
 				System.out.printf("Read SpecialTruckAddons from %s ...%n", ds);
 				
 				SpecialTruckAddonList list = null;
-				String line, valueStr;
-				while ( (line=in.readLine())!=null ) {
+				String valueStr;
+				for (int i=0; i<lines.size(); i++)
+				{
+					String line = lines.get(i);
+					setTaskStep(pd, i);
 					
 					if (line.isEmpty()) continue;
 					if (line.startsWith(ListIDOpeningBracket) && line.endsWith(ListIdClosingBracket)) {
@@ -1493,7 +1551,6 @@ public class SnowRunner {
 						valueStr = line.substring(ValuePrefix.length());
 						list.idList.add(valueStr);
 					}
-					
 				}
 				
 				System.out.printf("... done%n");
@@ -2378,8 +2435,9 @@ public class SnowRunner {
 			return getOrCreate(data, index, ()->new QualityData());
 		}
 
-		private void readFile()
+		private void readFile(ProgressDialog pd)
 		{
+			setTitleOfIndeterminateTask(pd, "Read WheelsQualityRanges");
 			DataFiles.DataSource ds = DataFiles.DataFile.WheelsQualityRangesFile.getDataSourceForReading();
 			System.out.printf("Read WheelsQualityRanges from %s ...%n", ds);
 			
@@ -2387,12 +2445,17 @@ public class SnowRunner {
 			
 			try (BufferedReader in = new BufferedReader( new InputStreamReader( ds.createInputStream(), StandardCharsets.UTF_8) ))
 			{
+				List<String> lines = in.lines().toList();
+				setTitleOfTask(pd, "Read WheelsQualityRanges", 0, lines.size());
 				
-				String line, value;
+				String value;
 				DataMapIndex qdIndex = null;
 				
-				while ( (line=in.readLine())!=null )
+				for (int i=0; i<lines.size(); i++)
 				{
+					String line = lines.get(i);
+					setTaskStep(pd, i);
+					
 					if (line.equals("[Wheel]"))
 						qdIndex = null;
 					
