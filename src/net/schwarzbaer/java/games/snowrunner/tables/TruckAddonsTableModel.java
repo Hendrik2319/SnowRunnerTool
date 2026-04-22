@@ -338,7 +338,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, TruckAddon row) {
 		generateText(
-				doc,
+				doc, row,
 				SnowRunner.getFirstNonNull( row.gameData.getDescriptionStringID(), row.gameData.cargoDescription_StringID ),
 				row.gameData, row.usableBy,
 				language,
@@ -348,7 +348,7 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 	}
 
 	static void generateText(
-			StyledDocumentInterface doc,
+			StyledDocumentInterface doc, Data.HasFilePath row,
 			String description_StringID,
 			Data.GameData.GameDataT3NonTruck gameData,
 			Vector<Truck> usableBy,
@@ -409,6 +409,11 @@ public class TruckAddonsTableModel extends ExtendedVerySimpleTableModelTPOS<Truc
 			//doc.append("%s", SnowRunner.joinTruckNames(usableBy,language));
 		}
 		
+		if (row!=null) {
+			if (!isFirst) doc.append("%n%n");
+			doc.append(Style.BOLD,"File:%n");
+			doc.append("    %s", row.getFilePath());
+		}
 	}
 	
 	record AddonSocketPosition(int groupIndex, int socketIndex) implements Comparable<AddonSocketPosition>

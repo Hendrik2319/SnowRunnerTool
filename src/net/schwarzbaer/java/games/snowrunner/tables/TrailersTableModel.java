@@ -139,7 +139,7 @@ public class TrailersTableModel extends ExtendedVerySimpleTableModelTPOS<Trailer
 	
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, Trailer row) {
 		TruckAddonsTableModel.generateText(
-				doc,
+				doc, row,
 				row.gameData.getDescriptionStringID(),
 				row.gameData, row.usableBy,
 				language,

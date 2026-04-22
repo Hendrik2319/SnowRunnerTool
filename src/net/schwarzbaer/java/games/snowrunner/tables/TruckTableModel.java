@@ -71,7 +71,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 	private SaveGame.TruckDesc displayedTruck;
 	private ExtraBoolColumnsMenuForStoredTrucks extraBoolColumnsMenuForStoredTrucks;
 
-	// Column Widths: [160, 80, 170, 140, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 60, 90, 90, 90, 90, 105, 90, 95, 95, 110, 80, 235, 125, 95, 80, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
+	// Column Widths: [160, 80, 170, 140, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 60, 90, 90, 90, 90, 105, 90, 95, 95, 110, 80, 235, 125, 95, 80, 70, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, GET.get(t->t.id         )),
@@ -112,6 +112,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 				new ColumnID( "DefTire"  , "Default Tire"          ,               String.class, 125,             null,   null,      null, false, GET.get(t->t.wheels, wh->wh.defaultTire)),
 				new ColumnID( "DefRim"   , "Default Rim"           ,               String.class,  95,             null,   null,      null, false, GET.get(t->t.wheels, wh->wh.defaultRim)),
 				new ColumnID( "WheelSizs", "Wheel Sizes"           ,               String.class,  80,             null,   null,      null, false, GET.get(t->joinWheelSizes(t.compatibleWheels))),
+				new ColumnID( "MaxWhlSzs", "Max. Wh.S."            ,              Integer.class,  70,             null, CENTER,    "%d\"", false, GET.get(t->getMax(t.compatibleWheels))),
 				new ColumnID( "WheelTyps", "Wheel Types"           ,               String.class, 280,             null,   null,      null,        GET.getL((lang,t) -> getWheelCategories(t,lang))),
 				new ColumnID( "WhHigh"   , "[W] Highway"           ,                Float.class,  75,             null,   null,   "%1.2f", false, GET.get(t->getMaxWheelValue(t, tire->tire.frictionHighway))),
 				new ColumnID( "WhOffr"   , "[W] Offroad"           ,                Float.class,  75,             null,   null,   "%1.2f", false, GET.get(t->getMaxWheelValue(t, tire->tire.frictionOffroad))),
@@ -389,6 +390,15 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		Vector<String> vector = new Vector<>(set);
 		vector.sort(null);
 		return String.join(", ", vector);
+	}
+
+	private static Integer getMax(CompatibleWheel[] compatibleWheels)
+	{
+		return compatibleWheels==null ? null : Arrays
+			.stream(compatibleWheels)
+			.map(cw->cw.getSize())
+			.filter(s->s!=null)
+			.reduce(0, Math::max);
 	}
 
 	private static class ColumnID extends VerySimpleTableModel.ColumnID {

@@ -1395,14 +1395,28 @@ public class Data {
 		String getID();
 	}
 
-	static class ItemBased {
+	public interface HasFilePath {
+		String getFilePath();
+	}
+
+	public static class ItemBased implements HasFilePath
+	{
 		public final String id;
 		public final String xmlName;
 		public final String updateLevel;
+		public final String filePath;
+		
 		ItemBased(Item item) {
-			id      = item.name;
-			xmlName = item.name+".xml";
+			id          = item.name;
+			xmlName     = item.name+".xml";
 			updateLevel = item.updateLevel;
+			filePath    = item.filePath;
+		}
+
+		@Override
+		public String getFilePath()
+		{
+			return filePath;
 		}
 	}
 
@@ -2052,16 +2066,18 @@ public class Data {
 		}
 	}
 
-	public static class TruckComponent implements HasNameAndID {
-		
+	public static class TruckComponent implements HasNameAndID, HasFilePath
+	{
+		public final String filePath;
 		public final String setID;
 		public final String id;
 		public final Vector<Truck> usableBy;
 		protected final GenericXmlNode gameDataNode;
 		public final GameData gameData;
 		
-		protected TruckComponent(String setID, GenericXmlNode node, String instanceNodeName) {
+		protected TruckComponent(String setID, GenericXmlNode node, String instanceNodeName, String filePath) {
 			this.setID = setID;
+			this.filePath = filePath;
 			usableBy = new Vector<>();
 			id = node.attributes.get("Name");
 			
@@ -2071,15 +2087,21 @@ public class Data {
 
 		@Override public String getName_StringID() { return gameData.getNameStringID(); }
 		@Override public String getID() { return id; }
+		@Override public String getFilePath() { return filePath; }
 
 		void addUsingTruck(Truck truck) {
 			usableBy.add(truck);
+		}
+		
+		interface InstanceConstructor<InstanceType extends TruckComponent>
+		{
+			InstanceType create(String setID, GenericXmlNode node, String filePath);
 		}
 
 		static <InstanceType extends TruckComponent> void parseSet(
 				XMLTemplateStructure rawdata, String className,
 				TruckComponentSets<InstanceType> sets,
-				BiFunction<String,GenericXmlNode,InstanceType> constructor,
+				InstanceConstructor<InstanceType> constructor,
 				String setNodeName, String instanceNodeName) {
 			
 			Class_ class_ = rawdata.classes.get(className);
@@ -2095,7 +2117,7 @@ public class Data {
 				
 				GenericXmlNode[] nodes = item.content.getNodes(setNodeName, instanceNodeName);
 				for (GenericXmlNode node : nodes) {
-					InstanceType instance = constructor.apply(setID,node);
+					InstanceType instance = constructor.create(setID,node,item.filePath);
 					sets.addInstance(instance, instanceNodeName);
 				}
 			});
@@ -2110,8 +2132,8 @@ public class Data {
 		public final Integer length;
 		public final Float strengthMult;
 
-		Winch(String setName, GenericXmlNode node) {
-			super(setName, node, "Winch");
+		Winch(String setName, GenericXmlNode node, String filePath) {
+			super(setName, node, "Winch", filePath);
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <Winch ####=\"...\">", key);
@@ -2140,8 +2162,8 @@ public class Data {
 		public final Integer damageCapacity;
 		public final String type_StringID;
 
-		Suspension(String setName, GenericXmlNode node) {
-			super(setName, node, "SuspensionSet");
+		Suspension(String setName, GenericXmlNode node, String filePath) {
+			super(setName, node, "SuspensionSet", filePath);
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <SuspensionSet ####=\"...\">", key);
@@ -2172,8 +2194,8 @@ public class Data {
 		public final boolean existsLowerPlusGear;
 		public final boolean isManualLowGear;
 
-		Gearbox(String setName, GenericXmlNode node) {
-			super(setName, node, "Gearbox");
+		Gearbox(String setName, GenericXmlNode node, String filePath) {
+			super(setName, node, "Gearbox", filePath);
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <Gearbox ####=\"...\">", key);
@@ -2221,8 +2243,8 @@ public class Data {
 		public final Integer torque;
 		public final Float engineResponsiveness;
 
-		Engine(String setName, GenericXmlNode node) {
-			super(setName, node, "Engine");
+		Engine(String setName, GenericXmlNode node, String filePath) {
+			super(setName, node, "Engine", filePath);
 			
 			//node.attributes.forEach((key,value)->{
 			//	unexpectedValues.add("[VariantSetInstance] <Engine ####=\"...\">", key);

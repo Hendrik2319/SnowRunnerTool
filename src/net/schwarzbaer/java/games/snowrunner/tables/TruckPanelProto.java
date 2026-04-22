@@ -300,6 +300,9 @@ public class TruckPanelProto implements Finalizable {
 			outTop.add(0, "DefaultAddons", "%s", SnowRunner.joinTruckAddonNames(truck.defaultAddons, addonCategories, language));
 		}
 		
+		outTop.addEmptyLine();
+		outTop.add(0, "File", "%s", truck.filePath);
+		
 		ScrollPosition.keepScrollPos(
 				truckInfoTextAreaScrollPane,
 				ScrollPosition.ScrollBarType.Vertical,

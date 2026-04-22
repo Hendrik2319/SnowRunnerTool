@@ -52,7 +52,7 @@ public abstract class SetInstancesTableModel<RowType extends TruckComponent> ext
 
 	@Override protected void setOutputContentForRow(StyledDocumentInterface doc, int rowIndex, RowType row) {
 		TruckAddonsTableModel.generateText(
-				doc,
+				doc, row,
 				row.gameData.getDescriptionStringID(),
 				null, row.usableBy,
 				language,
