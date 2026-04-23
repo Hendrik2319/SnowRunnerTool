@@ -344,45 +344,49 @@ public class Data {
 		{
 			SnowRunner.setTitleOfIndeterminateTask(pd, "Read UserDefinedValues");
 			DataFiles.DataSource ds = DataFiles.DataFile.UserDefinedValuesFile.getDataSourceForReading();
-			System.out.printf("Read UserDefinedValues from %s ...%n", ds);
 			truckValues.clear();
 			
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8)))
+			try (BufferedReader in = ds.createBufferedReader(StandardCharsets.UTF_8))
 			{
-				List<String> lines = in.lines().toList();
-				SnowRunner.setTitleOfTask(pd, "Read UserDefinedValues", 0, lines.size());
-				
-				Truck.UDV truckValues = null;
-				String valueStr;
-				for (int i=0; i<lines.size(); i++)
+				if (in!=null)
 				{
-					SnowRunner.setTaskStep(pd, i);
-					String line = lines.get(i);
+					System.out.printf("Read UserDefinedValues from %s ...%n", ds);
 					
-					if (line.equals(""))
-						truckValues = null;
-					if (line.equals("[Truck]"))
-						truckValues = new Truck.UDV();
+					List<String> lines = in.lines().toList();
+					SnowRunner.setTitleOfTask(pd, "Read UserDefinedValues", 0, lines.size());
 					
-					if ( (valueStr=getLineValue(line,"id="))!=null && truckValues!=null) {
-						String id = valueStr;
-						this.truckValues.put(id, truckValues);
+					Truck.UDV truckValues = null;
+					String valueStr;
+					for (int i=0; i<lines.size(); i++)
+					{
+						SnowRunner.setTaskStep(pd, i);
+						String line = lines.get(i);
+						
+						if (line.equals(""))
+							truckValues = null;
+						if (line.equals("[Truck]"))
+							truckValues = new Truck.UDV();
+						
+						if ( (valueStr=getLineValue(line,"id="))!=null && truckValues!=null) {
+							String id = valueStr;
+							this.truckValues.put(id, truckValues);
+						}
+						
+						if ( (valueStr=getLineValue(line,"AWD="))!=null && truckValues!=null)
+							truckValues.realAWD = Truck.UDV.ItemState.parse(valueStr);
+						
+						if ( (valueStr=getLineValue(line,"DiffLock="))!=null && truckValues!=null)
+							truckValues.realDiffLock = Truck.UDV.ItemState.parse(valueStr);
 					}
 					
-					if ( (valueStr=getLineValue(line,"AWD="))!=null && truckValues!=null)
-						truckValues.realAWD = Truck.UDV.ItemState.parse(valueStr);
-					
-					if ( (valueStr=getLineValue(line,"DiffLock="))!=null && truckValues!=null)
-						truckValues.realDiffLock = Truck.UDV.ItemState.parse(valueStr);
+					System.out.printf("... done%n");
 				}
-				
 			} catch (FileNotFoundException e) {
 				//e.printStackTrace();
 			} catch (IOException | UncheckedIOException e) {
 				e.printStackTrace();
 			}
 			//showValues();
-			System.out.printf("... done%n");
 			setInitialized();
 		}
 		

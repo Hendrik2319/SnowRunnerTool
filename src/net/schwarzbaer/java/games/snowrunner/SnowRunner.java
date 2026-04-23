@@ -15,7 +15,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -1224,44 +1223,45 @@ public class SnowRunner {
 		{
 			setTitleOfIndeterminateTask(pd, "Read Truck Images");
 			File file = new File(TruckImagesFile);
-			if (!file.isFile()) return;
-			
-			System.out.printf("Read Truck Images from file \"%s\" ...%n", file.getAbsolutePath());
-			
-			images.clear();
-			
-			try (ZipFile zipFile = new ZipFile(file, ZipFile.OPEN_READ); )
+			if (file.isFile())
 			{
-				Enumeration<? extends ZipEntry> entries = zipFile.entries();
-				List<ZipEntry> entyList = new ArrayList<>();
-				while (entries.hasMoreElements())
-					entyList.add(entries.nextElement());
-				setTitleOfTask(pd, "Read Truck Images", 0, entyList.size()-1);
+				System.out.printf("Read Truck Images from file \"%s\" ...%n", file.getAbsolutePath());
 				
-				for (int i=0; i<entyList.size(); i++)
+				images.clear();
+				
+				try (ZipFile zipFile = new ZipFile(file, ZipFile.OPEN_READ); )
 				{
-					setTaskStep(pd, i);
-					ZipEntry zipEntry = entyList.get(i);
-					String truckID = zipEntry.getName();
-					try
+					Enumeration<? extends ZipEntry> entries = zipFile.entries();
+					List<ZipEntry> entyList = new ArrayList<>();
+					while (entries.hasMoreElements())
+						entyList.add(entries.nextElement());
+					setTitleOfTask(pd, "Read Truck Images", 0, entyList.size()-1);
+					
+					for (int i=0; i<entyList.size(); i++)
 					{
-						BufferedImage image = ImageIO.read(zipFile.getInputStream(zipEntry));
-						images.put(truckID, image);
-					}
-					catch (IOException ex)
-					{
-						System.err.printf("IOException while reading Truck Image \"%s\": %s%n", truckID, ex.getMessage());
-						// ex.printStackTrace();
+						setTaskStep(pd, i);
+						ZipEntry zipEntry = entyList.get(i);
+						String truckID = zipEntry.getName();
+						try
+						{
+							BufferedImage image = ImageIO.read(zipFile.getInputStream(zipEntry));
+							images.put(truckID, image);
+						}
+						catch (IOException ex)
+						{
+							System.err.printf("IOException while reading Truck Image \"%s\": %s%n", truckID, ex.getMessage());
+							// ex.printStackTrace();
+						}
 					}
 				}
+				catch (IOException ex)
+				{
+					System.err.printf("IOException while reading Truck Images: %s%n", ex.getMessage());
+					// ex.printStackTrace();
+				}
+				
+				System.out.printf("... done%n");
 			}
-			catch (IOException ex)
-			{
-				System.err.printf("IOException while reading Truck Images: %s%n", ex.getMessage());
-				// ex.printStackTrace();
-			}
-			
-			System.out.printf("... done%n");
 			setInitialized();
 		}
 		
@@ -1429,35 +1429,39 @@ public class SnowRunner {
 		{
 			setTitleOfIndeterminateTask(pd, "Read DLCs");
 			DataFiles.DataSource ds = DataFiles.DataFile.DLCAssignmentsFile.getDataSourceForReading();
-			System.out.printf("Read DLCs from %s ...%n", ds);
 			
 			trucks .clear();
 			regions.clear();
 			maps   .clear();
 			
-			try (BufferedReader in = new BufferedReader( new InputStreamReader( ds.createInputStream(), StandardCharsets.UTF_8) ))
+			try (BufferedReader in = ds.createBufferedReader(StandardCharsets.UTF_8))
 			{
-				List<String> lines = in.lines().toList();
-				setTitleOfTask(pd, "Read DLCs", 0, lines.size());
-				
-				String value, lastDLC=null;
-				for (int i=0; i<lines.size(); i++)
+				if (in!=null)
 				{
-					String line = lines.get(i);
-					setTaskStep(pd, i);
+					System.out.printf("Read DLCs from %s ...%n", ds);
 					
-					if (line.equals("[DLC]"))
-						lastDLC = null;
+					List<String> lines = in.lines().toList();
+					setTitleOfTask(pd, "Read DLCs", 0, lines.size());
 					
-					if ( (value = Data.getLineValue(line, "name = "))!=null )
-						lastDLC = value;
+					String value, lastDLC=null;
+					for (int i=0; i<lines.size(); i++)
+					{
+						String line = lines.get(i);
+						setTaskStep(pd, i);
+						
+						if (line.equals("[DLC]"))
+							lastDLC = null;
+						
+						if ( (value = Data.getLineValue(line, "name = "))!=null )
+							lastDLC = value;
+						
+						if ( (value = Data.getLineValue(line, "truck = " ))!=null && lastDLC!=null) trucks .put(value, lastDLC);
+						if ( (value = Data.getLineValue(line, "region = "))!=null && lastDLC!=null) regions.put(value, lastDLC);
+						if ( (value = Data.getLineValue(line, "map = "   ))!=null && lastDLC!=null) maps   .put(value, lastDLC);
+					}
 					
-					if ( (value = Data.getLineValue(line, "truck = " ))!=null && lastDLC!=null) trucks .put(value, lastDLC);
-					if ( (value = Data.getLineValue(line, "region = "))!=null && lastDLC!=null) regions.put(value, lastDLC);
-					if ( (value = Data.getLineValue(line, "map = "   ))!=null && lastDLC!=null) maps   .put(value, lastDLC);
+					System.out.printf("... done%n");
 				}
-				
-				
 			} catch (FileNotFoundException e) {
 				//e.printStackTrace();
 			} catch (IOException e) {
@@ -1465,7 +1469,6 @@ public class SnowRunner {
 				//e.printStackTrace();
 			}
 			
-			System.out.printf("... done%n");
 			setInitialized();
 		}
 	}
@@ -1530,40 +1533,42 @@ public class SnowRunner {
 			setTitleOfIndeterminateTask(pd, "Read SpecialTruckAddons");
 			DataFiles.DataSource ds = DataFiles.DataFile.SpecialTruckAddonsFile.getDataSourceForReading();
 			
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8)))
+			try (BufferedReader in = ds.createBufferedReader(StandardCharsets.UTF_8))
 			{
-				List<String> lines = in.lines().toList();
-				setTitleOfTask(pd, "Read SpecialTruckAddons", 0, lines.size());
-				
-				System.out.printf("Read SpecialTruckAddons from %s ...%n", ds);
-				
-				SpecialTruckAddonList list = null;
-				String valueStr;
-				for (int i=0; i<lines.size(); i++)
+				if (in!=null)
 				{
-					String line = lines.get(i);
-					setTaskStep(pd, i);
+					System.out.printf("Read SpecialTruckAddons from %s ...%n", ds);
 					
-					if (line.isEmpty()) continue;
-					if (line.startsWith(ListIDOpeningBracket) && line.endsWith(ListIdClosingBracket)) {
-						valueStr = line.substring(ListIDOpeningBracket.length(), line.length()-ListIdClosingBracket.length());
-						try {
-							AddonCategory listID = AddonCategory.valueOf(valueStr);
-							list = lists.get(listID);
-							if (list==null)
-								throw new IllegalStateException(String.format("Found List ID (\"%s\") with no assigned SpecialTruckAddonList in %s.", listID, ds));
-						} catch (Exception e) {
-							throw new IllegalStateException(String.format("Found unknown List ID (\"%s\") in %s.", valueStr, ds));
+					List<String> lines = in.lines().toList();
+					setTitleOfTask(pd, "Read SpecialTruckAddons", 0, lines.size());
+					
+					SpecialTruckAddonList list = null;
+					String valueStr;
+					for (int i=0; i<lines.size(); i++)
+					{
+						String line = lines.get(i);
+						setTaskStep(pd, i);
+						
+						if (line.isEmpty()) continue;
+						if (line.startsWith(ListIDOpeningBracket) && line.endsWith(ListIdClosingBracket)) {
+							valueStr = line.substring(ListIDOpeningBracket.length(), line.length()-ListIdClosingBracket.length());
+							try {
+								AddonCategory listID = AddonCategory.valueOf(valueStr);
+								list = lists.get(listID);
+								if (list==null)
+									throw new IllegalStateException(String.format("Found List ID (\"%s\") with no assigned SpecialTruckAddonList in %s.", listID, ds));
+							} catch (Exception e) {
+								throw new IllegalStateException(String.format("Found unknown List ID (\"%s\") in %s.", valueStr, ds));
+							}
+						}
+						if (line.startsWith(ValuePrefix) && list!=null) {
+							valueStr = line.substring(ValuePrefix.length());
+							list.idList.add(valueStr);
 						}
 					}
-					if (line.startsWith(ValuePrefix) && list!=null) {
-						valueStr = line.substring(ValuePrefix.length());
-						list.idList.add(valueStr);
-					}
+					
+					System.out.printf("... done%n");
 				}
-				
-				System.out.printf("... done%n");
-				
 			} catch (FileNotFoundException ex) {
 				//ex.printStackTrace();
 			} catch (IOException ex) {
@@ -2448,70 +2453,75 @@ public class SnowRunner {
 		{
 			setTitleOfIndeterminateTask(pd, "Read WheelsQualityRanges");
 			DataFiles.DataSource ds = DataFiles.DataFile.WheelsQualityRangesFile.getDataSourceForReading();
-			System.out.printf("Read WheelsQualityRanges from %s ...%n", ds);
 			
 			data.clear();
 			
-			try (BufferedReader in = new BufferedReader( new InputStreamReader( ds.createInputStream(), StandardCharsets.UTF_8) ))
+			try (BufferedReader in = ds.createBufferedReader(StandardCharsets.UTF_8))
 			{
-				List<String> lines = in.lines().toList();
-				setTitleOfTask(pd, "Read WheelsQualityRanges", 0, lines.size());
-				
-				String value;
-				DataMapIndex qdIndex = null;
-				
-				for (int i=0; i<lines.size(); i++)
+				if (in!=null)
 				{
-					String line = lines.get(i);
-					setTaskStep(pd, i);
+					System.out.printf("Read WheelsQualityRanges from %s ...%n", ds);
 					
-					if (line.equals("[Wheel]"))
-						qdIndex = null;
+					List<String> lines = in.lines().toList();
+					setTitleOfTask(pd, "Read WheelsQualityRanges", 0, lines.size());
 					
-					if ((value = Data.getLineValue(line, "Index = "))!=null)
+					String value;
+					DataMapIndex qdIndex = null;
+					
+					for (int i=0; i<lines.size(); i++)
 					{
-						if (qdIndex != null)
+						String line = lines.get(i);
+						setTaskStep(pd, i);
+						
+						if (line.equals("[Wheel]"))
 							qdIndex = null;
-						else
+						
+						if ((value = Data.getLineValue(line, "Index = "))!=null)
 						{
-							String[] parts = value.split(":", -1);
-							if (parts.length == 2)
+							if (qdIndex != null)
+								qdIndex = null;
+							else
 							{
-								String wheelsDefID = parts[0];
-								Integer indexInDef = parseInt(parts[1]);
-								qdIndex = new DataMapIndex(wheelsDefID, indexInDef);
+								String[] parts = value.split(":", -1);
+								if (parts.length == 2)
+								{
+									String wheelsDefID = parts[0];
+									Integer indexInDef = parseInt(parts[1]);
+									qdIndex = new DataMapIndex(wheelsDefID, indexInDef);
+								}
+							}
+						}
+						
+						if ((value = Data.getLineValue(line, "General = "))!=null && qdIndex!=null)
+						{
+							EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(value);
+							if (qvMap!=null && !qvMap.isEmpty())
+							{
+								QualityData qualityData = getOrCreateQualityData(qdIndex);
+								qualityData.generalValues.putAll(qvMap);
+							}
+						}
+						
+						if ((value = Data.getLineValue(line, "Truck = "))!=null && qdIndex!=null)
+						{
+							int pos = value.indexOf(":");
+							if (pos>=0)
+							{
+								String truckID = value.substring(0, pos);
+								String qvMapStr = value.substring(pos+1);
+								QualityData qualityData = getOrCreateQualityData(qdIndex);
+								EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(qvMapStr);
+								EnumMap<WheelValue, QualityValue> expQvMap = qvMap; //expandQvMap(qvMap, qualityData.generalValues);
+								if (expQvMap!=null && !expQvMap.isEmpty())
+									qualityData.modifyTruckQvMap(truckID, map -> {
+										map.putAll(expQvMap);
+									});
 							}
 						}
 					}
 					
-					if ((value = Data.getLineValue(line, "General = "))!=null && qdIndex!=null)
-					{
-						EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(value);
-						if (qvMap!=null && !qvMap.isEmpty())
-						{
-							QualityData qualityData = getOrCreateQualityData(qdIndex);
-							qualityData.generalValues.putAll(qvMap);
-						}
-					}
-					
-					if ((value = Data.getLineValue(line, "Truck = "))!=null && qdIndex!=null)
-					{
-						int pos = value.indexOf(":");
-						if (pos>=0)
-						{
-							String truckID = value.substring(0, pos);
-							String qvMapStr = value.substring(pos+1);
-							QualityData qualityData = getOrCreateQualityData(qdIndex);
-							EnumMap<WheelValue, QualityValue> qvMap = stringToQvMap(qvMapStr);
-							EnumMap<WheelValue, QualityValue> expQvMap = qvMap; //expandQvMap(qvMap, qualityData.generalValues);
-							if (expQvMap!=null && !expQvMap.isEmpty())
-								qualityData.modifyTruckQvMap(truckID, map -> {
-									map.putAll(expQvMap);
-								});
-						}
-					}
+					System.out.printf("... done%n");
 				}
-				
 			}
 			catch (FileNotFoundException e) {}
 			catch (IOException e)
@@ -2520,7 +2530,6 @@ public class SnowRunner {
 				//e.printStackTrace();
 			}
 			
-			System.out.printf("... done%n");
 			setInitialized();
 		}
 

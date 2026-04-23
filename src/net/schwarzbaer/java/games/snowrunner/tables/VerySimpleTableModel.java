@@ -20,7 +20,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -839,7 +838,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					reconfigureAfterTableStructureUpdate();
 				}) );
 			}
+			extraBoolColumnsMenu.setEnabled(!presetNames.isEmpty());
 		}
+		else
+			extraBoolColumnsMenu.setEnabled(false);
 	}
 	
 	private boolean hasExtraBoolColumnBasedOnPreset(RowFiltering.Preset preset)
@@ -1027,8 +1029,8 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			for (String name : activeColorings)
 			{
 				RowColoringPreset preset = presets.get(name);
-				Color color = getColor.apply(preset);
-				if (color!=null)
+				Color color = preset==null ? null : getColor.apply(preset);
+				if (preset!=null && color!=null)
 					activeColorizers.add(new RowColorizer(preset.filterMap, preset.orderIndex, color, getColumnID));
 			}
 			activeColorizers.sort(Comparator.<RowColorizer,Integer>comparing(rc -> rc.orderIndex));
@@ -3413,35 +3415,37 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 			presets.clear();
 			
 			DataFiles.DataSource ds = dataFile.getDataSourceForReading();
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(ds.createInputStream(), StandardCharsets.UTF_8))) {
-				
-				System.out.printf("Read %s from %s ...%n", label, ds);
-				
-				HashMap<String, Preset> modelPresets = null;
-				Preset preset = null;
-				String line, valueStr;
-				while ( (line=in.readLine())!=null ) {
+			try (BufferedReader in = ds.createBufferedReader(StandardCharsets.UTF_8))
+			{
+				if (in!=null)
+				{
+					System.out.printf("Read %s from %s ...%n", label, ds);
 					
-					if (line.equals("[Preset]") || line.isEmpty()) {
-						modelPresets = null;
-						preset = null;
+					HashMap<String, Preset> modelPresets = null;
+					Preset preset = null;
+					String line, valueStr;
+					while ( (line=in.readLine())!=null ) {
+						
+						if (line.equals("[Preset]") || line.isEmpty()) {
+							modelPresets = null;
+							preset = null;
+						}
+						if ( (valueStr=Data.getLineValue(line, "TableModel="))!=null ) {
+							modelPresets = getModelPresets(valueStr);
+							preset = null;
+						}
+						if ( (valueStr=Data.getLineValue(line, "Preset="))!=null && modelPresets!=null ) {
+							preset = modelPresets.get(valueStr);
+							if (preset==null)
+								modelPresets.put(valueStr, preset = createEmptyPreset.get());
+						}
+						if (preset!=null)
+							parseLine(line, preset);
+						
 					}
-					if ( (valueStr=Data.getLineValue(line, "TableModel="))!=null ) {
-						modelPresets = getModelPresets(valueStr);
-						preset = null;
-					}
-					if ( (valueStr=Data.getLineValue(line, "Preset="))!=null && modelPresets!=null ) {
-						preset = modelPresets.get(valueStr);
-						if (preset==null)
-							modelPresets.put(valueStr, preset = createEmptyPreset.get());
-					}
-					if (preset!=null)
-						parseLine(line, preset);
 					
+					System.out.printf("... done%n");
 				}
-				
-				System.out.printf("... done%n");
-				
 			} catch (FileNotFoundException ex) {
 				//ex.printStackTrace();
 			} catch (IOException ex) {

@@ -1,9 +1,12 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.Objects;
 
 public class DataFiles
@@ -94,6 +97,13 @@ public class DataFiles
 			if (file        !=null) return new FileInputStream(file);
 			if (resourcePath!=null) return getClass().getResourceAsStream(resourcePath);
 			throw new IllegalStateException();
+		}
+		
+		public BufferedReader createBufferedReader(Charset charset) throws FileNotFoundException
+		{
+			InputStream inputStream = createInputStream();
+			if (inputStream==null) return null;
+			return new BufferedReader(new InputStreamReader(inputStream, charset));
 		}
 
 		@Override public String toString()
