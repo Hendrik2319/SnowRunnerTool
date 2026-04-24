@@ -17,6 +17,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +43,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -108,6 +111,8 @@ import net.schwarzbaer.java.lib.gui.ProgressDialog;
 import net.schwarzbaer.java.lib.gui.StandardMainWindow;
 import net.schwarzbaer.java.lib.gui.StyledDocumentInterface;
 import net.schwarzbaer.java.lib.gui.Tables;
+import net.schwarzbaer.java.lib.gui.TextAreaDialog;
+import net.schwarzbaer.java.lib.gui.ValueListOutput;
 import net.schwarzbaer.java.lib.system.DateTimeFormatter;
 import net.schwarzbaer.java.lib.system.Settings;
 
@@ -293,6 +298,9 @@ public class SnowRunner {
 		}));
 		testingMenu.add(createMenuItem("Show deficits in GUI implementation", true, e->{
 			VerySimpleTableModel.showGUIImplementationDeficits();
+		}));
+		testingMenu.add(createMenuItem("Show Memory Usage", true, e->{
+			showMemoryUsage();
 		}));
 		
 		mainWindow.setIconImagesFromResource("/images/AppIcons/AppIcon","016.png","024.png","032.png","040.png","048.png","056.png","064.png","128.png","256.png");
@@ -521,6 +529,37 @@ public class SnowRunner {
 		if (loadedInitialPAK!=null)
 			title += "   -   "+loadedInitialPAK.getAbsolutePath();
 		mainWindow.setTitle(title);
+	}
+
+	private void showMemoryUsage()
+	{
+		ValueListOutput out = new ValueListOutput();
+		Runtime runtime = Runtime.getRuntime();
+		if (runtime==null)
+			out.add(0, "Can't find Runtime object.");
+		else
+		{
+			showMemoryUsageLine(out,  "Free Memory", runtime. freeMemory());
+			showMemoryUsageLine(out,  "Max. Memory", runtime.  maxMemory());
+			showMemoryUsageLine(out, "Total Memory", runtime.totalMemory());
+		}
+		TextAreaDialog.showText(mainWindow, "Memory Usage", 300, 200, true, out.generateOutput());
+	}
+
+	private void showMemoryUsageLine(ValueListOutput out, String label, long value)
+	{
+		out.add(0,  label, "%s", toMemoryStr(value));
+		out.add(0,  null, value);
+	}
+
+	private String toMemoryStr(long value)
+	{
+		double valueD = value;
+		if (valueD<1200) return String.format(                   "%d B" , value ); else valueD = valueD / 1024;
+		if (valueD<1200) return String.format(Locale.ENGLISH, "%1.1f KB", valueD); else valueD = valueD / 1024;
+		if (valueD<1200) return String.format(Locale.ENGLISH, "%1.1f MB", valueD); else valueD = valueD / 1024;
+		if (valueD<1200) return String.format(Locale.ENGLISH, "%1.1f GB", valueD); else valueD = valueD / 1024;
+		return String.format("%1.1f TB", valueD);
 	}
 
 	public interface SaveGameListener {
@@ -1300,28 +1339,68 @@ public class SnowRunner {
 	public static class DLCs extends Initializable
 	{
 		public interface Listener {
-			void updateAfterChange();
+			void updateAfterAssignmentChange();
+			void dlcOwnChanged();
 		}
 		
 		public enum ItemType {
 			Truck (dlcs->dlcs.trucks ),
 			Region(dlcs->dlcs.regions),
 			Map   (dlcs->dlcs.maps   );
-			private Function<DLCs, HashMap<String,String>> getAssignments;
-			private ItemType(Function<DLCs, HashMap<String,String>> getAssignments)
+			private Function<DLCs, Map<String,String>> getAssignments;
+			private ItemType(Function<DLCs, Map<String,String>> getAssignments)
 			{
 				this.getAssignments = Objects.requireNonNull(getAssignments);
 			}
 		}
 		
-		private final HashMap<String,String> trucks  = new HashMap<>();
-		private final HashMap<String,String> regions = new HashMap<>();
-		private final HashMap<String,String> maps    = new HashMap<>();
+		private final Map<String,String> trucks  = new HashMap<>();
+		private final Map<String,String> regions = new HashMap<>();
+		private final Map<String,String> maps    = new HashMap<>();
+		private static final Set<String> notOwnedDLCs = readNotOwnedDLCs();
+
+		private static Set<String> readNotOwnedDLCs()
+		{
+			String valuesStr = SnowRunner.settings.getString(SnowRunner.AppSettings.ValueKey.NotOwnedDLCs, "");
+			List<String> values = Arrays
+				.stream(valuesStr.split("[|]",-1))
+				.map(str->URLDecoder.decode(str, StandardCharsets.UTF_8))
+				.toList();
+			return new HashSet<>(values);
+		}
+		private static void writeNotOwnedDLCs(Set<String> ownedDLCs)
+		{
+			String valuesStr = ownedDLCs
+					.stream()
+					.map(str -> URLEncoder.encode(str, StandardCharsets.UTF_8))
+					.sorted()
+					.collect(Collectors.joining("|"));
+			SnowRunner.settings.putString(SnowRunner.AppSettings.ValueKey.NotOwnedDLCs, valuesStr);
+		}
+		
+		public static Boolean isOwnedByUser(String dlc)
+		{
+			if (dlc==null) return null;
+			return !notOwnedDLCs.contains(dlc);
+		}
+		
+		public static void setOwnedByUser(String dlc, boolean isOwned)
+		{
+			if (dlc==null)
+				return;
+			
+			if (isOwned)
+				notOwnedDLCs.remove(dlc);
+			else
+				notOwnedDLCs.add(dlc);
+			
+			writeNotOwnedDLCs(notOwnedDLCs);
+		}
 		
 		public Vector<String> getAllDLCs()
 		{
 			checkInitialized();
-			HashSet<String> dlcSet = new HashSet<>();
+			Set<String> dlcSet = new HashSet<>();
 			dlcSet.addAll(trucks .values());
 			dlcSet.addAll(regions.values());
 			dlcSet.addAll(maps   .values());
@@ -1370,9 +1449,9 @@ public class SnowRunner {
 			return getDLC(id, ItemType.Map);
 		}
 		
-		private static HashMap<String,Vector<String>> getReversedMap(HashMap<String,String> assignments)
+		private static Map<String,Vector<String>> getReversedMap(Map<String,String> assignments)
 		{
-			HashMap<String,Vector<String>> reversedMap = new HashMap<>();
+			Map<String,Vector<String>> reversedMap = new HashMap<>();
 			assignments.forEach((item,dlc)->{
 				Vector<String> items = reversedMap.get(dlc);
 				if (items==null) reversedMap.put(dlc, items = new Vector<>());
@@ -1389,11 +1468,11 @@ public class SnowRunner {
 			File file = DataFiles.DataFile.DLCAssignmentsFile.getFileForWriting();
 			System.out.printf("Write DLCs to file \"%s\" ...%n", file.getAbsolutePath());
 			
-			HashMap<String,Vector<String>> reversedTruckMap  = getReversedMap(trucks );
-			HashMap<String,Vector<String>> reversedRegionMap = getReversedMap(regions);
-			HashMap<String,Vector<String>> reversedMapMap    = getReversedMap(maps   );
+			Map<String,Vector<String>> reversedTruckMap  = getReversedMap(trucks );
+			Map<String,Vector<String>> reversedRegionMap = getReversedMap(regions);
+			Map<String,Vector<String>> reversedMapMap    = getReversedMap(maps   );
 			
-			HashSet<String> dlcs = new HashSet<>();
+			Set<String> dlcs = new HashSet<>();
 			dlcs.addAll(reversedTruckMap .keySet());
 			dlcs.addAll(reversedMapMap   .keySet());
 			dlcs.addAll(reversedRegionMap.keySet());
@@ -1417,7 +1496,7 @@ public class SnowRunner {
 			System.out.printf("... done%n");
 		}
 		
-		private void writeIDs(HashMap<String, Vector<String>> reversedMap, String dlc, PrintWriter out, String fieldName)
+		private void writeIDs(Map<String, Vector<String>> reversedMap, String dlc, PrintWriter out, String fieldName)
 		{
 			Vector<String> ids = reversedMap.get(dlc);
 			if (ids!=null)
@@ -1948,7 +2027,7 @@ public class SnowRunner {
 					);
 					boolean assignmentsChanged = dlg.showDialog();
 					if (assignmentsChanged)
-						gfds.controllers.dlcListeners.updateAfterChange();
+						gfds.controllers.dlcListeners.updateAfterAssignmentChange();
 				}));
 				
 				addContextMenuInvokeListener((comp, x, y) -> {
@@ -2213,9 +2292,13 @@ public class SnowRunner {
 		}
 
 		public static class DLCAssignmentController extends AbstractController<DLCs.Listener> implements DLCs.Listener {
-			@Override public void updateAfterChange() {
+			@Override public void updateAfterAssignmentChange() {
 				for (int i=0; i<listeners.size(); i++)
-					listeners.get(i).updateAfterChange();
+					listeners.get(i).updateAfterAssignmentChange();
+			}
+			@Override public void dlcOwnChanged() {
+				for (int i=0; i<listeners.size(); i++)
+					listeners.get(i).dlcOwnChanged();
 			}
 		}
 
@@ -2303,7 +2386,7 @@ public class SnowRunner {
 			TruckImageDialog_WindowWidth,
 			TruckImageDialog_WindowHeight,
 			
-			HiddenWheelTypes,
+			HiddenWheelTypes, NotOwnedDLCs,
 		}
 
 		enum ValueGroup implements Settings.GroupKeys<ValueKey> {

@@ -10,10 +10,10 @@ import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
+import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 import net.schwarzbaer.java.lib.gui.Tables;
 import net.schwarzbaer.java.lib.gui.Tables.SimplifiedColumnConfig;
 import net.schwarzbaer.java.lib.gui.Tables.SimplifiedTableModel;
-import net.schwarzbaer.java.games.snowrunner.SnowRunner.GlobalFinalDataStructures;
 
 public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> implements Finalizable {
 
@@ -36,9 +36,10 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 			this.language = language;
 			fireTableUpdate();
 		});
-		finalizer.addDLCListener(() ->
-			rebuildRows()
-		);
+		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
+			@Override public void updateAfterAssignmentChange() { rebuildRows(); }
+			@Override public void dlcOwnChanged() { fireTableColumnUpdate(ColumnID.OwnedByUser); }
+		} );
 		finalizer.addDataReceiver(data->{
 			this.data = data;
 			rebuildRows();
@@ -111,13 +112,21 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 	@Override public int getRowCount() {
 		return rows.size();
 	}
-
-	@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID) {
+	
+	private RowItem getRow(int rowIndex)
+	{
 		if (rowIndex<0 || rowIndex>=rows.size()) return null;
-		RowItem row = rows.get(rowIndex);
+		return rows.get(rowIndex);
+	}
+
+	@Override public Object getValueAt(int rowIndex, int columnIndex, ColumnID columnID)
+	{
+		RowItem row = getRow(rowIndex);
+		if (row==null) return null;
 		switch (columnID) {
 			case UpdateLevel: return row.updateLevel;
 			case OfficialDLC: return row.dlc;
+			case OwnedByUser: return SnowRunner.DLCs.isOwnedByUser(row.dlc);
 			case Truck:
 				Truck truck = data==null || row.truckID==null ? null : data.trucks.get(row.truckID);
 				if (truck       != null) return SnowRunner.getTruckLabel(truck, language);
@@ -133,12 +142,40 @@ public class DLCTableModel extends SimplifiedTableModel<DLCTableModel.ColumnID> 
 		return null;
 	}
 
-	enum ColumnID implements Tables.SimplifiedColumnIDInterface {
-		UpdateLevel ("Update Level", String .class, 100),
-		OfficialDLC ("Official DLC", String .class, 200),
-		Truck       ("Truck"       , String .class, 200),
-		Region      ("Region"      , String .class, 200),
-		Map         ("Map"         , String .class, 350),
+	@Override
+	protected boolean isCellEditable(int rowIndex, int columnIndex, ColumnID columnID)
+	{
+		return columnID == ColumnID.OwnedByUser;
+	}
+
+	@Override
+	protected void setValueAt(Object aValue, int rowIndex, int columnIndex, ColumnID columnID)
+	{
+		RowItem row = getRow(rowIndex);
+		if (row==null || columnID==null) return;
+		switch (columnID)
+		{
+		case OwnedByUser:
+			if (aValue instanceof Boolean boolValue)
+			{
+				SnowRunner.DLCs.setOwnedByUser(row.dlc, boolValue.booleanValue());
+				gfds.controllers.dlcListeners.dlcOwnChanged();
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	enum ColumnID implements Tables.SimplifiedColumnIDInterface
+	{
+		// Column Widths: [100, 200, 110, 200, 200, 350] in ModelOrder
+		UpdateLevel ("Update Level"     , String .class, 100),
+		OfficialDLC ("Official DLC"     , String .class, 200),
+		OwnedByUser ("DLC owned by User", Boolean.class, 110),
+		Truck       ("Truck"            , String .class, 200),
+		Region      ("Region"           , String .class, 200),
+		Map         ("Map"              , String .class, 350),
 		;
 	
 		private final SimplifiedColumnConfig config;

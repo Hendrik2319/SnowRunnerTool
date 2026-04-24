@@ -439,7 +439,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("Payments", "Payments", Long   .class,  60,   null, null, false, GET.get(row->row.paymentsReceived)),
 			});
 			clickedItem = null;
-			finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
+			finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
+				@Override public void updateAfterAssignmentChange() { fireTableColumnUpdate(ID_DLC); }
+				@Override public void dlcOwnChanged() {}
+			});
 		}
 
 		void setData(SaveGame saveGame)
@@ -478,7 +481,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				);
 				boolean assignmentsChanged = dlg.showDialog();
 				if (assignmentsChanged)
-					gfds.controllers.dlcListeners.updateAfterChange();
+					gfds.controllers.dlcListeners.updateAfterAssignmentChange();
 			}));
 			
 			contextMenu.addContextMenuInvokeListener((table, x, y) -> {
@@ -933,7 +936,10 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			clickedItem = null;
 			data = null;
 			
-			finalizer.addDLCListener(() -> fireTableColumnUpdate(ID_DLC));
+			finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
+				@Override public void updateAfterAssignmentChange() { fireTableColumnUpdate(ID_DLC); }
+				@Override public void dlcOwnChanged() {}
+			});
 		}
 
 		void setData(Data data)
@@ -973,7 +979,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				);
 				boolean assignmentsChanged = dlg.showDialog();
 				if (assignmentsChanged)
-					gfds.controllers.dlcListeners.updateAfterChange();
+					gfds.controllers.dlcListeners.updateAfterAssignmentChange();
 			}));
 			
 			contextMenu.addContextMenuInvokeListener((table, x, y) -> {

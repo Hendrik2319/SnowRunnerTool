@@ -48,11 +48,12 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 	private static final Color BG_COLOR__TRUCK_CAN_USE_TRAILER = new Color(0xCEFFC5);
 	private static final Color BG_COLOR__DISPLAYED_TRUCK = new Color(0xFFDF00);
 
-	private enum Edit { UD_DiffLock, UD_AWD }
+	private enum Edit { UD_DiffLock, UD_AWD, DLCOwned }
 	
 	//private static boolean enableOwnedTrucksHighlighting = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableOwnedTrucksHighlighting, true);
 	//private static boolean enableDLCTrucksHighlighting   = SnowRunner.settings.getBool(SnowRunner.AppSettings.ValueKey.TruckTableModel_enableDLCTrucksHighlighting  , true);
-	private static final String ID_DLC       = "DLC";
+	private static final String ID_DLC       = "DLC"      ;
+	private static final String ID_DLCOwned  = "DLCOwned" ;
 	private static final String ID_HasImage  = "HasImage" ;
 	private static final String ID_MetalD    = "MetalD"   ;
 	private static final String ID_Seismic   = "Seismic"  ;
@@ -71,12 +72,13 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 	private SaveGame.TruckDesc displayedTruck;
 	private ExtraBoolColumnsMenuForStoredTrucks extraBoolColumnsMenuForStoredTrucks;
 
-	// Column Widths: [160, 80, 170, 140, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 60, 90, 90, 90, 90, 105, 90, 95, 95, 110, 80, 235, 125, 95, 80, 70, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
+	// Column Widths: [160, 80, 170, 65, 140, 80, 160, 40, 45, 45, 80, 60, 75, 110, 100, 100, 95, 85, 85, 90, 90, 90, 60, 60, 60, 90, 90, 90, 90, 105, 90, 95, 95, 110, 80, 235, 125, 95, 80, 70, 280, 75, 75, 75, 60, 120, 120, 100, 60, 200, 110, 110, 110, 130, 95, 90, 110, 130, 70, 80, 150, 150] in ModelOrder
 	public TruckTableModel(Window mainWindow, GlobalFinalDataStructures gfds, String tableModelInstanceID) {
 		super(mainWindow, gfds, tableModelInstanceID, new VerySimpleTableModel.ColumnID[] {
 				new ColumnID( "ID"       , "ID"                    ,               String.class, 160,             null,   null,      null, false, GET.get(t->t.id         )),
 				new ColumnID( "UpdateLvl", "Update Level"          ,               String.class,  80,             null,   null,      null, false, GET.get(t->t.updateLevel)),
 				new ColumnID(ID_DLC      , "DLC"                   ,               String.class, 170,             null,   null,      null, false, GET.get(t->gfds.dlcs.getDLCOfTruck(t))),
+				new ColumnID(ID_DLCOwned , "DLC owned"             ,              Boolean.class,  65,    Edit.DLCOwned,   null,      null, false, GET.get(t->SnowRunner.DLCs.isOwnedByUser(gfds.dlcs.getDLCOfTruck(t)))),
 				new ColumnID( "Country"  , "Country"               ,     Truck.CountrySet.class, 140,             null, CENTER,      null, false, GET.get(t->t.gameData, gd->gd.country)),
 				new ColumnID( "Type"     , "Type"                  ,      Truck.TruckType.class,  80,             null, CENTER,      null, false, GET.get(t->t.type)),
 				new ColumnID( "Name"     , "Name"                  ,               String.class, 160,             null,   null,      null,  true, GET.get(t->t.gameData, gd->gd.getNameStringID())),
@@ -208,10 +210,15 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 				fireTableColumnUpdate(getColumnIndexByIdFromVisible(id));
 		});
 		
-		finalizer.addDLCListener(() -> {
-			fireTableColumnUpdate(ID_DLC);
-			if (extraBoolColumnsMenuForStoredTrucks!=null)
-				extraBoolColumnsMenuForStoredTrucks.rebuild();
+		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
+			@Override public void dlcOwnChanged() { fireTableColumnUpdate(ID_DLCOwned); }
+			@Override public void updateAfterAssignmentChange()
+			{
+				fireTableColumnUpdate(ID_DLC);
+				fireTableColumnUpdate(ID_DLCOwned);
+				if (extraBoolColumnsMenuForStoredTrucks!=null)
+					extraBoolColumnsMenuForStoredTrucks.rebuild();
+			}
 		});
 		finalizer.addFilterTrucksByTrailersListener(this::setTrailerForFilter);
 		finalizer.addAddBoolColumnToTrucksListener(this::addExtraBoolColumn);
@@ -463,14 +470,31 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 		Truck row = getRow(rowIndex);
 		if (row==null) return;
 		
-		Truck.UDV values = gfds.userDefinedValues.getOrCreateTruckValues(row.id);
-		
 		switch (columnID.editMarker) {
-		case UD_AWD     : values.realAWD      = (Truck.UDV.ItemState)aValue; break;
-		case UD_DiffLock: values.realDiffLock = (Truck.UDV.ItemState)aValue; break;
+		case UD_AWD:
+		case UD_DiffLock:
+			if (aValue==null || aValue instanceof Truck.UDV.ItemState)
+			{
+				Truck.UDV.ItemState itemState = (Truck.UDV.ItemState)aValue;
+				Truck.UDV values = gfds.userDefinedValues.getOrCreateTruckValues(row.id);
+				if (columnID.editMarker==Edit.UD_AWD     ) values.realAWD      = itemState;
+				if (columnID.editMarker==Edit.UD_DiffLock) values.realDiffLock = itemState;
+				gfds.userDefinedValues.write();
+			}
+			break;
+			
+		case DLCOwned   :
+			if (aValue instanceof Boolean boolValue)
+			{
+				String dlc = gfds.dlcs.getDLCOfTruck(row);
+				if (dlc!=null)
+				{
+					SnowRunner.DLCs.setOwnedByUser(dlc, boolValue.booleanValue());
+					gfds.controllers.dlcListeners.dlcOwnChanged();
+				}
+			}
+			break;
 		}
-		
-		gfds.userDefinedValues.write();
 	}
 
 	@Override protected String getRowName(Truck row)
@@ -506,7 +530,7 @@ public class TruckTableModel extends VerySimpleTableModel<Truck>
 			);
 			boolean assignmentsChanged = dlg.showDialog();
 			if (assignmentsChanged)
-				gfds.controllers.dlcListeners.updateAfterChange();
+				gfds.controllers.dlcListeners.updateAfterAssignmentChange();
 		}));
 		
 		JMenuItem miSetTruckImage = contextMenu.add(SnowRunner.createMenuItem("Paste image of truck from clipboard", true, e->{

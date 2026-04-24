@@ -157,9 +157,10 @@ public abstract class VerySimpleTableModel<RowType> extends Tables.SimplifiedTab
 					case Data    : break; // --> connectToGlobalData
 					case Language: break; // --> some lines above :)
 					case DLCAssignment:
-						finalizer.addDLCListener(() ->
-							clearCacheOfColumns(ColumnID.Update.DLCAssignment)
-						);
+						finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
+							@Override public void updateAfterAssignmentChange() { clearCacheOfColumns(ColumnID.Update.DLCAssignment); }
+							@Override public void dlcOwnChanged() {}
+						});
 						break;
 					case SaveGame:
 						finalizer.addSaveGameListener(savegame -> {

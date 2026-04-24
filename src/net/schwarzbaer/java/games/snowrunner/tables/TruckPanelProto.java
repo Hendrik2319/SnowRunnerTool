@@ -133,9 +133,10 @@ public class TruckPanelProto implements Finalizable {
 			this.saveGame = saveGame;
 			updateOutput();
 		});
-		finalizer.addDLCListener(() ->
-			updateOutput()
-		);
+		finalizer.addDLCListener(new SnowRunner.DLCs.Listener() {
+			@Override public void updateAfterAssignmentChange() { updateOutput(); }
+			@Override public void dlcOwnChanged() {}
+		});
 		finalizer.addDataReceiver(data -> {
 			addonCategories = data==null ? null : data.addonCategories;
 			updateOutput();

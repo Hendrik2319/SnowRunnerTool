@@ -1,5 +1,12 @@
 [Preset]
 TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
+Preset=In NotOwned DLC
+OrderIndex=3
+Foreground=B70000
+Filter=DLCOwned:true:false:BoolFilter:false
+
+[Preset]
+TableModel=net.schwarzbaer.java.games.snowrunner.tables.TruckTableModel
 Preset=Owned Offroad Trucks
 OrderIndex=1
 Foreground=00AB00
