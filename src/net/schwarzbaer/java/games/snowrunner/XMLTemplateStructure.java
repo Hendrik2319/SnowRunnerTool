@@ -1,7 +1,6 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.Window;
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -19,7 +18,6 @@ import java.util.Iterator;
 import java.util.Vector;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.zip.ZipFile;
 
 import javax.swing.JButton;
 
@@ -47,40 +45,39 @@ class XMLTemplateStructure {
 	final HashMap<String, Data.Language> languages;
 
 	static XMLTemplateStructure readPAK(File pakFile, Window mainWindow) {
-		return PAKReader.readPAK(pakFile, (zipFile, zipRoot) -> {
+		return PAKReader.readPAK(pakFile, zipRoot -> {
 			try {
-				return new XMLTemplateStructure(zipFile, zipRoot, mainWindow);
+				return new XMLTemplateStructure(pakFile.getName(), zipRoot, mainWindow);
 			} catch (EntryStructureException e) {
 				e.printStackTrace();
 			} catch (ParseException e) {
 				e.printStackTrace();
 			}
-			
 			return null;
 		});
 	}
 	
-	XMLTemplateStructure(ZipFile zipFile, ZipEntryTreeNode zipRoot, Window mainWindow) throws IOException, EntryStructureException, ParseException {
+	XMLTemplateStructure(String zipFileName, ZipEntryTreeNode zipRoot, Window mainWindow) throws IOException, EntryStructureException, ParseException {
 		
 		languages = new HashMap<>();
-		Data.readLanguages(zipFile, zipRoot, languages);
+		Data.readLanguages(zipRoot, languages);
 		
 		ZipEntryTreeNode contentRootFolder = zipRoot.getSubFolder("[media]");
 		if (contentRootFolder==null)
-			throw new EntryStructureException("Found no content root folder \"[media]\" in \"%s\"", zipFile.getName());
+			throw new EntryStructureException("Found no content root folder \"[media]\" in \"%s\"", zipFileName);
 		
-		testingGround = new TestingGround(zipFile, contentRootFolder, mainWindow);
+		testingGround = new TestingGround(zipFileName, contentRootFolder, mainWindow);
 		testingGround.testContentRootFolder();
 		
 		ClassStructur classStructur = new ClassStructur(contentRootFolder);
 		
 		ignoredFiles = new Vector<>();
-		globalTemplates = readGlobalTemplates(zipFile, classStructur.templates);
+		globalTemplates = readGlobalTemplates(classStructur.templates);
 		if (globalTemplates==null) throw new IllegalStateException();
 		
 		classes = new HashMap<>();
 		for (ClassStructur.StructClass structClass : classStructur.classes.values())
-			classes.put(structClass.className, new Class_(zipFile, structClass, globalTemplates, ignoredFiles));
+			classes.put(structClass.className, new Class_(structClass, globalTemplates, ignoredFiles));
 		
 		if (!ignoredFiles.isEmpty()) {
 			System.err.printf("IgnoredFiles: [%d]%n", ignoredFiles.size());
@@ -91,24 +88,23 @@ class XMLTemplateStructure {
 		//testingGround.writeToFile("TestingGround.results.txt");
 	}
 
-	private HashMap<String,Templates> readGlobalTemplates(ZipFile zipFile, HashMap<String,ZipEntryTreeNode> templates) throws EntryStructureException, IOException, ParseException {
-		if (zipFile==null) throw new IllegalArgumentException();
+	private HashMap<String,Templates> readGlobalTemplates(HashMap<String,ZipEntryTreeNode> templates) throws EntryStructureException, IOException, ParseException {
 		if (templates==null) throw new IllegalArgumentException();
 		
 		HashMap<String,Templates> globalTemplates = new HashMap<>();
 		for (String templateName : templates.keySet()) {
 			ZipEntryTreeNode fileNode = templates.get(templateName);
-			readGlobalTemplates_(zipFile, globalTemplates, templateName, fileNode);
+			readGlobalTemplates_(globalTemplates, templateName, fileNode);
 		}
 		
 		return globalTemplates;
 	}
 
-	private void readGlobalTemplates_(ZipFile zipFile, HashMap<String, Templates> globalTemplates, String templateName, ZipEntryTreeNode fileNode)
+	private void readGlobalTemplates_(HashMap<String, Templates> globalTemplates, String templateName, ZipEntryTreeNode fileNode)
 			throws EntryStructureException, IOException, ParseException {
 		//System.out.printf("Read template \"%s\" ...%n", fileNode.path);
 		
-		NodeList nodes = readXML(zipFile, fileNode);
+		NodeList nodes = readXML(fileNode);
 		if (nodes==null) {
 			System.err.printf("Can't read xml file \"%s\" --> Templates file will be ignored%n", fileNode.path);
 			ignoredFiles.add(fileNode.path);
@@ -166,17 +162,12 @@ class XMLTemplateStructure {
 			showNode(node);
 	}
 	
-	private static void showBytes(ZipFile zipFile, ZipEntryTreeNode fileNode, int length) {
-		
-		try (BufferedInputStream in = new BufferedInputStream(zipFile.getInputStream(fileNode.entry));) {
-			byte[] bytes = new byte[length];
-			int n, pos=0;
-			while ( pos<bytes.length && (n=in.read(bytes,pos,bytes.length-pos))>=0 ) pos += n;
-			if (pos<bytes.length) bytes = Arrays.copyOfRange(bytes, 0, pos);
-			System.err.printf("First %d bytes of file \"%s\":%n  %s%n", bytes.length, fileNode.path, toHexString(bytes));
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
+	private static void showBytes(ZipEntryTreeNode fileNode, int length)
+	{
+		if (fileNode.rawBytes!=null)
+			System.err.printf("First %d bytes of file \"%s\":%n  %s%n", fileNode.rawBytes.length, fileNode.path, toHexString(fileNode.rawBytes));
+		else
+			System.err.printf("Entry \"%s\" is a folder and has no content.%n", fileNode.path);
 	}
 
 	private static String toHexString(byte[] bytes) {
@@ -189,8 +180,7 @@ class XMLTemplateStructure {
 		return str.isEmpty() ? "[]" : String.format("[ %s ]", str);
 	}
 
-	private static NodeList readXML(ZipFile zipFile, ZipEntryTreeNode fileNode) throws EntryStructureException, IOException {
-		if (zipFile ==null) throw new IllegalArgumentException();
+	private static NodeList readXML(ZipEntryTreeNode fileNode) throws EntryStructureException, IOException {
 		if (fileNode==null) throw new IllegalArgumentException();
 		if (!fileNode.isfile())
 			throw new EntryStructureException("Given ZipEntryTreeNode isn't a file: %s", fileNode.path);
@@ -198,7 +188,7 @@ class XMLTemplateStructure {
 			throw new EntryStructureException("Found a Non XML File: %s", fileNode.path);
 		
 		try {
-			return readXML(zipFile.getInputStream(fileNode.entry), fileNode.path);
+			return readXML(fileNode.createByteStream(), fileNode.path);
 		} catch (ParseException e) {
 			System.err.printf("ParseException while basic reading of \"%s\":%n   %s%n", fileNode.path, e.getMessage());
 			return null;
@@ -347,14 +337,14 @@ class XMLTemplateStructure {
 
 	private static class TestingGround {
 		
-		private final ZipFile zipFile;
+		private final String zipFileName;
 		private final ZipEntryTreeNode contentRootFolder;
 		private final HashMap<String,Vector<String>> parentRelations;
 		private final HashMap<String,HashMap<String,Integer>> specialAttributes;
 		private final Window mainWindow;
 
-		TestingGround(ZipFile zipFile, ZipEntryTreeNode contentRootFolder, Window mainWindow) {
-			this.zipFile = zipFile;
+		TestingGround(String zipFileName, ZipEntryTreeNode contentRootFolder, Window mainWindow) {
+			this.zipFileName = zipFileName;
 			this.contentRootFolder = contentRootFolder;
 			this.mainWindow = mainWindow;
 			parentRelations = new HashMap<>();
@@ -366,7 +356,7 @@ class XMLTemplateStructure {
 			
 			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
 				
-				out.printf("File: %s%n", zipFile.getName());
+				out.printf("File: %s%n", zipFileName);
 				out.printf("Date: %s%n", new DateTimeFormatter().getTimeStr(System.currentTimeMillis(), true, true, true, true, true));
 				out.println();
 				
@@ -538,8 +528,7 @@ class XMLTemplateStructure {
 		final String name;
 		final HashMap<String,Item> items;
 	
-		public Class_(ZipFile zipFile, ClassStructur.StructClass structClass, HashMap<String, Templates> globalTemplates, Vector<String> ignoredFiles) throws IOException, EntryStructureException, ParseException {
-			if (zipFile==null) throw new IllegalArgumentException();
+		public Class_(ClassStructur.StructClass structClass, HashMap<String, Templates> globalTemplates, Vector<String> ignoredFiles) throws IOException, EntryStructureException, ParseException {
 			if ( structClass==null) throw new IllegalArgumentException();
 			if (globalTemplates==null) throw new IllegalArgumentException();
 			if (ignoredFiles==null) throw new IllegalArgumentException();
@@ -547,7 +536,7 @@ class XMLTemplateStructure {
 			name = structClass.className;
 			
 			items = new HashMap<>();
-			new ItemLoader(zipFile, structClass.items, globalTemplates, items, ignoredFiles).run();
+			new ItemLoader(structClass.items, globalTemplates, items, ignoredFiles).run();
 		}
 		
 		private interface LoadMethod {
@@ -556,15 +545,13 @@ class XMLTemplateStructure {
 		
 		private static class ItemLoader implements Item.ParentFinder {
 			
-			private final ZipFile zipFile;
 			private final HashMap<String,ClassStructur.StructItem> structItems;
 			private final HashMap<String, Templates> globalTemplates;
 			private final HashMap<String, Item> loadedItems;
 			private final HashSet<String> blockedItems;
 			private final Vector<String> ignoredFiles;
 
-			ItemLoader(ZipFile zipFile, HashMap<String,ClassStructur.StructItem> structItems, HashMap<String, Templates> globalTemplates, HashMap<String, Item> loadedItems, Vector<String> ignoredFiles) {
-				this.zipFile = zipFile;
+			ItemLoader(HashMap<String,ClassStructur.StructItem> structItems, HashMap<String, Templates> globalTemplates, HashMap<String, Item> loadedItems, Vector<String> ignoredFiles) {
 				this.structItems = structItems;
 				this.globalTemplates = globalTemplates;
 				this.loadedItems = loadedItems;
@@ -583,7 +570,7 @@ class XMLTemplateStructure {
 				
 				blockedItems.add(structItem.itemFilePath);
 				
-				Item item = Item.read(zipFile, structItem, globalTemplates, this);
+				Item item = Item.read(structItem, globalTemplates, this);
 				if (item == null)
 				{
 					if (!KnownBugs.getInstance().hideIgnoredFile(structItem.itemFilePath))
@@ -625,7 +612,7 @@ class XMLTemplateStructure {
 			final String subClassName;
 			final GenericXmlNode content;
 
-			static Item read(ZipFile zipFile, ClassStructur.StructItem structItem, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws IOException, EntryStructureException, ParseException {
+			static Item read(ClassStructur.StructItem structItem, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws IOException, EntryStructureException, ParseException {
 				if (globalTemplates==null) throw new IllegalArgumentException();
 				if (structItem==null) throw new IllegalArgumentException();
 				if (!structItem.itemFile.isfile()) throw new IllegalStateException();
@@ -635,7 +622,7 @@ class XMLTemplateStructure {
 				if (KnownBugs.getInstance().isKnownWrongClassFile_ignore(structItem))
 					return null;
 				
-				NodeList nodes = readXML(zipFile, structItem.itemFile);
+				NodeList nodes = readXML(structItem.itemFile);
 				if (nodes==null) {
 					System.err.printf("Can't read xml file \"%s\" --> Item will be ignored%n", structItem.itemFilePath);
 					return null;

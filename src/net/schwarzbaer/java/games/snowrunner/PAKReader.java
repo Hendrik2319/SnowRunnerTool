@@ -1,7 +1,9 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.function.Consumer;
@@ -19,12 +21,17 @@ class PAKReader {
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
 			while (entries.hasMoreElements()) {
 				ZipEntry entry = entries.nextElement();
-				zipRoot.addChild(entry);
+				
+				InputStream stream = zipFile.getInputStream(entry);
+				byte[] rawBytes = stream!=null ? stream.readAllBytes() : null;
+				
+				zipRoot.addChild(entry, rawBytes);
+				
 				//String entryName = entry.getName();
 				//System.out.printf("   \"%s\"%n", entryName);
 			}
 			
-			ValueType data = nextParsingStage.parse(zipFile, zipRoot);
+			ValueType data = nextParsingStage.parse(zipRoot);
 			System.out.printf("... done%n");
 			return data;
 			
@@ -35,7 +42,7 @@ class PAKReader {
 	}
 	
 	interface NextParsingStage<ValueType> {
-		ValueType parse(ZipFile zipFile, ZipEntryTreeNode zipRoot) throws IOException;
+		ValueType parse(ZipEntryTreeNode zipRoot) throws IOException;
 	}
 
 	static class ZipEntryTreeNode {
@@ -45,19 +52,30 @@ class PAKReader {
 		final ZipEntry entry;
 		final HashMap<String, ZipEntryTreeNode> folders;
 		final HashMap<String, ZipEntryTreeNode> files;
+		final byte[] rawBytes;
 
 		private ZipEntryTreeNode() { // root
-			this(null,"",null);
+			this(null,"",null,null);
 		}
 		
-		private ZipEntryTreeNode(ZipEntryTreeNode parent, String name, ZipEntry entry) {
+		private ZipEntryTreeNode(ZipEntryTreeNode parent, String name) { // folder
+			this(parent,name,null,null);
+		}
+		
+		private ZipEntryTreeNode(ZipEntryTreeNode parent, String name, ZipEntry entry, byte[] rawBytes) {
 			this.parent = parent;
 			this.name = name;
 			this.entry = entry;
+			this.rawBytes = rawBytes;
 			this.folders = this.entry!=null ? null : new HashMap<>();
 			this.files   = this.entry!=null ? null : new HashMap<>();
 			if (this.parent==null) path = name;
 			else path = this.parent.path+"\\"+name;
+		}
+		
+		InputStream createByteStream()
+		{
+			return rawBytes==null ? null : new ByteArrayInputStream(rawBytes);
 		}
 		
 		boolean isfile() {
@@ -80,23 +98,22 @@ class PAKReader {
 			folders.values().forEach(node->node.traverseFiles(action));
 		}
 
-		private void addChild(ZipEntry entry) {
-			String entryName = entry.getName();
-			String[] names = entryName.split("\\\\");
-			addChild(names,0,entry);
+		private void addChild(ZipEntry entry, byte[] rawBytes) {
+			addChild(
+					entry.getName().split("\\\\"), 0,
+					entry, rawBytes
+			);
 		}
 
-		private void addChild(String[] names, int index, ZipEntry entry) {
+		private void addChild(String[] names, int index, ZipEntry entry, byte[] rawBytes) {
 			String name = names[index];
-			if (index==names.length-1) {
-				files.put(name, new ZipEntryTreeNode(this, name, entry));
-				return;
-			} else {
-				ZipEntryTreeNode folderNode = folders.get(name);
-				if (folderNode==null)
-					folders.put(name, folderNode = new ZipEntryTreeNode(this, name, null));
-				folderNode.addChild(names, index+1, entry);
-			}
+			if (index==names.length-1)
+				files
+					.put(name, new ZipEntryTreeNode(this, name, entry, rawBytes));
+			else
+				folders
+					.computeIfAbsent(name, n -> new ZipEntryTreeNode(this, n))
+					.addChild(names, index+1, entry, rawBytes);
 		}
 
 		ZipEntryTreeNode getSubFile(String folderPath, String fileName) {

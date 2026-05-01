@@ -29,7 +29,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.zip.ZipFile;
 
 import net.schwarzbaer.java.games.snowrunner.MapTypes.SetMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
@@ -491,9 +490,9 @@ public class Data {
 		return false;
 	}
 
-	private static <ValueType> void readEntries(ZipFile zipFile, ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
+	private static <ValueType> void readEntries(ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
 		for (ZipEntryTreeNode node:nodes) {
-			ValueType value = readEntry(zipFile, node, readInput);
+			ValueType value = readEntry(node, readInput);
 			if (value!=null) {
 				if (targetMap.containsKey(node.name))
 					System.err.printf("[%s] Found redundant key in HashMap: %s%n", targetMapLabel, node.name);
@@ -502,15 +501,14 @@ public class Data {
 		}
 	}
 
-	private static <ValueType> ValueType readEntry(ZipFile zipFile, ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) throws IOException {
-		InputStream input = zipFile.getInputStream(node.entry);
-		return readInput.apply(node.name, input);
+	private static <ValueType> ValueType readEntry(ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) throws IOException {
+		return readInput.apply(node.name, node.createByteStream());
 	}
 	
-	static void readLanguages(ZipFile zipFile, ZipEntryTreeNode zipRoot, HashMap<String, Language> languages) throws IOException {
+	static void readLanguages(ZipEntryTreeNode zipRoot, HashMap<String, Language> languages) throws IOException {
 		Predicate<String> isSTR = fileName->fileName.endsWith(".str");
 		ZipEntryTreeNode[] languageNodes = zipRoot.getSubFiles("[strings]", isSTR);
-		readEntries(zipFile, languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
+		readEntries(languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
 	}
 	
 	private static int compareNullsLast(String v1, String v2)
