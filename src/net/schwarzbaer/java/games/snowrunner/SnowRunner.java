@@ -446,13 +446,14 @@ public class SnowRunner {
 	
 	private Data readXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
 		setTitleOfIndeterminateTask(pd, "Read XMLTemplateStructure");
+		long start = System.currentTimeMillis();
 		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
 		if (structure==null) return null;
 		if (Thread.currentThread().isInterrupted()) return null;
 		setTitleOfIndeterminateTask(pd, "Parse Data from XMLTemplateStructure");
 		System.out.printf("Parse Data from XMLTemplateStructure ...%n");
 		Data data = new Data(structure);
-		System.out.printf("... done%n");
+		System.out.printf("... done in %s%n", DateTimeFormatter.getDurationStr_ms(System.currentTimeMillis()-start));
 		if (Thread.currentThread().isInterrupted()) return null;
 		return data;
 	}
