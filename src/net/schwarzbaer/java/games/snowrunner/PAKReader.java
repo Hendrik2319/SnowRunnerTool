@@ -1,6 +1,5 @@
 package net.schwarzbaer.java.games.snowrunner;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,6 +47,7 @@ class PAKReader {
 		final HashMap<String, ZipEntryTreeNode> folders;
 		final HashMap<String, ZipEntryTreeNode> files;
 		final byte[] rawBytes;
+		String parsedText;
 
 		private ZipEntryTreeNode() { // root
 			this(null,"",null,null);
@@ -62,15 +62,11 @@ class PAKReader {
 			this.name = name;
 			this.entry = entry;
 			this.rawBytes = rawBytes;
+			this.parsedText = null;
 			this.folders = this.entry!=null ? null : new HashMap<>();
 			this.files   = this.entry!=null ? null : new HashMap<>();
 			if (this.parent==null) path = name;
 			else path = this.parent.path+"\\"+name;
-		}
-		
-		InputStream createByteStream()
-		{
-			return rawBytes==null ? null : new ByteArrayInputStream(rawBytes);
 		}
 		
 		boolean isfile() {

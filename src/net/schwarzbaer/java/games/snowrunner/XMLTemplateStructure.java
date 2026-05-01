@@ -37,6 +37,7 @@ class XMLTemplateStructure {
 	private static final boolean SHOW_UNEXPECTED_TEXT = false; 
 	private static TestingGround testingGround;
 	
+	final ZipEntryTreeNode zipRoot;
 	final HashMap<String, Templates> globalTemplates;
 	final HashMap<String, Class_> classes;
 	final Vector<String> ignoredFiles;
@@ -54,12 +55,13 @@ class XMLTemplateStructure {
 		return null;
 	}
 	
-	XMLTemplateStructure(String zipFileName, ZipEntryTreeNode zipRoot, Window mainWindow) throws EntryStructureException, ParseException {
-		
+	XMLTemplateStructure(String zipFileName, ZipEntryTreeNode zipRoot, Window mainWindow) throws EntryStructureException, ParseException
+	{
+		this.zipRoot = zipRoot;
 		languages = new HashMap<>();
-		Data.readLanguages(zipRoot, languages);
+		Data.readLanguages(this.zipRoot, languages);
 		
-		ZipEntryTreeNode contentRootFolder = zipRoot.getSubFolder("[media]");
+		ZipEntryTreeNode contentRootFolder = this.zipRoot.getSubFolder("[media]");
 		if (contentRootFolder==null)
 			throw new EntryStructureException("Found no content root folder \"[media]\" in \"%s\"", zipFileName);
 		
@@ -185,27 +187,27 @@ class XMLTemplateStructure {
 			throw new EntryStructureException("Found a Non XML File: %s", fileNode.path);
 		
 		try {
-			return readXML(fileNode.createByteStream(), fileNode.path);
+			return parseXML(fileNode);
 		} catch (ParseException e) {
 			System.err.printf("ParseException while basic reading of \"%s\":%n   %s%n", fileNode.path, e.getMessage());
 			return null;
 		}
 	}
 	
-	private static NodeList readXML(InputStream input, String filePath) throws ParseException {
+	private static NodeList parseXML(ZipEntryTreeNode fileNode) throws ParseException {
 		Document doc;
 		try
 		{
-			doc = XML.parseUTF8(input,content->{
+			doc = XML.parseUTF8(fileNode, content->{
 				KnownBugs knownBugs = KnownBugs.getInstance();
-				content = knownBugs.fixRawXML(content, filePath);
+				content = knownBugs.fixRawXML(content, fileNode.path);
 				content = knownBugs.addBracketNode(content);
 				return content;
 			});
 		}
 		catch (XML.FixXMLException e) { throw new ParseException(e); }
 		if (doc==null) return null;
-		return KnownBugs.getInstance().removeBracketNode(doc, filePath);
+		return KnownBugs.removeBracketNode(doc, fileNode.path);
 	}
 	
 	private static class ClassStructur {
@@ -1343,7 +1345,7 @@ class XMLTemplateStructure {
 			return String.format("<%1$s>%2$s</%1$s>", "BracketNode", rawXML);
 		}
 
-		NodeList removeBracketNode(Document doc, String filePath) throws ParseException
+		static NodeList removeBracketNode(Document doc, String filePath) throws ParseException
 		{
 			Node bracketNode = null;
 			for (Node node : XML.makeIterable(doc.getChildNodes())) {

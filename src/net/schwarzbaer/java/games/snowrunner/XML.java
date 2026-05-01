@@ -1,7 +1,7 @@
 package net.schwarzbaer.java.games.snowrunner;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
@@ -20,6 +20,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
+
 class XML {
 	
 	interface FixXMLFunction {
@@ -33,19 +35,9 @@ class XML {
 		FixXMLException(Throwable cause, String format, Object... objects) { super(String.format(format, objects), cause); }
 	}
 
-	private static StringReader fixXML(FixXMLFunction fixXML, InputStream input) throws FixXMLException {
-		
-		byte[] bytes;
-		try
-		{
-			bytes = input.readAllBytes();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-			return null;
-		}
-		try { input.close(); }
-		catch (IOException e) {}
-		
+	private static String fixXML(FixXMLFunction fixXML, ZipEntryTreeNode fileNode) throws FixXMLException
+	{
+		byte[] bytes = fileNode.rawBytes;
 		
 		String string;
 		if (bytes.length>=3 && (bytes[0]&0xFF)==0xEF && (bytes[1]&0xFF)==0xBB && (bytes[2]&0xFF)==0xBF) // UTF8 marker bytes
@@ -53,21 +45,16 @@ class XML {
 		else
 			string = new String(bytes, StandardCharsets.UTF_8);
 		
-		String fixedXML = fixXML.fixXML( string );
-		
-		return new StringReader(fixedXML);
+		fileNode.parsedText = string;
+		return fixXML.fixXML( string );
 	}
 
-	static Document parseUTF8(InputStream input) throws FixXMLException {
-		return parseUTF8(input, null);
+	static Document parseUTF8(ZipEntryTreeNode fileNode) throws FixXMLException {
+		return parseReader(new InputStreamReader(new ByteArrayInputStream(fileNode.rawBytes), StandardCharsets.UTF_8));
 	}
-	static Document parseUTF8(InputStream input, FixXMLFunction fixXML) throws FixXMLException {
-		if (fixXML != null) {
-			StringReader reader = fixXML(fixXML, input);
-			if (reader==null) return null;
-			return parseReader(reader);
-		} else
-			return parseReader(new InputStreamReader(input, StandardCharsets.UTF_8));
+	static Document parseUTF8(ZipEntryTreeNode fileNode, FixXMLFunction fixXML) throws FixXMLException {
+		if (fixXML == null) throw new IllegalArgumentException();
+		return parseReader(new StringReader( fixXML(fixXML, fileNode) ));
 	}
 	
 	static Document parseReader(Reader reader) {

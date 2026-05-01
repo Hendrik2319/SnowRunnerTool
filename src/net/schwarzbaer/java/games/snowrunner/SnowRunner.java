@@ -547,9 +547,13 @@ public class SnowRunner {
 			out.add(0, "Can't find Runtime object.");
 		else
 		{
-			showMemoryUsageLine(out,  "Free Memory", runtime. freeMemory());
-			showMemoryUsageLine(out,  "Max. Memory", runtime.  maxMemory());
-			showMemoryUsageLine(out, "Total Memory", runtime.totalMemory());
+			long totalMemory = runtime.totalMemory();
+			long  freeMemory = runtime. freeMemory();
+			long   maxMemory = runtime.  maxMemory();
+			showMemoryUsageLine(out, "Total Memory", totalMemory);
+			showMemoryUsageLine(out,  "Used Memory", totalMemory-freeMemory);
+			showMemoryUsageLine(out,  "Free Memory",  freeMemory);
+			showMemoryUsageLine(out,  "Max. Memory",   maxMemory);
 		}
 		TextAreaDialog.showText(mainWindow, "Memory Usage", 300, 200, true, out.generateOutput());
 	}

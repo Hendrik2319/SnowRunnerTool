@@ -5,8 +5,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
@@ -490,9 +488,9 @@ public class Data {
 		return false;
 	}
 
-	private static <ValueType> void readEntries(ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) {
-		for (ZipEntryTreeNode node:nodes) {
-			ValueType value = readEntry(node, readInput);
+	private static <ValueType> void readEntries(ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,ZipEntryTreeNode,ValueType> readInput) {
+		for (ZipEntryTreeNode node : nodes) {
+			ValueType value = readInput.apply(node.name, node);
 			if (value!=null) {
 				if (targetMap.containsKey(node.name))
 					System.err.printf("[%s] Found redundant key in HashMap: %s%n", targetMapLabel, node.name);
@@ -500,15 +498,11 @@ public class Data {
 			}
 		}
 	}
-
-	private static <ValueType> ValueType readEntry(ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) {
-		return readInput.apply(node.name, node.createByteStream());
-	}
 	
 	static void readLanguages(ZipEntryTreeNode zipRoot, HashMap<String, Language> languages) {
 		Predicate<String> isSTR = fileName->fileName.endsWith(".str");
 		ZipEntryTreeNode[] languageNodes = zipRoot.getSubFiles("[strings]", isSTR);
-		readEntries(languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));
+		readEntries(languageNodes, languages, "languages", Language::readFrom);
 	}
 	
 	private static int compareNullsLast(String v1, String v2)
@@ -552,16 +546,18 @@ public class Data {
 			}
 		}
 
-		static Language readFrom(String name, InputStream input) {
-			
+		static Language readFrom(String name, ZipEntryTreeNode node)
+		{
 			Language language = new Language(name);
 			
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_16LE))) {
+			if (node.rawBytes!=null)
+			{
+				String content = node.parsedText = new String(node.rawBytes, StandardCharsets.UTF_16LE);
 				
-				String line;
-				int lineNumber = 0;
-				while ( (line=in.readLine())!=null ) {
-					lineNumber++;
+				List<String> lines = content.lines().toList();
+				for (int lineNumber=0; lineNumber<lines.size(); lineNumber++)
+				{
+					String line = lines.get(lineNumber);
 					
 					int pos = line.indexOf('\t');
 					if (pos<0) {
@@ -576,9 +572,6 @@ public class Data {
 					
 					language.dictionary.put(key, value);
 				}
-				
-			} catch (IOException e) {
-				e.printStackTrace();
 			}
 			
 			return language;
