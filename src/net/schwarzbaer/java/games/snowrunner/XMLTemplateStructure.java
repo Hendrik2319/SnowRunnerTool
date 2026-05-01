@@ -32,12 +32,12 @@ import net.schwarzbaer.java.lib.gui.TextAreaDialog;
 import net.schwarzbaer.java.lib.system.DateTimeFormatter;
 
 @SuppressWarnings("unused")
-class XMLTemplateStructure {
+public class XMLTemplateStructure {
 	
 	private static final boolean SHOW_UNEXPECTED_TEXT = false; 
 	private static TestingGround testingGround;
 	
-	final ZipEntryTreeNode zipRoot;
+	public final ZipEntryTreeNode zipRoot;
 	final HashMap<String, Templates> globalTemplates;
 	final HashMap<String, Class_> classes;
 	final Vector<String> ignoredFiles;
@@ -615,7 +615,18 @@ class XMLTemplateStructure {
 				//System.out.printf("Read Item \"%s\" ...%n", itemFile.path);
 				
 				if (KnownBugs.getInstance().isKnownWrongClassFile_ignore(structItem))
+				{
+					if (structItem!=null && structItem.itemFile!=null
+							&&  structItem.itemFile.rawBytes!=null
+							&& !structItem.itemFile.hasTextContent()
+							&& !structItem.itemFile.wasParsed()
+					)
+						structItem.itemFile.setTextContent(
+								new String(structItem.itemFile.rawBytes, StandardCharsets.UTF_8),
+								false
+						);
 					return null;
+				}
 				
 				NodeList nodes = readXML(structItem.itemFile);
 				if (nodes==null) {
@@ -1238,7 +1249,7 @@ class XMLTemplateStructure {
 		}
 
 		private static String[] knownWrongClassFiles = new String[] {
-			"\\[media]\\_dlc\\dlc_6\\classes\\engines\\e_un_truck_heavy_boarpac.xml",
+		//	"\\[media]\\_dlc\\dlc_6\\classes\\engines\\e_un_truck_heavy_boarpac.xml", // seems to be OK in initial.2026.03.19.pak
 			"\\[media]\\classes\\trucks\\cargo\\cargo_wooden_planks_04.xml",
 			"\\[media]\\classes\\trucks\\cargo\\cargo_wooden_planks_02.xml",
 		};

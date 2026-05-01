@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-class PAKReader {
+public class PAKReader {
 
 	static ZipEntryTreeNode readPAK(File pakFile) {
 		try (ZipFile zipFile = new ZipFile(pakFile, ZipFile.OPEN_READ); ) {
@@ -39,15 +39,17 @@ class PAKReader {
 		return null;
 	}
 
-	static class ZipEntryTreeNode {
-		final ZipEntryTreeNode parent;
-		final String name;
-		final String path;
-		final ZipEntry entry;
-		final HashMap<String, ZipEntryTreeNode> folders;
-		final HashMap<String, ZipEntryTreeNode> files;
-		final byte[] rawBytes;
-		String parsedText;
+	public static class ZipEntryTreeNode
+	{
+		       final ZipEntryTreeNode parent;
+		public final String name;
+		public final String path;
+		       final ZipEntry entry;
+		public final HashMap<String, ZipEntryTreeNode> folders;
+		public final HashMap<String, ZipEntryTreeNode> files;
+		public final byte[] rawBytes;
+		       String textContent;
+		       boolean wasParsed;
 
 		private ZipEntryTreeNode() { // root
 			this(null,"",null,null);
@@ -62,7 +64,8 @@ class PAKReader {
 			this.name = name;
 			this.entry = entry;
 			this.rawBytes = rawBytes;
-			this.parsedText = null;
+			this.textContent = null;
+			this.wasParsed = false;
 			this.folders = this.entry!=null ? null : new HashMap<>();
 			this.files   = this.entry!=null ? null : new HashMap<>();
 			if (this.parent==null) path = name;
@@ -71,6 +74,27 @@ class PAKReader {
 		
 		boolean isfile() {
 			return entry!=null;
+		}
+		
+		void setTextContent(String textContent, boolean wasParsed)
+		{
+			this.textContent = textContent;
+			this.wasParsed = wasParsed;
+		}
+		
+		public boolean hasTextContent()
+		{
+			return textContent!=null;
+		}
+		
+		public String getTextContent()
+		{
+			return textContent;
+		}
+		
+		public boolean wasParsed()
+		{
+			return wasParsed;
 		}
 
 		//String getPath() {

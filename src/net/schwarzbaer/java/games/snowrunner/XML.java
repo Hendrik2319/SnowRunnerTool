@@ -45,7 +45,7 @@ class XML {
 		else
 			string = new String(bytes, StandardCharsets.UTF_8);
 		
-		fileNode.parsedText = string;
+		fileNode.setTextContent(string, true);
 		return fixXML.fixXML( string );
 	}
 

@@ -24,6 +24,7 @@ import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.DataReceiver;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.LanguageListener;
+import net.schwarzbaer.java.games.snowrunner.tables.RawInitialPakPanel;
 import net.schwarzbaer.java.lib.gui.ContextMenu;
 import net.schwarzbaer.java.lib.gui.TextAreaDialog;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
@@ -36,10 +37,11 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 	private Language language;
 	private boolean isShowingSaveGameDataSorted;
 
+	private final Window window;
 	private final JTabbedPane globalTemplatesPanel;
 	private final JTabbedPane classesPanel;
-	private final Window window;
 	private final JTabbedPane saveGameDataPanel;
+	private final RawInitialPakPanel rawInitialPakPanel;
 	private SaveGameData saveGameData;
 	private final Finalizer finalizer;
 
@@ -63,6 +65,7 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 		
 		saveGameDataPanel = new JTabbedPane();
 		
+		addTab("Raw initial.pak", rawInitialPakPanel = new RawInitialPakPanel());
 		addTab("XML Template Structure", xmlTempStructPanel);
 		addTab("SaveGame Data", saveGameDataPanel);
 		
@@ -115,6 +118,7 @@ class RawDataPanel extends JTabbedPane implements LanguageListener, DataReceiver
 	private void updatePanels() {
 		globalTemplatesPanel.removeAll();
 		classesPanel.removeAll();
+		rawInitialPakPanel.setData(data);
 		
 		if (data!=null && data.rawdata!=null) {
 			addTreeTabs(globalTemplatesPanel, data.rawdata.globalTemplates, DataTrees.Templates_TreeNode::new);

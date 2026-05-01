@@ -552,7 +552,8 @@ public class Data {
 			
 			if (node.rawBytes!=null)
 			{
-				String content = node.parsedText = new String(node.rawBytes, StandardCharsets.UTF_16LE);
+				String content = new String(node.rawBytes, StandardCharsets.UTF_16LE);
+				node.setTextContent(content, true);
 				
 				List<String> lines = content.lines().toList();
 				for (int lineNumber=0; lineNumber<lines.size(); lineNumber++)

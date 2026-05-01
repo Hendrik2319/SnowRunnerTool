@@ -448,6 +448,7 @@ public class SnowRunner {
 	private Data readXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
 		setTitleOfIndeterminateTask(pd, "Read initial.pak");
 		ZipEntryTreeNode zipRoot = PAKReader.readPAK(initialPAK);
+		if (zipRoot==null) return null;
 		
 		setTitleOfIndeterminateTask(pd, "Parse XMLTemplateStructure");
 		XMLTemplateStructure structure = XMLTemplateStructure.parse(initialPAK.getName(), zipRoot, mainWindow);
@@ -2382,6 +2383,7 @@ public class SnowRunner {
 			SteamLibraryFolder, Language, InitialPAK, SaveGameFolder,
 			SelectedSaveGame, ShowingSaveGameDataSorted, XML_HideKnownBugs,
 			
+			RawInitialPakPanel_HexViewPageSize,
 			//TruckTableModel_enableOwnedTrucksHighlighting,
 			//TruckTableModel_enableDLCTrucksHighlighting,
 			TruckAddonsTableModel_enableSpecialTruckAddonsHighlighting,
