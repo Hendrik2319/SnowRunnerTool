@@ -85,6 +85,7 @@ import net.schwarzbaer.java.games.snowrunner.Data.TruckAddon;
 import net.schwarzbaer.java.games.snowrunner.Data.UserDefinedValues;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.MapTypes.VectorMap;
+import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
 import net.schwarzbaer.java.games.snowrunner.SaveGameData.SaveGame;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizable;
 import net.schwarzbaer.java.games.snowrunner.SnowRunner.Controllers.Finalizer;
@@ -445,16 +446,22 @@ public class SnowRunner {
 	}
 	
 	private Data readXMLTemplateStructure(ProgressDialog pd, File initialPAK) {
-		setTitleOfIndeterminateTask(pd, "Read XMLTemplateStructure");
-		long start = System.currentTimeMillis();
-		XMLTemplateStructure structure = XMLTemplateStructure.readPAK(initialPAK,mainWindow);
+		setTitleOfIndeterminateTask(pd, "Read initial.pak");
+		ZipEntryTreeNode zipRoot = PAKReader.readPAK(initialPAK);
+		
+		setTitleOfIndeterminateTask(pd, "Parse XMLTemplateStructure");
+		XMLTemplateStructure structure = XMLTemplateStructure.parse(initialPAK.getName(), zipRoot, mainWindow);
 		if (structure==null) return null;
+		
 		if (Thread.currentThread().isInterrupted()) return null;
+		
 		setTitleOfIndeterminateTask(pd, "Parse Data from XMLTemplateStructure");
-		System.out.printf("Parse Data from XMLTemplateStructure ...%n");
+		System.out.println("Parse Data from XMLTemplateStructure ...");
 		Data data = new Data(structure);
-		System.out.printf("... done in %s%n", DateTimeFormatter.getDurationStr_ms(System.currentTimeMillis()-start));
+		System.out.println("... done");
+		
 		if (Thread.currentThread().isInterrupted()) return null;
+		
 		return data;
 	}
 

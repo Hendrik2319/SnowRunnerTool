@@ -13,7 +13,7 @@ import java.util.zip.ZipFile;
 
 class PAKReader {
 
-	static <ValueType> ValueType readPAK(File pakFile, NextParsingStage<ValueType> nextParsingStage) {
+	static ZipEntryTreeNode readPAK(File pakFile) {
 		try (ZipFile zipFile = new ZipFile(pakFile, ZipFile.OPEN_READ); ) {
 			System.out.printf("Read \"%s\" ...%n", pakFile.getAbsolutePath());
 			ZipEntryTreeNode zipRoot = new ZipEntryTreeNode();
@@ -31,18 +31,13 @@ class PAKReader {
 				//System.out.printf("   \"%s\"%n", entryName);
 			}
 			
-			ValueType data = nextParsingStage.parse(zipRoot);
 			System.out.printf("... done%n");
-			return data;
+			return zipRoot;
 			
 		} catch (IOException e) { e.printStackTrace(); }
 		
 		System.out.printf("... done with error%n");
 		return null;
-	}
-	
-	interface NextParsingStage<ValueType> {
-		ValueType parse(ZipEntryTreeNode zipRoot) throws IOException;
 	}
 
 	static class ZipEntryTreeNode {

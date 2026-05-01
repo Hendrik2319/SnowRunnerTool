@@ -490,7 +490,7 @@ public class Data {
 		return false;
 	}
 
-	private static <ValueType> void readEntries(ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) throws IOException {
+	private static <ValueType> void readEntries(ZipEntryTreeNode[] nodes, HashMap<String,ValueType> targetMap, String targetMapLabel, BiFunction<String,InputStream,ValueType> readInput) {
 		for (ZipEntryTreeNode node:nodes) {
 			ValueType value = readEntry(node, readInput);
 			if (value!=null) {
@@ -501,11 +501,11 @@ public class Data {
 		}
 	}
 
-	private static <ValueType> ValueType readEntry(ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) throws IOException {
+	private static <ValueType> ValueType readEntry(ZipEntryTreeNode node, BiFunction<String, InputStream, ValueType> readInput) {
 		return readInput.apply(node.name, node.createByteStream());
 	}
 	
-	static void readLanguages(ZipEntryTreeNode zipRoot, HashMap<String, Language> languages) throws IOException {
+	static void readLanguages(ZipEntryTreeNode zipRoot, HashMap<String, Language> languages) {
 		Predicate<String> isSTR = fileName->fileName.endsWith(".str");
 		ZipEntryTreeNode[] languageNodes = zipRoot.getSubFiles("[strings]", isSTR);
 		readEntries(languageNodes, languages, "languages", (name,input)->Language.readFrom(name, input));

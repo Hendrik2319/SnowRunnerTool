@@ -1,10 +1,8 @@
 package net.schwarzbaer.java.games.snowrunner;
 
 import java.awt.Window;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -44,20 +42,19 @@ class XMLTemplateStructure {
 	final Vector<String> ignoredFiles;
 	final HashMap<String, Data.Language> languages;
 
-	static XMLTemplateStructure readPAK(File pakFile, Window mainWindow) {
-		return PAKReader.readPAK(pakFile, zipRoot -> {
-			try {
-				return new XMLTemplateStructure(pakFile.getName(), zipRoot, mainWindow);
-			} catch (EntryStructureException e) {
-				e.printStackTrace();
-			} catch (ParseException e) {
-				e.printStackTrace();
-			}
-			return null;
-		});
+	static XMLTemplateStructure parse(String zipFileName, ZipEntryTreeNode zipRoot, Window mainWindow)
+	{
+		try {
+			return new XMLTemplateStructure(zipFileName, zipRoot, mainWindow);
+		} catch (EntryStructureException e) {
+			e.printStackTrace();
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 	
-	XMLTemplateStructure(String zipFileName, ZipEntryTreeNode zipRoot, Window mainWindow) throws IOException, EntryStructureException, ParseException {
+	XMLTemplateStructure(String zipFileName, ZipEntryTreeNode zipRoot, Window mainWindow) throws EntryStructureException, ParseException {
 		
 		languages = new HashMap<>();
 		Data.readLanguages(zipRoot, languages);
@@ -88,7 +85,7 @@ class XMLTemplateStructure {
 		//testingGround.writeToFile("TestingGround.results.txt");
 	}
 
-	private HashMap<String,Templates> readGlobalTemplates(HashMap<String,ZipEntryTreeNode> templates) throws EntryStructureException, IOException, ParseException {
+	private HashMap<String,Templates> readGlobalTemplates(HashMap<String,ZipEntryTreeNode> templates) throws EntryStructureException, ParseException {
 		if (templates==null) throw new IllegalArgumentException();
 		
 		HashMap<String,Templates> globalTemplates = new HashMap<>();
@@ -101,7 +98,7 @@ class XMLTemplateStructure {
 	}
 
 	private void readGlobalTemplates_(HashMap<String, Templates> globalTemplates, String templateName, ZipEntryTreeNode fileNode)
-			throws EntryStructureException, IOException, ParseException {
+			throws EntryStructureException, ParseException {
 		//System.out.printf("Read template \"%s\" ...%n", fileNode.path);
 		
 		NodeList nodes = readXML(fileNode);
@@ -180,7 +177,7 @@ class XMLTemplateStructure {
 		return str.isEmpty() ? "[]" : String.format("[ %s ]", str);
 	}
 
-	private static NodeList readXML(ZipEntryTreeNode fileNode) throws EntryStructureException, IOException {
+	private static NodeList readXML(ZipEntryTreeNode fileNode) throws EntryStructureException {
 		if (fileNode==null) throw new IllegalArgumentException();
 		if (!fileNode.isfile())
 			throw new EntryStructureException("Given ZipEntryTreeNode isn't a file: %s", fileNode.path);
@@ -528,7 +525,7 @@ class XMLTemplateStructure {
 		final String name;
 		final HashMap<String,Item> items;
 	
-		public Class_(ClassStructur.StructClass structClass, HashMap<String, Templates> globalTemplates, Vector<String> ignoredFiles) throws IOException, EntryStructureException, ParseException {
+		public Class_(ClassStructur.StructClass structClass, HashMap<String, Templates> globalTemplates, Vector<String> ignoredFiles) throws EntryStructureException, ParseException {
 			if ( structClass==null) throw new IllegalArgumentException();
 			if (globalTemplates==null) throw new IllegalArgumentException();
 			if (ignoredFiles==null) throw new IllegalArgumentException();
@@ -537,10 +534,6 @@ class XMLTemplateStructure {
 			
 			items = new HashMap<>();
 			new ItemLoader(structClass.items, globalTemplates, items, ignoredFiles).run();
-		}
-		
-		private interface LoadMethod {
-			Item readItem(ZipEntryTreeNode itemFile) throws IOException, EntryStructureException, ParseException;
 		}
 		
 		private static class ItemLoader implements Item.ParentFinder {
@@ -559,14 +552,14 @@ class XMLTemplateStructure {
 				blockedItems = new HashSet<>();
 			}
 			
-			void run() throws IOException, EntryStructureException, ParseException {
+			void run() throws EntryStructureException, ParseException {
 				for (ClassStructur.StructItem structItem:structItems.values()) {
 					if (!loadedItems.containsKey(structItem.itemName))
 						readItem(structItem);
 				}
 			}
 
-			private Item readItem(ClassStructur.StructItem structItem) throws IOException, EntryStructureException, ParseException {
+			private Item readItem(ClassStructur.StructItem structItem) throws EntryStructureException, ParseException {
 				
 				blockedItems.add(structItem.itemFilePath);
 				
@@ -584,7 +577,7 @@ class XMLTemplateStructure {
 			}
 
 			@Override
-			public Item getParent(String parentFile) throws IOException, EntryStructureException, ParseException {
+			public Item getParent(String parentFile) throws EntryStructureException, ParseException {
 				Item parentItem = loadedItems.get(parentFile);
 				if (parentItem!=null) return parentItem;
 				
@@ -612,7 +605,7 @@ class XMLTemplateStructure {
 			final String subClassName;
 			final GenericXmlNode content;
 
-			static Item read(ClassStructur.StructItem structItem, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws IOException, EntryStructureException, ParseException {
+			static Item read(ClassStructur.StructItem structItem, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws EntryStructureException, ParseException {
 				if (globalTemplates==null) throw new IllegalArgumentException();
 				if (structItem==null) throw new IllegalArgumentException();
 				if (!structItem.itemFile.isfile()) throw new IllegalStateException();
@@ -635,10 +628,10 @@ class XMLTemplateStructure {
 			}
 			
 			interface ParentFinder {
-				Item getParent(String parentFile) throws IOException, EntryStructureException, ParseException;
+				Item getParent(String parentFile) throws EntryStructureException, ParseException;
 			}
 			
-			Item(NodeList nodes, ClassStructur.StructItem structItem, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws IOException, EntryStructureException, ParseException {
+			Item(NodeList nodes, ClassStructur.StructItem structItem, HashMap<String,Templates> globalTemplates, ParentFinder parentFinder) throws EntryStructureException, ParseException {
 				if (globalTemplates==null) throw new IllegalArgumentException();
 				if (structItem==null) throw new IllegalArgumentException();
 				if (nodes==null) throw new IllegalArgumentException();
