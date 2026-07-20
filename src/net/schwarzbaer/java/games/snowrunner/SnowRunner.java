@@ -125,7 +125,6 @@ public class SnowRunner {
 	
 	public static final Color COLOR_FG_DLCTRUCK    = new Color(0x0070FF);
 	public static final Color COLOR_FG_OWNEDTRUCK  = new Color(0x00AB00);
-	public static final DateTimeFormatter dateTimeFormatter = new DateTimeFormatter();
 	
 	public static final AppSettings settings = new AppSettings();
 
@@ -408,7 +407,7 @@ public class SnowRunner {
 	private String getSaveGameLabel(String indexStr) {
 		SaveGame saveGame = saveGameData==null || saveGameData.saveGames==null ? null : saveGameData.saveGames.get(indexStr);
 		String mode     = saveGame==null ? "??" : saveGame.isHardMode ? "HardMode" : "NormalMode";
-		String saveTime = saveGame==null ? "??" : new DateTimeFormatter().getTimeStr(saveGame.saveTime, false, true, false, true, false);
+		String saveTime = saveGame==null ? "??" : DateTimeFormatter.getTimeStr(saveGame.saveTime, false, true, false, true, false);
 		return String.format("SaveGame %s (%s, %s)", indexStr, mode, saveTime);
 	}
 

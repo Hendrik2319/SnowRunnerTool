@@ -356,7 +356,7 @@ public class XMLTemplateStructure {
 			try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
 				
 				out.printf("File: %s%n", zipFileName);
-				out.printf("Date: %s%n", new DateTimeFormatter().getTimeStr(System.currentTimeMillis(), true, true, true, true, true));
+				out.printf("Date: %s%n", DateTimeFormatter.getTimeStr(System.currentTimeMillis(), true, true, true, true, true));
 				out.println();
 				
 				out.printf("[ParentRelations]%n");
