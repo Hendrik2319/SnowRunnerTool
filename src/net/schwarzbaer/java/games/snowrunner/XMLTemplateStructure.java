@@ -1538,11 +1538,14 @@ public class XMLTemplateStructure {
 					return rawXML;
 				}
 			);
+			/*
+			 * fixed in initial.2026.09.19.pak 
 			XMLfix.add(fixes,
 				"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
 				"A34097FB662DFC6082756D30FA5D4E84",
 				rawXML -> XMLfix.remove(rawXML, "ConnectedToHandbrake=\"true\"")
 			);
+			*/
 			XMLfix.add(fixes,
 				"\\[media]\\_dlc\\ru_13\\classes\\skies\\sky_ru_13.xml",
 				"6B21D51F79E69A2435C34395CEE4DF2D",
@@ -1657,11 +1660,14 @@ public class XMLTemplateStructure {
 					"5569456C2DAD668B3002A832D1A82062",
 					rawXML -> XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"")
 				);
+			/*
+			// fixed in initial.2026.09.19.pak
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
 					"796A37A2A9849375F4AD28C6379DE479",
 					rawXML -> XMLfix.replace(rawXML, "<RearWheel\r\n\t\t\tConnectedToHandbrake=\"true\"", "<RearWheel")
 				);
+			*/
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_17\\classes\\trucks\\voron_g5352_tuning\\voron_g5352_protection_1.xml",
 					"309064CFF2F63679C2D42B9F84CA261E",
@@ -1709,6 +1715,146 @@ public class XMLTemplateStructure {
 					}
 				);
 			
+			// initial.2026.09.19.pak
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\us_18\\classes\\skies\\sky_us_18.xml",
+					"786F6DACAF158AA7667151A109D281BD",
+					rawXML -> {
+						rawXML = XMLfix.replace(rawXML, "AngularSpeed=\"0.5\" AngularSpeed=\"0.3\"", "AngularSpeed=\"0.5\"");
+						for (int i=0; i<4; i++)
+							rawXML = XMLfix.replace(rawXML, "FadeInStart=\"0.0\" FadeInStart=\"0.25\"", "FadeInStart=\"0.0\" FadeInEnd=\"0.25\"");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\us_18\\classes\\daytimes\\night_us_18.xml",
+					"AB91A4F4DD0A2A29B5C1DCAB35158855",
+					rawXML -> XMLfix.remove(rawXML,
+							  "\t\t\tIntensityDayNightTransitionOffset=\"0.0\"\r\n"
+							+ "\t\t\tIntensityDayNightTransitionLength=\"0.03\"\r\n")
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\us_18\\classes\\daytimes\\night_us_18_a.xml",
+					"AB91A4F4DD0A2A29B5C1DCAB35158855",
+					rawXML -> XMLfix.remove(rawXML,
+							  "\t\t\tIntensityDayNightTransitionOffset=\"0.0\"\r\n"
+							+ "\t\t\tIntensityDayNightTransitionLength=\"0.03\"\r\n")
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\addons\\frame_addon_mercedes_3850_service.xml",
+					"61A85EA5E3AA4F18F29088703F2F8D01",
+					rawXML -> XMLfix.replace(rawXML,
+							  "\t\t\t\tMinLimit=\"-0.2\"\r\n"
+							+ "\t\t\t\tMinLimit=\"0.3\"\r\n",
+							  "\t\t\t\tMinLimit=\"-0.2\"\r\n"
+							+ "\t\t\t\tMaxLimit=\"0.3\"\r\n")
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_bumper_1.xml",
+					"4B548345B23C125D8CF2BABD11CB1BE4",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_bumper_2.xml",
+					"45CE47E522594B261E74A7B09CE8BABB",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_protection_1.xml",
+					"329BBBE91B8A81FADEE6F62138F55A38",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_bumper_1.xml",
+					"A9DDDDF9D661152A977F6FF206EE053A",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_bumper_2.xml",
+					"A2A1B2E94808CC7D6B91351202FC2826",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_protection_1.xml",
+					"27D81E74BA3C228F6332C6D43A1C90CE",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_roofrack_1.xml",
+					"102991E02C2EE1BF25FC02890A82500C",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_18\\classes\\trucks\\hib_billert_m816_tuning\\hib_billert_m816_protection_1.xml",
+					"0B1D6ECD7102190483EE05F8C03CDEE5",
+					rawXML -> {
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
+						return rawXML;
+					}
+				);
+			
+			XMLfix.add(fixes,
+					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
+					"AE1BF26A568BD9F47034AEB389DFDB99",
+					rawXML -> XMLfix.replace(rawXML,
+							  "\t\t\tUseTrailerFrame=\"true\"\t\t\t\r\n"
+							+ "\t\t\tQuantity=\"1\"\r\n"
+							+ "\t\t\tQuantity=\"1\"\r\n"
+							+ "\t\t/>\r\n",
+							  "\t\t\tUseTrailerFrame=\"true\"\t\t\t\r\n"
+							+ "\t\t\tQuantity=\"1\"\r\n"
+							+ "\t\t/>\r\n")
+				);
 			
 			return fixes;
 		}

@@ -2441,7 +2441,7 @@ public class Data {
 			static String toString(DiffLockType diffLockType) { return diffLockType==null ? null : diffLockType.toString(); }
 		}
 		public enum Country {
-			US, RU, CAS, CE, NE, WA;
+			US, RU, CAS, CE, NE, WA, CA;
 			static String toString(Country country) {
 				return country==null ? null : country.toString();
 			}
