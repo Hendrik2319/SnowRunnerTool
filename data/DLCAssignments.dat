@@ -78,6 +78,11 @@ truck = mercedes_benz_actros_6x6
 truck = mercedes_benz_zetros_6x6
 
 [DLC]
+name = Mercedes-Benz Trucks Dual Pack 2
+truck = mercedes_3850
+truck = mercedes_mamute_1519
+
+[DLC]
 name = Navistar 5000-MV Tractor
 truck = navistar_5000mv
 
@@ -157,6 +162,14 @@ truck = voron_g5352
 region = ru_17
 map = level_ru_17_01
 map = level_ru_17_02
+
+[DLC]
+name = Season 18: Patch & Power
+truck = hib_billert_m816
+truck = mercer_6x6r_230
+region = us_18
+map = level_us_18_01
+map = level_us_18_02
 
 [DLC]
 name = Season 1: Search & Recover
