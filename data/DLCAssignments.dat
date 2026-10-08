@@ -172,7 +172,7 @@ map = level_us_18_01
 map = level_us_18_02
 
 [DLC]
-name = Season 1: Search & Recover
+name = Season 01: Search & Recover
 truck = ford_f750
 truck = tuz_108_warthog
 truck = tuz_16_actaeon
@@ -181,7 +181,7 @@ map = level_ru_03_01
 map = level_ru_03_02
 
 [DLC]
-name = Season 2: Explore & Expand
+name = Season 02: Explore & Expand
 truck = cat_770g
 truck = cat_th357
 truck = krs_58_bandit
@@ -190,7 +190,7 @@ map = level_us_04_01
 map = level_us_04_02
 
 [DLC]
-name = Season 3: Locate & Deliver
+name = Season 03: Locate & Deliver
 truck = boar_45318
 truck = pacific_p512
 truck = paystar_5600ts
@@ -199,7 +199,7 @@ map = level_us_03_01
 map = level_us_03_02
 
 [DLC]
-name = Season 4: New Frontiers
+name = Season 04: New Frontiers
 truck = khan_317_sentinel
 truck = zikz_605r
 region = ru_04
@@ -209,7 +209,7 @@ map = level_ru_04_03
 map = level_ru_04_04
 
 [DLC]
-name = Season 5: Build & Dispatch
+name = Season 05: Build & Dispatch
 truck = tatra_force_t815_7
 truck = tatra_phoenix
 region = ru_05
@@ -217,7 +217,7 @@ map = level_ru_05_01
 map = level_ru_05_02
 
 [DLC]
-name = Season 6: Haul & Hustle
+name = Season 06: Haul & Hustle
 truck = aramatsu_forester
 truck = tayga_6455b
 region = us_06
@@ -225,14 +225,14 @@ map = level_us_06_01
 map = level_us_06_02
 
 [DLC]
-name = Season 7: Compete & Conquer
+name = Season 07: Compete & Conquer
 truck = azov_43_191_sprinter
 truck = gor_by4
 region = us_07
 map = level_us_07_01
 
 [DLC]
-name = Season 8: Grand Harvest
+name = Season 08: Grand Harvest
 truck = kirovets_k700
 truck = kirovets_k7m
 truck = step_39331_pike
@@ -243,7 +243,7 @@ map = level_ru_08_03
 map = level_ru_08_04
 
 [DLC]
-name = Season 9: Renew & Rebuild
+name = Season 09: Renew & Rebuild
 truck = derry_special_15c177
 truck = zikz_566a
 region = us_09
