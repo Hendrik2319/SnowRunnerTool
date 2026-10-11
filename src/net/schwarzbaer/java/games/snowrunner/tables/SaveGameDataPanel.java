@@ -26,7 +26,6 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
-import javax.swing.SwingUtilities;
 
 import net.schwarzbaer.java.games.snowrunner.AssignToDLCDialog;
 import net.schwarzbaer.java.games.snowrunner.Data;
@@ -160,6 +159,8 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(0, "World Configuration"   , saveGame.worldConfiguration);
 			out.add(0, "<Game Difficulty Mode>", saveGame.gameDifficultyMode);
 			out.add(0, "Metric System"         , saveGame.metricSystem);
+			out.add(0, "Game Progress"         , saveGame.gameProgress);
+			out.add(0, "Trucks Discovered"     , saveGame.trucksDiscovered);
 			out.add(0, "Tracked Objective"     , saveGame.trackedObjective);
 			showObjective(out, 1, saveGame.trackedObjective, language, 30);
 			out.add(0, "Last Loaded Map"       , saveGame.lastLoadedLevel);
@@ -738,7 +739,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 		private static void generateInfo(JTextArea textArea, TruckDesc data)
 		{
-			ValueListOutput out = new ValueListOutput();
+			ModValueListOutput out = new ModValueListOutput(null);
 			
 			if (data!=null)
 				WriterFunctions.write(out, 0, "Customization Preset", data.customizationPreset);
@@ -830,9 +831,9 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				else
 					installedAddonTableModel.setRowData(null,null,null);
 				
-				ScrollPosition scrollPos = ScrollPosition.getVertical(textAreaScrollPane);
-				generateInfo(textArea, data);
-				if (scrollPos!=null) SwingUtilities.invokeLater(()->scrollPos.setVertical(textAreaScrollPane));
+				ScrollPosition.keepScrollPos(textAreaScrollPane, ScrollPosition.ScrollBarType.Vertical, () -> {
+					generateInfo(textArea, data);
+				});
 				
 				updateTruckImage();
 			}
@@ -1245,7 +1246,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 
 		@Override protected String getOutputTextForRow(int rowIndex, Objective row)
 		{
-			ValueListOutput out = new ValueListOutput();
+			ModValueListOutput out = new ModValueListOutput(language);
 			
 			showObjective(out, 0, row.objectiveId, language, 30);
 			
@@ -1272,24 +1273,35 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 	}
 	
+	private static class ModValueListOutput extends ValueListOutput
+	{
+		private static final long serialVersionUID = -2937456579260113721L;
+		final Language language;
+		
+		ModValueListOutput(Language language)
+		{
+			this.language = language;
+		}
+	}
+	
 	private static class WriterFunctions
 	{
 		private interface WriteArrayItemFcn<ValueType>
 		{
-			void write(ValueListOutput out, int indentLevel, int index, ValueType value);
+			void write(ModValueListOutput out, int indentLevel, int index, ValueType value);
 		}
 
 		private interface WriteArrayItemFcn2<ValueType>
 		{
-			void write(ValueListOutput out, int indentLevel, String label, ValueType value);
+			void write(ModValueListOutput out, int indentLevel, String label, ValueType value);
 		}
 
-		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, List<ValueType> array, WriteArrayItemFcn<ValueType> writeFcn)
+		private static <ValueType> void writeArray(ModValueListOutput out, int indentLevel, String label, List<ValueType> array, WriteArrayItemFcn<ValueType> writeFcn)
 		{
 			writeArray(out, indentLevel, label, false, array, writeFcn);
 		}
 
-		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, boolean showEmptyArrays, List<ValueType> array, WriteArrayItemFcn<ValueType> writeFcn)
+		private static <ValueType> void writeArray(ModValueListOutput out, int indentLevel, String label, boolean showEmptyArrays, List<ValueType> array, WriteArrayItemFcn<ValueType> writeFcn)
 		{
 			if (array==null) return;
 			if (!showEmptyArrays && array.isEmpty()) return;
@@ -1298,12 +1310,12 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				writeFcn.write(out, indentLevel+1, i, array.get(i));
 		}
 
-		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, List<ValueType> array, String itemLabel, WriteArrayItemFcn2<ValueType> writeFcn)
+		private static <ValueType> void writeArray(ModValueListOutput out, int indentLevel, String label, List<ValueType> array, String itemLabel, WriteArrayItemFcn2<ValueType> writeFcn)
 		{
 			writeArray(out, indentLevel, label, false, array, itemLabel, writeFcn);
 		}
 
-		private static <ValueType> void writeArray(ValueListOutput out, int indentLevel, String label, boolean showEmptyArrays, List<ValueType> array, String itemLabel, WriteArrayItemFcn2<ValueType> writeFcn)
+		private static <ValueType> void writeArray(ModValueListOutput out, int indentLevel, String label, boolean showEmptyArrays, List<ValueType> array, String itemLabel, WriteArrayItemFcn2<ValueType> writeFcn)
 		{
 			if (array==null) return;
 			if (!showEmptyArrays && array.isEmpty()) return;
@@ -1312,16 +1324,17 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				writeFcn.write(out, indentLevel+1, String.format("%d. %s", i+1, itemLabel), array.get(i));
 		}
 
-		private static void write(ValueListOutput out, int indentLevel, int index, String str)
+		private static void write(ModValueListOutput out, int indentLevel, int index, String str)
 		{
 			out.add(indentLevel, String.format("[%d]", index+1), str);
 		}
 
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState stage)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState stage)
 		{
 			if (stage==null) return;
 			
 			out.add   (     indentLevel  , label);
+			write     (out, indentLevel+1, "Farming State"         , stage.farmingState);
 			write     (out, indentLevel+1, "Living Area State"     , stage.livingAreaState);
 			write     (out, indentLevel+1, "Visit All Zones State" , stage.visitAllZonesState);
 			write     (out, indentLevel+1, "Make Action In Zone"   , stage.makeActionInZone);
@@ -1331,7 +1344,25 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			writeArray(out, indentLevel+1, "Truck Repair States"   , stage.truckRepairStates   , "Truck Repair State"   , WriterFunctions::write);
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.LivingAreaState data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.FarmingState data)
+		{
+			if (data==null) return;
+			
+			out.add(indentLevel  , label);
+			out.add(indentLevel+1, "Global Zone ID"        , data.zoneGlobalId);
+			out.add(indentLevel+1, "All Subzones Processed", data.allSubzonesProcessed, "Yes", "No");
+			out.add(indentLevel+1, "Processed Fraction"    , data.processedFraction);
+			out.add(indentLevel+1, "Needed State"          , data.neededState);
+			out.add(indentLevel+1, "Required Trailer Type" , data.requiredTrailerType);
+			out.add(indentLevel+1, "Tolerance"             , data.tolerance);
+			out.add(indentLevel+1, "UI Desc"               , data.uiDesc);
+			String desc = SnowRunner.solveStringID(data.uiDesc, out.language, null);
+			if (desc!=null)
+				out.add(indentLevel+1, null, desc);
+				
+		}
+		
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.LivingAreaState data)
 		{
 			if (data==null) return;
 			
@@ -1341,7 +1372,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Is Synced"        , data.isSynced, "Yes", "No");
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.MapZonesStates data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.MapZonesStates data)
 		{
 			if (data==null) return;
 			
@@ -1350,7 +1381,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			writeArray(out, indentLevel+1, "Zone States", data.zoneStates, "Zone State", WriterFunctions::write);
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.MapZonesStates.ZoneState data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.MapZonesStates.ZoneState data)
 		{
 			if (data==null) return;
 			
@@ -1362,7 +1393,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Is Visit With Certain Truck", data.isVisitWithCertainTruck, "Yes", "No");
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction data)
 		{
 			if (data==null) return;
 			
@@ -1381,7 +1412,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			write     (out, indentLevel+1, "Zone Color Override"     , data.zoneColorOverride    );
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction.CargoState data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.CargoDeliveryAction.CargoState data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , label);
@@ -1389,7 +1420,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 		}
 		
 
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState data)
 		{
 			if (data==null) return;
 			out.add   (     indentLevel  , label);
@@ -1400,13 +1431,13 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			write     (out, indentLevel+1, "Zone"          , data.zone   );
 		}
 
-		private static void write(ValueListOutput out, int indentLevel, int index, StagesState.CargoSpawnState.Cargo data)
+		private static void write(ModValueListOutput out, int indentLevel, int index, StagesState.CargoSpawnState.Cargo data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , String.format("%dx <%s>", data.count, data.name));
 		}
 
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState.Zone data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.CargoSpawnState.Zone data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , label);
@@ -1416,7 +1447,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Global Zone ID", data.globalZoneId);
 		}
 
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckDeliveryState data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.TruckDeliveryState data)
 		{
 			if (data==null) return;
 			out.add   (     indentLevel  , label);
@@ -1426,7 +1457,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			writeArray(out, indentLevel+1, "Delivery Zones", data.deliveryZones, WriterFunctions::write);
 		}
 
-		private static void write(ValueListOutput out, int indentLevel, String label, StagesState.TruckRepairState data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, StagesState.TruckRepairState data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , label);
@@ -1435,7 +1466,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 			out.add(indentLevel+1, "Is Refueled", data.isRefueled, "Yes", "No");
 		}
 
-		private static void write(ValueListOutput out, int indentLevel, String label, TruckDesc.CustomizationPreset data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, TruckDesc.CustomizationPreset data)
 		{
 			if (data==null) return;
 			out.add(indentLevel  , label);
@@ -1449,7 +1480,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 				WriterFunctions.write(out, indentLevel+2, String.format("[%d]",i), data.colors.get(i));
 		}
 		
-		private static void write(ValueListOutput out, int indentLevel, String label, TintColor data)
+		private static void write(ModValueListOutput out, int indentLevel, String label, TintColor data)
 		{
 			if (data==null) return;
 			out.add(indentLevel, label, "a:%1.1f, r:%1.1f, g:%1.1f, b:%1.1f", data.a, data.r, data.g, data.b);
