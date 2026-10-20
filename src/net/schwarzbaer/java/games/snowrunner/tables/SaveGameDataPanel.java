@@ -1215,6 +1215,7 @@ public class SaveGameDataPanel extends JSplitPane implements Finalizable
 					new ColumnID("IsFinished","Is Finished"                              ,  Boolean.class,  65,   null,    null, false, GET.get(row->row.objectiveStates, objst->objst.isFinished             )),
 					new ColumnID("TimrStartd","Is Timer Started"                         ,  Boolean.class,  90,   null,    null, false, GET.get(row->row.objectiveStates, objst->objst.isTimerStarted         )),
 					new ColumnID("ComplOnce" ,"Was Completed At Least Once"              ,  Boolean.class, 160,   null,    null, false, GET.get(row->row.objectiveStates, objst->objst.wasCompletedAtLeastOnce)),
+					new ColumnID("hiddenCarg","Hidden Cargoes"                           ,  String .class, 160,   null,    null, false, GET.get(row->row.hiddenCargoes, Vector::toString)),
 			});
 			data = null;
 		}

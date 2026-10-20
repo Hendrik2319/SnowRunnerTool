@@ -1872,6 +1872,7 @@ public class SaveGameData {
 			public final HashSet<String> savedCargoNeedToBeRemovedOnRestart = new HashSet<>();
 			public boolean viewedUnactivated = false;
 			public ObjectiveStates objectiveStates = null;
+			public Vector<String> hiddenCargoes = null;
 			
 			private Objective(String objectiveId)
 			{
@@ -1917,7 +1918,7 @@ public class SaveGameData {
 			{
 				helper.parseObject(objectives, object, debugOutputPrefixStr, (objective, value, local) -> {
 					JSON_Array<NV, V> array = JSON_Data.getArrayValue(value, local);
-					checkEmptyArrayOrUnset(array, local);
+					objective.hiddenCargoes = parseArray_String(array, local, new Vector<>());
 				});
 			}
 

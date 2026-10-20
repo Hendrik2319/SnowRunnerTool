@@ -13,6 +13,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -26,6 +28,7 @@ import org.w3c.dom.NodeList;
 
 import net.schwarzbaer.java.games.snowrunner.MapTypes.StringVectorMap;
 import net.schwarzbaer.java.games.snowrunner.PAKReader.ZipEntryTreeNode;
+import net.schwarzbaer.java.games.snowrunner.XML.FixXMLFunction;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.InheritRemoveException;
 import net.schwarzbaer.java.games.snowrunner.XMLTemplateStructure.GenericXmlNode.Source;
 import net.schwarzbaer.java.lib.gui.TextAreaDialog;
@@ -1207,7 +1210,7 @@ public class XMLTemplateStructure {
 	static class KnownBugs {
 		private static KnownBugs instance = null;
 		private boolean hideKnownBugs;
-		private final HashMap<String, XMLfix> xmlFixes;
+		private final XMLFixesMap xmlFixes;
 		private final MessageDigest md5;
 		
 		KnownBugs()
@@ -1373,18 +1376,29 @@ public class XMLTemplateStructure {
 
 		String fixRawXML(String rawXML, String filePath) throws XML.FixXMLException
 		{
-			XMLfix xmLfix = xmlFixes.get(filePath);
-			if (xmLfix!=null)
+			HashMap<String, Vector<FixXMLFunction>> variantsMap = xmlFixes.get(filePath);
+			if (variantsMap!=null)
 			{
 				String hash = computeHash(rawXML, filePath);
-				if (hash.equals(xmLfix.expectedMD5Hash))
-					try { rawXML = xmLfix.fixXML.fixXML(rawXML); }
-					catch (XML.FixXMLException e) { throw new XML.FixXMLException(e, "Exception while fixing known bug in XML: "+e.getMessage()); }
+				Vector<FixXMLFunction> fixesList = variantsMap.get(hash);
+				
+				if (fixesList!=null)
+				{
+					for (FixXMLFunction xmLfix : fixesList)
+						try { rawXML = xmLfix.fixXML(rawXML); }
+						catch (XML.FixXMLException e) { throw new XML.FixXMLException(e, "Exception while fixing known bug in XML: "+e.getMessage()); }
+				}
 				else
 				{
+					List<String> expectedMD5Hashes = variantsMap.keySet().stream().sorted().toList();
 					System.out.printf("###  Found a file with an expected XML bug, but file content has another hash than expected:%n");
 					System.out.printf("   file: \"%s\"%n", filePath);
-					System.out.printf("   expected hash: %s%n", xmLfix.expectedMD5Hash);
+					for (int i=0; i< expectedMD5Hashes.size(); i++)
+						System.out.printf(
+								i==0
+									? "   expected hash: %s%n"
+									: "                  %s%n"
+								, expectedMD5Hashes.get(i));
 					System.out.printf("        new hash: %s%n", hash);
 				}
 			}
@@ -1400,11 +1414,28 @@ public class XMLTemplateStructure {
 			return sb.toString();
 		}
 
-		private record XMLfix(String filePath, String expectedMD5Hash, XML.FixXMLFunction fixXML)
+		private static class XMLfix
 		{
-			static void add(HashMap<String,XMLfix> fixes, String filePath, String expectedMD5Hash, XML.FixXMLFunction fixXML)
+			static void add(XMLFixesMap fixes, String filePath, String expectedMD5Hash, FixXMLFunction fixXML)
 			{
-				fixes.put(filePath, new XMLfix(filePath, expectedMD5Hash, fixXML));
+				fixes.add(filePath, expectedMD5Hash, fixXML);
+			}
+			
+			static void add(XMLFixesMap fixes, String filePath, String[] expectedMD5Hashes, FixXMLFunction fixXML)
+			{
+				for (String expectedMD5Hash : expectedMD5Hashes)
+					fixes.add(filePath, expectedMD5Hash, fixXML);
+			}
+			
+			static void setFixed(XMLFixesMap fixes, String filePath, String expectedMD5Hash)
+			{
+				fixes.add(filePath, expectedMD5Hash, null);
+			}
+			
+			static void setFixed(XMLFixesMap fixes, String filePath, String[] expectedMD5Hashes)
+			{
+				for (String expectedMD5Hash : expectedMD5Hashes)
+					fixes.add(filePath, expectedMD5Hash, null);
 			}
 
 			static String remove(String rawXML, String string) throws XML.FixXMLException
@@ -1423,10 +1454,45 @@ public class XMLTemplateStructure {
 				return rawXML.substring(0, pos) + newString + rawXML.substring(pos+oldString.length());
 			}
 		};
-
-		static HashMap<String,XMLfix> defineXMLfixes(KnownBugs knownBugs)
+		
+		private static class XMLFixesMap extends HashMap<String, HashMap<String, Vector<FixXMLFunction>>>
 		{
-			HashMap<String, XMLfix> fixes = new HashMap<>();
+			private static final long serialVersionUID = -991483302918991509L;
+
+			void add(String filePath, String expectedMD5Hash, FixXMLFunction fixXML)
+			{
+				Vector<FixXMLFunction> list = 
+						computeIfAbsent(filePath, x1->new HashMap<>())
+						.computeIfAbsent(expectedMD5Hash, x2->new Vector<>());
+				if (fixXML!=null)
+					list.add(fixXML);
+			}
+
+			void showCounts()
+			{
+				System.out.printf("Known Fixes%n");
+				List<String> filePaths = keySet().stream().sorted().toList();
+				for (String filePath : filePaths)
+				{
+					HashMap<String, Vector<FixXMLFunction>> hashMap = get(filePath);
+					if (hashMap==null) continue;
+					
+					List<String> hashes = hashMap.keySet().stream().sorted().toList();
+					System.out.printf("    File \"%s\": %d hash(es)%n", filePath, hashes.size());
+					
+					for (String hash : hashes)
+					{
+						Vector<FixXMLFunction> fixes = hashMap.get(hash);
+						if (fixes==null) continue;
+						System.out.printf("        \"%s\": %d fix(es)%n", hash, fixes.size());
+					}
+				}
+			}
+		}
+
+		static XMLFixesMap defineXMLfixes(KnownBugs knownBugs)
+		{
+			XMLFixesMap fixes = new XMLFixesMap();
 			XMLfix.add(fixes,
 				// 8:27: Attribut "AllowHiddenExtrudes" wurde bereits für Element "MaterialType" angegeben.
 				"\\[media]\\_dlc\\us_09\\classes\\terrain_layers\\grass_burnt.xml",
@@ -1538,14 +1604,18 @@ public class XMLTemplateStructure {
 					return rawXML;
 				}
 			);
-			/*
-			 * fixed in initial.2026.09.19.pak 
 			XMLfix.add(fixes,
-				"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
-				"A34097FB662DFC6082756D30FA5D4E84",
-				rawXML -> XMLfix.remove(rawXML, "ConnectedToHandbrake=\"true\"")
+					"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
+					new String[] {
+							"A34097FB662DFC6082756D30FA5D4E84", // initial.2024.10.04.pak
+							"796A37A2A9849375F4AD28C6379DE479", // initial.2026.03.01.pak
+					},
+					rawXML -> XMLfix.replace(rawXML, "<RearWheel\r\n\t\t\tConnectedToHandbrake=\"true\"", "<RearWheel")
+				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
+					"7335CB7235C3D1788B935915763863BC" // initial.2026.09.19.pak
 			);
-			*/
 			XMLfix.add(fixes,
 				"\\[media]\\_dlc\\ru_13\\classes\\skies\\sky_ru_13.xml",
 				"6B21D51F79E69A2435C34395CEE4DF2D",
@@ -1606,6 +1676,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_15_5\\classes\\trucks\\western_star_6900xd_tuning\\western_star_6900xd_bumper_1.xml",
+					"F6B6933AD1AECA7B1EC5547A510B23C8" // initial.2026.10.20.pak
+			);
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_15_5\\classes\\trucks\\western_star_6900xd_tuning\\western_star_6900xd_spot_light_1.xml",
 					"6A76A2D2AC4D3B53956E4A0485EECFE8",
@@ -1615,26 +1689,25 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_15_5\\classes\\trucks\\western_star_6900xd_tuning\\western_star_6900xd_spot_light_1.xml",
+					"FDB466E9A65D9530E416EB9586461B02" // initial.2026.10.20.pak
+			);
 			
 			// initial.2025.09.04.pak 
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
-					"1F69AA3EEA3042888A30CEA21FB492BF",
-					rawXML -> {
-						rawXML = XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"");
-						return rawXML;
-					}
+					new String[] {
+							"1F69AA3EEA3042888A30CEA21FB492BF", // initial.2025.09.04.pak
+							"AA8F2C897C90C29BCEA85ECA2F186ABB", // initial.2025.11.10.pak
+							"5569456C2DAD668B3002A832D1A82062", // initial.2026.03.01.pak
+							"AE1BF26A568BD9F47034AEB389DFDB99", // initial.2026.09.19.pak
+							"7A862B0D98DFC137865B2F36FC47C1FB", // initial.2026.10.20.pak
+					},
+					rawXML -> XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"")
 				);
 			
 			// initial.2025.11.10.pak
-			XMLfix.add(fixes,
-					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
-					"AA8F2C897C90C29BCEA85ECA2F186ABB",
-					rawXML -> {
-						rawXML = XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"");
-						return rawXML;
-					}
-				);
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_16_5\\classes\\trucks\\padera_std4_tuning\\padera_std4_protection_1.xml",
 					"595DAFE742ECB58FB1F6668CC8216D8D",
@@ -1644,6 +1717,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_16_5\\classes\\trucks\\padera_std4_tuning\\padera_std4_protection_1.xml",
+					"E613CAA81A52E813215B08AE15FE81C7" // initial.2026.10.20.pak
+			);
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_16_5\\classes\\trucks\\padera_std4_tuning\\padera_std4_spot_light_1.xml",
 					"A3D8CCC9A5845783C48A737364D61A84",
@@ -1652,22 +1729,13 @@ public class XMLTemplateStructure {
 							rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\"");
 						return rawXML;
 					}
-				);
+					);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_16_5\\classes\\trucks\\padera_std4_tuning\\padera_std4_spot_light_1.xml",
+					"6980AEDF798FD2BF618E7A2012C84C24" // initial.2026.10.20.pak
+			);
 			
 			// initial.2026.03.01.pak 
-			XMLfix.add(fixes,
-					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
-					"5569456C2DAD668B3002A832D1A82062",
-					rawXML -> XMLfix.replace(rawXML, "Quantity=\"1\"\r\n\t\t\tQuantity=\"1\"", "Quantity=\"1\"")
-				);
-			/*
-			// fixed in initial.2026.09.19.pak
-			XMLfix.add(fixes,
-					"\\[media]\\_dlc\\dlc_7\\classes\\trucks\\azov_43_191_sprinter.xml",
-					"796A37A2A9849375F4AD28C6379DE479",
-					rawXML -> XMLfix.replace(rawXML, "<RearWheel\r\n\t\t\tConnectedToHandbrake=\"true\"", "<RearWheel")
-				);
-			*/
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_17\\classes\\trucks\\voron_g5352_tuning\\voron_g5352_protection_1.xml",
 					"309064CFF2F63679C2D42B9F84CA261E",
@@ -1679,6 +1747,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_17\\classes\\trucks\\voron_g5352_tuning\\voron_g5352_protection_1.xml",
+					"9E284C723BE361B3A737911485C37159" // initial.2026.10.20.pak
+			);
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\ru_17\\classes\\daytimes\\night_ru_17.xml",
 					"93BEB0DBC1C223F3DEDD4B767E72074E",
@@ -1697,7 +1769,10 @@ public class XMLTemplateStructure {
 			// initial.2026.03.19.pak
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_roofrack_1.xml",
-					"8E75D350C34A79CDDD6CB6A84BFA99BE",
+					new String[] {
+							"8E75D350C34A79CDDD6CB6A84BFA99BE", // initial.2026.03.19.pak
+							"102991E02C2EE1BF25FC02890A82500C", // initial.2026.09.19.pak
+					},
 					rawXML -> {
 						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
 						rawXML = XMLfix.replace(rawXML, "<Flare _template=\"IgnitionSignalWhite\" ColorMultAtDay=\"1\"", "<Flare _template=\"IgnitionSignalWhite\"");
@@ -1705,6 +1780,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_roofrack_1.xml",
+					"B3266AB9A69E0ED743C3F94E66844981" // initial.2026.10.20.pak
+			);
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_protection_1.xml",
 					"FC731BAA213FAD625C4A5E890AD11116",
@@ -1714,6 +1793,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_protection_1.xml",
+					"A5CE144CA2CEE409523D3A176DA13778" // initial.2026.10.20.pak
+			);
 			
 			// initial.2026.09.19.pak
 			XMLfix.add(fixes,
@@ -1752,6 +1835,10 @@ public class XMLTemplateStructure {
 							  "\t\t\t\tMinLimit=\"-0.2\"\r\n"
 							+ "\t\t\t\tMaxLimit=\"0.3\"\r\n")
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\addons\\frame_addon_mercedes_3850_service.xml",
+					"50EC1A4D5A384B0340AA9DABB4BE1A25" // initial.2026.10.20.pak
+			);
 			
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_bumper_1.xml",
@@ -1764,6 +1851,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_bumper_1.xml",
+					"5A089BB924BB014AC565006374C248C4" // initial.2026.10.20.pak
+			);
 			
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_bumper_2.xml",
@@ -1774,6 +1865,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_bumper_2.xml",
+					"870904F5CB6319097F53E47951BBEBFE" // initial.2026.10.20.pak
+			);
 			
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_protection_1.xml",
@@ -1785,6 +1880,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_3850_tuning\\mercedes_3850_protection_1.xml",
+					"692394980532F72F70668E95789BE85A" // initial.2026.10.20.pak
+			);
 			
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_bumper_1.xml",
@@ -1797,6 +1896,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_bumper_1.xml",
+					"0421A24BD80A132A95F6EA94B86A080A" // initial.2026.10.20.pak
+			);
 			
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_bumper_2.xml",
@@ -1809,6 +1912,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_bumper_2.xml",
+					"9C99F55BEC62718F62EE763E5966C9D6" // initial.2026.10.20.pak
+			);
 			
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_protection_1.xml",
@@ -1820,17 +1927,10 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
-			
-			XMLfix.add(fixes,
-					"\\[media]\\_dlc\\dlc_17_5\\classes\\trucks\\mercedes_benz_zetros_6x6_tuning\\mercedes_benz_zetros_6x6_roofrack_1.xml",
-					"102991E02C2EE1BF25FC02890A82500C",
-					rawXML -> {
-						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
-						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
-						rawXML = XMLfix.remove(rawXML, "ColorMultAtDay=\"1\" ");
-						return rawXML;
-					}
-				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18_1\\classes\\trucks\\mercedes_mamute_1519_tuning\\mercedes_mamute_1519_protection_1.xml",
+					"6095A93EF4F183D5ADA049C213C2443D" // initial.2026.10.20.pak
+			);
 			
 			XMLfix.add(fixes,
 					"\\[media]\\_dlc\\dlc_18\\classes\\trucks\\hib_billert_m816_tuning\\hib_billert_m816_protection_1.xml",
@@ -1842,20 +1942,22 @@ public class XMLTemplateStructure {
 						return rawXML;
 					}
 				);
+			XMLfix.setFixed(fixes,
+					"\\[media]\\_dlc\\dlc_18\\classes\\trucks\\hib_billert_m816_tuning\\hib_billert_m816_protection_1.xml",
+					"09788A8DC9009F725B20FEDEB1362CE1" // initial.2026.10.20.pak
+			);
 			
+			// initial.2026.10.20.pak 
 			XMLfix.add(fixes,
-					"\\[media]\\_dlc\\dlc_16\\classes\\trucks\\trailers\\semitrailer_foldable_log.xml",
-					"AE1BF26A568BD9F47034AEB389DFDB99",
+					"\\[media]\\_dlc\\us_19\\classes\\models\\house_16_us19_objective.xml",
+					"6E750784500004865D91F0FB6C4CB10D",
 					rawXML -> XMLfix.replace(rawXML,
-							  "\t\t\tUseTrailerFrame=\"true\"\t\t\t\r\n"
-							+ "\t\t\tQuantity=\"1\"\r\n"
-							+ "\t\t\tQuantity=\"1\"\r\n"
-							+ "\t\t/>\r\n",
-							  "\t\t\tUseTrailerFrame=\"true\"\t\t\t\r\n"
-							+ "\t\t\tQuantity=\"1\"\r\n"
-							+ "\t\t/>\r\n")
+							  "<ModelBrand NightLightingShadowsAllowCap=\"true\" DynamicModel=\"true\" NightLightingShadowsAllowCap=\"true\"\r\n",
+							  "<ModelBrand NightLightingShadowsAllowCap=\"true\" DynamicModel=\"true\"\r\n"
+					)
 				);
 			
+			// fixes.showCounts();
 			return fixes;
 		}
 	}
