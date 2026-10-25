@@ -95,83 +95,6 @@ name = Rezvani Tank
 truck = rezvani_tank
 
 [DLC]
-name = Season 10: Fix & Connect
-truck = kenworth_963
-truck = mack_defense_m917
-region = us_10
-map = level_us_10_01
-map = level_us_10_02
-
-[DLC]
-name = Season 11: Lights & Cameras
-truck = burlak_6x6
-truck = neo_falcon_2000
-region = us_11
-map = level_us_11_01
-map = level_us_11_02
-
-[DLC]
-name = Season 12: Public Energy
-truck = femm_37at
-truck = mtb_8106
-region = us_12
-map = level_us_12_01
-map = level_us_12_02
-map = level_us_12_03
-map = level_us_12_04
-
-[DLC]
-name = Season 13: Dig & Drill
-truck = aac_58dw
-truck = plad_450
-region = ru_13
-map = level_ru_13_01
-
-[DLC]
-name = Season 14: Reap & Sow
-truck = ankatra_1160
-truck = earthroamer_lti
-truck = earthroamer_sx
-truck = futom_7290ra
-region = us_14
-map = level_us_14_01
-map = level_us_14_02
-
-[DLC]
-name = Season 15: Oil & Dirt
-truck = mercer_k520
-truck = sleiter_mfk816
-region = us_15
-map = level_us_15_01
-map = level_us_15_02
-
-[DLC]
-name = Season 16: High Voltage
-truck = hib_billert_1980
-truck = plad_440
-truck = sleiter_st833_chimera
-region = us_16
-map = level_us_16_01
-map = level_us_16_02
-map = level_us_16_03
-
-[DLC]
-name = Season 17: Repair & Rescue
-truck = jangsu_rx600
-truck = voron_g5352
-region = ru_17
-map = level_ru_17_01
-map = level_ru_17_02
-
-[DLC]
-name = Season 18: Patch & Power
-truck = hib_billert_m816
-truck = mercer_6x6r_230
-region = us_18
-map = level_us_18_01
-map = level_us_18_02
-
-[DLC]
 name = Season 01: Search & Recover
 truck = ford_f750
 truck = tuz_108_warthog
@@ -249,6 +172,91 @@ truck = zikz_566a
 region = us_09
 map = level_us_09_01
 map = level_us_09_02
+
+[DLC]
+name = Season 10: Fix & Connect
+truck = kenworth_963
+truck = mack_defense_m917
+region = us_10
+map = level_us_10_01
+map = level_us_10_02
+
+[DLC]
+name = Season 11: Lights & Cameras
+truck = burlak_6x6
+truck = neo_falcon_2000
+region = us_11
+map = level_us_11_01
+map = level_us_11_02
+
+[DLC]
+name = Season 12: Public Energy
+truck = femm_37at
+truck = mtb_8106
+region = us_12
+map = level_us_12_01
+map = level_us_12_02
+map = level_us_12_03
+map = level_us_12_04
+
+[DLC]
+name = Season 13: Dig & Drill
+truck = aac_58dw
+truck = plad_450
+region = ru_13
+map = level_ru_13_01
+
+[DLC]
+name = Season 14: Reap & Sow
+truck = ankatra_1160
+truck = earthroamer_lti
+truck = earthroamer_sx
+truck = futom_7290ra
+region = us_14
+map = level_us_14_01
+map = level_us_14_02
+
+[DLC]
+name = Season 15: Oil & Dirt
+truck = mercer_k520
+truck = sleiter_mfk816
+region = us_15
+map = level_us_15_01
+map = level_us_15_02
+
+[DLC]
+name = Season 16: High Voltage
+truck = hib_billert_1980
+truck = plad_440
+truck = sleiter_st833_chimera
+region = us_16
+map = level_us_16_01
+map = level_us_16_02
+map = level_us_16_03
+
+[DLC]
+name = Season 17: Repair & Rescue
+truck = jangsu_rx600
+truck = voron_g5352
+region = ru_17
+map = level_ru_17_01
+map = level_ru_17_02
+
+[DLC]
+name = Season 18: Patch & Power
+truck = hib_billert_m816
+truck = mercer_6x6r_230
+region = us_18
+map = level_us_18_01
+map = level_us_18_02
+
+[DLC]
+name = Season 19: Research & Restore
+truck = derry_savior
+truck = wortek_250t
+map = level_us_19_01
+map = level_us_19_02
+map = level_us_19_03
 
 [DLC]
 name = TATRA Dual Pack
